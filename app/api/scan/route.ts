@@ -3,8 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { scanProject, ScanError } from "@/lib/scanner";
 import { analyzeResult } from "@/lib/analyzer";
 import { validateSupabaseUrl, validateAnonKey, ValidationError } from "@/lib/sanitize";
-import { checkScanRateLimit } from "@/lib/rateLimit";
-import { getSupabaseAdmin } from "@/lib/supabase";
+import { checkScanRateLimit, getClientIpHash } from "@/lib/rateLimit";
+import { getSupabaseAdmin, getSupabaseUser } from "@/lib/supabase";
 
 export async function POST(req: NextRequest) {
   let body: unknown;
@@ -47,17 +47,19 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Rate limiting — an available bonus scan bypasses the 1/hour IP limit
+  // Rate limiting — an available bonus scan bypasses the 1/hour IP limit.
+  // use_bonus_scan() takes no params and resolves the caller via auth.uid(),
+  // so it must be called through the user's own JWT (getSupabaseUser), not
+  // the service-role client — auth.uid() would be null under service role.
   const useBonusScan = req.headers.get("x-bonus-scan") === "1" && userId !== null;
   let ipHash: string;
 
   if (useBonusScan) {
-    const { data: remaining, error } = await admin.rpc("use_bonus_scan", { user_id: userId });
+    const { data: remaining, error } = await getSupabaseUser(token!).rpc("use_bonus_scan");
     if (error || remaining === -1) {
       return NextResponse.json({ error: "No bonus scans available." }, { status: 429 });
     }
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "anonymous";
-    ipHash = createHash("sha256").update(ip).digest("hex");
+    ipHash = getClientIpHash(req);
   } else {
     const limit = await checkScanRateLimit(req);
     if (limit.limited) return limit.response;
@@ -92,16 +94,20 @@ export async function POST(req: NextRequest) {
   const urlHash = createHash("sha256").update(supabaseUrl).digest("hex");
   const criticalCount = analysis.issues.filter((i) => i.severity === "CRITICAL").length;
 
-  admin
-    .from("scan_logs")
-    .insert({
-      project_ref: urlHash.slice(-6),
-      grade: analysis.grade,
-      issue_count: analysis.issues.length,
-      critical_count: criticalCount,
-      ip_hash: ipHash,
-    })
-    .then(() => {}, () => {});
+  // Awaited (not fire-and-forget): this row is what the next request's rate
+  // limit check counts against. Firing it without awaiting created a race —
+  // a client sending requests back-to-back could have its next request's
+  // count-check run before this insert committed, slipping past the 1/hour
+  // limit. Confirmed via 3 rapid sequential requests during the 2026-06-22
+  // security audit (2nd request succeeded when it should have been blocked).
+  const { error: logError } = await admin.from("scan_logs").insert({
+    project_ref: urlHash.slice(-6),
+    grade: analysis.grade,
+    issue_count: analysis.issues.length,
+    critical_count: criticalCount,
+    ip_hash: ipHash,
+  });
+  if (logError) console.error("[scan] scan_logs insert error:", logError.message);
 
   if (userId) {
     admin

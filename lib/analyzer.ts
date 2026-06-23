@@ -521,7 +521,7 @@ export async function analyzeResult(scan: ScanResult): Promise<AnalysisResult> {
     response = await client.messages.create(
       {
         model,
-        max_tokens: 1000,
+        max_tokens: 2500,
         system: SYSTEM_PROMPT,
         messages: [{ role: "user", content: userMessage }],
       },

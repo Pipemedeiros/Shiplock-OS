@@ -1,0 +1,16 @@
+-- 012_revoke_full_issues_column_access.sql
+-- CRITICAL: the "users can read own scan history" RLS policy (migration 004)
+-- restricts which ROWS a user can see (their own), but RLS does not restrict
+-- columns. Any authenticated user could read their own full_issues — including
+-- fix and codefix — directly via the public REST API, completely bypassing the
+-- paywall that is only enforced in app/api/scan/route.ts. service_role (used by
+-- the API route) bypasses column grants entirely, so this does not affect the
+-- app's own server-side reads/writes.
+--
+-- NOTE: this specific REVOKE turned out to be a no-op — see 013. Supabase
+-- grants table-wide SELECT to authenticated/anon by default, and a more
+-- specific column-level revoke does not override a broader table-level grant.
+-- Kept as a real migration file (rather than silently dropped) because it
+-- was actually applied to the live database and is part of the true history;
+-- 013 is the migration that actually fixes the problem.
+REVOKE SELECT (full_issues) ON public.scan_history FROM authenticated, anon;

@@ -1,14 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { stripe } from "@/lib/stripe";
+import { getSupabaseAdmin } from "@/lib/supabase";
+import { checkCheckoutRateLimit } from "@/lib/rateLimit";
 
 const schema = z.object({
-  email: z.string().email(),
   grade: z.string().max(1).optional(),
   summary: z.string().max(300).optional(),
 });
 
 export async function POST(req: NextRequest) {
+  // Checkout requires an authenticated user — the email used for billing
+  // comes from the verified session, never from the request body.
+  const token = req.headers.get("authorization")?.replace("Bearer ", "");
+  if (!token) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  const admin = getSupabaseAdmin();
+  const { data } = await admin.auth.getUser(token);
+  if (!data.user?.email) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+  const { id: userId, email } = data.user;
+
+  const limit = await checkCheckoutRateLimit(req);
+  if (limit.limited) return limit.response;
+
   let body: unknown;
   try {
     body = await req.json();
@@ -20,7 +38,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
-  const { email, grade, summary } = parsed.data;
+  const { grade, summary } = parsed.data;
 
   const priceId = process.env.STRIPE_PRICE_ID;
   if (!priceId) {
@@ -38,6 +56,7 @@ export async function POST(req: NextRequest) {
     customer_email: email,
     line_items: [{ price: priceId, quantity: 1 }],
     metadata: {
+      userId,
       grade: grade ?? "",
       summary: summary ?? "",
     },
