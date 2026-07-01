@@ -12,7 +12,11 @@ export function SignOutButton() {
     setLoading(true);
     const supabase = getSupabaseBrowser();
     await supabase.auth.signOut();
-    window.location.href = "/";
+    // Temporary: "/" is the correct long-term destination, but production's
+    // real landing page isn't deployed yet (still uncommitted WIP) — it
+    // currently serves the default Next.js scaffold. Redirect to /auth
+    // instead until that ships, then switch this back to "/".
+    window.location.href = "/auth";
   }
 
   return (
