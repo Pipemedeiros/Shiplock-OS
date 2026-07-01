@@ -46,6 +46,10 @@ export async function POST(req: NextRequest) {
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  // TEMP DIAGNOSTIC — remove after confirming the success_url/cancel_url
+  // "Not a valid URL" Stripe error. NEXT_PUBLIC_APP_URL is not a secret
+  // (it's a client-visible var), safe to log as-is.
+  console.log("[checkout] NEXT_PUBLIC_APP_URL raw value:", JSON.stringify(appUrl));
   if (!appUrl) {
     return NextResponse.json({ error: "Checkout is not configured." }, { status: 500 });
   }
