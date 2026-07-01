@@ -46,27 +46,38 @@ export async function POST(req: NextRequest) {
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-  // TEMP DIAGNOSTIC — remove after confirming the success_url/cancel_url
-  // "Not a valid URL" Stripe error. NEXT_PUBLIC_APP_URL is not a secret
-  // (it's a client-visible var), safe to log as-is.
-  console.log("[checkout] NEXT_PUBLIC_APP_URL raw value:", JSON.stringify(appUrl));
   if (!appUrl) {
     return NextResponse.json({ error: "Checkout is not configured." }, { status: 500 });
   }
 
-  const session = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    payment_method_types: ["card"],
-    customer_email: email,
-    line_items: [{ price: priceId, quantity: 1 }],
-    metadata: {
-      userId,
-      grade: grade ?? "",
-      summary: summary ?? "",
-    },
-    success_url: `${appUrl}/?payment=success`,
-    cancel_url: `${appUrl}/?payment=cancelled`,
-  });
+  let session;
+  try {
+    session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      payment_method_types: ["card"],
+      customer_email: email,
+      line_items: [{ price: priceId, quantity: 1 }],
+      metadata: {
+        userId,
+        grade: grade ?? "",
+        summary: summary ?? "",
+      },
+      success_url: `${appUrl}/?payment=success`,
+      cancel_url: `${appUrl}/?payment=cancelled`,
+    });
+  } catch (err) {
+    // TEMP DIAGNOSTIC — remove once the success_url/cancel_url "Not a valid
+    // URL" error is confirmed fixed. NEXT_PUBLIC_APP_URL is not a secret
+    // (it's a client-visible var), safe to return as-is.
+    return NextResponse.json(
+      {
+        error: "Checkout session creation failed.",
+        debug_appUrl: JSON.stringify(appUrl),
+        debug_stripeError: err instanceof Error ? err.message : String(err),
+      },
+      { status: 500 }
+    );
+  }
 
   return NextResponse.json({ url: session.url });
 }
