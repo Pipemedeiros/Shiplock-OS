@@ -1,0 +1,31 @@
+name: Hourly monitoring pass
+
+# GitHub Actions cron instead of Vercel Cron — the Vercel project is on
+# the Hobby plan, which only allows daily-frequency Cron Jobs
+# (confirmed via a rejected deployment: "Hobby accounts are limited to
+# daily cron jobs"). See CLAUDE.md CURRENT STATE / REMAINING_BUILD_REPORT.md
+# item 2 for context: the route itself (/api/monitor/hourly) still runs
+# the same full 15-check scan as the 48h pass, not yet a genuinely
+# lightweight subset — this workflow only solves the scheduling
+# mechanism, not that separate open question.
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch: {} # manual trigger, for testing
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call /api/monitor/hourly
+        run: |
+          status=$(curl -sS -o response.json -w "%{http_code}" --max-time 120 \
+            -X GET "https://shiplock.dev/api/monitor/hourly" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
+          echo "HTTP status: $status"
+          cat response.json
+          echo
+          if [ "$status" -ne 200 ]; then
+            echo "::error::hourly monitor call failed with status $status"
+            exit 1
+          fi
