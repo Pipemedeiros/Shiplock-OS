@@ -38,7 +38,7 @@ export async function sendNewFindingsAlert(
       from: process.env.RESEND_FROM_EMAIL!,
       to: email,
       subject: `ShipLock — ${toAlert.length} new issue${toAlert.length !== 1 ? "s" : ""} found`,
-      text: `Loki found ${toAlert.length} new issue${toAlert.length !== 1 ? "s" : ""} on your monitored project:\n\n${lines}\n\nSign in to ShipLock for the exact fix and code prompt for each.`,
+      text: `ShipLock found ${toAlert.length} new issue${toAlert.length !== 1 ? "s" : ""} on your monitored project:\n\n${lines}\n\nSign in to ShipLock for the exact fix and code prompt for each.`,
     })
     .catch((err) => {
       console.error("[monitoring] alert email send failed:", err instanceof Error ? err.message : err);

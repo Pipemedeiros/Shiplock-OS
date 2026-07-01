@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
             from: process.env.RESEND_FROM_EMAIL!,
             to: email,
             subject: "ShipLock Pro — access granted",
-            text: "Your ShipLock Pro subscription is active. All fixes are now unlocked. Loki is watching your app.",
+            text: "Your ShipLock Pro subscription is active. All fixes are now unlocked, and ShipLock is monitoring your app for changes.",
           })
           .catch(() => {});
       }
