@@ -31,5 +31,6 @@ export interface UserProfile {
   stripe_customer_id?: string;
   monitoring_enabled: boolean;
   monitored_project_url?: string;
+  monitor_webhook_token: string;
   bonus_scans: number;
 }
