@@ -66,17 +66,11 @@ export async function POST(req: NextRequest) {
       cancel_url: `${appUrl}/?payment=cancelled`,
     });
   } catch (err) {
-    // TEMP DIAGNOSTIC — remove once the success_url/cancel_url "Not a valid
-    // URL" error is confirmed fixed. NEXT_PUBLIC_APP_URL is not a secret
-    // (it's a client-visible var), safe to return as-is.
-    return NextResponse.json(
-      {
-        error: "Checkout session creation failed.",
-        debug_appUrl: JSON.stringify(appUrl),
-        debug_stripeError: err instanceof Error ? err.message : String(err),
-      },
-      { status: 500 }
+    console.error(
+      "[checkout] stripe.checkout.sessions.create failed:",
+      err instanceof Error ? err.message : err
     );
+    return NextResponse.json({ error: "Checkout failed. Try again." }, { status: 500 });
   }
 
   return NextResponse.json({ url: session.url });
