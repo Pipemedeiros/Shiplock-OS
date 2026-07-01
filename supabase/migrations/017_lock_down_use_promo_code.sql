@@ -1,0 +1,18 @@
+-- 017_lock_down_use_promo_code.sql
+-- use_promo_code(text) is a SECURITY DEFINER function that mutates
+-- promo_codes.uses_count with no ownership/rate-limit check. Supabase's own
+-- security advisor flags it as anon/authenticated-executable via
+-- /rest/v1/rpc/use_promo_code, and this was confirmed live during the
+-- 2026-07-01 follow-up audit: anyone holding the public anon key can call it
+-- directly, with zero application-layer guard, since /api/promo (the route
+-- meant to gate this) is not built yet (CLAUDE.md: Phase 2).
+--
+-- Not privilege escalation by itself (it never touches is_paid), but it lets
+-- an unauthenticated caller burn through the finite max_uses on real promo
+-- codes before legitimate recipients redeem them.
+--
+-- Fix matches the precedent already set correctly in 014 for
+-- add_bonus_scan(uuid)/use_bonus_scan(uuid): service-role only. When
+-- /api/promo is built, it should call this via getSupabaseAdmin(), the same
+-- way the webhook performs other privileged writes.
+REVOKE EXECUTE ON FUNCTION public.use_promo_code(text) FROM PUBLIC, anon, authenticated;

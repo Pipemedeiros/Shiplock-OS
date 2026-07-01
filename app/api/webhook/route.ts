@@ -24,6 +24,29 @@ export async function POST(req: NextRequest) {
 
   const admin = getSupabaseAdmin();
 
+  // Idempotency guard: gate the entire handler on Stripe's own event.id, not
+  // an application-level check-then-act query. event.id is always present
+  // and guaranteed unique per event (Stripe's own recommended idempotency
+  // key) — unlike stripe_subscription_id, which is nullable and was the
+  // previous (racy) guard. The INSERT below is atomic: under concurrent
+  // duplicate delivery, Postgres's primary-key enforcement guarantees
+  // exactly one insert succeeds and the other fails with 23505, with no
+  // check-then-act window. See migration 018.
+  const { error: dedupeError } = await admin
+    .from("stripe_webhook_events")
+    .insert({ event_id: event.id, event_type: event.type });
+
+  if (dedupeError) {
+    if (dedupeError.code === "23505") {
+      // Already processed (or a concurrent request is processing it right now).
+      return NextResponse.json({ received: true, duplicate: true });
+    }
+    // Fail closed on unexpected DB errors: log and skip side effects rather
+    // than risk double-processing without a working idempotency guard.
+    console.error("[webhook] idempotency insert error:", dedupeError.message);
+    return NextResponse.json({ error: "Webhook processing failed" }, { status: 500 });
+  }
+
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
     const email = session.customer_details?.email ?? session.customer_email;
@@ -55,19 +78,7 @@ export async function POST(req: NextRequest) {
       }
       const profileUpdated = !error && updated && updated.length > 0;
 
-      // Idempotency guard: Stripe retries webhook deliveries, and the
-      // subscribers insert + welcome email below are not naturally
-      // idempotent like the upsert above. Skip both if we've already
-      // recorded this subscription.
-      const { data: existing } = subscriptionId
-        ? await admin
-            .from("subscribers")
-            .select("id")
-            .eq("stripe_subscription_id", subscriptionId)
-            .maybeSingle()
-        : { data: null };
-
-      if (profileUpdated && !existing) {
+      if (profileUpdated) {
         await admin
           .from("subscribers")
           .insert({
