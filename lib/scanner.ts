@@ -790,3 +790,109 @@ export async function scanProject(
     timestamp:        new Date().toISOString(),
   };
 }
+
+// ── Lightweight critical-check pass (hourly monitoring) ────────────────────────
+// Added separately from scanProject() — does not modify or share mutable state
+// with it, and scanProject()'s own behavior/output is unchanged above this
+// line. Checks only 4 items: RLS presence, secrets/key exposure, public
+// storage buckets, and service-role-key submission. Deliberately skips the
+// other 11 checks entirely (no rate-limit burst, no per-table IDOR/mass-
+// assignment probes, no slop-squatting npm lookups, etc.) and, within RLS
+// checking itself, skips the per-table policy-detail fetch that scanProject()
+// does (fetchTablePolicies) — this pass only needs the enabled/disabled
+// boolean per table, not policy contents, so it's materially cheaper than
+// scanProject()'s equivalent step, not just a subset of the same work.
+
+// Check: public storage buckets. Not one of the original 15 checks — new,
+// added for this fast pass specifically per the monitoring spec.
+export interface PublicBucketCheck {
+  tested: boolean;
+  publicBuckets: string[];
+}
+
+async function checkPublicBuckets(supabaseUrl: string, anonKey: string): Promise<PublicBucketCheck> {
+  try {
+    const res = await fetch(`${supabaseUrl}/storage/v1/bucket`, {
+      headers: makeHeaders(anonKey),
+      signal:  AbortSignal.timeout(SHORT_TIMEOUT),
+    });
+    if (!res.ok) return { tested: false, publicBuckets: [] };
+    const buckets = await res.json() as Array<{ name?: string; public?: boolean }>;
+    if (!Array.isArray(buckets)) return { tested: false, publicBuckets: [] };
+    return {
+      tested: true,
+      publicBuckets: buckets
+        .filter((b) => b.public === true && typeof b.name === "string")
+        .map((b) => b.name as string),
+    };
+  } catch {
+    return { tested: false, publicBuckets: [] };
+  }
+}
+
+export interface FastScanResult {
+  keyAnalysis:      KeyAnalysis;
+  tables:           TableResult[]; // policies always [] / policiesRetrieved false — not fetched in this pass
+  secretsExposure:  SecretsExposureCheck;
+  publicBuckets:    PublicBucketCheck;
+  timestamp:        string;
+}
+
+export async function scanCriticalChecks(rawUrl: string, rawAnonKey: string): Promise<FastScanResult> {
+  let supabaseUrl: string;
+  let anonKey:     string;
+  try {
+    supabaseUrl = validateSupabaseUrl(rawUrl);
+    anonKey     = validateAnonKey(rawAnonKey);
+  } catch (err) {
+    if (err instanceof ValidationError) throw new ScanError(err.message, "MALFORMED_URL");
+    throw err;
+  }
+
+  const restBase = `${supabaseUrl}/rest/v1`;
+
+  // Service-role-key submission — synchronous, free, no network call.
+  const keyAnalysis = analyzeKey(anonKey);
+
+  // Table enumeration straight from the PostgREST spec — the spec already
+  // only lists tables genuinely exposed via the API, so unlike scanProject()
+  // this pass does not additionally probeTable() each one to confirm
+  // existence; that's scanProject()'s extra defensiveness for the full/paid
+  // report, not needed just to know which tables to check RLS on here.
+  let tableNames: string[];
+  try {
+    const spec = await fetchJSON<PostgRESTSpec>(`${restBase}/`, anonKey);
+    tableNames = Object.keys(spec.paths ?? {})
+      .filter((p) => p.length > 1 && !p.startsWith("/rpc/"))
+      .map((p) => p.slice(1));
+  } catch (err) {
+    if (err instanceof ScanError && err.code === "INVALID_CREDENTIALS") {
+      tableNames = [...COMMON_TABLE_NAMES];
+    } else {
+      throw err;
+    }
+  }
+
+  // RLS presence — one batched pg_tables query for every table's rowsecurity
+  // flag, no per-table policy-detail fetch.
+  const rlsStatusMap = await fetchRlsStatusMap(restBase, anonKey);
+  const tables: TableResult[] = tableNames.map((name) => ({
+    name,
+    rlsEnabled:        rlsStatusMap.has(name) ? rlsStatusMap.get(name)! : true,
+    policies:           [],
+    policiesRetrieved: false,
+  }));
+
+  const [secretsExposure, publicBuckets] = await Promise.all([
+    checkSecretsExposure(supabaseUrl),
+    checkPublicBuckets(supabaseUrl, anonKey),
+  ]);
+
+  return {
+    keyAnalysis,
+    tables,
+    secretsExposure,
+    publicBuckets,
+    timestamp: new Date().toISOString(),
+  };
+}

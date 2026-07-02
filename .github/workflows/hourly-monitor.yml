@@ -1,13 +1,12 @@
 name: Hourly monitoring pass
 
 # GitHub Actions cron instead of Vercel Cron — the Vercel project is on
-# the Hobby plan, which only allows daily-frequency Cron Jobs
-# (confirmed via a rejected deployment: "Hobby accounts are limited to
-# daily cron jobs"). See CLAUDE.md CURRENT STATE / REMAINING_BUILD_REPORT.md
-# item 2 for context: the route itself (/api/monitor/hourly) still runs
-# the same full 15-check scan as the 48h pass, not yet a genuinely
-# lightweight subset — this workflow only solves the scheduling
-# mechanism, not that separate open question.
+# the Hobby plan, which only allows daily-frequency Cron Jobs (confirmed
+# via a rejected deployment: "Hobby accounts are limited to daily cron
+# jobs"). The route itself (/api/monitor/hourly) now runs a genuinely
+# lightweight 4-check pass (lib/scanner.ts scanCriticalChecks), not the
+# full 15-check scan the 48h pass uses — see lib/monitoring/run.ts for
+# how findings from the two different scopes are merged correctly.
 on:
   schedule:
     # :17 past the hour, not :00 — GitHub's own docs flag the top of every

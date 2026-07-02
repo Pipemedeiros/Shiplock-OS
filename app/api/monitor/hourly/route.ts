@@ -2,18 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { runMonitoringPass } from "@/lib/monitoring";
 
-// The hourly "fast" pass (item 2). IMPORTANT — see REMAINING_BUILD_REPORT.md
-// and the follow-up flagged to the project owner: this currently runs the
-// SAME full 15-check scanProject() as the 48h pass. It is not actually
-// lightweight yet. "RLS presence" (the most important item in the fast-pass
-// spec) is architecturally the most expensive part of scanProject() — it
-// requires enumerating every table and fetching policies for each, which
-// is the same work the full scan does. Making this genuinely cheap needs
-// either dropping RLS from the hourly cadence (relying on the 48h pass for
-// it) or extracting a lighter-weight path inside lib/scanner.ts, which
-// CLAUDE.md flags as not-to-be-modified without instruction. Shipped as a
-// functionally-correct placeholder (correct diffing/alerting behavior,
-// just not yet cheaper to run) rather than guessing which tradeoff to make.
+// The hourly "fast" pass (item 2). Genuinely lightweight now — runs
+// lib/scanner.ts's scanCriticalChecks() (RLS presence, secrets/key
+// exposure, public storage buckets, service-role-key submission) via
+// runMonitoringPass()'s trigger-based branching, not the full 15-check
+// scanProject() the 48h pass uses. See lib/monitoring/run.ts for exactly
+// how that split works and why last_monitored_at is deliberately not
+// touched here.
+// Scheduled via .github/workflows/hourly-monitor.yml (GitHub Actions, not
+// Vercel Cron — the Vercel project is on the Hobby plan, which only
+// allows daily-frequency Cron Jobs).
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization");
   if (auth !== `Bearer ${process.env.CRON_SECRET}`) {

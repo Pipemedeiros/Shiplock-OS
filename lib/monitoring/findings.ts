@@ -1,4 +1,4 @@
-import type { ScanResult } from "@/lib/scanner";
+import type { ScanResult, FastScanResult } from "@/lib/scanner";
 import type { Severity } from "@/lib/types";
 
 // Deterministic finding extraction for monitoring — does NOT call Claude.
@@ -152,6 +152,79 @@ export function extractFindings(scan: ScanResult): Finding[] {
       severity: "WARNING",
       title: "No rate-limit headers in API responses",
       consequence: "Bots cannot self-throttle and can hammer the API undetected.",
+    });
+  }
+
+  return findings;
+}
+
+// Counterpart to extractFindings() for the hourly lightweight pass
+// (lib/scanner.ts scanCriticalChecks / FastScanResult) — same Finding
+// shape, so the diff engine doesn't need to know which scan produced a
+// given finding. Deliberately reuses the SAME id strings as extractFindings
+// for the checks both passes cover (service_role_key, rls:<table>,
+// secrets_exposure) — this is required for correct cross-trigger diffing:
+// runMonitoringPass() diffs against whichever snapshot is most recent
+// regardless of trigger source, so an hourly pass and a 48h pass must
+// agree on a finding's id or the diff engine would see every trigger
+// alternation as a "new" finding and spam alerts. public_bucket:<name> is
+// new — the full 15-check scan doesn't check storage buckets at all, so
+// there's no id collision to worry about there.
+// Whether a finding id could have been produced by the critical/hourly
+// pass (extractCriticalFindings) — used by run.ts to merge snapshots
+// correctly across passes of different scope. See run.ts for why this
+// matters: without it, a narrower pass would make out-of-scope findings
+// look "resolved" (they were just not re-checked), which then makes them
+// look "new" again on the next wider pass — a spurious duplicate alert for
+// something that was never actually fixed.
+export function isCriticalScopeFindingId(id: string): boolean {
+  return (
+    id === "service_role_key" ||
+    id.startsWith("rls:") ||
+    id === "secrets_exposure" ||
+    id.startsWith("public_bucket:")
+  );
+}
+
+export function extractCriticalFindings(scan: FastScanResult): Finding[] {
+  const findings: Finding[] = [];
+
+  if (scan.keyAnalysis?.isServiceRole) {
+    findings.push({
+      id: "service_role_key",
+      severity: "CRITICAL",
+      title: "Service role key submitted to a public scanner",
+      consequence:
+        "Your master key bypasses all RLS and can read or modify every table. Rotate it immediately.",
+    });
+  }
+
+  for (const t of scan.tables) {
+    if (!t.rlsEnabled) {
+      findings.push({
+        id: `rls:${t.name}`,
+        severity: "CRITICAL",
+        title: `Row Level Security disabled on "${t.name}"`,
+        consequence: `Any user with the anon key can read all rows from ${t.name}.`,
+      });
+    }
+  }
+
+  if ((scan.secretsExposure?.exposedFiles?.length ?? 0) > 0) {
+    findings.push({
+      id: "secrets_exposure",
+      severity: "CRITICAL",
+      title: "Environment file publicly accessible",
+      consequence: `Secret files are reachable at the project URL: ${scan.secretsExposure!.exposedFiles.join(", ")}`,
+    });
+  }
+
+  for (const bucketName of scan.publicBuckets?.publicBuckets ?? []) {
+    findings.push({
+      id: `public_bucket:${bucketName}`,
+      severity: "CRITICAL",
+      title: `Storage bucket "${bucketName}" is publicly readable`,
+      consequence: `Anyone with the anon key can list and download files from the "${bucketName}" bucket without authentication.`,
     });
   }
 
