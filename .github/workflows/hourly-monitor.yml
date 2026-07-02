@@ -10,7 +10,12 @@ name: Hourly monitoring pass
 # mechanism, not that separate open question.
 on:
   schedule:
-    - cron: "0 * * * *"
+    # :17 past the hour, not :00 — GitHub's own docs flag the top of every
+    # hour as a known high-load period for scheduled workflows, precisely
+    # because "0 * * * *" is the most common cron expression on the
+    # platform. Confirmed empirically: the "0 * * * *" version's first
+    # real scheduled run landed at :17 anyway, 17 minutes late.
+    - cron: "17 * * * *"
   workflow_dispatch: {} # manual trigger, for testing
 
 jobs:
