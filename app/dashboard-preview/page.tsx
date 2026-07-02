@@ -103,7 +103,10 @@ export default function DashboardPreviewPage() {
             </div>
             <p className="mt-1 text-sm text-sev-high">3 issues need attention</p>
             <div className="mt-5 h-2 w-full overflow-hidden rounded-full bg-secondary">
-              <div className="h-full rounded-full bg-sev-medium" style={{ width: "72%" }} />
+              <div
+                className="h-full rounded-full bg-sev-medium"
+                style={{ width: "72%", animation: "health-fill 0.9s cubic-bezier(0.16, 1, 0.3, 1)" }}
+              />
             </div>
 
             <div className="mt-7 space-y-3">

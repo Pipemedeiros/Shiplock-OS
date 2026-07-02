@@ -168,6 +168,13 @@
     }
   }
 
+  /* Health bar — fills once on load from 0 up to its inline width. */
+  @keyframes health-fill {
+    from {
+      width: 0;
+    }
+  }
+
   /* Floating Lines — nearly-subliminal background texture, hero only. */
   @keyframes float-line-a {
     0%, 100% { transform: translate(0, 0) rotate(0deg); }
