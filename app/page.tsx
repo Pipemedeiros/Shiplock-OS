@@ -454,7 +454,15 @@ export default function LandingPage() {
       <footer className="border-t border-border px-6 py-10">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row">
           <span className="text-sm text-muted-foreground">© 2026 ShipLock. Built for founders who ship fast.</span>
-          <span className="text-sm text-muted-foreground">support@shiplock.dev</span>
+          <div className="flex items-center gap-5">
+            <Link
+              href="/dashboard-preview"
+              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Product preview →
+            </Link>
+            <span className="text-sm text-muted-foreground">support@shiplock.dev</span>
+          </div>
         </div>
       </footer>
     </main>
