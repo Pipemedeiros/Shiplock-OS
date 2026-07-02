@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { ScrollReveal } from "@/components/marketing/scroll-reveal";
+import { FloatingLines } from "@/components/marketing/floating-lines";
 
 // Same class of bug as app/page.tsx: force dynamic rendering so this
 // page's script nonces stay in sync with middleware's per-request CSP
@@ -35,6 +37,9 @@ const SEVERITY_STYLES: Record<string, string> = {
   Pass: "text-sev-pass bg-sev-pass/10 border-sev-pass/25",
 };
 
+// Must stay consistent with app/onboarding/page.tsx — every source shown
+// there as "Coming soon" is "Coming soon" here too. Do not flip any of
+// these to "Connected" until a real connection flow ships.
 const SOURCES = [
   {
     name: "GitHub",
@@ -44,6 +49,10 @@ const SOURCES = [
   {
     name: "Supabase",
     path: "M13.6 2.1c.5-.6 1.5-.2 1.5.6v9.1h6.1c.9 0 1.4 1.1.8 1.8L11.9 21.9c-.5.6-1.5.2-1.5-.6v-9.1H4.3c-.9 0-1.4-1.1-.8-1.8L13.6 2.1Z",
+  },
+  {
+    name: "Firebase",
+    path: "M4.5 20 6.9 3.7c.1-.8 1.2-1 1.6-.3l2.2 4-1.6 1.9L4.5 20Zm0 0 8.3-6.6 3 5.7c-2 1.4-7.6 2.7-11.3.9Zm14.2-3.9-2.8-13c-.2-.8-1.2-1-1.7-.3L11.4 5.6l6.2 12L21.4 20c.7-.4 1-1.2.7-1.9l-3.4-14Z",
   },
 ];
 
@@ -83,8 +92,10 @@ export default function DashboardPreviewPage() {
         <p className="mt-2 text-muted-foreground">acme-app.vercel.app · sample project, for illustration only</p>
 
         <div className="mt-10 grid gap-6 lg:grid-cols-[1fr_1.4fr]">
-          {/* Health score */}
-          <div className="rounded-2xl border border-border bg-card p-7 shadow-sm">
+          {/* Health score — `isolate` keeps the -z-10 texture above the
+              card's own background instead of vanishing behind it */}
+          <div className="relative isolate overflow-hidden rounded-2xl border border-border bg-card p-7 shadow-sm">
+            <FloatingLines />
             <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Security health</p>
             <div className="mt-3 flex items-baseline gap-2">
               <span className="font-display text-5xl font-bold text-foreground">72</span>
@@ -92,7 +103,7 @@ export default function DashboardPreviewPage() {
             </div>
             <p className="mt-1 text-sm text-sev-high">3 issues need attention</p>
             <div className="mt-5 h-2 w-full overflow-hidden rounded-full bg-secondary">
-              <div className="h-full rounded-full bg-accent-indigo" style={{ width: "72%" }} />
+              <div className="h-full rounded-full bg-sev-medium" style={{ width: "72%" }} />
             </div>
 
             <div className="mt-7 space-y-3">
@@ -105,9 +116,8 @@ export default function DashboardPreviewPage() {
                     </svg>
                     <span className="text-sm font-medium text-foreground">{s.name}</span>
                   </span>
-                  <span className="flex items-center gap-1.5 text-xs font-medium text-sev-pass">
-                    <span className="size-1.5 rounded-full bg-sev-pass" />
-                    Connected
+                  <span className="rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
+                    Coming soon
                   </span>
                 </div>
               ))}
@@ -117,18 +127,20 @@ export default function DashboardPreviewPage() {
           {/* Alerts + roadmap card */}
           <div className="flex flex-col gap-6">
             <div className="rounded-2xl border border-border bg-card p-7 shadow-sm">
-              <p className="mb-4 text-xs font-medium tracking-wide text-muted-foreground uppercase">Recent alerts</p>
-              <div className="space-y-2.5">
-                {ALERTS.map((a) => (
-                  <div key={a.text} className="flex items-center gap-3 rounded-lg border border-border bg-secondary/40 px-3.5 py-2.5">
-                    <span
-                      className={`inline-flex shrink-0 items-center rounded border px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${SEVERITY_STYLES[a.severity]}`}
-                    >
-                      {a.severity}
-                    </span>
-                    <span className="flex-1 text-sm text-foreground/85">{a.text}</span>
-                    <span className="shrink-0 text-xs text-muted-foreground">{a.time}</span>
-                  </div>
+              <p className="mb-3 text-xs font-medium tracking-wide text-muted-foreground uppercase">Recent alerts</p>
+              <div className="font-mono text-[13px]">
+                {ALERTS.map((a, i) => (
+                  <ScrollReveal key={a.text} delayMs={i * 90}>
+                    <div className="flex items-center gap-3 border-b border-border/70 py-3 last:border-b-0">
+                      <span
+                        className={`inline-flex w-[72px] shrink-0 items-center justify-center rounded border px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${SEVERITY_STYLES[a.severity]}`}
+                      >
+                        {a.severity}
+                      </span>
+                      <span className="flex-1 truncate text-foreground/85">{a.text}</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">{a.time}</span>
+                    </div>
+                  </ScrollReveal>
                 ))}
               </div>
             </div>

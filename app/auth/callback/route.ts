@@ -9,7 +9,7 @@ import { getSupabaseServer } from "@/lib/supabaseServer";
 export async function GET(req: NextRequest) {
   const { searchParams, origin } = new URL(req.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/dashboard";
+  const next = searchParams.get("next") ?? "/onboarding";
 
   if (code) {
     const supabase = await getSupabaseServer();
