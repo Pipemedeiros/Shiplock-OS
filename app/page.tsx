@@ -5,6 +5,17 @@ import { ScrollReveal } from "@/components/marketing/scroll-reveal";
 import { OAuthButtons } from "@/components/marketing/oauth-buttons";
 import { LegalAccordion } from "@/components/marketing/legal-accordion";
 
+// This page has no dynamic data, so Next would otherwise statically
+// prerender it at build time — before middleware.ts ever runs, and before
+// any request-scoped CSP nonce exists. The cached static HTML's scripts
+// then carry no nonce (or a stale one), while middleware sets a brand-new
+// nonce on every live request; the browser blocks every script whose nonce
+// doesn't match, including Next's own hydration/RSC-streaming payloads —
+// silently blanking the whole page below whatever painted synchronously.
+// Forcing dynamic rendering keeps the HTML (and its script nonces) in sync
+// with the header middleware sets for that same request.
+export const dynamic = "force-dynamic";
+
 const SEVERITY_STYLES: Record<string, string> = {
   Critical: "text-sev-critical bg-sev-critical/10 border-sev-critical/25",
   High: "text-sev-high bg-sev-high/10 border-sev-high/25",
