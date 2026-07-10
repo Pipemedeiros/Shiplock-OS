@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSupabaseServer } from "@/lib/supabaseServer";
-import { Logo } from "@/components/logo";
 import { AuthForm } from "@/components/auth-form";
+import { LockMark } from "@/components/d/Brand";
 
 export default async function AuthPage({
   searchParams,
@@ -22,11 +22,25 @@ export default async function AuthPage({
 
   return (
     <main
-      className="flex min-h-screen flex-col items-center justify-center px-6 py-16"
-      style={{ backgroundColor: "#0a0a0f" }}
+      className="dxd"
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "64px 24px",
+      }}
     >
-      <Link href="/" className="mb-10">
-        <Logo />
+      <Link
+        href="/"
+        className="dxd-wordmark"
+        style={{ marginBottom: 40, display: "inline-flex", alignItems: "center", gap: 8 }}
+      >
+        <span className="dxd-wordmark-lock">
+          <LockMark size={19} />
+        </span>
+        ShipLock
       </Link>
       <AuthForm oauthError={error === "oauth_failed"} />
     </main>

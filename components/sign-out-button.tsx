@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
 
 export function SignOutButton() {
@@ -12,23 +11,18 @@ export function SignOutButton() {
     setLoading(true);
     const supabase = getSupabaseBrowser();
     await supabase.auth.signOut();
-    // Temporary: "/" is the correct long-term destination, but production's
-    // real landing page isn't deployed yet (still uncommitted WIP) — it
-    // currently serves the default Next.js scaffold. Redirect to /auth
-    // instead until that ships, then switch this back to "/".
-    window.location.href = "/auth";
+    window.location.href = "/";
   }
 
   return (
-    <Button
+    <button
       type="button"
-      variant="outline"
       disabled={loading}
       onClick={handleSignOut}
-      className="h-9 gap-2 rounded-lg border-[#1f2937] bg-transparent text-[13px] font-medium text-white hover:bg-white/5"
+      className="dxd-btn dxd-btn-ghost dxd-btn-sm"
     >
       {loading && <Loader2 className="size-3.5 animate-spin" />}
       Sign out
-    </Button>
+    </button>
   );
 }

@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
 
 type Mode = "sign-in" | "sign-up";
@@ -94,18 +92,17 @@ export function AuthForm({ oauthError = false }: { oauthError?: boolean }) {
   }
 
   return (
-    <div className="w-full max-w-[380px] rounded-2xl border border-[#1f2937] bg-[#080808] p-8">
-      <h1 className="text-center text-xl font-semibold text-white">
+    <div className="dxd-onb-card" style={{ maxWidth: 380, margin: 0 }}>
+      <h1 className="dxd-serif" style={{ textAlign: "center", fontSize: 22, fontWeight: 600, margin: 0 }}>
         {mode === "sign-in" ? "Sign in" : "Create your account"}
       </h1>
 
-      <div className="mt-6 flex flex-col gap-2.5">
-        <Button
+      <div className="dxd-oauth" style={{ marginTop: 24 }}>
+        <button
           type="button"
-          variant="outline"
           disabled={oauthLoading !== null}
           onClick={() => handleOAuth("google")}
-          className="h-11 w-full gap-2.5 rounded-lg border-[#1f2937] bg-transparent text-[14px] font-medium text-white hover:bg-white/5"
+          className="dxd-oauth-btn"
         >
           {oauthLoading === "google" ? (
             <Loader2 className="size-4 animate-spin" />
@@ -113,13 +110,12 @@ export function AuthForm({ oauthError = false }: { oauthError?: boolean }) {
             <GoogleMark />
           )}
           Continue with Google
-        </Button>
-        <Button
+        </button>
+        <button
           type="button"
-          variant="outline"
           disabled={oauthLoading !== null}
           onClick={() => handleOAuth("github")}
-          className="h-11 w-full gap-2.5 rounded-lg border-[#1f2937] bg-transparent text-[14px] font-medium text-white hover:bg-white/5"
+          className="dxd-oauth-btn"
         >
           {oauthLoading === "github" ? (
             <Loader2 className="size-4 animate-spin" />
@@ -127,48 +123,48 @@ export function AuthForm({ oauthError = false }: { oauthError?: boolean }) {
             <GitHubMark />
           )}
           Continue with GitHub
-        </Button>
+        </button>
       </div>
 
-      <div className="my-6 flex items-center gap-3">
-        <div className="h-px flex-1 bg-[#1f2937]" />
-        <span className="text-[11px] uppercase text-[#4b5563]" style={{ letterSpacing: "0.08em" }}>
-          or
-        </span>
-        <div className="h-px flex-1 bg-[#1f2937]" />
-      </div>
+      <div className="dxd-divider">or</div>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        <Input
-          type="email"
-          required
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          disabled={loading}
-          autoComplete="email"
-          className="h-11 rounded-lg border-[#1f2937] bg-transparent px-4 text-[14px] text-white shadow-none placeholder:text-[#52525b]"
-        />
-        <Input
-          type="password"
-          required
-          minLength={6}
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          disabled={loading}
-          autoComplete={mode === "sign-in" ? "current-password" : "new-password"}
-          className="h-11 rounded-lg border-[#1f2937] bg-transparent px-4 text-[14px] text-white shadow-none placeholder:text-[#52525b]"
-        />
+      <form onSubmit={handleSubmit}>
+        <div className="dxd-field">
+          <label htmlFor="dxd-auth-email">Email</label>
+          <input
+            id="dxd-auth-email"
+            type="email"
+            required
+            placeholder="you@company.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={loading}
+            autoComplete="email"
+          />
+        </div>
+        <div className="dxd-field">
+          <label htmlFor="dxd-auth-pass">Password</label>
+          <input
+            id="dxd-auth-pass"
+            type="password"
+            required
+            minLength={6}
+            placeholder="••••••••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={loading}
+            autoComplete={mode === "sign-in" ? "current-password" : "new-password"}
+          />
+        </div>
 
-        {error && <p className="text-[13px] text-[#ef4444]">{error}</p>}
-        {notice && <p className="text-[13px] text-[#22c55e]">{notice}</p>}
+        {error && (
+          <p style={{ fontSize: 13, color: "var(--d-signal)", margin: "0 0 14px" }}>{error}</p>
+        )}
+        {notice && (
+          <p style={{ fontSize: 13, color: "var(--d-verified)", margin: "0 0 14px" }}>{notice}</p>
+        )}
 
-        <Button
-          type="submit"
-          disabled={loading}
-          className="mt-1 h-11 rounded-lg bg-[#3b82f6] text-[14px] font-medium text-white hover:bg-[#2f6fd8]"
-        >
+        <button type="submit" disabled={loading} className="dxd-btn" style={{ width: "100%" }}>
           {loading ? (
             <Loader2 className="size-4 animate-spin" />
           ) : mode === "sign-in" ? (
@@ -176,10 +172,10 @@ export function AuthForm({ oauthError = false }: { oauthError?: boolean }) {
           ) : (
             "Create account"
           )}
-        </Button>
+        </button>
       </form>
 
-      <p className="mt-6 text-center text-[13px] text-[#71717a]">
+      <p style={{ marginTop: 22, textAlign: "center", fontSize: 13, color: "var(--d-muted)" }}>
         {mode === "sign-in" ? "Don't have an account? " : "Already have an account? "}
         <button
           type="button"
@@ -188,7 +184,7 @@ export function AuthForm({ oauthError = false }: { oauthError?: boolean }) {
             setError("");
             setNotice("");
           }}
-          className="text-[#3b82f6] hover:underline"
+          style={{ color: "var(--d-bronze)", fontWeight: 600, background: "none", border: "none", cursor: "pointer" }}
         >
           {mode === "sign-in" ? "Sign up" : "Sign in"}
         </button>
