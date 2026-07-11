@@ -54,20 +54,27 @@ Each table has rlsEnabled, policiesRetrieved, and policies fields.
 ═══════════════════════════════════════════════════════════
 CHECK 2 — KEY TYPE  (keyAnalysis)
 ═══════════════════════════════════════════════════════════
-keyAnalysis fields: role, isServiceRole, jwtValid, projectRef
+keyAnalysis fields: role, isServiceRole, jwtValid, projectRef, keyFormat
+keyFormat is "jwt" (legacy anon/service_role JWT), "publishable" (current
+sb_publishable_... anon-equivalent), or "secret" (current sb_secret_...
+service_role-equivalent) — both key models are in real use, treat them
+identically by isServiceRole, not by keyFormat.
 
-• isServiceRole: true
-  → CRITICAL. The user submitted their master service_role key to a public
-    scanner. This key bypasses ALL RLS, can read/write everything, and must
-    never leave the server.
-  → Fix: rotate the service_role key immediately in the Supabase dashboard,
-    and use only the anon key for client-side operations.
+• isServiceRole: true (keyFormat "jwt" with role "service_role", OR
+  keyFormat "secret")
+  → CRITICAL. The user submitted their master key — service_role JWT or
+    sb_secret_... — to a public scanner. This key bypasses ALL RLS, can
+    read/write everything, and must never leave the server.
+  → Fix: rotate the key immediately in the Supabase dashboard, and use
+    only the anon/publishable key for client-side operations.
 
-• isServiceRole: false, role: "anon"
-  → GOOD. Correct key type for scanning.
+• isServiceRole: false, keyFormat "jwt", role: "anon" — OR keyFormat
+  "publishable"
+  → GOOD. Correct key type for scanning, either key model.
 
 • jwtValid: false
-  → WARNING. The provided key could not be parsed as a JWT. Verify the anon
+  → WARNING. The provided key could not be parsed at all (not a valid JWT,
+    and not a recognized sb_publishable_/sb_secret_ prefix). Verify the
     key is copied correctly from the Supabase dashboard.
 
 ═══════════════════════════════════════════════════════════
@@ -250,7 +257,9 @@ stackTraceCheck fields: tested, exposed
 ═══════════════════════════════════════════════════════════
 CHECK 16 — PUBLIC STORAGE BUCKETS  (publicBuckets)
 ═══════════════════════════════════════════════════════════
-publicBuckets fields: tested, publicBuckets[]  (bucket names)
+publicBuckets fields: tested, publicBuckets[] (bucket names),
+suspiciousFiles[] ({bucket, file} — secret-looking filenames found at the
+root of a public bucket: .env, credentials.json, id_rsa, .pem, etc.)
 
 • publicBuckets[] has entries
   → CRITICAL. One or more Supabase Storage buckets are configured with
@@ -260,6 +269,12 @@ publicBuckets fields: tested, publicBuckets[]  (bucket names)
     Fix: in the Supabase dashboard, open Storage → the bucket → toggle off
     "Public bucket," then add a storage RLS policy scoping access to the
     owning user.
+
+• suspiciousFiles[] additionally has entries
+  → Same CRITICAL finding, but be specific in the consequence text: name
+    the exact file(s) found (e.g. ".env" in bucket "uploads") rather than
+    only saying the bucket is public — this is no longer a theoretical
+    risk, a secret-looking file is sitting there right now.
 
 • publicBuckets[] empty OR tested: false → GOOD.
 
@@ -431,10 +446,14 @@ function buildFallback(scan: ScanResult): AnalysisResult {
   }
   if ((scan.publicBuckets?.publicBuckets?.length ?? 0) > 0) {
     const buckets = scan.publicBuckets!.publicBuckets.join(", ");
+    const suspicious = scan.publicBuckets!.suspiciousFiles ?? [];
+    const consequence = suspicious.length > 0
+      ? `Secret-looking files are sitting in a public bucket right now: ${suspicious.map((s) => `"${s.file}" in "${s.bucket}"`).join(", ")}. Anyone with the anon key can download them without authentication.`
+      : `Anyone with the anon key can list and download files from: ${buckets}, without authentication.`;
     issues.push({
       severity:    "CRITICAL",
       title:       `Storage bucket${scan.publicBuckets!.publicBuckets.length > 1 ? "s" : ""} publicly readable`,
-      consequence: `Anyone with the anon key can list and download files from: ${buckets}, without authentication.`,
+      consequence,
       fix:         "In Supabase Storage, toggle off \"Public bucket\" and add a storage RLS policy scoping access to the owning user.",
     });
   }

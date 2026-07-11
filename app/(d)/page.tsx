@@ -76,7 +76,7 @@ function ExampleAuditPanel() {
 const HOW_IT_WORKS = [
   {
     title: "Connect in one paste",
-    body: "Your project URL and anon key — the same key your app already shares with every visitor's browser. We never ask for more than that.",
+    body: "Your project URL and anon key — the same key your app already shares with every visitor's browser. Add your app's live URL too, optionally, for two more checks — everything we ask for is already public, never a credential beyond that key.",
   },
   {
     title: "First scan in 90 seconds",
@@ -142,7 +142,7 @@ const PRICING = {
 };
 
 const TRUST_LINE =
-  "We only ever ask for your app's public key — the same credential your own frontend already exposes to every visitor. No repo access, no admin tokens, no exceptions.";
+  "We only ever ask for your app's public key, plus an optional public URL — never a credential beyond that key, the same one your own frontend already exposes to every visitor. No repo access, no admin tokens, no exceptions.";
 
 export default function LandingPage() {
   return (
@@ -417,8 +417,8 @@ export default function LandingPage() {
             <h2 className="dxd-h2">Connect your project. We carry the rest.</h2>
             <p className="dxd-lede">
               Sign in, put us on retainer — 7 days free before the first charge — then paste
-              your Supabase URL and anon key. The first audit, grade and every finding, runs
-              immediately.
+              your Supabase URL and anon key (and, optionally, your app&apos;s live URL for two
+              more checks). The first audit, grade and every finding, runs immediately.
             </p>
           </Reveal>
           <Reveal delay={100}>

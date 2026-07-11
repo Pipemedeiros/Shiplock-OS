@@ -32,6 +32,7 @@ export function ConnectAndScanForm() {
   const [phase, setPhase] = useState<Phase>("connect");
   const [supabaseUrl, setSupabaseUrl] = useState("");
   const [anonKey, setAnonKey] = useState("");
+  const [appUrl, setAppUrl] = useState("");
   const [error, setError] = useState("");
   const [result, setResult] = useState<ScanResponse | null>(null);
 
@@ -54,7 +55,7 @@ export function ConnectAndScanForm() {
             ? { Authorization: `Bearer ${session.access_token}` }
             : {}),
         },
-        body: JSON.stringify({ supabaseUrl, anonKey }),
+        body: JSON.stringify({ supabaseUrl, anonKey, ...(appUrl ? { appUrl } : {}) }),
       });
 
       const data = await res.json();
@@ -103,10 +104,25 @@ export function ConnectAndScanForm() {
               spellCheck={false}
             />
           </div>
+          <div className="dxd-field">
+            <label htmlFor="dxd-app-url">
+              Your app&apos;s live URL — optional, adds 2 more checks
+            </label>
+            <input
+              id="dxd-app-url"
+              type="url"
+              placeholder="https://yourapp.vercel.app"
+              value={appUrl}
+              onChange={(e) => setAppUrl(e.target.value)}
+              spellCheck={false}
+            />
+          </div>
           <p className="dxd-keynote">
-            We only ever ask for your app&apos;s public key — the same credential your own
-            frontend already exposes to every visitor. No repo access, no admin tokens, no
-            exceptions.
+            We only ever ask for your app&apos;s public key and, optionally, its public URL —
+            already public either way, not credentials. No repo access, no admin tokens, no
+            exceptions. Skip the URL and we still run 14 of 16 checks; add it and we can also
+            check your deployed frontend for an exposed package.json or .env file — the
+            Supabase URL alone can&apos;t answer that.
           </p>
           {error && (
             <p style={{ fontSize: 13, color: "var(--d-signal)", margin: "0 0 16px" }}>{error}</p>
@@ -146,6 +162,13 @@ export function ConnectAndScanForm() {
                 <p style={{ margin: 0, color: "var(--d-muted)", fontSize: 14.5, lineHeight: 1.65 }}>
                   The step-by-step briefs, the SQL, and the AI-tool prompts are prepared and
                   held on retainer.
+                </p>
+              )}
+              {!result.appUrlChecked && (
+                <p style={{ margin: "6px 0 0", color: "var(--d-muted)", fontSize: 13.5, lineHeight: 1.6 }}>
+                  This scan didn&apos;t include your app&apos;s live URL, so 2 of 16 checks
+                  (exposed package.json, exposed .env) couldn&apos;t look at anything real. Add
+                  it on your next scan for full coverage.
                 </p>
               )}
             </div>

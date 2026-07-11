@@ -22,6 +22,7 @@ export interface ScanResponse {
   summary: string;
   isPaid: boolean;
   issues: PreviewIssue[] | FullIssue[];
+  appUrlChecked: boolean;
 }
 
 export interface UserProfile {

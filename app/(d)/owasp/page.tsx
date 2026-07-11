@@ -31,7 +31,7 @@ const CATEGORIES = [
     name: "Software Supply Chain Failures",
     body: "A dependency you pulled in — sometimes one an AI coding tool invented or mis-typed — turns out to be malicious, compromised, or simply doesn't exist and is sitting there waiting for someone to register it. See our incidents page for a real 2025 npm worm that spread exactly this way.",
     coverage:
-      "Partial: our dependency slop-squatting check catches invented or suspiciously new packages in your package.json. It does not check known-CVE databases against your installed dependency versions — that needs source access, which is a roadmap item (GitHub App integration), not live today.",
+      "Partial: our dependency slop-squatting check catches invented or suspiciously new packages in package.json — but only if you add your app's live URL on the scan form (optional; without it, there's no real package.json for this check to read, since your Supabase project URL never serves one). Even then, it does not check known-CVE databases against your installed dependency versions — that needs source access, which is a roadmap item (GitHub App integration), not live today.",
   },
   {
     id: "A04",

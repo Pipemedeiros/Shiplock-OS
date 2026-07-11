@@ -1,6 +1,7 @@
 import {
   validateSupabaseUrl,
   validateAnonKey,
+  validateAppUrl,
   ValidationError,
 } from "./sanitize";
 
@@ -23,12 +24,14 @@ export interface TableResult {
   policiesRetrieved: boolean;
 }
 
-// Check 2 & 5: JWT key analysis
+// Check 2 & 5: key analysis — covers both the legacy JWT anon/service_role
+// keys and Supabase's current sb_publishable_/sb_secret_ key model.
 export interface KeyAnalysis {
   role:          string | null;
   isServiceRole: boolean;
   jwtValid:      boolean;
   projectRef:    string | null;
+  keyFormat:     "jwt" | "publishable" | "secret";
 }
 
 // Check 3: Rate limiting
@@ -167,6 +170,10 @@ export interface ScanResult {
   corsConfig:       CorsConfigCheck;
   // Check 16 — public storage bucket exposure
   publicBuckets:    PublicBucketCheck;
+  // Whether checks 5 & 9 ran against the customer's own app URL (richer,
+  // meaningful) or fell back to the Supabase project URL (structurally
+  // near-always-inert for those two checks — see scanProject()'s comment).
+  appUrlChecked:    boolean;
   /** Kept for backwards compatibility; true when keyAnalysis.isServiceRole */
   exposedKeyInCode: boolean;
   timestamp:        string;
@@ -222,10 +229,20 @@ const COMMON_TABLE_NAMES: readonly string[] = [
 ];
 
 // Tables whose names suggest they hold user-specific data (IDOR probe targets)
-const USER_SENSITIVE_TABLES = new Set([
-  "users", "profiles", "user_profiles", "accounts", "members", "customers",
-  "employees", "contacts", "leads", "subscribers", "clients", "people",
-]);
+// Keyword-based (substring, case-insensitive) rather than exact-match —
+// catches real-world naming variants an exact-match list would miss
+// entirely (billing_info, payment_methods, user_addresses, employee_
+// records) instead of requiring the table to be named exactly "users".
+const USER_SENSITIVE_KEYWORDS: readonly string[] = [
+  "user", "profile", "account", "member", "customer", "employee",
+  "contact", "lead", "subscriber", "client", "people", "patient",
+  "student", "billing", "payment", "address", "card", "wallet",
+];
+
+function isUserSensitiveTable(name: string): boolean {
+  const lower = name.toLowerCase();
+  return USER_SENSITIVE_KEYWORDS.some((kw) => lower.includes(kw));
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -276,14 +293,27 @@ function decodeJwtPayload(jwt: string): Record<string, unknown> | null {
 }
 
 function analyzeKey(anonKey: string): KeyAnalysis {
+  // Current key model: sb_secret_... is the service_role-equivalent
+  // (dangerous — same CRITICAL treatment as a legacy service_role JWT),
+  // sb_publishable_... is the anon-equivalent (correct, safe key type).
+  // Neither is a JWT, so there are no claims to decode and no
+  // per-project ref embedded in the key itself — that's fine, projectRef
+  // is informational only, not something any check depends on.
+  if (anonKey.startsWith("sb_secret_")) {
+    return { role: "secret", isServiceRole: true, jwtValid: true, projectRef: null, keyFormat: "secret" };
+  }
+  if (anonKey.startsWith("sb_publishable_")) {
+    return { role: "publishable", isServiceRole: false, jwtValid: true, projectRef: null, keyFormat: "publishable" };
+  }
+
   const claims = decodeJwtPayload(anonKey);
-  if (!claims) return { role: null, isServiceRole: false, jwtValid: false, projectRef: null };
+  if (!claims) return { role: null, isServiceRole: false, jwtValid: false, projectRef: null, keyFormat: "jwt" };
   const role          = typeof claims.role === "string" ? claims.role : null;
   const isServiceRole = role === "service_role";
   const projectRef    =
     typeof claims.ref === "string" ? claims.ref :
     typeof claims.sub === "string" ? claims.sub : null;
-  return { role, isServiceRole, jwtValid: true, projectRef };
+  return { role, isServiceRole, jwtValid: true, projectRef, keyFormat: "jwt" };
 }
 
 // ── Check 1: Table probe ──────────────────────────────────────────────────────
@@ -504,7 +534,7 @@ async function checkAuthSecurity(supabaseUrl: string, anonKey: string): Promise<
 async function checkIdor(
   restBase: string, anonKey: string, tableNames: string[]
 ): Promise<IdorCheck> {
-  const targets = tableNames.filter((n) => USER_SENSITIVE_TABLES.has(n.toLowerCase())).slice(0, 5);
+  const targets = tableNames.filter(isUserSensitiveTable).slice(0, 10);
   if (targets.length === 0) return { tested: false, results: [] };
 
   const results = await Promise.all(
@@ -573,21 +603,40 @@ function checkHttps(supabaseUrl: string): HttpsCheck {
 
 // ── Check 15: Stack trace exposure ────────────────────────────────────────────
 
-async function checkStackTrace(supabaseUrl: string, anonKey: string): Promise<StackTraceCheck> {
+// Was previously called with no table in the request path
+// (`${supabaseUrl}/rest/v1/?select=*&order=...`) — PostgREST's bare
+// /rest/v1/ root doesn't process select/order against anything (it's the
+// OpenAPI spec endpoint, used elsewhere in this file for table
+// enumeration), so the malformed-query params had no table to act on and
+// this almost never actually elicited an error. Fixed to require a real
+// table in the path, same pattern checkInputValidation already uses, and
+// now tries two malformed shapes in parallel instead of one.
+async function checkStackTrace(
+  restBase: string, anonKey: string, testTable: string | null
+): Promise<StackTraceCheck> {
+  if (!testTable) return { tested: false, exposed: false };
+  const encoded = encodeURIComponent(testTable);
+  const probeUrls = [
+    `${restBase}/${encoded}?select=*&order=nonexistent_column.asc.nullslast.extra`,
+    `${restBase}/${encoded}?id=eq.not-a-valid-uuid-at-all`,
+  ];
   try {
-    // Send a deliberately malformed query to try to elicit a raw error
-    const res = await fetch(
-      `${supabaseUrl}/rest/v1/?select=*&order=nonexistent_column.asc.nullslast.extra`,
-      { headers: makeHeaders(anonKey), signal: AbortSignal.timeout(4_000) }
+    const exposedFlags = await Promise.all(
+      probeUrls.map(async (url) => {
+        try {
+          const res = await fetch(url, { headers: makeHeaders(anonKey), signal: AbortSignal.timeout(4_000) });
+          if (res.ok) return false;
+          const text = await res.text();
+          return (
+            text.includes("stack") || text.includes("Error:") ||
+            text.includes(" at ")  || text.includes(".js:")
+          );
+        } catch {
+          return false;
+        }
+      })
     );
-    if (!res.ok) {
-      const text = await res.text();
-      const exposed =
-        text.includes("stack") || text.includes("Error:") ||
-        text.includes(" at ")  || text.includes(".js:");
-      return { tested: true, exposed };
-    }
-    return { tested: true, exposed: false };
+    return { tested: true, exposed: exposedFlags.some(Boolean) };
   } catch {
     return { tested: false, exposed: false };
   }
@@ -622,18 +671,35 @@ async function checkInputValidation(
   restBase: string, anonKey: string, testTable: string | null
 ): Promise<InputValidationCheck> {
   if (!testTable) return { tested: false, sqlErrorExposed: false };
+  const encoded = encodeURIComponent(testTable);
+  // Two different shapes tried in parallel: an operator-injection attempt
+  // (malformed filter value), and a type-coercion probe (a value that
+  // can't cast to whatever type the filtered column actually is) — a
+  // distinct way to elicit a raw Postgres error PostgREST forwards.
+  const probeUrls = [
+    `${restBase}/${encoded}?id=eq.%27%20OR%20%271%27%3D%271`,
+    `${restBase}/${encoded}?id=eq.not-a-valid-value-for-this-column-type`,
+  ];
   try {
-    // PostgREST operator injection attempt — malformed filter value
-    const url = `${restBase}/${encodeURIComponent(testTable)}?id=eq.%27%20OR%20%271%27%3D%271`;
-    const res  = await fetch(url, {
-      headers: makeHeaders(anonKey), signal: AbortSignal.timeout(4_000),
-    });
-    const text = await res.text();
-    const sqlErrorExposed =
-      text.includes("syntax error") || text.includes("PostgreSQL") ||
-      text.includes("ERROR:")       || text.includes("pg_query")   ||
-      text.includes("relation ")    || text.includes("column ");
-    return { tested: true, sqlErrorExposed };
+    const exposedFlags = await Promise.all(
+      probeUrls.map(async (url) => {
+        try {
+          const res  = await fetch(url, {
+            headers: makeHeaders(anonKey), signal: AbortSignal.timeout(4_000),
+          });
+          const text = await res.text();
+          return (
+            text.includes("syntax error") || text.includes("PostgreSQL") ||
+            text.includes("ERROR:")       || text.includes("pg_query")   ||
+            text.includes("relation ")    || text.includes("column ")    ||
+            text.includes("invalid input syntax")
+          );
+        } catch {
+          return false;
+        }
+      })
+    );
+    return { tested: true, sqlErrorExposed: exposedFlags.some(Boolean) };
   } catch {
     return { tested: false, sqlErrorExposed: false };
   }
@@ -684,7 +750,8 @@ async function checkCorsConfig(supabaseUrl: string, anonKey: string): Promise<Co
  */
 export async function scanProject(
   rawUrl:     string,
-  rawAnonKey: string
+  rawAnonKey: string,
+  rawAppUrl?: string
 ): Promise<ScanResult> {
 
   // Step 1: Sanitize inputs
@@ -696,6 +763,23 @@ export async function scanProject(
   } catch (err) {
     if (err instanceof ValidationError) throw new ScanError(err.message, "MALFORMED_URL");
     throw err;
+  }
+
+  // Optional — the customer's own deployed app URL, not the Supabase
+  // project URL. When present, checks 5 (slop-squatting) and 9 (secrets
+  // exposure) run against it instead of supabaseUrl: hosted Supabase
+  // doesn't serve arbitrary static files like package.json/.env at its
+  // API root, so without this, those two checks have structurally
+  // nothing real to find. Absence is not an error — this input is
+  // strictly optional.
+  let appUrl: string | undefined;
+  if (rawAppUrl) {
+    try {
+      appUrl = validateAppUrl(rawAppUrl);
+    } catch (err) {
+      if (err instanceof ValidationError) throw new ScanError(err.message, "MALFORMED_URL");
+      throw err;
+    }
   }
 
   const restBase = `${supabaseUrl}/rest/v1`;
@@ -761,17 +845,17 @@ export async function scanProject(
   ] = await Promise.all([
     checkRateLimiting(restBase, anonKey, rateLimitTable),
     checkUnauthAccess(restBase, exposedNames),
-    slopSquattingCheck(supabaseUrl),
+    slopSquattingCheck(appUrl ?? supabaseUrl),
     massAssignmentCheck(restBase, anonKey, exposedNames),
     checkAuthSecurity(supabaseUrl, anonKey),
     checkIdor(restBase, anonKey, tableNames),
-    checkSecretsExposure(supabaseUrl),
+    checkSecretsExposure(appUrl ?? supabaseUrl),
     checkSecureAuth(supabaseUrl, anonKey),
     Promise.resolve(checkHttps(supabaseUrl)),
     checkBotProtection(restBase, anonKey, rateLimitTable),
     checkInputValidation(restBase, anonKey, rateLimitTable),
     checkCorsConfig(supabaseUrl, anonKey),
-    checkStackTrace(supabaseUrl, anonKey),
+    checkStackTrace(restBase, anonKey, rateLimitTable),
     checkPublicBuckets(supabaseUrl, anonKey),
   ]);
 
@@ -792,6 +876,7 @@ export async function scanProject(
     inputValidation,
     corsConfig,
     publicBuckets,
+    appUrlChecked:    appUrl !== undefined,
     exposedKeyInCode: keyAnalysis.isServiceRole,
     timestamp:        new Date().toISOString(),
   };
@@ -816,6 +901,51 @@ export async function scanProject(
 export interface PublicBucketCheck {
   tested: boolean;
   publicBuckets: string[];
+  // Filenames only, from buckets already found public — never file
+  // contents. An already-public bucket is already listable by anyone
+  // with the anon key, so this doesn't cross into "reading your data" —
+  // it's the same finding (a public bucket), just with specific evidence
+  // attached instead of a bare bucket name.
+  suspiciousFiles: { bucket: string; file: string }[];
+}
+
+const SUSPICIOUS_FILE_PATTERNS: RegExp[] = [
+  /^\.env(\..+)?$/i,
+  /^credentials.*\.json$/i,
+  /^service[-_]?account.*\.json$/i,
+  /^id_rsa/i,
+  /\.pem$/i,
+  /^\.git-credentials$/i,
+];
+
+function isSuspiciousFileName(name: string): boolean {
+  const base = name.split("/").pop() ?? name;
+  return SUSPICIOUS_FILE_PATTERNS.some((re) => re.test(base));
+}
+
+// Root-level listing only (prefix: ""), capped at 200 entries — catches
+// the realistic accidental-leak pattern (a secret file dropped straight
+// in the bucket root) without recursively crawling every folder, which
+// would be slower and more invasive than this check needs to be.
+async function listSuspiciousFiles(
+  supabaseUrl: string, anonKey: string, bucket: string
+): Promise<string[]> {
+  try {
+    const res = await fetch(`${supabaseUrl}/storage/v1/object/list/${encodeURIComponent(bucket)}`, {
+      method:  "POST",
+      headers: { ...makeHeaders(anonKey), "Content-Type": "application/json" },
+      body:    JSON.stringify({ prefix: "", limit: 200 }),
+      signal:  AbortSignal.timeout(SHORT_TIMEOUT),
+    });
+    if (!res.ok) return [];
+    const objects = await res.json() as Array<{ name?: string }>;
+    if (!Array.isArray(objects)) return [];
+    return objects
+      .map((o) => o.name)
+      .filter((n): n is string => typeof n === "string" && isSuspiciousFileName(n));
+  } catch {
+    return [];
+  }
 }
 
 async function checkPublicBuckets(supabaseUrl: string, anonKey: string): Promise<PublicBucketCheck> {
@@ -824,17 +954,30 @@ async function checkPublicBuckets(supabaseUrl: string, anonKey: string): Promise
       headers: makeHeaders(anonKey),
       signal:  AbortSignal.timeout(SHORT_TIMEOUT),
     });
-    if (!res.ok) return { tested: false, publicBuckets: [] };
+    if (!res.ok) return { tested: false, publicBuckets: [], suspiciousFiles: [] };
     const buckets = await res.json() as Array<{ name?: string; public?: boolean }>;
-    if (!Array.isArray(buckets)) return { tested: false, publicBuckets: [] };
-    return {
-      tested: true,
-      publicBuckets: buckets
-        .filter((b) => b.public === true && typeof b.name === "string")
-        .map((b) => b.name as string),
-    };
+    if (!Array.isArray(buckets)) return { tested: false, publicBuckets: [], suspiciousFiles: [] };
+
+    const publicBuckets = buckets
+      .filter((b) => b.public === true && typeof b.name === "string")
+      .map((b) => b.name as string);
+
+    const suspiciousFiles: { bucket: string; file: string }[] = [];
+    if (publicBuckets.length > 0) {
+      const perBucket = await Promise.all(
+        publicBuckets.map(async (bucket) => ({
+          bucket,
+          files: await listSuspiciousFiles(supabaseUrl, anonKey, bucket),
+        }))
+      );
+      for (const { bucket, files } of perBucket) {
+        for (const file of files) suspiciousFiles.push({ bucket, file });
+      }
+    }
+
+    return { tested: true, publicBuckets, suspiciousFiles };
   } catch {
-    return { tested: false, publicBuckets: [] };
+    return { tested: false, publicBuckets: [], suspiciousFiles: [] };
   }
 }
 

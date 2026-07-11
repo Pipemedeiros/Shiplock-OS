@@ -2,7 +2,7 @@ import { createHash } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { scanProject, ScanError } from "@/lib/scanner";
 import { analyzeResult } from "@/lib/analyzer";
-import { validateSupabaseUrl, validateAnonKey, ValidationError } from "@/lib/sanitize";
+import { validateSupabaseUrl, validateAnonKey, validateAppUrl, ValidationError } from "@/lib/sanitize";
 import { getClientIpHash } from "@/lib/rateLimit";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
@@ -13,13 +13,18 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
-  const { supabaseUrl: rawUrl, anonKey: rawAnonKey } = (body ?? {}) as Record<string, unknown>;
+  const { supabaseUrl: rawUrl, anonKey: rawAnonKey, appUrl: rawAppUrl } = (body ?? {}) as Record<string, unknown>;
 
   let supabaseUrl: string;
   let anonKey: string;
+  let appUrl: string | undefined;
   try {
     supabaseUrl = validateSupabaseUrl(rawUrl);
     anonKey = validateAnonKey(rawAnonKey);
+    // Optional — absence is fine, only validate if the caller sent something.
+    if (typeof rawAppUrl === "string" && rawAppUrl.length > 0) {
+      appUrl = validateAppUrl(rawAppUrl);
+    }
   } catch (err) {
     if (err instanceof ValidationError) {
       return NextResponse.json({ error: err.message }, { status: 400 });
@@ -59,7 +64,7 @@ export async function POST(req: NextRequest) {
   // Run the 16-check attack suite
   let scanResult;
   try {
-    scanResult = await scanProject(supabaseUrl, anonKey);
+    scanResult = await scanProject(supabaseUrl, anonKey, appUrl);
   } catch (err) {
     if (err instanceof ScanError) {
       return NextResponse.json({ error: err.message }, { status: err.statusCode ?? 400 });
@@ -124,6 +129,7 @@ export async function POST(req: NextRequest) {
       summary: analysis.summary,
       isPaid: true,
       issues: fullIssues,
+      appUrlChecked: scanResult.appUrlChecked,
     },
     { headers: { "Cache-Control": "no-store" } }
   );

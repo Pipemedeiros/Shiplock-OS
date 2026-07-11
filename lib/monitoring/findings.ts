@@ -24,12 +24,23 @@ export interface Finding {
 // diff engine treats them as the same finding regardless of which pass
 // found it.
 function buildPublicBucketFindings(check: PublicBucketCheck | undefined): Finding[] {
-  return (check?.publicBuckets ?? []).map((bucketName) => ({
-    id: `public_bucket:${bucketName}`,
-    severity: "CRITICAL" as const,
-    title: `Storage bucket "${bucketName}" is publicly readable`,
-    consequence: `Anyone with the anon key can list and download files from the "${bucketName}" bucket without authentication.`,
-  }));
+  const suspiciousByBucket = new Map<string, string[]>();
+  for (const s of check?.suspiciousFiles ?? []) {
+    const list = suspiciousByBucket.get(s.bucket) ?? [];
+    list.push(s.file);
+    suspiciousByBucket.set(s.bucket, list);
+  }
+  return (check?.publicBuckets ?? []).map((bucketName) => {
+    const suspicious = suspiciousByBucket.get(bucketName) ?? [];
+    return {
+      id: `public_bucket:${bucketName}`,
+      severity: "CRITICAL" as const,
+      title: `Storage bucket "${bucketName}" is publicly readable`,
+      consequence: suspicious.length > 0
+        ? `Secret-looking files found in this public bucket: ${suspicious.join(", ")}. Anyone with the anon key can download them without authentication.`
+        : `Anyone with the anon key can list and download files from the "${bucketName}" bucket without authentication.`,
+    };
+  });
 }
 
 export function extractFindings(scan: ScanResult): Finding[] {
