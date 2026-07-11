@@ -123,7 +123,7 @@ export function ConnectAndScanForm() {
             <i />
             <i />
             <i />
-            Running the fifteen-check audit against your live app…
+            Running the sixteen-check audit against your live app…
           </span>
           <p className="dxd-keynote" style={{ marginTop: 16 }}>
             This takes about a minute. We&apos;re reading your project&apos;s public

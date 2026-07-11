@@ -68,7 +68,7 @@ export function Lock({
         <g className="dxdl-ringtext">
           <text fontSize="8.6">
             <textPath href={`#${id}-ring`}>
-              CONTINUOUS COVER · SHIPLOCK · EVIDENCE ON FILE · FIFTEEN CHECKS ·
+              CONTINUOUS COVER · SHIPLOCK · EVIDENCE ON FILE · SIXTEEN CHECKS ·
             </textPath>
           </text>
         </g>

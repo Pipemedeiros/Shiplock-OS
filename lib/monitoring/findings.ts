@@ -1,4 +1,4 @@
-import type { ScanResult, FastScanResult } from "@/lib/scanner";
+import type { ScanResult, FastScanResult, PublicBucketCheck } from "@/lib/scanner";
 import type { Severity } from "@/lib/types";
 
 // Deterministic finding extraction for monitoring — does NOT call Claude.
@@ -15,6 +15,21 @@ export interface Finding {
   severity: Severity;
   title: string;
   consequence: string;
+}
+
+// Shared by extractFindings() and extractCriticalFindings() — both scan
+// types now check public buckets (scanProject() was extended to call
+// checkPublicBuckets() too, see lib/scanner.ts check 16), and must produce
+// the exact same id/title/consequence shape for a given bucket name so the
+// diff engine treats them as the same finding regardless of which pass
+// found it.
+function buildPublicBucketFindings(check: PublicBucketCheck | undefined): Finding[] {
+  return (check?.publicBuckets ?? []).map((bucketName) => ({
+    id: `public_bucket:${bucketName}`,
+    severity: "CRITICAL" as const,
+    title: `Storage bucket "${bucketName}" is publicly readable`,
+    consequence: `Anyone with the anon key can list and download files from the "${bucketName}" bucket without authentication.`,
+  }));
 }
 
 export function extractFindings(scan: ScanResult): Finding[] {
@@ -155,6 +170,8 @@ export function extractFindings(scan: ScanResult): Finding[] {
     });
   }
 
+  findings.push(...buildPublicBucketFindings(scan.publicBuckets));
+
   return findings;
 }
 
@@ -162,21 +179,24 @@ export function extractFindings(scan: ScanResult): Finding[] {
 // (lib/scanner.ts scanCriticalChecks / FastScanResult) — same Finding
 // shape, so the diff engine doesn't need to know which scan produced a
 // given finding. Deliberately reuses the SAME id strings as extractFindings
-// for the checks both passes cover (service_role_key, rls:<table>,
-// secrets_exposure) — this is required for correct cross-trigger diffing:
-// runMonitoringPass() diffs against whichever snapshot is most recent
-// regardless of trigger source, so an hourly pass and a 48h pass must
-// agree on a finding's id or the diff engine would see every trigger
-// alternation as a "new" finding and spam alerts. public_bucket:<name> is
-// new — the full 15-check scan doesn't check storage buckets at all, so
-// there's no id collision to worry about there.
+// for every check both passes cover (service_role_key, rls:<table>,
+// secrets_exposure, and now public_bucket:<name> too, via the shared
+// buildPublicBucketFindings() helper above) — this is required for correct
+// cross-trigger diffing: runMonitoringPass() diffs against whichever
+// snapshot is most recent regardless of trigger source, so an hourly pass
+// and a 48h pass must agree on a finding's id or the diff engine would see
+// every trigger alternation as a "new" finding and spam alerts.
 // Whether a finding id could have been produced by the critical/hourly
 // pass (extractCriticalFindings) — used by run.ts to merge snapshots
 // correctly across passes of different scope. See run.ts for why this
 // matters: without it, a narrower pass would make out-of-scope findings
 // look "resolved" (they were just not re-checked), which then makes them
 // look "new" again on the next wider pass — a spurious duplicate alert for
-// something that was never actually fixed.
+// something that was never actually fixed. As of check 16 (public
+// buckets), both scanProject() and scanCriticalChecks() cover the full set
+// of ids this function recognizes — there is no longer any id that's
+// hourly-scope-only vs full-scope-only; this now exists purely so run.ts
+// can distinguish "produced by this trigger's own scan" for merge purposes.
 export function isCriticalScopeFindingId(id: string): boolean {
   return (
     id === "service_role_key" ||
@@ -219,14 +239,7 @@ export function extractCriticalFindings(scan: FastScanResult): Finding[] {
     });
   }
 
-  for (const bucketName of scan.publicBuckets?.publicBuckets ?? []) {
-    findings.push({
-      id: `public_bucket:${bucketName}`,
-      severity: "CRITICAL",
-      title: `Storage bucket "${bucketName}" is publicly readable`,
-      consequence: `Anyone with the anon key can list and download files from the "${bucketName}" bucket without authentication.`,
-    });
-  }
+  findings.push(...buildPublicBucketFindings(scan.publicBuckets));
 
   return findings;
 }

@@ -45,18 +45,18 @@ export async function runMonitoringPass(
 
   // Hourly uses the lightweight 4-check pass (lib/scanner.ts
   // scanCriticalChecks); deploy and the 48h scheduled pass use the full
-  // 15-check scan. The two passes cover different (overlapping) sets of
-  // finding ids — critical scope: service_role_key, rls:*,
-  // secrets_exposure, public_bucket:*; full scope: everything except
-  // public_bucket:* (the full scan doesn't check storage buckets at all).
-  //
-  // Whichever pass just ran only produces FRESH findings for its own
-  // scope. The other scope's findings from the previous snapshot are
-  // carried forward unchanged, not dropped — if a narrower pass silently
-  // replaced the whole snapshot, out-of-scope findings would vanish and
-  // look "resolved" (they were just not re-checked), which would then
-  // make them look "new" again on the next wider pass: a spurious
-  // duplicate alert for something that was never actually fixed.
+  // 16-check scan. Since check 16 (public storage buckets) was promoted
+  // into the full scan too, the full scan's own coverage is now a
+  // strict superset of the hourly pass's scope — full-scan triggers no
+  // longer need to carry anything forward, their fresh results are always
+  // complete. The hourly pass is still narrower than the full scan (it
+  // skips 12 checks entirely), so its findings for everything outside its
+  // own scope must still be carried forward unchanged from the previous
+  // snapshot — if a narrower pass silently replaced the whole snapshot,
+  // out-of-scope findings would vanish and look "resolved" (they were just
+  // not re-checked), which would then make them look "new" again on the
+  // next wider pass: a spurious duplicate alert for something that was
+  // never actually fixed.
   let currentFindings: Finding[];
   if (triggerSource === "hourly") {
     const fresh = extractCriticalFindings(
@@ -65,9 +65,7 @@ export async function runMonitoringPass(
     const carriedForward = previousFindings.filter((f) => !isCriticalScopeFindingId(f.id));
     currentFindings = [...carriedForward, ...fresh];
   } else {
-    const fresh = extractFindings(await scanProject(profile.monitored_project_url, anonKey));
-    const carriedForward = previousFindings.filter((f) => f.id.startsWith("public_bucket:"));
-    currentFindings = [...carriedForward, ...fresh];
+    currentFindings = extractFindings(await scanProject(profile.monitored_project_url, anonKey));
   }
 
   const { newFindings } = diffSnapshots(previousFindings, currentFindings);
@@ -84,7 +82,7 @@ export async function runMonitoringPass(
   // Only full scans count toward "when was this user last actually
   // checked" for the 48h staleness filter in /api/monitor/scheduled. If
   // the hourly lightweight pass refreshed this too, a user with hourly
-  // monitoring enabled would never look stale enough for the full 15-check
+  // monitoring enabled would never look stale enough for the full 16-check
   // scan to run again — the hourly cron ticks far more often than 48h and
   // would keep the timestamp perpetually fresh.
   if (triggerSource !== "hourly") {

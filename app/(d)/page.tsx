@@ -66,7 +66,8 @@ function ExampleAuditPanel() {
       </div>
 
       <p style={{ marginTop: 16, fontSize: 11.5, lineHeight: 1.6, color: "var(--d-muted)" }}>
-        Free scans show findings and consequences. Fixes and ready-to-paste code prompts unlock on retainer.
+        A sample of what lands in your dashboard on retainer — grade, every finding, and a
+        ready-to-paste fix for each.
       </p>
     </div>
   );
@@ -79,7 +80,7 @@ const HOW_IT_WORKS = [
   },
   {
     title: "First scan in 90 seconds",
-    body: "Fifteen checks across four attack surfaces, the same ground an enterprise audit covers. You get a grade and a plain-English list of what we found.",
+    body: "Sixteen checks across four attack surfaces, the same ground an enterprise audit covers. You get a grade and a plain-English list of what we found.",
   },
   {
     title: "Then we keep watching",
@@ -94,50 +95,50 @@ const STACK_SPEAKS = {
   source: ["GitHub"],
 };
 
+// Grouped from the real 16 checks lib/scanner.ts runs (docblock at the top
+// of scanProject()) and the real finding titles lib/analyzer.ts produces —
+// not from app/design/_shared/data.ts's mock CHECKS list, which this
+// section used to (wrongly) copy. Every name here corresponds to an actual
+// function in the scanner; nothing here is aspirational.
 const SURFACES: { name: string; blurb: string; checks: string[] }[] = [
   {
     name: "Auth & access",
-    blurb: "Who can sign in, and how easily an attacker can pretend to be them.",
-    checks: ["Email verification", "Anonymous sign-ins", "OAuth redirect allowlist", "Auth rate limiting"],
+    blurb: "Who can sign in, hammer your endpoints, or reach admin routes they shouldn't.",
+    checks: ["Auth admin endpoint exposure", "Login rate limiting", "REST API rate limiting"],
   },
   {
     name: "Data exposure",
-    blurb: "Whether your database answers questions it should refuse to answer.",
-    checks: ["Row-level security", "Table enumeration", "Column exposure", "Storage bucket access", "Realtime channel access"],
+    blurb: "Whether your database or storage answers questions it should refuse to answer.",
+    checks: ["Row-level security", "Unauthenticated table access", "IDOR on user data", "Public storage buckets"],
   },
   {
     name: "Configuration",
-    blurb: "Settings and headers that quietly decide how protected you are.",
-    checks: ["Service-key leakage", "Security headers", "CORS policy", "Webhook signatures"],
+    blurb: "Settings, dependencies, and headers that quietly decide how protected you are.",
+    checks: ["Service-role key exposure", "Secrets & .env exposure", "HTTPS enforcement", "Bot-protection headers", "CORS wildcard policy", "Dependency slop-squatting"],
   },
   {
     name: "Injection & logic",
-    blurb: "Whether crafted input can make your app do things you never wrote.",
-    checks: ["SQL injection surface", "Mass assignment"],
+    blurb: "Whether crafted input or a sloppy endpoint can make your app do things you never wrote.",
+    checks: ["Mass assignment", "SQL error / input validation", "Stack trace exposure"],
   },
 ];
 
 const PRICING = {
-  free: {
-    price: "$0",
-    tagline: "Find out where you stand.",
-    features: ["One full 15-check scan", "Security grade, A through F", "Every issue named, with severity"],
-    locked: ["Step-by-step fixes", "Copy-paste AI prompts", "Continuous monitoring"],
-  },
   paid: {
     price: "$49",
     per: "/month",
     tagline: "The $50k audit, running all the time.",
     features: [
-      "Everything in the free scan",
+      "Full 16-check scan, grade A through F",
       "Step-by-step fixes for every finding",
       "Copy-paste prompts for whatever you build in — Cursor, Lovable, Bolt, v0",
+      "An AI-agent brief on your dashboard, ready to hand your coding tool",
       "Re-scan on every deploy",
-      "Scheduled deep scans",
+      "Scheduled deep scans, critical checks hourly",
       "Alerts only when something new appears",
     ],
   },
-  rescan: "Need a one-off re-check? $2, any time, no subscription.",
+  trialNote: "First 7 days free. Cancel anytime before you're charged.",
 };
 
 const TRUST_LINE =
@@ -157,6 +158,8 @@ export default function LandingPage() {
             </Link>
             <div className="dxd-nav-links">
               <a href="#method">The method</a>
+              <Link href="/owasp">OWASP Top 10</Link>
+              <Link href="/incidents">Real incidents</Link>
               <a href="#pricing">Pricing</a>
               <Link href="/auth" className="dxd-btn dxd-btn-ghost">
                 Sign in
@@ -181,7 +184,7 @@ export default function LandingPage() {
               </p>
               <div className="dxd-hero-actions">
                 <a href="#get-started" className="dxd-btn dxd-btn-paper">
-                  Run the first audit — free
+                  Put us on retainer
                 </a>
                 <a href="#method" className="dxd-btn dxd-btn-ghost">
                   The method
@@ -302,7 +305,7 @@ export default function LandingPage() {
 
         <section className="dxd-section" id="what-we-check">
           <p className="dxd-eyebrow">Scope of engagement</p>
-          <h2 className="dxd-h2">Fifteen checks, named precisely.</h2>
+          <h2 className="dxd-h2">Sixteen checks, named precisely.</h2>
           <p className="dxd-lede" style={{ marginBottom: 8 }}>
             You know your stack. Here is exactly what we hold against it — no euphemisms.
           </p>
@@ -357,7 +360,7 @@ export default function LandingPage() {
               <div className="dxd-watchrow">
                 <h3>Deep audits on schedule, critical checks hourly</h3>
                 <p>
-                  A full 15-check pass re-runs every 48 hours; a lightweight critical-checks
+                  A full 16-check pass re-runs every 48 hours; a lightweight critical-checks
                   pass runs every hour, watching the fastest-moving risks.
                 </p>
               </div>
@@ -392,24 +395,6 @@ export default function LandingPage() {
           <p className="dxd-eyebrow">Terms</p>
           <h2 className="dxd-h2">One engagement. One number.</h2>
           <div className="dxd-pricing">
-            <SpotlightCard className="dxd-price-card">
-              <p className="dxd-price-name">The first audit · free</p>
-              <p className="dxd-price dxd-serif">{PRICING.free.price}</p>
-              <p className="dxd-price-tag">{PRICING.free.tagline}</p>
-              <ul>
-                {PRICING.free.features.map((f) => (
-                  <li key={f}>{f}</li>
-                ))}
-                {PRICING.free.locked.map((f) => (
-                  <li key={f} className="dxd-locked">
-                    {f} — on retainer
-                  </li>
-                ))}
-              </ul>
-              <a href="#get-started" className="dxd-btn dxd-btn-ghost">
-                Run the audit
-              </a>
-            </SpotlightCard>
             <SpotlightCard className="dxd-price-card dxd-featured">
               <p className="dxd-price-name">The retainer · monitor</p>
               <p className="dxd-price dxd-serif">
@@ -427,17 +412,17 @@ export default function LandingPage() {
               </a>
             </SpotlightCard>
           </div>
-          <p className="dxd-rescan-note">{PRICING.rescan}</p>
+          <p className="dxd-rescan-note">{PRICING.trialNote}</p>
         </section>
 
         <section className="dxd-section" id="get-started">
           <Reveal>
             <p className="dxd-eyebrow">Get started</p>
-            <h2 className="dxd-h2">Connect your project. Get your first audit free.</h2>
+            <h2 className="dxd-h2">Connect your project. We carry the rest.</h2>
             <p className="dxd-lede">
-              Sign in, then paste your Supabase URL and anon key from your dashboard. Your
-              first audit — grade, findings, and the fix for your most critical issue — is
-              free.
+              Sign in, put us on retainer — 7 days free before the first charge — then paste
+              your Supabase URL and anon key. The first audit, grade and every finding, runs
+              immediately.
             </p>
           </Reveal>
           <Reveal delay={100}>
@@ -453,6 +438,8 @@ export default function LandingPage() {
             today.
           </span>
           <span>
+            <Link href="/owasp">OWASP Top 10</Link> · <Link href="/incidents">Real incidents</Link>{" "}
+            · <Link href="/terms">Terms</Link> · <Link href="/privacy">Privacy</Link> ·{" "}
             <Link href="/dashboard-preview">Product preview →</Link> · support@shiplock.dev
           </span>
         </footer>

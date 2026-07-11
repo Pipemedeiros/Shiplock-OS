@@ -2,13 +2,15 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSupabaseServer } from "@/lib/supabaseServer";
 import { getLatestScan } from "@/lib/scanHistory";
+import { buildAgentBrief } from "@/lib/agentBrief";
 import { SignOutButton } from "@/components/sign-out-button";
 import { LockMark } from "@/components/d/Brand";
 import { CoverageBoard } from "@/components/d/CoverageBoard";
 import { UpgradeButton } from "@/components/d/UpgradeButton";
+import { AgentBrief } from "@/components/d/AgentBrief";
 import type { PreviewIssue, FullIssue } from "@/lib/types";
 
-const TOTAL_CHECKS = 15; // lib/scanner.ts always runs the same 15 checks
+const TOTAL_CHECKS = 16; // lib/scanner.ts always runs the same 16 checks
 
 export default async function DashboardPage() {
   const supabase = await getSupabaseServer();
@@ -42,6 +44,10 @@ export default async function DashboardPage() {
     ? (isPaid ? latest.full_issues : latest.preview_issues) ?? []
     : [];
 
+  // Contains fix/codefix — same sensitivity as full_issues above, so only
+  // ever build this when the paywall filtering already resolved to paid.
+  const agentBrief = isPaid && latest ? buildAgentBrief(latest) : null;
+
   return (
     <main className="dxd">
       <div className="dxd-band">
@@ -67,7 +73,7 @@ export default async function DashboardPage() {
                 {provider}
               </span>
               <span className="dxd-mono" style={{ fontSize: 11 }}>
-                {isPaid ? "Pro" : "Free"}
+                {isPaid ? "Pro" : latest ? "Lapsed" : "Not subscribed"}
               </span>
               <SignOutButton />
             </div>
@@ -82,11 +88,12 @@ export default async function DashboardPage() {
               <>
                 <h1 className="dxd-statement">You haven&apos;t run an audit yet.</h1>
                 <p className="dxd-lede" style={{ margin: "16px 0 24px" }}>
-                  Connect your Supabase project to run the first free audit — grade, findings,
-                  and the fix for your most critical issue.
+                  {isPaid
+                    ? "Connect your Supabase project to run the first audit — grade, findings, and the fix for every issue."
+                    : "Put us on retainer, then connect your Supabase project to run the first audit."}
                 </p>
                 <Link href="/onboarding" className="dxd-btn dxd-btn-paper">
-                  Run your first audit
+                  {isPaid ? "Run your first audit" : "Get started"}
                 </Link>
               </>
             )}
@@ -132,6 +139,19 @@ export default async function DashboardPage() {
             </div>
           </section>
 
+          {agentBrief && (
+            <section style={{ marginTop: 40 }} aria-label="AI-agent brief">
+              <p className="dxd-panel-label" style={{ margin: "0 0 12px" }}>
+                For your coding agent
+              </p>
+              <p className="dxd-lede" style={{ marginBottom: 16 }}>
+                Every open finding, formatted to hand straight to Cursor, Lovable, Bolt, or
+                whatever you build in.
+              </p>
+              <AgentBrief markdown={agentBrief} />
+            </section>
+          )}
+
           {!isPaid && (
             <section style={{ marginTop: 40 }}>
               <p className="dxd-panel-label" style={{ margin: "0 0 12px" }}>
@@ -139,10 +159,11 @@ export default async function DashboardPage() {
               </p>
               <div className="dxd-connect-card">
                 <div>
-                  <h4>Unlock every fix</h4>
+                  <h4>Your retainer lapsed</h4>
                   <p>
-                    Step-by-step briefs, SQL, and copy-paste AI prompts for every finding —
-                    plus continuous re-scanning.
+                    Fixes, SQL, copy-paste AI prompts, and the watch all pause when the
+                    subscription does. Resubscribe to see this scan&apos;s findings in full and
+                    pick the watch back up.
                   </p>
                 </div>
                 <span className="dxd-connect-cta">

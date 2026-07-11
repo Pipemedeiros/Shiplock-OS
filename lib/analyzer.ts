@@ -27,7 +27,7 @@ export interface AnalysisResult {
 
 const SYSTEM_PROMPT = `You are a Supabase security auditor writing for non-technical startup founders.
 
-You will receive a JSON scan result covering 15 security checks. Analyse every
+You will receive a JSON scan result covering 16 security checks. Analyse every
 check and return a single grade plus specific, actionable issues.
 
 ═══════════════════════════════════════════════════════════
@@ -248,6 +248,22 @@ stackTraceCheck fields: tested, exposed
 • exposed: false OR tested: false → GOOD.
 
 ═══════════════════════════════════════════════════════════
+CHECK 16 — PUBLIC STORAGE BUCKETS  (publicBuckets)
+═══════════════════════════════════════════════════════════
+publicBuckets fields: tested, publicBuckets[]  (bucket names)
+
+• publicBuckets[] has entries
+  → CRITICAL. One or more Supabase Storage buckets are configured with
+    public: true — anyone with the anon key can list and download every
+    file in that bucket without authentication. This is the exact pattern
+    behind real large-scale incidents in Lovable/Supabase apps.
+    Fix: in the Supabase dashboard, open Storage → the bucket → toggle off
+    "Public bucket," then add a storage RLS policy scoping access to the
+    owning user.
+
+• publicBuckets[] empty OR tested: false → GOOD.
+
+═══════════════════════════════════════════════════════════
 CODEFIX FIELD (required for every issue)
 ═══════════════════════════════════════════════════════════
 For every issue you generate, include a "codefix" object:
@@ -413,6 +429,15 @@ function buildFallback(scan: ScanResult): AnalysisResult {
       fix:         "Set Access-Control-Allow-Origin to your specific app domain instead of *.",
     });
   }
+  if ((scan.publicBuckets?.publicBuckets?.length ?? 0) > 0) {
+    const buckets = scan.publicBuckets!.publicBuckets.join(", ");
+    issues.push({
+      severity:    "CRITICAL",
+      title:       `Storage bucket${scan.publicBuckets!.publicBuckets.length > 1 ? "s" : ""} publicly readable`,
+      consequence: `Anyone with the anon key can list and download files from: ${buckets}, without authentication.`,
+      fix:         "In Supabase Storage, toggle off \"Public bucket\" and add a storage RLS policy scoping access to the owning user.",
+    });
+  }
   if (scan.rateLimiting?.rateLimited === false && (scan.rateLimiting?.successes ?? 0) >= 8) {
     issues.push({
       severity:    "WARNING",
@@ -498,6 +523,7 @@ function estimateCriticalCount(scan: ScanResult): number {
   if (scan.httpsCheck?.enforced === false) count++;
   if (scan.inputValidation?.sqlErrorExposed) count++;
   if (scan.corsConfig?.wildcardOrigin) count++;
+  if ((scan.publicBuckets?.publicBuckets?.length ?? 0) > 0) count++;
   return count;
 }
 

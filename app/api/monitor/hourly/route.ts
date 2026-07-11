@@ -5,7 +5,7 @@ import { runMonitoringPass } from "@/lib/monitoring";
 // The hourly "fast" pass (item 2). Genuinely lightweight now — runs
 // lib/scanner.ts's scanCriticalChecks() (RLS presence, secrets/key
 // exposure, public storage buckets, service-role-key submission) via
-// runMonitoringPass()'s trigger-based branching, not the full 15-check
+// runMonitoringPass()'s trigger-based branching, not the full 16-check
 // scanProject() the 48h pass uses. See lib/monitoring/run.ts for exactly
 // how that split works and why last_monitored_at is deliberately not
 // touched here.

@@ -3,8 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { scanProject, ScanError } from "@/lib/scanner";
 import { analyzeResult } from "@/lib/analyzer";
 import { validateSupabaseUrl, validateAnonKey, ValidationError } from "@/lib/sanitize";
-import { checkScanRateLimit, getClientIpHash } from "@/lib/rateLimit";
-import { getSupabaseAdmin, getSupabaseUser } from "@/lib/supabase";
+import { getClientIpHash } from "@/lib/rateLimit";
+import { getSupabaseAdmin } from "@/lib/supabase";
 
 export async function POST(req: NextRequest) {
   let body: unknown;
@@ -29,44 +29,34 @@ export async function POST(req: NextRequest) {
 
   const admin = getSupabaseAdmin();
 
-  // Identify the caller and their paid status, if authenticated
+  // Scanning is paid-only — no free tier, no anonymous callers. Never trust
+  // a client-supplied paid flag; is_paid is always read fresh from the DB.
   const token = req.headers.get("authorization")?.replace("Bearer ", "");
-  let userId: string | null = null;
-  let isPaid = false;
+  if (!token) {
+    return NextResponse.json({ error: "Sign in and subscribe to run a scan." }, { status: 401 });
+  }
+  const { data: authData } = await admin.auth.getUser(token);
+  if (!authData.user) {
+    return NextResponse.json({ error: "Sign in and subscribe to run a scan." }, { status: 401 });
+  }
+  const userId = authData.user.id;
 
-  if (token) {
-    const { data } = await admin.auth.getUser(token);
-    if (data.user) {
-      userId = data.user.id;
-      const { data: profile } = await admin
-        .from("user_profiles")
-        .select("is_paid")
-        .eq("id", data.user.id)
-        .single();
-      isPaid = profile?.is_paid ?? false;
-    }
+  const { data: profile } = await admin
+    .from("user_profiles")
+    .select("is_paid")
+    .eq("id", userId)
+    .single();
+  if (!profile?.is_paid) {
+    return NextResponse.json({ error: "Subscribe to run a scan." }, { status: 402 });
   }
 
-  // Rate limiting — an available bonus scan bypasses the 1/hour IP limit.
-  // use_bonus_scan() takes no params and resolves the caller via auth.uid(),
-  // so it must be called through the user's own JWT (getSupabaseUser), not
-  // the service-role client — auth.uid() would be null under service role.
-  const useBonusScan = req.headers.get("x-bonus-scan") === "1" && userId !== null;
-  let ipHash: string;
+  // No rate-limit gate here — a paid, authenticated caller doesn't need
+  // free-tier abuse prevention. ip_hash is still recorded on the scan_logs
+  // row below purely for the future activity-ticker roadmap item, not for
+  // limiting.
+  const ipHash = getClientIpHash(req);
 
-  if (useBonusScan) {
-    const { data: remaining, error } = await getSupabaseUser(token!).rpc("use_bonus_scan");
-    if (error || remaining === -1) {
-      return NextResponse.json({ error: "No bonus scans available." }, { status: 429 });
-    }
-    ipHash = getClientIpHash(req);
-  } else {
-    const limit = await checkScanRateLimit(req);
-    if (limit.limited) return limit.response;
-    ipHash = limit.ipHash;
-  }
-
-  // Run the 15-check attack suite
+  // Run the 16-check attack suite
   let scanResult;
   try {
     scanResult = await scanProject(supabaseUrl, anonKey);
@@ -82,7 +72,12 @@ export async function POST(req: NextRequest) {
 
   const analysis = await analyzeResult(scanResult);
 
-  // Paywall-enforced response shapes — fix and codefix never leave this function for free callers
+  // scan_history stores both shapes regardless of paywall status at scan
+  // time — the dashboard picks preview vs. full based on the caller's
+  // CURRENT is_paid at read time (lib/scanHistory.ts), e.g. for a lapsed
+  // subscriber viewing an old scan. This route's own response, below, is
+  // always the full shape now — every caller who reaches this point is
+  // paid, by construction.
   const previewIssues = analysis.issues.map(({ title, severity, consequence }) => ({
     title,
     severity,
@@ -94,42 +89,41 @@ export async function POST(req: NextRequest) {
   const urlHash = createHash("sha256").update(supabaseUrl).digest("hex");
   const criticalCount = analysis.issues.filter((i) => i.severity === "CRITICAL").length;
 
-  // Awaited (not fire-and-forget): this row is what the next request's rate
-  // limit check counts against. Firing it without awaiting created a race —
-  // a client sending requests back-to-back could have its next request's
-  // count-check run before this insert committed, slipping past the 1/hour
-  // limit. Confirmed via 3 rapid sequential requests during the 2026-06-22
-  // security audit (2nd request succeeded when it should have been blocked).
-  const { error: logError } = await admin.from("scan_logs").insert({
-    project_ref: urlHash.slice(-6),
-    grade: analysis.grade,
-    issue_count: analysis.issues.length,
-    critical_count: criticalCount,
-    ip_hash: ipHash,
-  });
-  if (logError) console.error("[scan] scan_logs insert error:", logError.message);
+  // scan_logs no longer gates any rate limit on this route (paid+authed
+  // callers don't need free-tier abuse prevention) — this insert exists
+  // purely to keep data flowing for the future activity-ticker roadmap
+  // item, so it's fire-and-forget rather than awaited.
+  admin
+    .from("scan_logs")
+    .insert({
+      project_ref: urlHash.slice(-6),
+      grade: analysis.grade,
+      issue_count: analysis.issues.length,
+      critical_count: criticalCount,
+      ip_hash: ipHash,
+    })
+    .then(() => {}, () => {});
 
-  if (userId) {
-    admin
-      .from("scan_history")
-      .insert({
-        user_id: userId,
-        project_url_hash: urlHash,
-        grade: analysis.grade,
-        issue_count: analysis.issues.length,
-        full_issues: fullIssues,
-        preview_issues: previewIssues,
-      })
-      .then(() => {}, () => {});
-  }
+  admin
+    .from("scan_history")
+    .insert({
+      user_id: userId,
+      project_url_hash: urlHash,
+      grade: analysis.grade,
+      issue_count: analysis.issues.length,
+      full_issues: fullIssues,
+      preview_issues: previewIssues,
+    })
+    .then(() => {}, () => {});
 
-  // PAYWALL ENFORCED — free users never receive fix or codefix
+  // PAYWALL ENFORCED — this route is unreachable for a non-paid caller
+  // (gated above), so the response is always the full shape.
   return NextResponse.json(
     {
       grade: analysis.grade,
       summary: analysis.summary,
-      isPaid,
-      issues: isPaid ? fullIssues : previewIssues,
+      isPaid: true,
+      issues: fullIssues,
     },
     { headers: { "Cache-Control": "no-store" } }
   );

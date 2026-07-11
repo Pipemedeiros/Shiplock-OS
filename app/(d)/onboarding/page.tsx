@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSupabaseServer } from "@/lib/supabaseServer";
 import { LockMark } from "@/components/d/Brand";
 import { ConnectAndScanForm } from "@/components/d/ConnectAndScanForm";
+import { UpgradeButton } from "@/components/d/UpgradeButton";
 
 // Post-sign-in onboarding: connect-your-stack step between OAuth and the
 // dashboard. GitHub/Vercel/Cloudflare are presented honestly — none of
@@ -41,6 +42,17 @@ export default async function OnboardingPage() {
     redirect("/auth");
   }
 
+  // Scanning is paid-only — /api/scan itself enforces this server-side too,
+  // this is just so an unpaid signed-in user sees a subscribe CTA instead
+  // of a form that would 402 on submit. Same RLS-scoped query pattern as
+  // app/(d)/dashboard/page.tsx.
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("is_paid")
+    .eq("id", user.id)
+    .single();
+  const isPaid = profile?.is_paid ?? false;
+
   return (
     <main className="dxd">
       <div className="dxd-band">
@@ -69,7 +81,23 @@ export default async function OnboardingPage() {
       </div>
 
       <div className="dxd-shell">
-        <ConnectAndScanForm />
+        {isPaid ? (
+          <ConnectAndScanForm />
+        ) : (
+          <section className="dxd-connect-card" aria-label="Subscribe to run your first audit">
+            <div>
+              <h4>Put us on retainer to run your first audit</h4>
+              <p>
+                $49/month, cancel anytime — 7 days free before the first charge. Once you&apos;re
+                subscribed, paste your Supabase URL and anon key here and the first scan runs
+                immediately.
+              </p>
+            </div>
+            <span className="dxd-connect-cta">
+              <UpgradeButton />
+            </span>
+          </section>
+        )}
 
         <section style={{ marginTop: 56 }}>
           <p className="dxd-panel-label" style={{ marginBottom: 14 }}>

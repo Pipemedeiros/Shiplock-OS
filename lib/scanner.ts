@@ -165,6 +165,8 @@ export interface ScanResult {
   inputValidation:  InputValidationCheck;
   // Check 14 — CORS wildcard
   corsConfig:       CorsConfigCheck;
+  // Check 16 — public storage bucket exposure
+  publicBuckets:    PublicBucketCheck;
   /** Kept for backwards compatibility; true when keyAnalysis.isServiceRole */
   exposedKeyInCode: boolean;
   timestamp:        string;
@@ -659,7 +661,7 @@ async function checkCorsConfig(supabaseUrl: string, anonKey: string): Promise<Co
 // ── Main scanner ──────────────────────────────────────────────────────────────
 
 /**
- * Runs 15 security checks against a Supabase project using only the
+ * Runs 16 security checks against a Supabase project using only the
  * caller-supplied anon key and project URL. Our own service role key is
  * never used.
  *
@@ -678,6 +680,7 @@ async function checkCorsConfig(supabaseUrl: string, anonKey: string): Promise<Co
  * Check 13 — Input validation         (SQL error via injected query param)
  * Check 14 — CORS configuration       (wildcard Access-Control-Allow-Origin)
  * Check 15 — Stack trace exposure     (malformed request leaks internals)
+ * Check 16 — Public storage buckets   (bucket listed with public: true)
  */
 export async function scanProject(
   rawUrl:     string,
@@ -754,6 +757,7 @@ export async function scanProject(
     inputValidation,
     corsConfig,
     stackTraceCheck,
+    publicBuckets,
   ] = await Promise.all([
     checkRateLimiting(restBase, anonKey, rateLimitTable),
     checkUnauthAccess(restBase, exposedNames),
@@ -768,6 +772,7 @@ export async function scanProject(
     checkInputValidation(restBase, anonKey, rateLimitTable),
     checkCorsConfig(supabaseUrl, anonKey),
     checkStackTrace(supabaseUrl, anonKey),
+    checkPublicBuckets(supabaseUrl, anonKey),
   ]);
 
   return {
@@ -786,6 +791,7 @@ export async function scanProject(
     botProtection,
     inputValidation,
     corsConfig,
+    publicBuckets,
     exposedKeyInCode: keyAnalysis.isServiceRole,
     timestamp:        new Date().toISOString(),
   };
@@ -796,15 +802,17 @@ export async function scanProject(
 // with it, and scanProject()'s own behavior/output is unchanged above this
 // line. Checks only 4 items: RLS presence, secrets/key exposure, public
 // storage buckets, and service-role-key submission. Deliberately skips the
-// other 11 checks entirely (no rate-limit burst, no per-table IDOR/mass-
+// other 12 checks entirely (no rate-limit burst, no per-table IDOR/mass-
 // assignment probes, no slop-squatting npm lookups, etc.) and, within RLS
 // checking itself, skips the per-table policy-detail fetch that scanProject()
 // does (fetchTablePolicies) — this pass only needs the enabled/disabled
 // boolean per table, not policy contents, so it's materially cheaper than
 // scanProject()'s equivalent step, not just a subset of the same work.
 
-// Check: public storage buckets. Not one of the original 15 checks — new,
-// added for this fast pass specifically per the monitoring spec.
+// Check 16: public storage buckets. Shared with scanProject() (the full
+// 16-check pass) — this function is called from both, defined here purely
+// because scanCriticalChecks() was written first; function declarations are
+// hoisted so call order elsewhere in the module doesn't matter.
 export interface PublicBucketCheck {
   tested: boolean;
   publicBuckets: string[];
