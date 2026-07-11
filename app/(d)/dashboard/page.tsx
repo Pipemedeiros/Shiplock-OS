@@ -60,9 +60,9 @@ export default async function DashboardPage() {
               ShipLock
             </Link>
             <div className="dxd-nav-links">
-              {latest?.project_url && (
+              {latest?.project_url_hash && (
                 <span className="dxd-mono" style={{ fontSize: 12, color: "var(--d-muted-light)" }}>
-                  {latest.project_url}
+                  project ...{latest.project_url_hash.slice(-6)}
                 </span>
               )}
               <span style={{ fontSize: 13 }}>{user.email}</span>

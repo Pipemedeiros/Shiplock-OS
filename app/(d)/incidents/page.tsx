@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Reveal, SpotlightCard } from "@/components/d/bits";
+import { ProximityText, Reveal, SpotlightCard } from "@/components/d/bits";
 import { LockMark } from "@/components/d/Brand";
 
 // Real incidents, not hypotheticals — every claim here is sourced (NVD,
@@ -34,7 +34,7 @@ export default function IncidentsPage() {
             <div>
               <p className="dxd-eyebrow">This already happened</p>
               <h1 className="dxd-display" style={{ fontSize: "clamp(32px,5vw,52px)" }}>
-                Real incidents, not hypotheticals.
+                <ProximityText text="Real incidents, not hypotheticals." />
               </h1>
               <p className="dxd-lede">
                 Every claim on this page is sourced and linked — NVD, CISA, or the vendor&apos;s

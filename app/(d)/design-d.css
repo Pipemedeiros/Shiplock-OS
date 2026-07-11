@@ -1808,6 +1808,16 @@
   transform: translateY(16px);
 }
 
+/* ProximityText — letters swell slightly as the pointer nears them.
+   --sc is set/cleared per-letter by the component's own mousemove
+   handler; the transition here is what makes the swell feel smooth
+   rather than stepped. */
+.dxd-proximity-char {
+  display: inline-block;
+  transform: scale(var(--sc, 1));
+  transition: transform 140ms ease;
+}
+
 /* ── landing: stakes + watch-in-practice sections ── */
 .dxd-stakes {
   display: grid;

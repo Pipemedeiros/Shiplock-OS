@@ -8,6 +8,7 @@
 
 import { useRef, useState } from "react";
 import { Lock } from "@/components/d/Lock";
+import { DecryptText } from "@/components/d/bits";
 import type { PreviewIssue, FullIssue, Severity } from "@/lib/types";
 
 const SEVERITY_LABEL: Record<Severity, string> = {
@@ -58,7 +59,7 @@ export function CoverageBoard({
       <h1 className="dxd-statement" aria-live="polite">
         {issues.length === 0 ? (
           <>
-            Locked. You&apos;re <em className="dxd-em-ok">covered.</em>
+            <DecryptText text="Locked." /> You&apos;re <em className="dxd-em-ok">covered.</em>
           </>
         ) : (
           <>

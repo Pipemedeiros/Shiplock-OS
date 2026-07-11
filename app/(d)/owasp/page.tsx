@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Reveal } from "@/components/d/bits";
+import { ProximityText, Reveal, RevealList, SpotlightCard } from "@/components/d/bits";
 import { LockMark } from "@/components/d/Brand";
 
 // Real educational content page — grounded in the official OWASP Top
@@ -84,6 +84,36 @@ const CATEGORIES = [
   },
 ];
 
+// Real, generic, usable-today guidance for exactly the categories above
+// that CATEGORIES already marks as uncovered or partial (A06/A08/A09) —
+// deliberately not scan-specific, since there's no real check behind it.
+// This is the on-ramp to a future GitHub-integrated, personalized version
+// of the same idea (source access + the owner's own review prompts) —
+// not a placeholder for that, a real generic version usable right now.
+const NOT_SCANNABLE = [
+  {
+    surface: "Business logic (A06 · Insecure Design)",
+    intro:
+      "No scanner can read your intent — only a human, or an AI agent walked through your actual flows, can. For every flow that touches money, auth, or another user's data, paste this to your coding agent:",
+    prompt:
+      "Walk through [flow name] end to end. For each step: what happens if this request arrives twice? Out of order? From a user who shouldn't be able to reach this step yet? Does the server ever trust a price, role, quantity, or user ID that the client sent, instead of computing or verifying it server-side?",
+  },
+  {
+    surface: "Build & deploy integrity (A08)",
+    intro:
+      "This is about whether what ships is what you reviewed — not a database question, a pipeline one:",
+    prompt:
+      "Review my deploy setup: is there a lockfile committed and enforced (not just present)? Does main auto-deploy without any review step? For every webhook receiver in this codebase (Stripe, GitHub, etc.), confirm the signature is actually verified before the payload is trusted — list any that aren't.",
+  },
+  {
+    surface: "Logging & alerting (A09)",
+    intro:
+      "You don't need a SIEM. You need to know if something changed. Ask your agent to check for the absence of these, not add anything heavy:",
+    prompt:
+      "Does this app log failed login attempts anywhere I'd ever actually look? Is there any alert if signups or database reads spike far above normal in a short window? If a background job or webhook handler throws, does that failure go anywhere besides a Vercel log I'd have to think to check?",
+  },
+];
+
 export default function OwaspPage() {
   return (
     <main className="dxd">
@@ -108,7 +138,7 @@ export default function OwaspPage() {
             <div>
               <p className="dxd-eyebrow">Learn the risks</p>
               <h1 className="dxd-display" style={{ fontSize: "clamp(32px,5vw,52px)" }}>
-                The OWASP Top 10:2025, in plain English.
+                <ProximityText text="The OWASP Top 10:2025, in plain English." />
               </h1>
               <p className="dxd-lede">
                 OWASP is the industry-standard list of the ten risk categories that cause the
@@ -125,9 +155,9 @@ export default function OwaspPage() {
       <div className="dxd-shell">
         <section className="dxd-section">
           <div className="dxd-steps" style={{ flexDirection: "column" }}>
-            {CATEGORIES.map((c) => (
-              <Reveal key={c.id}>
-                <div className="dxd-step">
+            <RevealList step={60}>
+              {CATEGORIES.map((c) => (
+                <div className="dxd-step" key={c.id}>
                   <span className="dxd-step-num dxd-serif">{c.id}</span>
                   <div>
                     <h3>{c.name}</h3>
@@ -137,8 +167,34 @@ export default function OwaspPage() {
                     </p>
                   </div>
                 </div>
-              </Reveal>
-            ))}
+              ))}
+            </RevealList>
+          </div>
+        </section>
+
+        <section className="dxd-section" id="not-scannable">
+          <Reveal>
+            <p className="dxd-eyebrow">Honest about the gap</p>
+            <h2 className="dxd-h2">What we can&apos;t scan — and what to ask instead.</h2>
+            <p className="dxd-lede" style={{ marginBottom: 8 }}>
+              A handful of the categories above have no real automated check behind them, by
+              nature — business logic, deploy integrity, and whether anyone would notice if
+              something went wrong are judgment calls, not configuration flags. We&apos;d rather
+              hand you the questions than pretend we already ask them for you.
+            </p>
+          </Reveal>
+          <div className="dxd-surfaces">
+            <RevealList step={90}>
+              {NOT_SCANNABLE.map((n) => (
+                <SpotlightCard className="dxd-surface" key={n.surface}>
+                  <h3>{n.surface}</h3>
+                  <p>{n.intro}</p>
+                  <pre className="dxd-code" style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>
+                    {n.prompt}
+                  </pre>
+                </SpotlightCard>
+              ))}
+            </RevealList>
           </div>
         </section>
 

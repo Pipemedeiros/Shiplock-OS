@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { OAuthButtons } from "@/components/marketing/oauth-buttons";
-import { Reveal, ShinyText, SpotlightCard } from "@/components/d/bits";
+import { ProximityText, Reveal, RevealList, ShinyText, SpotlightCard } from "@/components/d/bits";
 import { Seal } from "@/components/d/Seal";
 import { LockMark } from "@/components/d/Brand";
 
@@ -171,14 +171,14 @@ export default function LandingPage() {
             <div>
               <p className="dxd-eyebrow">Security on retainer · for apps that earn</p>
               <h1 className="dxd-display">
-                You built something worth protecting.
+                <ProximityText text="You built something worth protecting." />
                 <br />
                 <em>
                   <ShinyText>We carry the worry.</ShinyText>
                 </em>
               </h1>
               <p className="dxd-lede">
-                ShipLock runs the checks a $50,000 enterprise audit would — continuously,
+                ShipLock runs the same class of checks a $50,000 enterprise audit opens with — continuously,
                 against your live app. Built for founders who shipped with AI, found paying
                 users, and would rather not bet the business on their own security guesswork.
               </p>
@@ -210,7 +210,7 @@ export default function LandingPage() {
             </p>
           </Reveal>
           <div className="dxd-stakes">
-            <Reveal delay={0}>
+            <RevealList step={90}>
               <SpotlightCard className="dxd-stake">
                 <span className="dxd-stake-num">I · THE BREACH</span>
                 <h3>Apps get broken through boring doors.</h3>
@@ -220,8 +220,6 @@ export default function LandingPage() {
                   automatically, at scale, every day.
                 </p>
               </SpotlightCard>
-            </Reveal>
-            <Reveal delay={90}>
               <SpotlightCard className="dxd-stake">
                 <span className="dxd-stake-num">II · THE LEGAL WEIGHT</span>
                 <h3>Customer data makes it a legal matter.</h3>
@@ -231,8 +229,6 @@ export default function LandingPage() {
                   customers can and do sue over exposed personal data.
                 </p>
               </SpotlightCard>
-            </Reveal>
-            <Reveal delay={180}>
               <SpotlightCard className="dxd-stake">
                 <span className="dxd-stake-num">III · THE TRUST</span>
                 <h3>Revenue is trust with a renewal date.</h3>
@@ -241,7 +237,7 @@ export default function LandingPage() {
                   safe. A breach converts your best customers into your loudest churn.
                 </p>
               </SpotlightCard>
-            </Reveal>
+            </RevealList>
           </div>
           <Reveal>
             <p className="dxd-stake-close">
