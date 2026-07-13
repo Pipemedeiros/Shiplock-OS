@@ -139,6 +139,8 @@ const PRICING = {
     ],
   },
   trialNote: "First 7 days free. Cancel anytime before you're charged.",
+  contrastNote:
+    "A one-time scan answers “am I OK today?” The retainer answers “am I still OK?” — every hour, every deploy, and in full depth every 48 hours.",
 };
 
 const TRUST_LINE =
@@ -244,6 +246,16 @@ export default function LandingPage() {
               You don&apos;t need to be scared of any of this. You need someone carrying it.
             </p>
           </Reveal>
+          <Reveal>
+            <p className="dxd-mono" style={{ marginTop: 28, fontSize: 12.5, lineHeight: 1.7, color: "var(--d-muted)", borderLeft: "2px solid var(--d-bronze)", paddingLeft: 16 }}>
+              This isn&apos;t hypothetical. CVE-2025-48757: 170+ live apps built with an AI
+              builder were found serving names, emails, and financial data to anyone who asked —
+              one missing database rule, rated CVSS 9.3.{" "}
+              <Link href="/incidents" style={{ color: "var(--d-ink)" }}>
+                We wrote up what actually happened →
+              </Link>
+            </p>
+          </Reveal>
         </section>
 
         <section className="dxd-section" id="method">
@@ -278,8 +290,8 @@ export default function LandingPage() {
                 [
                   { slot: "Builder", names: STACK_SPEAKS.builder, scope: "detected from the app itself — nothing to connect" },
                   { slot: "Database", names: STACK_SPEAKS.database, scope: "the public key your frontend already ships — never more" },
-                  { slot: "Host", names: STACK_SPEAKS.host, scope: "optional · read-only, selected projects" },
-                  { slot: "Source", names: STACK_SPEAKS.source, scope: "optional · contents: read-only — powers fix PRs" },
+                  { slot: "Host", names: STACK_SPEAKS.host, scope: "coming soon · optional, read-only, selected projects" },
+                  { slot: "Source", names: STACK_SPEAKS.source, scope: "coming soon · optional, contents: read-only" },
                 ] as const
               ).map((r) => (
                 <div className="dxd-speak-row" role="row" key={r.slot}>
@@ -333,13 +345,46 @@ export default function LandingPage() {
           </div>
         </section>
 
+        <section className="dxd-section" id="fixes">
+          <Reveal>
+            <p className="dxd-eyebrow">The handoff</p>
+            <h2 className="dxd-h2">Findings arrive as fixes your agent can apply.</h2>
+            <p className="dxd-lede">
+              You build by telling an agent what you want. So that&apos;s how we deliver: every
+              finding ships with a step-by-step fix and a prompt written for the tool you build
+              in — paste it into Cursor, Lovable, Bolt, or Claude Code and let it do the work.
+              Your dashboard also carries a single downloadable brief covering every open
+              finding, ready to hand to your agent whole.
+            </p>
+          </Reveal>
+          <Reveal>
+            <div className="dxd-surface" style={{ maxWidth: 640, margin: "28px auto 0" }}>
+              <p className="dxd-mono" style={{ fontSize: 11, color: "var(--d-muted)", textTransform: "uppercase", letterSpacing: "0.1em", margin: "0 0 12px" }}>
+                Example fix prompt — anonymized · one per finding
+              </p>
+              <p className="dxd-mono" style={{ fontSize: 12.5, lineHeight: 1.7, margin: 0, color: "var(--d-ink)", background: "var(--d-porcelain)", border: "1px solid var(--d-line)", borderRadius: 8, padding: "14px 16px" }}>
+                Enable row-level security on the `invoices` table, then add a policy so users can
+                only select rows where user_id = auth.uid(). Show me the SQL before running it —
+                do not modify any other table or policy.
+              </p>
+              <p style={{ marginTop: 14, fontSize: 11.5, lineHeight: 1.6, color: "var(--d-muted)" }}>
+                Every prompt tells your agent to show its work before touching auth, RLS, or
+                data — the fix stays reviewable by you, by design.
+              </p>
+            </div>
+          </Reveal>
+        </section>
+
         <section className="dxd-section" id="watch">
           <Reveal>
             <p className="dxd-eyebrow">The watch, in practice</p>
             <h2 className="dxd-h2">What we monitor — and exactly how.</h2>
             <p className="dxd-lede">
-              We label every source honestly. Some of this is live today; the rest is on the
-              roadmap and we say so plainly rather than implying it already works.
+              A scan is a photograph, and your app doesn&apos;t hold still. One prompt to your
+              coding agent tomorrow can quietly undo today&apos;s fix — which is why a
+              point-in-time report, however deep, expires on your next deploy. We re-check
+              instead. And we label every source honestly: some of this is live today, the rest
+              is on the roadmap and we say so plainly rather than implying it already works.
             </p>
           </Reveal>
           <div className="dxd-watchrows">
@@ -408,6 +453,7 @@ export default function LandingPage() {
               </a>
             </SpotlightCard>
           </div>
+          <p className="dxd-rescan-note">{PRICING.contrastNote}</p>
           <p className="dxd-rescan-note">{PRICING.trialNote}</p>
         </section>
 
