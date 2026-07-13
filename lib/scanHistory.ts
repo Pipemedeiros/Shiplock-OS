@@ -22,6 +22,26 @@ export interface LatestScan {
 // verified live via information_schema.column_privileges) — the RLS-scoped
 // client used elsewhere in server pages can never read it. This must go
 // through the service-role client, same as app/api/scan/route.ts does.
+export interface ScanTimelineEntry {
+  grade: Grade | null;
+  issue_count: number | null;
+  created_at: string | null;
+}
+
+// Preview-safe fields only (grade/count/date — the same data preview_issues
+// callers may already see), so no paywall filtering is needed at the call
+// site. Still service-role for the same grant reasons as getLatestScan.
+export async function getScanTimeline(userId: string, limit = 8): Promise<ScanTimelineEntry[]> {
+  const admin = getSupabaseAdmin();
+  const { data } = await admin
+    .from("scan_history")
+    .select("grade, issue_count, created_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  return (data ?? []) as ScanTimelineEntry[];
+}
+
 export async function getLatestScan(userId: string): Promise<LatestScan | null> {
   const admin = getSupabaseAdmin();
   const { data } = await admin

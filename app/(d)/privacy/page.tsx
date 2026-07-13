@@ -51,11 +51,14 @@ export default function PrivacyPage() {
               </p>
               <p>
                 <b>Your project, to scan it:</b> the Supabase project URL and anon (public) key
-                you paste in. We never store the raw project URL — only a one-way SHA-256 hash
-                of it, so we can recognize repeat scans without holding the real address. If you
-                turn on continuous monitoring, we store your anon key encrypted at rest
-                (AES-256-GCM) so we can re-scan on your behalf; it&apos;s decrypted only in
-                memory, at scan time, and never logged.
+                you paste in. Your scan history stores only a one-way SHA-256 hash of the
+                project URL, so we can recognize repeat scans without keeping the real address
+                in that record. For continuous monitoring — which starts with your first scan —
+                we additionally keep the project URL you&apos;ve asked us to watch (a re-scan
+                needs a real address, not a hash) and your anon key encrypted at rest
+                (AES-256-GCM); the key is decrypted only in memory, at scan time, and never
+                logged. We never retain a service-role key: if you paste one by mistake, we
+                flag it as a critical finding and don&apos;t store it.
               </p>
               <p>
                 <b>Scan results:</b> the grade, findings, and fixes from every audit we run, tied

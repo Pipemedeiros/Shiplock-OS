@@ -1,13 +1,16 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSupabaseServer } from "@/lib/supabaseServer";
-import { getLatestScan } from "@/lib/scanHistory";
+import { getLatestScan, getScanTimeline } from "@/lib/scanHistory";
+import { getWatchLog, getWatchStatus } from "@/lib/monitoring/watchLog";
 import { buildAgentBrief } from "@/lib/agentBrief";
+import { env } from "@/lib/env";
 import { SignOutButton } from "@/components/sign-out-button";
 import { LockMark } from "@/components/d/Brand";
 import { CoverageBoard } from "@/components/d/CoverageBoard";
 import { UpgradeButton } from "@/components/d/UpgradeButton";
 import { AgentBrief } from "@/components/d/AgentBrief";
+import { WatchPanel } from "@/components/d/WatchPanel";
 import type { PreviewIssue, FullIssue } from "@/lib/types";
 
 const TOTAL_CHECKS = 16; // lib/scanner.ts always runs the same 16 checks
@@ -47,6 +50,18 @@ export default async function DashboardPage() {
   // Contains fix/codefix — same sensitivity as full_issues above, so only
   // ever build this when the paywall filtering already resolved to paid.
   const agentBrief = isPaid && latest ? buildAgentBrief(latest) : null;
+
+  // Watch-panel data: counts and metadata only, nothing paywall-sensitive
+  // (see lib/monitoring/watchLog.ts). The deploy-webhook URL is the one
+  // exception — it's a live credential for triggering scans, so it's only
+  // surfaced while the retainer is active.
+  const [watchLog, watchStatus, timeline] = latest
+    ? await Promise.all([getWatchLog(user.id), getWatchStatus(user.id), getScanTimeline(user.id)])
+    : [[], null, []];
+  const webhookUrl =
+    isPaid && watchStatus?.webhookToken
+      ? `${env.NEXT_PUBLIC_APP_URL}/api/monitor/vercel/${watchStatus.webhookToken}`
+      : null;
 
   return (
     <main className="dxd">
@@ -138,6 +153,15 @@ export default async function DashboardPage() {
               </div>
             </div>
           </section>
+
+          {watchStatus && (
+            <WatchPanel
+              entries={watchLog}
+              status={watchStatus}
+              timeline={timeline}
+              webhookUrl={webhookUrl}
+            />
+          )}
 
           {agentBrief && (
             <section style={{ marginTop: 40 }} aria-label="AI-agent brief">

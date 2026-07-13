@@ -5,6 +5,8 @@ import { analyzeResult } from "@/lib/analyzer";
 import { validateSupabaseUrl, validateAnonKey, validateAppUrl, ValidationError } from "@/lib/sanitize";
 import { getClientIpHash } from "@/lib/rateLimit";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { encrypt } from "@/lib/crypto";
+import { extractFindings } from "@/lib/monitoring/findings";
 
 export async function POST(req: NextRequest) {
   let body: unknown;
@@ -108,6 +110,43 @@ export async function POST(req: NextRequest) {
       ip_hash: ipHash,
     })
     .then(() => {}, () => {});
+
+  // Enroll this project in continuous monitoring — the landing page and
+  // privacy policy both describe monitoring as starting from the first
+  // scan, and until this write existed nothing ever set monitoring_enabled
+  // or stored the credentials the hourly/48h/deploy passes read (the
+  // Stripe webhook only ever sets it false on cancellation). The watched
+  // URL is stored raw — migration 008 created monitored_project_url for
+  // exactly this, and a re-scan needs a real address, not a hash; the
+  // privacy page discloses it. Never retain a service-role key, though:
+  // scanning with one is flagged CRITICAL and returned to the user, but
+  // keeping an admin credential at rest for background re-scans is a
+  // different risk than analyzing it once in memory.
+  if (!scanResult.keyAnalysis.isServiceRole) {
+    admin
+      .from("user_profiles")
+      .update({
+        monitoring_enabled: true,
+        monitored_project_url: supabaseUrl,
+        monitored_anon_key_encrypted: encrypt(anonKey),
+      })
+      .eq("id", userId)
+      .then(() => {}, () => {});
+
+    // Seed the monitoring baseline from this scan. Without this, the first
+    // monitoring pass diffs against an empty snapshot history and alerts on
+    // every finding the user just saw in this response (migration 023 adds
+    // 'manual' to the trigger_source constraint for exactly this row).
+    admin
+      .from("monitoring_snapshots")
+      .insert({
+        user_id: userId,
+        trigger_source: "manual",
+        grade: analysis.grade,
+        findings: extractFindings(scanResult),
+      })
+      .then(() => {}, () => {});
+  }
 
   admin
     .from("scan_history")
