@@ -123,29 +123,39 @@ export async function POST(req: NextRequest) {
   // keeping an admin credential at rest for background re-scans is a
   // different risk than analyzing it once in memory.
   if (!scanResult.keyAnalysis.isServiceRole) {
-    admin
-      .from("user_profiles")
-      .update({
-        monitoring_enabled: true,
-        monitored_project_url: supabaseUrl,
-        monitored_anon_key_encrypted: encrypt(anonKey),
-      })
-      .eq("id", userId)
-      .then(() => {}, () => {});
+    // These two writes are load-bearing for monitoring correctness, so —
+    // unlike the fire-and-forget bookkeeping inserts around them — they are
+    // awaited: the enrollment update is what the hourly/48h/deploy passes
+    // key on, and the baseline snapshot is what stops the first pass from
+    // re-alerting every finding the user just saw in this response
+    // (migration 023 adds 'manual' to the trigger_source constraint for it).
+    // Awaiting also guarantees both have committed before the response
+    // returns, so an immediate dashboard load or a cron tick can't race a
+    // half-written enrollment. Errors are logged, never surfaced — a failed
+    // enrollment must not fail the scan the user paid for; the next scan
+    // re-attempts it.
+    try {
+      await admin
+        .from("user_profiles")
+        .update({
+          monitoring_enabled: true,
+          monitored_project_url: supabaseUrl,
+          monitored_anon_key_encrypted: encrypt(anonKey),
+        })
+        .eq("id", userId);
 
-    // Seed the monitoring baseline from this scan. Without this, the first
-    // monitoring pass diffs against an empty snapshot history and alerts on
-    // every finding the user just saw in this response (migration 023 adds
-    // 'manual' to the trigger_source constraint for exactly this row).
-    admin
-      .from("monitoring_snapshots")
-      .insert({
+      await admin.from("monitoring_snapshots").insert({
         user_id: userId,
         trigger_source: "manual",
         grade: analysis.grade,
         findings: extractFindings(scanResult),
-      })
-      .then(() => {}, () => {});
+      });
+    } catch (err) {
+      console.error(
+        "[scan] monitoring enrollment failed (scan result still returned):",
+        err instanceof Error ? err.message : err
+      );
+    }
   }
 
   admin
