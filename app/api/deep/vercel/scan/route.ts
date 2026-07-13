@@ -1,0 +1,34 @@
+import { NextResponse } from "next/server";
+import { requireProUser } from "@/lib/deep/proGate";
+import { getSupabaseAdmin } from "@/lib/supabase";
+import { runVercelEnvAudit } from "@/lib/deep/vercelRun";
+
+// Run (or re-run) the Vercel env-var audit for the caller's connected account.
+// Pro-gated server-side. Persists only new findings.
+export async function POST() {
+  const pro = await requireProUser();
+  if (!pro) {
+    return NextResponse.json({ error: "Pro subscription required." }, { status: 403 });
+  }
+
+  const admin = getSupabaseAdmin();
+  const { data: profile } = await admin
+    .from("user_profiles")
+    .select("vercel_access_token_encrypted, vercel_team_id")
+    .eq("id", pro.userId)
+    .single();
+
+  const encryptedToken = profile?.vercel_access_token_encrypted as string | null | undefined;
+  if (!encryptedToken) {
+    return NextResponse.json({ error: "Vercel is not connected." }, { status: 400 });
+  }
+
+  try {
+    const { total, newCount } = await runVercelEnvAudit(
+      pro.userId, encryptedToken, (profile?.vercel_team_id as string | null) ?? null
+    );
+    return NextResponse.json({ ok: true, total, newCount }, { headers: { "Cache-Control": "no-store" } });
+  } catch {
+    return NextResponse.json({ error: "Scan failed. Try again." }, { status: 502 });
+  }
+}

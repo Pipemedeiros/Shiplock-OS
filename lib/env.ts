@@ -13,6 +13,11 @@ const envSchema = z.object({
   ENCRYPTION_KEY: z.string().min(32),
   CRON_SECRET: z.string().min(1),
   ANTHROPIC_API_KEY: z.string().min(1),
+  // Optional: the Vercel Integration (OAuth) may not be registered yet.
+  // lib/deep/vercel.ts throws a clear error at call time if these are unset —
+  // they must stay optional here so app startup isn't blocked on them.
+  VERCEL_CLIENT_ID: z.string().min(1).optional(),
+  VERCEL_CLIENT_SECRET: z.string().min(1).optional(),
 });
 
 export const env = envSchema.parse(process.env);
