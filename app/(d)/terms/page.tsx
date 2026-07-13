@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { LockMark } from "@/components/d/Brand";
 
@@ -7,6 +8,13 @@ import { LockMark } from "@/components/d/Brand";
 // real legal review before this handles real paying customers — see the
 // plan / conversation this was built from for that caveat.
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Terms of service",
+  description:
+    "Plain-language terms: $49/month, 7-day free trial, self-serve cancellation, what the audit covers and what it can't promise.",
+};
+
 
 export default function TermsPage() {
   return (

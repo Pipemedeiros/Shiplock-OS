@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#8a6b2f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Same drawing as components/d/Brand.tsx LockGlyph, bronze on transparent.
+       Placeholder until the owner's logo lands — swap this file, nothing else. -->
+  <path d="M8.2 11V8.4a3.8 3.8 0 0 1 7.6 0V11" />
+  <rect x="4.9" y="11" width="14.2" height="9" rx="2.6" />
+  <circle cx="12" cy="15.5" r="1.25" fill="#8a6b2f" stroke="none" />
+</svg>

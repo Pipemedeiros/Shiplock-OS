@@ -70,9 +70,22 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ShipLock — Continuous application security",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://shiplock.dev"),
+  title: {
+    default: "ShipLock — Continuous security monitoring for AI-built apps",
+    template: "%s · ShipLock",
+  },
   description:
-    "Enterprise-grade security audits, running every day instead of once a year.",
+    "The same class of checks a $50,000 enterprise audit opens with — running continuously against your live app. Built for founders who shipped with AI and found paying users. $49/month, 7 days free.",
+  openGraph: {
+    siteName: "ShipLock",
+    type: "website",
+    // app/opengraph-image.tsx renders the card; listing it here makes the
+    // default explicit for pages that don't override it.
+  },
+  twitter: {
+    card: "summary_large_image",
+  },
 };
 
 export default function DLayout({

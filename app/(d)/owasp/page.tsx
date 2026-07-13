@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ProximityText, Reveal, RevealList, SpotlightCard } from "@/components/d/bits";
 import { LockMark } from "@/components/d/Brand";
@@ -10,6 +11,13 @@ import { LockMark } from "@/components/d/Brand";
 // genuinely uncovered today, and that's stated plainly rather than
 // stretched into a false mapping.
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "OWASP Top 10 for AI-built apps",
+  description:
+    "The OWASP Top 10:2025, mapped honestly to what an external scanner can and cannot check — including the categories no tool can automate and what to ask instead.",
+};
+
 
 const CATEGORIES = [
   {

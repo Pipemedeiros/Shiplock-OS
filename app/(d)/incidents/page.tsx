@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ProximityText, Reveal, SpotlightCard } from "@/components/d/bits";
 import { LockMark } from "@/components/d/Brand";
@@ -9,6 +10,13 @@ import { LockMark } from "@/components/d/Brand";
 // anon-key-based external scan can detect at all — awareness, not a false
 // detection claim.
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Real incidents in AI-built apps",
+  description:
+    "Sourced writeups of real breaches in vibe-coded apps: CVE-2025-48757 (170+ Lovable apps exposed via missing RLS), the npm supply-chain worm, and CVE-2025-29927.",
+};
+
 
 export default function IncidentsPage() {
   return (

@@ -1,8 +1,16 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSupabaseServer } from "@/lib/supabaseServer";
 import { AuthForm } from "@/components/auth-form";
 import { LockMark } from "@/components/d/Brand";
+
+export const metadata: Metadata = {
+  title: "Sign in",
+  description:
+    "Sign in to ShipLock with email, Google, or GitHub.",
+};
+
 
 export default async function AuthPage({
   searchParams,

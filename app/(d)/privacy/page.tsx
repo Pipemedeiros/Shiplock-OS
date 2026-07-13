@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { LockMark } from "@/components/d/Brand";
 
@@ -8,6 +9,13 @@ import { LockMark } from "@/components/d/Brand";
 // for real legal review before this handles real paying customers' PII —
 // see the plan / conversation this was built from for that caveat.
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Privacy policy",
+  description:
+    "What we collect, why, and how it's protected — hashed project references, AES-256-GCM encrypted keys, and the third parties we actually use.",
+};
+
 
 export default function PrivacyPage() {
   return (

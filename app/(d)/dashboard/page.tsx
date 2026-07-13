@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSupabaseServer } from "@/lib/supabaseServer";
@@ -13,6 +14,11 @@ import { UpgradeButton } from "@/components/d/UpgradeButton";
 import { AgentBrief } from "@/components/d/AgentBrief";
 import { WatchPanel } from "@/components/d/WatchPanel";
 import type { PreviewIssue, FullIssue } from "@/lib/types";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
+
 
 const TOTAL_CHECKS = 16; // lib/scanner.ts always runs the same 16 checks
 

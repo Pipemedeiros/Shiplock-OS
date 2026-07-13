@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { OAuthButtons } from "@/components/marketing/oauth-buttons";
 import { ProximityText, Reveal, RevealList, ShinyText, SpotlightCard } from "@/components/d/bits";
@@ -11,6 +12,13 @@ import { LockMark } from "@/components/d/Brand";
 // this page's script nonces in sync with the header middleware sets for
 // each request.
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  // Landing keeps the layout's default title (no template suffix doubling).
+  title: { absolute: "ShipLock — Continuous security monitoring for AI-built apps" },
+  description:
+    "Sixteen security checks — RLS, exposed tables, public buckets, leaked secrets — running continuously against your live app. Built for founders who shipped with Lovable, Bolt, v0, or Cursor and found paying users. $49/month, 7 days free.",
+};
 
 const SEVERITY_STYLES: Record<string, string> = {
   Critical: "dxd-chip-critical",

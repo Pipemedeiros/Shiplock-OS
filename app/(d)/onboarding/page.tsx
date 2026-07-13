@@ -1,8 +1,14 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getSupabaseServer } from "@/lib/supabaseServer";
 import { LockMark } from "@/components/d/Brand";
 import { ConnectAndScanForm } from "@/components/d/ConnectAndScanForm";
 import { UpgradeButton } from "@/components/d/UpgradeButton";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
+
 
 // Post-sign-in onboarding: connect-your-stack step between OAuth and the
 // dashboard. GitHub/Vercel/Cloudflare are presented honestly — none of
