@@ -169,6 +169,7 @@ export async function POST(req: NextRequest) {
       isPaid: true,
       issues: fullIssues,
       appUrlChecked: scanResult.appUrlChecked,
+      monitoringEnrolled: !scanResult.keyAnalysis.isServiceRole,
     },
     { headers: { "Cache-Control": "no-store" } }
   );

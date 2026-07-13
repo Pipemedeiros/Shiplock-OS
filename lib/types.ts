@@ -23,6 +23,9 @@ export interface ScanResponse {
   isPaid: boolean;
   issues: PreviewIssue[] | FullIssue[];
   appUrlChecked: boolean;
+  // False only when enrollment was skipped (service-role key submitted —
+  // we never retain admin credentials for background re-scans).
+  monitoringEnrolled: boolean;
 }
 
 export interface UserProfile {

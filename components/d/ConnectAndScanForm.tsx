@@ -5,10 +5,11 @@
 // previously had no caller anywhere in the app (see plan notes); this is
 // the first one, calling the existing, unmodified /api/scan.
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
 import { track } from "@/lib/analytics";
+import { DecryptText } from "@/components/d/bits";
 import type { ScanResponse, PreviewIssue, FullIssue, Severity } from "@/lib/types";
 
 type Phase = "connect" | "scanning" | "report";
@@ -36,6 +37,15 @@ export function ConnectAndScanForm() {
   const [appUrl, setAppUrl] = useState("");
   const [error, setError] = useState("");
   const [result, setResult] = useState<ScanResponse | null>(null);
+  const reportRef = useRef<HTMLDivElement>(null);
+
+  // The report is the conversion moment — bring it into view the instant it
+  // exists instead of leaving the grade below the fold.
+  useEffect(() => {
+    if (phase === "report") {
+      reportRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [phase]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -160,10 +170,10 @@ export function ConnectAndScanForm() {
       )}
 
       {phase === "report" && result && (
-        <div>
+        <div ref={reportRef} style={{ scrollMarginTop: 24 }}>
           <div style={{ display: "flex", gap: 28, alignItems: "flex-start", flexWrap: "wrap" }}>
             <p className="dxd-grade dxd-serif" aria-label={`Grade ${result.grade}`}>
-              {result.grade}
+              <DecryptText text={result.grade} duration={900} />
             </p>
             <div style={{ flex: 1, minWidth: 240 }}>
               <p style={{ margin: "8px 0 6px", fontWeight: 600, fontSize: 16.5 }}>
@@ -239,6 +249,25 @@ export function ConnectAndScanForm() {
               Locked at the API, not blurred in the browser — the briefs never leave the vault
               until you engage. Check the network tab if you like; that&apos;s rather the
               point.
+            </p>
+          )}
+
+          {result.monitoringEnrolled && (
+            <p
+              className="dxd-mono"
+              style={{
+                margin: "0 0 20px",
+                fontSize: 12.5,
+                lineHeight: 1.7,
+                color: "var(--d-ink)",
+                borderLeft: "2px solid var(--d-bronze)",
+                paddingLeft: 14,
+              }}
+            >
+              <span style={{ color: "var(--d-bronze)" }}>● The watch is now active.</span>{" "}
+              This project is enrolled in continuous monitoring — hourly critical checks and a
+              full deep audit every 48 hours. You&apos;ll only hear from us when something new
+              appears; the log of every pass lives on your dashboard.
             </p>
           )}
 

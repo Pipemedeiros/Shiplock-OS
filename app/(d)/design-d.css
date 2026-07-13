@@ -122,6 +122,25 @@
   opacity: 1;
 }
 
+/* The nav had no mobile handling at all — on phones the link row overflowed
+   the shell. Let it wrap into tidy rows instead of adding a JS hamburger:
+   five short links wrap cleanly at this size. */
+@media (max-width: 700px) {
+  .dxd-nav {
+    flex-wrap: wrap;
+    row-gap: 10px;
+    padding: 18px 0;
+  }
+  .dxd-nav-links {
+    flex-wrap: wrap;
+    gap: 12px 16px;
+    row-gap: 8px;
+  }
+  .dxd-nav-links a {
+    font-size: 13px;
+  }
+}
+
 /* light-surface nav variant */
 .dxd-nav-light {
   border-bottom: 1px solid var(--d-line);
