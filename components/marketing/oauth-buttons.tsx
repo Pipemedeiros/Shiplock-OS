@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
+import { track } from "@/lib/analytics";
 
 type OAuthProvider = "google" | "github";
 
@@ -34,6 +35,7 @@ export function OAuthButtons() {
   const [error, setError] = useState("");
 
   async function handleOAuth(provider: OAuthProvider) {
+    track("auth_started", { provider });
     setError("");
     setLoading(provider);
     const supabase = getSupabaseBrowser();

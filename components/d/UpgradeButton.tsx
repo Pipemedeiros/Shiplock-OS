@@ -8,6 +8,7 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
+import { track } from "@/lib/analytics";
 
 export function UpgradeButton({
   grade,
@@ -20,6 +21,7 @@ export function UpgradeButton({
   const [error, setError] = useState("");
 
   async function handleUpgrade() {
+    track("checkout_started", { from_scan: Boolean(grade) });
     setError("");
     setLoading(true);
     try {

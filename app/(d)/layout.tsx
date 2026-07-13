@@ -12,6 +12,7 @@ import {
 } from "next/font/google";
 import "./design-base.css";
 import "./design-d.css";
+import { PostHogInit } from "@/components/PostHogInit";
 
 // Real-product layout for the D-skinned routes (/, /auth, /onboarding,
 // /dashboard) — a route group, so it contributes no URL segment. Fonts are
@@ -81,6 +82,7 @@ export default function DLayout({
     <div
       className={`dx-root ${hanken.variable} ${fragmentMono.variable} ${chakra.variable} ${jetbrains.variable} ${bricolage.variable} ${figtree.variable} ${newsreader.variable} ${geist.variable} ${geistMono.variable}`}
     >
+      <PostHogInit />
       {children}
     </div>
   );

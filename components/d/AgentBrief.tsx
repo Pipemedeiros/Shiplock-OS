@@ -6,6 +6,7 @@
 // surface here.
 
 import { useState } from "react";
+import { track } from "@/lib/analytics";
 
 export function AgentBrief({ markdown }: { markdown: string }) {
   const [copied, setCopied] = useState(false);
@@ -13,6 +14,7 @@ export function AgentBrief({ markdown }: { markdown: string }) {
   async function handleCopy() {
     try {
       await navigator.clipboard.writeText(markdown);
+      track("agent_brief_copied");
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -22,6 +24,7 @@ export function AgentBrief({ markdown }: { markdown: string }) {
   }
 
   function handleDownload() {
+    track("agent_brief_downloaded");
     const blob = new Blob([markdown], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");

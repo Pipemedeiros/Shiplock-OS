@@ -8,6 +8,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
+import { track } from "@/lib/analytics";
 import type { ScanResponse, PreviewIssue, FullIssue, Severity } from "@/lib/types";
 
 type Phase = "connect" | "scanning" | "report";
@@ -38,6 +39,8 @@ export function ConnectAndScanForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // Counts/booleans only — never the URL or key (lib/analytics.ts rule).
+    track("scan_started", { has_app_url: Boolean(appUrl) });
     setError("");
     setPhase("scanning");
 
@@ -61,14 +64,22 @@ export function ConnectAndScanForm() {
       const data = await res.json();
 
       if (!res.ok) {
+        track("scan_failed", { status: res.status });
         setError(data.error ?? "Scan failed — check your project URL and anon key.");
         setPhase("connect");
         return;
       }
 
-      setResult(data as ScanResponse);
+      const scan = data as ScanResponse;
+      track("scan_completed", {
+        grade: scan.grade,
+        issue_count: scan.issues.length,
+        critical_count: scan.issues.filter((i) => i.severity === "CRITICAL").length,
+      });
+      setResult(scan);
       setPhase("report");
     } catch {
+      track("scan_failed", { status: 0 });
       setError("Couldn't reach the server. Try again in a moment.");
       setPhase("connect");
     }

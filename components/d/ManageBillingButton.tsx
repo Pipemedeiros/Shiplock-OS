@@ -6,12 +6,14 @@
 
 import { useState } from "react";
 import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
+import { track } from "@/lib/analytics";
 
 export function ManageBillingButton() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   async function handleOpen() {
+    track("billing_portal_opened");
     setError("");
     setLoading(true);
     try {

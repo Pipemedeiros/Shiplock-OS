@@ -21,9 +21,12 @@ function buildCsp(nonce: string): string {
   const scriptSrc = isDev
     ? `'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval'`
     : `'self' 'nonce-${nonce}' 'strict-dynamic'`;
+  // PostHog: the JS bundle ships from our own origin (npm package), but it
+  // phones home to us.i.posthog.com (events/remote config) and
+  // us-assets.i.posthog.com (surveys/toolbar assets) — both connect-src only.
   const connectSrc = isDev
-    ? "'self' ws: https://api.stripe.com https://*.supabase.co"
-    : "'self' https://api.stripe.com https://*.supabase.co";
+    ? "'self' ws: https://api.stripe.com https://*.supabase.co https://us.i.posthog.com https://us-assets.i.posthog.com"
+    : "'self' https://api.stripe.com https://*.supabase.co https://us.i.posthog.com https://us-assets.i.posthog.com";
 
   return [
     "default-src 'self'",
