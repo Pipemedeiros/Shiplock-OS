@@ -6,6 +6,7 @@ import { getWatchLog, getWatchStatus } from "@/lib/monitoring/watchLog";
 import { buildAgentBrief } from "@/lib/agentBrief";
 import { env } from "@/lib/env";
 import { SignOutButton } from "@/components/sign-out-button";
+import { ManageBillingButton } from "@/components/d/ManageBillingButton";
 import { LockMark } from "@/components/d/Brand";
 import { CoverageBoard } from "@/components/d/CoverageBoard";
 import { UpgradeButton } from "@/components/d/UpgradeButton";
@@ -90,6 +91,7 @@ export default async function DashboardPage() {
               <span className="dxd-mono" style={{ fontSize: 11 }}>
                 {isPaid ? "Pro" : latest ? "Lapsed" : "Not subscribed"}
               </span>
+              {(isPaid || latest) && <ManageBillingButton />}
               <SignOutButton />
             </div>
           </nav>

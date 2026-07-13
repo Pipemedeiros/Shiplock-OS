@@ -2,11 +2,10 @@ import Link from "next/link";
 import { LockMark } from "@/components/d/Brand";
 
 // Real, product-accurate Terms of Service — matches what's actually built
-// (no self-serve billing portal yet — /api/portal is [NOT BUILT] per
-// CLAUDE.md, so cancellation is manual today) rather than promising
-// features that don't exist. NOT a substitute for real legal review before
-// this handles real paying customers — see the plan / conversation this
-// was built from for that caveat.
+// (self-serve cancellation via /api/portal + the dashboard Billing button)
+// rather than promising features that don't exist. NOT a substitute for
+// real legal review before this handles real paying customers — see the
+// plan / conversation this was built from for that caveat.
 export const dynamic = "force-dynamic";
 
 export default function TermsPage() {
@@ -51,11 +50,12 @@ export default function TermsPage() {
                 trial at no cost. After the trial, billing renews monthly until cancelled.
               </p>
               <p>
-                <b>Cancelling:</b> a self-serve billing portal is on our roadmap and not live
-                yet — to cancel today, email{" "}
-                <a href="mailto:support@shiplock.dev">support@shiplock.dev</a> and we&apos;ll
-                cancel your subscription. You keep access through the end of the period you&apos;ve
-                already paid for; we don&apos;t offer partial-month refunds.
+                <b>Cancelling:</b> self-serve, any time — open <b>Billing</b> from your
+                dashboard to manage or cancel your subscription through Stripe&apos;s billing
+                portal (or email{" "}
+                <a href="mailto:support@shiplock.dev">support@shiplock.dev</a> and we&apos;ll do
+                it for you). You keep access through the end of the period you&apos;ve already
+                paid for; we don&apos;t offer partial-month refunds.
               </p>
             </div>
 
