@@ -4,6 +4,11 @@ import { redirect } from "next/navigation";
 import { getSupabaseServer } from "@/lib/supabaseServer";
 import { getLatestScan, getScanTimeline } from "@/lib/scanHistory";
 import { getWatchLog, getWatchStatus } from "@/lib/monitoring/watchLog";
+import { getProtectionStatus, getRecentBlocks, getRecentThreats } from "@/lib/traffic/trafficLog";
+import { buildSnippet, buildWebSnippet, buildExpressSnippet } from "@/lib/traffic/snippet";
+import { GUARDRAILS } from "@/lib/guardrails";
+import { auditJwtSigning, type JwtSigningPosture } from "@/lib/security/sessionAudit";
+import { getSupabaseAdmin } from "@/lib/supabase";
 import { buildAgentBrief } from "@/lib/agentBrief";
 import { env } from "@/lib/env";
 import { SignOutButton } from "@/components/sign-out-button";
@@ -13,6 +18,9 @@ import { CoverageBoard } from "@/components/d/CoverageBoard";
 import { UpgradeButton } from "@/components/d/UpgradeButton";
 import { AgentBrief } from "@/components/d/AgentBrief";
 import { WatchPanel } from "@/components/d/WatchPanel";
+import { TrafficPanel } from "@/components/d/TrafficPanel";
+import { GuardrailPanel } from "@/components/d/GuardrailPanel";
+import { GitHubPanel, type SourceFinding } from "@/components/d/GitHubPanel";
 import type { PreviewIssue, FullIssue } from "@/lib/types";
 
 export const metadata: Metadata = {
@@ -69,6 +77,59 @@ export default async function DashboardPage() {
     isPaid && watchStatus?.webhookToken
       ? `${env.NEXT_PUBLIC_APP_URL}/api/monitor/vercel/${watchStatus.webhookToken}`
       : null;
+
+  // Live traffic protection — paid only. Independent of scan findings (it's
+  // about inbound traffic), so it's fetched off is_paid, not `latest`. Counts
+  // and metadata only; the ingest token is a live credential, so the install
+  // snippet is only built for the paid owner viewing their own dashboard.
+  const [protectionStatus, trafficBlocks, trafficThreats] = isPaid
+    ? await Promise.all([getProtectionStatus(user.id), getRecentBlocks(user.id), getRecentThreats(user.id)])
+    : [null, [], []];
+  const trafficSnippet = protectionStatus?.ingestToken
+    ? buildSnippet(protectionStatus.ingestToken, env.NEXT_PUBLIC_APP_URL)
+    : null;
+  const trafficWebSnippet = protectionStatus?.ingestToken
+    ? buildWebSnippet(protectionStatus.ingestToken, env.NEXT_PUBLIC_APP_URL)
+    : "";
+  const trafficExpressSnippet = protectionStatus?.ingestToken
+    ? buildExpressSnippet(protectionStatus.ingestToken, env.NEXT_PUBLIC_APP_URL)
+    : "";
+
+  // Live JWT-signing posture (paid only) — externally checkable from the stored
+  // project URL, no extra credential. Best-effort: on any failure it returns an
+  // informational "unknown" rather than throwing.
+  let jwtPosture: JwtSigningPosture | null = null;
+  if (isPaid) {
+    const { data: monitored } = await getSupabaseAdmin()
+      .from("user_profiles")
+      .select("monitored_project_url")
+      .eq("id", user.id)
+      .maybeSingle();
+    const projectUrl = monitored?.monitored_project_url as string | null | undefined;
+    if (projectUrl) jwtPosture = await auditJwtSigning(projectUrl);
+  }
+
+  // GitHub source scanning — only surfaced once the App is registered
+  // (GITHUB_APP_SLUG set). Reads connection state + active source findings.
+  const githubConfigured = Boolean(env.GITHUB_APP_SLUG);
+  let githubConnected = false;
+  let sourceFindings: SourceFinding[] = [];
+  if (isPaid && githubConfigured) {
+    const admin = getSupabaseAdmin();
+    const [{ data: gh }, { data: findings }] = await Promise.all([
+      admin.from("user_profiles").select("github_installation_id").eq("id", user.id).maybeSingle(),
+      admin
+        .from("deep_findings")
+        .select("title, severity, consequence")
+        .eq("user_id", user.id)
+        .eq("source", "github")
+        .is("archived_at", null)
+        .order("detected_at", { ascending: false })
+        .limit(20),
+    ]);
+    githubConnected = Boolean(gh?.github_installation_id);
+    sourceFindings = (findings ?? []) as SourceFinding[];
+  }
 
   return (
     <main className="dxd">
@@ -170,6 +231,23 @@ export default async function DashboardPage() {
               webhookUrl={webhookUrl}
             />
           )}
+
+          {isPaid && protectionStatus && trafficSnippet && (
+            <TrafficPanel
+              status={protectionStatus}
+              blocks={trafficBlocks}
+              threats={trafficThreats}
+              snippet={trafficSnippet}
+              webSnippet={trafficWebSnippet}
+              expressSnippet={trafficExpressSnippet}
+            />
+          )}
+
+          {isPaid && githubConfigured && (
+            <GitHubPanel connected={githubConnected} findings={sourceFindings} />
+          )}
+
+          {isPaid && <GuardrailPanel guardrails={GUARDRAILS} jwtPosture={jwtPosture} />}
 
           {agentBrief && (
             <section style={{ marginTop: 40 }} aria-label="AI-agent brief">
