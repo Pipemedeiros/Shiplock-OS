@@ -18,6 +18,15 @@ const envSchema = z.object({
   // they must stay optional here so app startup isn't blocked on them.
   VERCEL_CLIENT_ID: z.string().min(1).optional(),
   VERCEL_CLIENT_SECRET: z.string().min(1).optional(),
+  // Optional: the GitHub App (source scanning) may not be registered yet.
+  // lib/deep/github.ts throws a clear error at call time if these are unset.
+  // See GITHUB_APP_SETUP.md for how to create the App and obtain these.
+  GITHUB_APP_ID: z.string().min(1).optional(),
+  GITHUB_APP_PRIVATE_KEY: z.string().min(1).optional(),
+  GITHUB_APP_CLIENT_ID: z.string().min(1).optional(),
+  GITHUB_APP_CLIENT_SECRET: z.string().min(1).optional(),
+  GITHUB_APP_SLUG: z.string().min(1).optional(),
+  GITHUB_WEBHOOK_SECRET: z.string().min(1).optional(),
 });
 
 export const env = envSchema.parse(process.env);
