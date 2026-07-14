@@ -1,0 +1,61 @@
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { getSupabaseAdmin } from "@/lib/supabase";
+import { ingestTrafficEvent } from "@/lib/traffic/ingest";
+
+// Public ingest endpoint for the customer's middleware snippet. Auth is the
+// per-site traffic_ingest_token (header `x-site` or `?site=`), the same
+// unguessable-token model as the deploy webhook. ALWAYS returns a generic
+// `{ ok: true }` regardless of outcome — no enumeration, and the snippet
+// treats it fire-and-forget anyway. Everything downstream is fail-open.
+
+const OK = NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
+
+const bodySchema = z.object({
+  source_id: z.string().min(1).max(64),
+  path: z.string().min(1).max(512),
+  method: z.string().min(1).max(10),
+  ua: z.string().max(512).nullable().optional(),
+  session_id: z.string().min(1).max(64).nullable().optional(),
+  t: z.number().optional(),
+});
+
+export async function POST(req: NextRequest) {
+  try {
+    const token = req.headers.get("x-site") ?? new URL(req.url).searchParams.get("site");
+    if (!token) return OK;
+
+    const parsed = bodySchema.safeParse(await req.json().catch(() => null));
+    if (!parsed.success) return OK;
+
+    const admin = getSupabaseAdmin();
+    const { data: profile } = await admin
+      .from("user_profiles")
+      .select("id, email, is_paid")
+      .eq("traffic_ingest_token", token)
+      .maybeSingle();
+
+    // Unknown token, or a lapsed subscriber — traffic protection pauses with
+    // the subscription, same as the rest of the watch. Answer generically.
+    if (!profile || !profile.is_paid) return OK;
+
+    const b = parsed.data;
+    await ingestTrafficEvent({
+      userId: profile.id as string,
+      email: (profile.email as string | null) ?? null,
+      event: {
+        source_id: b.source_id,
+        path: b.path,
+        method: b.method,
+        ua: b.ua ?? null,
+        session_id: b.session_id ?? null,
+        t: b.t ?? Date.now(),
+      },
+    });
+
+    return OK;
+  } catch (err) {
+    console.error("[traffic/ingest]", err instanceof Error ? err.message : err);
+    return OK; // fail open, always generic
+  }
+}

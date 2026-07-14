@@ -1,0 +1,170 @@
+import type { Decision } from "@/lib/types";
+
+// Pure, deterministic traffic detection — no I/O, no Claude (same doctrine as
+// lib/monitoring/findings.ts: background/hot-path logic must be cheap and
+// testable). The ingest route fetches a source's recent events, this module
+// turns them into signals and a Decision, and only the ingest route does DB
+// writes. Kept pure so every threshold is unit-tested.
+//
+// Enforcement posture (owner decision): auto-block ONLY on high-confidence
+// malicious signatures; softer anomalies alert but never block, so a real
+// user never eats a false-positive 429.
+
+// ── Tunable thresholds ─────────────────────────────────────────────────────
+export const AUTH_WINDOW_MS = 60_000; // brute-force / credential-stuffing window
+export const AUTH_ALERT_THRESHOLD = 10; // auth hits/window -> alert (no block)
+export const AUTH_BLOCK_THRESHOLD = 20; // auth hits/window -> block (clear brute-force)
+
+export const SCAN_WINDOW_MS = 300_000; // vuln-scanner path-probing window
+export const SCAN_DISTINCT_THRESHOLD = 5; // distinct suspicious paths -> block
+
+export const FLOOD_WINDOW_MS = 60_000; // raw request flood window
+export const FLOOD_THRESHOLD = 100; // total hits/window from ONE source -> block
+
+export const SESSION_WINDOW_MS = 600_000; // session-hijack window (10m)
+export const SESSION_SOURCE_THRESHOLD = 4; // one session from >= N distinct sources -> alert
+
+export const BLOCK_TTL_LONG_MS = 60 * 60_000; // 1h — brute-force / scanner
+export const BLOCK_TTL_SHORT_MS = 15 * 60_000; // 15m — flood
+
+// Largest lookback the detector needs; the ingest layer fetches this window.
+export const LOOKBACK_MS = Math.max(AUTH_WINDOW_MS, SCAN_WINDOW_MS, FLOOD_WINDOW_MS);
+// Row cap on the fetch. Hitting it means >= this many requests from one source
+// inside LOOKBACK_MS, which is itself flood-level — so a capped fetch is
+// treated as a flood rather than silently under-counted.
+export const FETCH_ROW_CAP = 300;
+
+const NONE: Decision = { action: "none", reason: "", severity: "INFO", ttlMs: 0 };
+
+// ── Path classifiers (pure, shared with tests) ─────────────────────────────
+const AUTH_PATH_RE =
+  /^\/(login|log-in|signin|sign-in|register|signup|sign-up|auth\b|session|token)|^\/api\/auth|\/auth\//i;
+
+// Paths no legitimate app-of-this-kind serves — hitting several distinct ones
+// is an automated vulnerability scanner, not a user.
+const SUSPICIOUS_PATH_RES: RegExp[] = [
+  /^\/\.env(\.|$|\/)/i,
+  /^\/\.git(\/|$)/i,
+  /^\/\.aws(\/|$)/i,
+  /^\/\.ssh(\/|$)/i,
+  /^\/\.DS_Store$/i,
+  /^\/wp-admin(\/|$)/i,
+  /^\/wp-login\.php/i,
+  /^\/xmlrpc\.php/i,
+  /^\/phpmyadmin(\/|$)/i,
+  /^\/phpMyAdmin(\/|$)/,
+  /^\/vendor\//i,
+  /^\/\.git-credentials$/i,
+  /^\/(backup|dump|db)\.sql$/i,
+  /^\/(shell|c99|r57)\.php$/i,
+];
+
+export function isAuthPath(path: string): boolean {
+  return AUTH_PATH_RE.test(path);
+}
+
+export function isSuspiciousPath(path: string): boolean {
+  return SUSPICIOUS_PATH_RES.some((re) => re.test(path));
+}
+
+// ── Signal extraction ──────────────────────────────────────────────────────
+export interface EventRow {
+  path: string;
+  created_at: string; // ISO timestamp
+}
+
+export interface TrafficSignals {
+  authCount: number; // auth-path hits within AUTH_WINDOW_MS
+  distinctScanPaths: number; // distinct suspicious paths within SCAN_WINDOW_MS
+  totalCount: number; // all hits within FLOOD_WINDOW_MS
+  capped: boolean; // the source's fetch hit FETCH_ROW_CAP (flood-level on its own)
+  // Distinct source_ids that presented THIS request's session within
+  // SESSION_WINDOW_MS. Computed by a separate per-session query (not from this
+  // source's rows), so it's passed in. 0 for anonymous requests.
+  distinctSourcesForSession: number;
+}
+
+// Pure: rows are this source's recent events (any order). `capped` says the
+// upstream fetch was truncated at FETCH_ROW_CAP. `distinctSourcesForSession`
+// comes from a separate per-session query in the ingest layer.
+export function computeSignals(
+  rows: EventRow[],
+  nowMs: number,
+  capped = false,
+  distinctSourcesForSession = 0
+): TrafficSignals {
+  const authCutoff = nowMs - AUTH_WINDOW_MS;
+  const floodCutoff = nowMs - FLOOD_WINDOW_MS;
+  const scanCutoff = nowMs - SCAN_WINDOW_MS;
+
+  let authCount = 0;
+  let totalCount = 0;
+  const scanPaths = new Set<string>();
+
+  for (const row of rows) {
+    const ts = Date.parse(row.created_at);
+    if (Number.isNaN(ts)) continue;
+    if (ts >= floodCutoff) totalCount++;
+    if (ts >= authCutoff && isAuthPath(row.path)) authCount++;
+    if (ts >= scanCutoff && isSuspiciousPath(row.path)) scanPaths.add(row.path);
+  }
+
+  return { authCount, distinctScanPaths: scanPaths.size, totalCount, capped, distinctSourcesForSession };
+}
+
+// ── Decision (pure) ────────────────────────────────────────────────────────
+// Most-specific / highest-confidence signatures first. Block rules always win
+// over the alert rule.
+export function detect(signals: TrafficSignals): Decision {
+  if (signals.distinctScanPaths >= SCAN_DISTINCT_THRESHOLD) {
+    return {
+      action: "block",
+      reason: `Vulnerability scanning — probed ${signals.distinctScanPaths} sensitive paths`,
+      severity: "CRITICAL",
+      ttlMs: BLOCK_TTL_LONG_MS,
+    };
+  }
+
+  if (signals.authCount >= AUTH_BLOCK_THRESHOLD) {
+    return {
+      action: "block",
+      reason: `Credential stuffing — ${signals.authCount} auth attempts in ${AUTH_WINDOW_MS / 1000}s`,
+      severity: "CRITICAL",
+      ttlMs: BLOCK_TTL_LONG_MS,
+    };
+  }
+
+  if (signals.capped || signals.totalCount >= FLOOD_THRESHOLD) {
+    const n = signals.capped ? `${FETCH_ROW_CAP}+` : `${signals.totalCount}`;
+    return {
+      action: "block",
+      reason: `Request flood — ${n} requests in ${FLOOD_WINDOW_MS / 1000}s`,
+      severity: "CRITICAL",
+      ttlMs: BLOCK_TTL_SHORT_MS,
+    };
+  }
+
+  // Session hijack: one session presented from many sources at once. ALERT
+  // only — never auto-block, because blocking a valid session would lock out
+  // the legitimate user, and distinguishing theft from a VPN/multi-device user
+  // isn't certain enough to 429 on.
+  if (signals.distinctSourcesForSession >= SESSION_SOURCE_THRESHOLD) {
+    return {
+      action: "alert",
+      reason: `Possible session hijack — one session used from ${signals.distinctSourcesForSession} sources in ${SESSION_WINDOW_MS / 60000}m`,
+      severity: "WARNING",
+      ttlMs: 0,
+    };
+  }
+
+  if (signals.authCount >= AUTH_ALERT_THRESHOLD) {
+    return {
+      action: "alert",
+      reason: `Elevated auth traffic — ${signals.authCount} attempts in ${AUTH_WINDOW_MS / 1000}s`,
+      severity: "WARNING",
+      ttlMs: 0,
+    };
+  }
+
+  return NONE;
+}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { runMonitoringPass } from "@/lib/monitoring";
+import { pruneOldTraffic } from "@/lib/traffic/prune";
 
 const FULL_SCAN_INTERVAL_MS = 48 * 60 * 60 * 1000;
 
@@ -57,5 +58,10 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ checked: profiles?.length ?? 0, succeeded, failed });
+  // Piggyback traffic-layer retention on the existing daily cron (Hobby plan
+  // allows only daily-frequency crons, so we reuse this entry rather than add
+  // one). Fail-soft — never affects the monitoring result.
+  const pruned = await pruneOldTraffic();
+
+  return NextResponse.json({ checked: profiles?.length ?? 0, succeeded, failed, pruned: pruned.ok });
 }
