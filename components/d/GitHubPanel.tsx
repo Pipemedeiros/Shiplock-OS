@@ -15,10 +15,17 @@ export interface SourceFinding {
   consequence: string;
 }
 
+interface FixPr {
+  repo: string;
+  url: string;
+  count: number;
+}
+
 export function GitHubPanel({ connected, findings }: { connected: boolean; findings: SourceFinding[] }) {
   const router = useRouter();
-  const [busy, setBusy] = useState<"scan" | "disconnect" | null>(null);
+  const [busy, setBusy] = useState<"scan" | "disconnect" | "fix" | null>(null);
   const [error, setError] = useState("");
+  const [fixResult, setFixResult] = useState<{ prs: FixPr[] } | null>(null);
 
   async function post(path: string, kind: "scan" | "disconnect") {
     setError("");
@@ -32,6 +39,25 @@ export function GitHubPanel({ connected, findings }: { connected: boolean; findi
         return;
       }
       router.refresh();
+    } catch {
+      setError("Couldn't reach the server. Try again.");
+    }
+    setBusy(null);
+  }
+
+  async function runFix() {
+    setError("");
+    setFixResult(null);
+    setBusy("fix");
+    try {
+      const res = await fetch("/api/deep/github/fix", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error ?? "Could not open fix PRs. Try again.");
+        setBusy(null);
+        return;
+      }
+      setFixResult({ prs: data.prs ?? [] });
     } catch {
       setError("Couldn't reach the server. Try again.");
     }
@@ -75,6 +101,15 @@ export function GitHubPanel({ connected, findings }: { connected: boolean; findi
               </button>
               <button
                 type="button"
+                className="dxd-btn dxd-btn-paper"
+                onClick={runFix}
+                disabled={busy !== null}
+                style={{ fontSize: 12, padding: "6px 14px" }}
+              >
+                {busy === "fix" ? "Opening PRs…" : "Open fix PRs"}
+              </button>
+              <button
+                type="button"
                 className="dxd-btn dxd-btn-ghost"
                 onClick={() => post("/api/deep/github/disconnect", "disconnect")}
                 disabled={busy !== null}
@@ -86,6 +121,31 @@ export function GitHubPanel({ connected, findings }: { connected: boolean; findi
           )}
           {error && <span style={{ fontSize: 12, color: "var(--d-signal)", alignSelf: "center" }}>{error}</span>}
         </div>
+
+        {fixResult && (
+          <div style={{ marginTop: 12, fontSize: 12.5, lineHeight: 1.7 }}>
+            {fixResult.prs.length > 0 ? (
+              <>
+                <p style={{ margin: "0 0 6px", color: "var(--d-muted)" }}>
+                  Opened {fixResult.prs.length} pull request{fixResult.prs.length !== 1 ? "s" : ""} — review and merge:
+                </p>
+                <ul style={{ margin: 0, paddingLeft: 18 }}>
+                  {fixResult.prs.map((pr) => (
+                    <li key={pr.url}>
+                      <a href={pr.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--d-bronze)" }}>
+                        {pr.repo} — {pr.count} dependenc{pr.count !== 1 ? "ies" : "y"} bumped
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p style={{ margin: 0, color: "var(--d-muted)" }}>
+                No auto-fixable dependencies found — nothing with a known patched version to bump.
+              </p>
+            )}
+          </div>
+        )}
 
         {connected && findings.length > 0 && (
           <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>

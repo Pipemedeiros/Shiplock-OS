@@ -2,6 +2,7 @@ import { createSign } from "crypto";
 import { env } from "@/lib/env";
 import type { Severity } from "@/lib/types";
 import type { Dep, OsvVuln } from "./githubScan";
+import { fixedVersionFromOsv } from "./githubFix";
 
 // GitHub App API access. READ-ONLY: the App requests only "Repository contents:
 // read" + "Metadata: read" (see GITHUB_APP_SETUP.md). This module never writes
@@ -120,6 +121,7 @@ export async function queryOsv(deps: Dep[]): Promise<{ dep: Dep; vulns: OsvVuln[
           id: string; summary?: string; aliases?: string[];
           database_specific?: { severity?: string };
           severity?: Array<{ type: string; score: string }>;
+          affected?: unknown;
         };
         const cve = (v.aliases ?? []).find((a) => a.startsWith("CVE-")) ?? null;
         vulns.push({
@@ -127,6 +129,7 @@ export async function queryOsv(deps: Dep[]): Promise<{ dep: Dep; vulns: OsvVuln[
           cveId: cve,
           summary: v.summary ?? "Known vulnerability.",
           severity: mapOsvSeverity(v.database_specific?.severity ?? null),
+          fixedVersion: fixedVersionFromOsv(v.affected, deps[i].name),
         });
       } catch {
         /* skip a single un-enrichable vuln */
@@ -135,4 +138,68 @@ export async function queryOsv(deps: Dep[]): Promise<{ dep: Dep; vulns: OsvVuln[
     if (vulns.length > 0) out.push({ dep: deps[i], vulns });
   }
   return out;
+}
+
+// ── Write flow (fix PRs) ───────────────────────────────────────────────────
+// Used ONLY to open pull requests for dependency bumps. Never pushes to the
+// default branch and never merges. Requires the App's Contents + Pull requests
+// write permissions (see GITHUB_APP_SETUP.md).
+
+async function ghWrite(token: string, path: string, method: string, body: unknown) {
+  const res = await fetch(`${API}${path}`, {
+    method,
+    headers: { ...GH_HEADERS, Authorization: `token ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+  if (!res.ok) throw new Error(`GitHub ${method} ${path} HTTP ${res.status}`);
+  return res.json();
+}
+
+// SHA the branch currently points at (base for the new branch).
+export async function getBranchSha(token: string, fullName: string, branch: string): Promise<string> {
+  const res = await fetch(`${API}/repos/${fullName}/git/ref/heads/${encodeURIComponent(branch)}`, {
+    headers: { ...GH_HEADERS, Authorization: `token ${token}` },
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+  if (!res.ok) throw new Error(`GitHub get ref HTTP ${res.status}`);
+  const json = (await res.json()) as { object?: { sha?: string } };
+  if (!json.object?.sha) throw new Error("GitHub ref missing sha");
+  return json.object.sha;
+}
+
+export async function createBranch(token: string, fullName: string, branch: string, sha: string): Promise<void> {
+  await ghWrite(token, `/repos/${fullName}/git/refs`, "POST", { ref: `refs/heads/${branch}`, sha });
+}
+
+// Current blob sha of a file on a branch — required to update it via contents API.
+export async function getFileSha(token: string, fullName: string, path: string, branch: string): Promise<string | null> {
+  const res = await fetch(
+    `${API}/repos/${fullName}/contents/${path.split("/").map(encodeURIComponent).join("/")}?ref=${encodeURIComponent(branch)}`,
+    { headers: { ...GH_HEADERS, Authorization: `token ${token}` }, signal: AbortSignal.timeout(TIMEOUT_MS) }
+  );
+  if (!res.ok) return null;
+  const json = (await res.json()) as { sha?: string };
+  return json.sha ?? null;
+}
+
+export async function putFile(
+  token: string, fullName: string, path: string, branch: string, contentUtf8: string, sha: string, message: string
+): Promise<void> {
+  await ghWrite(token, `/repos/${fullName}/contents/${path.split("/").map(encodeURIComponent).join("/")}`, "PUT", {
+    message,
+    content: Buffer.from(contentUtf8, "utf8").toString("base64"),
+    sha,
+    branch,
+  });
+}
+
+export async function openPullRequest(
+  token: string, fullName: string, head: string, base: string, title: string, body: string
+): Promise<string> {
+  const pr = (await ghWrite(token, `/repos/${fullName}/pulls`, "POST", { title, head, base, body })) as {
+    html_url?: string;
+  };
+  if (!pr.html_url) throw new Error("GitHub PR missing html_url");
+  return pr.html_url;
 }

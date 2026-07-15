@@ -161,6 +161,9 @@ export interface OsvVuln {
   cveId: string | null;
   summary: string;
   severity: Severity;
+  // Smallest version that resolves this vuln (from OSV `affected` ranges), or
+  // null if OSV didn't publish a fixed version — drives the auto-fix PR.
+  fixedVersion: string | null;
 }
 
 // Pure: turn resolved (dep -> vulns) results into findings.
