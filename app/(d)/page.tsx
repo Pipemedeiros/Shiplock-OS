@@ -4,6 +4,7 @@ import { OAuthButtons } from "@/components/marketing/oauth-buttons";
 import { ProximityText, Reveal, RevealList, ShinyText, SpotlightCard } from "@/components/d/bits";
 import { Seal } from "@/components/d/Seal";
 import { LockMark } from "@/components/d/Brand";
+import { TrafficDefense } from "@/components/d/TrafficDefense";
 
 // Real landing page, Design D visuals. Same reason as before this reskin:
 // no dynamic data here, so Next would otherwise statically prerender at
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
   // Landing keeps the layout's default title (no template suffix doubling).
   title: { absolute: "ShipLock — Continuous security monitoring for AI-built apps" },
   description:
-    "Sixteen security checks — RLS, exposed tables, public buckets, leaked secrets — running continuously against your live app. Built for founders who shipped with Lovable, Bolt, v0, or Cursor and found paying users. $49/month, 7 days free.",
+    "Sixteen security checks — RLS, exposed tables, public buckets, leaked secrets — plus a live edge that turns credential-stuffing bots and scanners away from your login, all running continuously against your app. Built for founders who shipped with Lovable, Bolt, v0, or Cursor and found paying users. $49/month, 7 days free.",
 };
 
 const SEVERITY_STYLES: Record<string, string> = {
@@ -138,12 +139,11 @@ const PRICING = {
     tagline: "The $50k audit, running all the time.",
     features: [
       "Full 16-check scan, grade A through F",
-      "Step-by-step fixes for every finding",
-      "Copy-paste prompts for whatever you build in — Cursor, Lovable, Bolt, v0",
-      "An AI-agent brief on your dashboard, ready to hand your coding tool",
-      "Re-scan on every deploy",
-      "Scheduled deep scans, critical checks hourly",
-      "Alerts only when something new appears",
+      "Step-by-step fixes for every finding, as prompts for Cursor, Lovable, Bolt, v0",
+      "A live edge that blocks credential stuffing, scanners, and floods — fails open, never a real user",
+      "Optional GitHub scan: committed secrets, vulnerable deps, with fix PRs you approve",
+      "Re-scan on every deploy; deep scans on schedule, critical checks hourly",
+      "Alerts only when something new appears — silence means you're clean",
     ],
   },
   trialNote: "First 7 days free. Cancel anytime before you're charged.",
@@ -168,6 +168,7 @@ export default function LandingPage() {
             </Link>
             <div className="dxd-nav-links">
               <a href="#method">The method</a>
+              <a href="#defense">Live defense</a>
               <Link href="/owasp">OWASP Top 10</Link>
               <Link href="/incidents">Real incidents</Link>
               <a href="#pricing">Pricing</a>
@@ -189,8 +190,9 @@ export default function LandingPage() {
               </h1>
               <p className="dxd-lede">
                 ShipLock runs the same class of checks a $50,000 enterprise audit opens with — continuously,
-                against your live app. Built for founders who shipped with AI, found paying
-                users, and would rather not bet the business on their own security guesswork.
+                against your live app — and stands guard at your login while it does. Built for
+                founders who shipped with AI, found paying users, and would rather not bet the
+                business on their own security guesswork.
               </p>
               <div className="dxd-hero-actions">
                 <a href="#get-started" className="dxd-btn dxd-btn-paper">
@@ -299,7 +301,7 @@ export default function LandingPage() {
                   { slot: "Builder", names: STACK_SPEAKS.builder, scope: "detected from the app itself — nothing to connect" },
                   { slot: "Database", names: STACK_SPEAKS.database, scope: "the public key your frontend already ships — never more" },
                   { slot: "Host", names: STACK_SPEAKS.host, scope: "coming soon · optional, read-only, selected projects" },
-                  { slot: "Source", names: STACK_SPEAKS.source, scope: "coming soon · optional, contents: read-only" },
+                  { slot: "Source", names: STACK_SPEAKS.source, scope: "optional · read-only — committed secrets, vulnerable deps, fix PRs you approve" },
                 ] as const
               ).map((r) => (
                 <div className="dxd-speak-row" role="row" key={r.slot}>
@@ -390,9 +392,9 @@ export default function LandingPage() {
             <p className="dxd-lede">
               A scan is a photograph, and your app doesn&apos;t hold still. One prompt to your
               coding agent tomorrow can quietly undo today&apos;s fix — which is why a
-              point-in-time report, however deep, expires on your next deploy. We re-check
-              instead. And we label every source honestly: some of this is live today, the rest
-              is on the roadmap and we say so plainly rather than implying it already works.
+              point-in-time report, however deep, expires on your next deploy. So we re-check,
+              on every deploy and on a schedule, and only speak up when something actually
+              changed.
             </p>
           </Reveal>
           <div className="dxd-watchrows">
@@ -416,19 +418,6 @@ export default function LandingPage() {
             </Reveal>
             <Reveal>
               <div className="dxd-watchrow">
-                <div>
-                  <h3>A protective front door</h3>
-                  <span className="dxd-soon">joining the retainer</span>
-                </div>
-                <p>
-                  One DNS record points your domain at an edge we operate. At that front door,
-                  bursts get rate-limited and credential-stuffing bots are turned away before
-                  they ever reach your sign-in page.
-                </p>
-              </div>
-            </Reveal>
-            <Reveal>
-              <div className="dxd-watchrow">
                 <h3>Alerts that respect you</h3>
                 <p>
                   You hear from us when something <b>new</b> appears — once, with the brief
@@ -437,6 +426,58 @@ export default function LandingPage() {
                 </p>
               </div>
             </Reveal>
+          </div>
+        </section>
+
+        <section className="dxd-section" id="defense">
+          <Reveal>
+            <p className="dxd-eyebrow">The front door · live</p>
+            <h2 className="dxd-h2">Between scans, we stand at your door.</h2>
+            <p className="dxd-lede">
+              Scanning finds the holes. But your login page is being knocked on right now —
+              credential-stuffing bots, vulnerability scanners, brute-force floods, all
+              automated, all indifferent to how careful you were. So we don&apos;t just report
+              them. We watch the attack take shape, and the moment it&apos;s unmistakable, we
+              shut that source out.
+            </p>
+          </Reveal>
+          <Reveal delay={80}>
+            <div style={{ marginTop: 28 }}>
+              <TrafficDefense />
+            </div>
+          </Reveal>
+          <div className="dxd-watchrows" style={{ marginTop: 32 }}>
+            <RevealList step={90}>
+              <div className="dxd-watchrow">
+                <h3>One small file — and it fails open, always</h3>
+                <p>
+                  We generate a snippet for your app (Next.js, Hono, Cloudflare Workers,
+                  Express). It watches only your auth and API routes. If ShipLock is ever
+                  unreachable, it does nothing at all and your app serves normally — we can never
+                  be the reason you go down. No DNS changes, no proxy in front of you.
+                </p>
+              </div>
+              <div className="dxd-watchrow">
+                <h3>We&apos;re sure before we ever turn traffic away</h3>
+                <p>
+                  We don&apos;t block on a hunch. The first unusual requests get through — and
+                  get mirrored to us. Only once the pattern is unmistakable (a burst of logins, a
+                  scanner walking <code>.env</code> and <code>wp-admin</code>, a flood) does that
+                  source get blocked; its next requests get a 429. Anything ambiguous we flag,
+                  never block — so a real customer of yours never hits a wall they didn&apos;t
+                  deserve.
+                </p>
+              </div>
+              <div className="dxd-watchrow">
+                <h3>A stolen session, caught in the act</h3>
+                <p>
+                  One valid login suddenly used from many places at once is the signature of a
+                  hijacked session — something no configuration scan can ever see. We watch for
+                  it and tell you, without ever touching the token itself; we only see a salted
+                  hash, never the session.
+                </p>
+              </div>
+            </RevealList>
           </div>
         </section>
 
