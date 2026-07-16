@@ -218,11 +218,15 @@ CHECK 13 — INPUT VALIDATION  (inputValidation)
 inputValidation fields: tested, sqlErrorExposed
 
 • sqlErrorExposed: true
-  → CRITICAL. A crafted query parameter caused the API to return a raw
-    PostgreSQL error message. Exposing database internals helps attackers
-    map your schema and craft targeted exploits.
-    Fix: ensure PostgREST is configured to return generic error messages and
-    review any custom SQL functions for injection vulnerabilities.
+  → INFO (platform note, NOT critical). This tests the Supabase/PostgREST
+    API, which returns detailed Postgres error messages (column names, types)
+    BY DEFAULT — this is standard platform behavior, not a flaw the founder
+    introduced, and it is NOT evidence of SQL injection (PostgREST
+    parameterizes queries). RLS, not error opacity, is the real boundary.
+    Honest framing: "Your Supabase API returns detailed database errors by
+    default. This reveals column names to anyone who already has your public
+    key — low risk on its own, and normal for this stack. Optional hardening,
+    not a hole." Do NOT let this drive the grade down. Do NOT imply injection.
 
 • sqlErrorExposed: false OR tested: false → GOOD.
 
@@ -232,12 +236,16 @@ CHECK 14 — CORS CONFIGURATION  (corsConfig)
 corsConfig fields: tested, wildcardOrigin, allowOriginValue
 
 • wildcardOrigin: true  (allowOriginValue === "*")
-  → CRITICAL. The API returns Access-Control-Allow-Origin: * which allows
-    any website on the internet to make cross-origin requests to your API.
-    A malicious website could trick a logged-in user's browser into sending
-    authenticated requests to your database.
-    Fix: configure CORS to only allow your specific app domain (e.g.
-    https://your-app.com) instead of the wildcard.
+  → INFO (platform note, NOT critical). This tests the Supabase API gateway,
+    which returns Access-Control-Allow-Origin: * BY DEFAULT for every project.
+    Crucially, Supabase authenticates by a BEARER TOKEN in the Authorization
+    header, NOT a cookie — so a wildcard origin is NOT the cross-site request
+    (CSRF) risk it would be for a cookie-based app: a malicious site cannot
+    make the browser attach the user's token. Honest framing: "Supabase's API
+    allows any origin — its default. Because it uses header-based bearer auth,
+    not cookies, this isn't the CSRF risk it looks like. No action needed here."
+    Do NOT let this drive the grade down. Do NOT claim a logged-in user can be
+    tricked into authenticated requests — that's false for this auth model.
 
 • wildcardOrigin: false OR tested: false → GOOD.
 
@@ -430,18 +438,18 @@ function buildFallback(scan: ScanResult): AnalysisResult {
   }
   if (scan.inputValidation?.sqlErrorExposed) {
     issues.push({
-      severity:    "CRITICAL",
-      title:       "Raw SQL errors exposed to clients",
-      consequence: "Error messages reveal your database schema and help attackers craft targeted exploits.",
-      fix:         "Configure PostgREST to return generic error messages and review custom SQL functions.",
+      severity:    "INFO",
+      title:       "Supabase returns detailed database errors (platform default)",
+      consequence: "Your Supabase API returns detailed Postgres error messages by default, which reveal column names to anyone who already has your public key. This is standard for this stack and low risk — not SQL injection. Optional hardening, not a hole.",
+      fix:         "Optional: reduce PostgREST error verbosity in your Supabase project settings. Not required — RLS, not error opacity, is your real boundary.",
     });
   }
   if (scan.corsConfig?.wildcardOrigin) {
     issues.push({
-      severity:    "CRITICAL",
-      title:       "CORS allows any origin (wildcard *)",
-      consequence: "Any website can make cross-origin requests to your API on behalf of a logged-in user.",
-      fix:         "Set Access-Control-Allow-Origin to your specific app domain instead of *.",
+      severity:    "INFO",
+      title:       "Supabase API allows any origin (platform default)",
+      consequence: "Supabase's API gateway returns Access-Control-Allow-Origin: * for every project. Because Supabase authenticates by a bearer token in the header — not a cookie — a wildcard origin is not the cross-site (CSRF) risk it would be for a cookie-based app. No action needed.",
+      fix:         "No action needed for the Supabase API itself. If your own app relays this API using cookie-based sessions, restrict CORS there.",
     });
   }
   if ((scan.publicBuckets?.publicBuckets?.length ?? 0) > 0) {
@@ -540,8 +548,10 @@ function estimateCriticalCount(scan: ScanResult): number {
   if (scan.idor?.results?.some(r => r.rowsAccessible)) count++;
   if ((scan.secretsExposure?.exposedFiles?.length ?? 0) > 0) count++;
   if (scan.httpsCheck?.enforced === false) count++;
-  if (scan.inputValidation?.sqlErrorExposed) count++;
-  if (scan.corsConfig?.wildcardOrigin) count++;
+  // NOTE: CORS wildcard and detailed PostgREST errors are Supabase PLATFORM
+  // DEFAULTS (bearer-token auth makes CORS * a non-CSRF, and detailed errors
+  // are standard PostgREST) — they are INFO platform-notes, not criticals, and
+  // deliberately do NOT drive the grade. See the analyzer prompt CHECK 13/14.
   if ((scan.publicBuckets?.publicBuckets?.length ?? 0) > 0) count++;
   return count;
 }

@@ -130,18 +130,18 @@ export function extractFindings(scan: ScanResult): Finding[] {
   if (scan.inputValidation?.sqlErrorExposed) {
     findings.push({
       id: "sql_error_exposed",
-      severity: "CRITICAL",
-      title: "Raw SQL errors exposed to clients",
-      consequence: "Error messages reveal database schema details, helping attackers craft targeted exploits.",
+      severity: "INFO",
+      title: "Supabase returns detailed database errors (platform default)",
+      consequence: "Standard PostgREST behavior — reveals column names to anyone with your public key. Low risk, not SQL injection. Optional hardening.",
     });
   }
 
   if (scan.corsConfig?.wildcardOrigin) {
     findings.push({
       id: "cors_wildcard",
-      severity: "CRITICAL",
-      title: "CORS allows any origin (wildcard *)",
-      consequence: "Any website can make cross-origin requests to the API on behalf of a logged-in user.",
+      severity: "INFO",
+      title: "Supabase API allows any origin (platform default)",
+      consequence: "Supabase uses header bearer-token auth, not cookies, so wildcard CORS is not a CSRF risk here. No action needed.",
     });
   }
 

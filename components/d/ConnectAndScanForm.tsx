@@ -127,7 +127,7 @@ export function ConnectAndScanForm() {
           </div>
           <div className="dxd-field">
             <label htmlFor="dxd-app-url">
-              Your app&apos;s live URL — optional, adds 2 more checks
+              Your app&apos;s live URL — optional, but it makes the audit about your app
             </label>
             <input
               id="dxd-app-url"
@@ -141,9 +141,10 @@ export function ConnectAndScanForm() {
           <p className="dxd-keynote">
             We only ever ask for your app&apos;s public key and, optionally, its public URL —
             already public either way, not credentials. No repo access, no admin tokens, no
-            exceptions. Skip the URL and we still run 14 of 16 checks; add it and we can also
-            check your deployed frontend for an exposed package.json or .env file — the
-            Supabase URL alone can&apos;t answer that.
+            exceptions. Skip the URL and we still run 14 of 16 checks against your database; add
+            it and we also look at your <em>deployed app</em> for an exposed package.json or .env
+            the Supabase URL alone can&apos;t see. Either way we grade honestly: anything that&apos;s
+            just a Supabase platform default, we label as a note — never dress it up as a red alarm.
           </p>
           {error && (
             <p style={{ fontSize: 13, color: "var(--d-signal)", margin: "0 0 16px" }}>{error}</p>
