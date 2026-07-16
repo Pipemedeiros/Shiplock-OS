@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+// Optional secret that treats an empty string as "unset" — env files and
+// hosting UIs commonly leave a key present but blank, and a bare
+// `.min(1).optional()` would (wrongly) reject "" instead of ignoring it.
+const optionalSecret = z.preprocess((v) => (v === "" ? undefined : v), z.string().min(1).optional());
+
 const envSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
@@ -16,17 +21,17 @@ const envSchema = z.object({
   // Optional: the Vercel Integration (OAuth) may not be registered yet.
   // lib/deep/vercel.ts throws a clear error at call time if these are unset —
   // they must stay optional here so app startup isn't blocked on them.
-  VERCEL_CLIENT_ID: z.string().min(1).optional(),
-  VERCEL_CLIENT_SECRET: z.string().min(1).optional(),
+  VERCEL_CLIENT_ID: optionalSecret,
+  VERCEL_CLIENT_SECRET: optionalSecret,
   // Optional: the GitHub App (source scanning) may not be registered yet.
   // lib/deep/github.ts throws a clear error at call time if these are unset.
   // See GITHUB_APP_SETUP.md for how to create the App and obtain these.
-  GITHUB_APP_ID: z.string().min(1).optional(),
-  GITHUB_APP_PRIVATE_KEY: z.string().min(1).optional(),
-  GITHUB_APP_CLIENT_ID: z.string().min(1).optional(),
-  GITHUB_APP_CLIENT_SECRET: z.string().min(1).optional(),
-  GITHUB_APP_SLUG: z.string().min(1).optional(),
-  GITHUB_WEBHOOK_SECRET: z.string().min(1).optional(),
+  GITHUB_APP_ID: optionalSecret,
+  GITHUB_APP_PRIVATE_KEY: optionalSecret,
+  GITHUB_APP_CLIENT_ID: optionalSecret,
+  GITHUB_APP_CLIENT_SECRET: optionalSecret,
+  GITHUB_APP_SLUG: optionalSecret,
+  GITHUB_WEBHOOK_SECRET: optionalSecret,
 });
 
 export const env = envSchema.parse(process.env);
