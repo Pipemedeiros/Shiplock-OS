@@ -44,24 +44,32 @@ describe("extractEndpoints", () => {
 });
 
 describe("extractRpcs", () => {
-  it("flags a SECURITY DEFINER function granted to anon", () => {
-    const files: RepoFile[] = [
-      {
-        path: "supabase/migrations/010_fn.sql",
-        content: `create function public.use_promo_code(code text) returns void language plpgsql security definer as $$ begin end $$;
-grant execute on function public.use_promo_code(text) to anon;`,
-      },
-    ];
-    const rpcs = extractRpcs(files);
+  // Postgres default-grants EXECUTE to PUBLIC, so a SECURITY DEFINER function is
+  // anon-callable UNLESS explicitly revoked — the real vuln class.
+  it("treats a SECURITY DEFINER function as anon-callable by default (no grant needed)", () => {
+    const rpcs = extractRpcs([
+      { path: "m.sql", content: `create function public.use_promo_code(code text) returns void language plpgsql security definer as $$ begin end $$;` },
+    ]);
     const fn = rpcs.find((r) => r.name === "use_promo_code");
     expect(fn?.securityDefiner).toBe(true);
-    expect(fn?.anonExecute).toBe(true);
+    expect(fn?.anonExecute).toBe(true); // default grant → callable
   });
 
-  it("does not flag a plain function with no grant", () => {
+  it("marks anonExecute false once explicitly REVOKEd from anon", () => {
     const rpcs = extractRpcs([
-      { path: "m.sql", content: "create function public.helper() returns int language sql as $$ select 1 $$;" },
+      {
+        path: "m.sql",
+        content: `create function public.f() returns void language sql security definer as $$ select 1 $$;
+revoke execute on function public.f() from anon;`,
+      },
     ]);
-    expect(rpcs.find((r) => r.name === "helper")?.anonExecute).toBe(false);
+    expect(rpcs.find((r) => r.name === "f")?.anonExecute).toBe(false);
+  });
+
+  it("excludes trigger functions (not RPC-callable)", () => {
+    const rpcs = extractRpcs([
+      { path: "m.sql", content: `create function public.handle_new_user() returns trigger language plpgsql security definer as $$ begin return new; end $$;` },
+    ]);
+    expect(rpcs.find((r) => r.name === "handle_new_user")?.anonExecute).toBe(false);
   });
 });

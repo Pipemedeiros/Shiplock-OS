@@ -30,9 +30,17 @@ export interface ReasoningContext {
 const ROUTE_RE = /(^|\/)(app\/.*\/route\.(ts|tsx|js|mjs)|pages\/api\/.*\.(ts|js))$/;
 const HTTP_METHOD_RE = /export\s+(?:async\s+)?function\s+(GET|POST|PUT|PATCH|DELETE)\b/g;
 const MUTATION_RE = /\.(insert|update|delete|upsert)\s*\(/;
-const AUTH_RE = /auth\.uid\(\)|getUser\s*\(|getSession\s*\(|requireProUser|\.auth\.getUser|supabase\.auth/;
-const OWNERSHIP_RE = /user_id|owner_id|auth\.uid\(\)|\.eq\(\s*["']user_id["']/;
+// Auth covers session auth AND the non-session forms real routes use: shared
+// secrets, signature verification, and unguessable path/header tokens — so a
+// signature-verified webhook isn't mislabeled "no auth".
+const AUTH_RE =
+  /auth\.uid\(\)|getUser\s*\(|getSession\s*\(|requireProUser|\.auth\.getUser|supabase\.auth|CRON_SECRET|constructEvent|webhooks?\.|x-site|_token\b|headers?\.get\(\s*["']authorization|Bearer /i;
+// Ownership includes writes scoped by a SERVER-DERIVED id (userId/user.id/
+// pro.userId), not just the literal "user_id" — that's still ownership-safe.
+const OWNERSHIP_RE =
+  /owner_id|auth\.uid\(\)|\.eq\(\s*["'](user_id|id)["']\s*,\s*(userId|user\.id|pro\.userId|session)|\buser_id\b/;
 const CLIENT_INPUT_RE = /\.json\(\)|\bbody\b|req\.body|params\b/;
+const TRIGGER_RE = /returns\s+trigger/i;
 
 const MAX_ENDPOINTS = 80;
 const MAX_RPCS = 60;
@@ -56,10 +64,15 @@ export function extractEndpoints(files: RepoFile[]): Endpoint[] {
 }
 
 // Extract Postgres functions from .sql migrations, flagging SECURITY DEFINER and
-// anon/public EXECUTE grants — Strix's highest-value Supabase targets (a
+// whether they're anon-callable — Strix's highest-value Supabase targets (a
 // SECURITY DEFINER function callable by anon bypasses RLS as its owner).
+// CRITICAL nuance: Postgres grants EXECUTE to PUBLIC (anon) BY DEFAULT, so a
+// function is anon-callable UNLESS explicitly REVOKEd. Trigger functions aren't
+// RPC-callable, so they're excluded.
 export function extractRpcs(files: RepoFile[]): Rpc[] {
   const byName = new Map<string, Rpc>();
+  const isTrigger = new Set<string>();
+  const revokedFromAnon = new Set<string>();
   const get = (name: string, file: string): Rpc => {
     const existing = byName.get(name);
     if (existing) return existing;
@@ -73,14 +86,19 @@ export function extractRpcs(files: RepoFile[]): Rpc[] {
     for (const stmt of f.content.split(";")) {
       const create = /create\s+(?:or\s+replace\s+)?function\s+(?:public\.)?([a-z0-9_]+)/i.exec(stmt);
       if (create) {
-        const rpc = get(create[1].toLowerCase(), f.path);
+        const name = create[1].toLowerCase();
+        const rpc = get(name, f.path);
         if (/security\s+definer/i.test(stmt)) rpc.securityDefiner = true;
+        if (TRIGGER_RE.test(stmt)) isTrigger.add(name);
       }
-      const grant = /grant\s+execute\s+on\s+function\s+(?:public\.)?([a-z0-9_]+)/i.exec(stmt);
-      if (grant && /to\s+(anon|public)\b/i.test(stmt)) {
-        get(grant[1].toLowerCase(), f.path).anonExecute = true;
-      }
+      const revoke = /revoke\s+execute\s+on\s+function\s+(?:public\.)?([a-z0-9_]+)/i.exec(stmt);
+      if (revoke && /from\s+(anon|public)\b/i.test(stmt)) revokedFromAnon.add(revoke[1].toLowerCase());
     }
+  }
+
+  // Anon-callable by Postgres default unless it's a trigger or explicitly revoked.
+  for (const [name, rpc] of byName) {
+    rpc.anonExecute = !isTrigger.has(name) && !revokedFromAnon.has(name);
   }
   return [...byName.values()].slice(0, MAX_RPCS);
 }
