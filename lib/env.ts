@@ -32,6 +32,11 @@ const envSchema = z.object({
   GITHUB_APP_CLIENT_SECRET: optionalSecret,
   GITHUB_APP_SLUG: optionalSecret,
   GITHUB_WEBHOOK_SECRET: optionalSecret,
+  // Optional: Better Auth 2FA (layered on Supabase Auth). lib/betterAuth.ts is
+  // only instantiated when BOTH are present. DATABASE_URL is a direct Postgres
+  // connection (Supabase) used only by the 2FA layer. See BETTER_AUTH.md.
+  BETTER_AUTH_SECRET: optionalSecret,
+  DATABASE_URL: optionalSecret,
 });
 
 export const env = envSchema.parse(process.env);
