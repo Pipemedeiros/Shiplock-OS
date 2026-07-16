@@ -2389,3 +2389,77 @@
 @media (prefers-reduced-motion: reduce) {
   .dxd-livedot { animation: none; }
 }
+
+/* ── Honesty risk-scale (landing #honest) ──────────────────────────────────
+   A calm bar that fills from "exposed" toward "hard target" and DELIBERATELY
+   stops short of 100% — the far end is hatched and labeled unreachable. The
+   point is candor: we reduce risk sharply, we do not sell invincibility. */
+.dxd-risk { max-width: 720px; }
+.dxd-risk-scale {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--dx-font-geist-mono), monospace;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--d-muted);
+  margin-bottom: 8px;
+}
+.dxd-risk-scale .right { color: var(--d-muted-light); text-decoration: line-through; }
+.dxd-risk-track {
+  position: relative;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--d-porcelain);
+  border: 1px solid var(--d-line);
+  overflow: hidden;
+}
+.dxd-risk-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 85%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--d-bronze-light), var(--d-verified));
+  animation: dxd-risk-fill 1.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.dxd-risk-void {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 15%;
+  background: repeating-linear-gradient(45deg, transparent, transparent 4px, var(--d-line) 4px, var(--d-line) 5px);
+}
+.dxd-risk-marker {
+  position: absolute;
+  left: 85%;
+  top: -5px;
+  bottom: -5px;
+  width: 2px;
+  background: var(--d-ink);
+}
+.dxd-risk-marker::after {
+  content: "where we get you";
+  position: absolute;
+  left: 50%;
+  bottom: -22px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-family: var(--dx-font-geist-mono), monospace;
+  font-size: 10.5px;
+  color: var(--d-ink);
+}
+.dxd-risk-note {
+  margin: 34px 0 0;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--d-muted);
+}
+@keyframes dxd-risk-fill {
+  from { width: 6%; }
+  to { width: 85%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dxd-risk-fill { animation: none; }
+}

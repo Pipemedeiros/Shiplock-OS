@@ -5,6 +5,7 @@ import { ProximityText, Reveal, RevealList, ShinyText, SpotlightCard } from "@/c
 import { Seal } from "@/components/d/Seal";
 import { LockMark } from "@/components/d/Brand";
 import { TrafficDefense } from "@/components/d/TrafficDefense";
+import { RiskHonesty } from "@/components/d/RiskHonesty";
 
 // Real landing page, Design D visuals. Same reason as before this reskin:
 // no dynamic data here, so Next would otherwise statically prerender at
@@ -479,6 +480,46 @@ export default function LandingPage() {
               </div>
             </RevealList>
           </div>
+        </section>
+
+        <section className="dxd-section" id="honest">
+          <Reveal>
+            <p className="dxd-eyebrow">What we won&apos;t promise</p>
+            <h2 className="dxd-h2">No one can make your app unhackable. We&apos;ll never pretend otherwise.</h2>
+            <p className="dxd-lede">
+              Every tool that promises &ldquo;100% protected&rdquo; is selling you something, and
+              some part of you already knows it. Software has bugs; people make mistakes;
+              determined attackers are patient. What&apos;s actually true is quieter and more
+              useful: almost every app that gets breached is breached through a known, ordinary,
+              closeable hole. We close those, we watch them stay closed, and we turn away the
+              automated attacks hitting your door — which moves you from the app that gets
+              breached to the one that isn&apos;t worth the effort.
+            </p>
+          </Reveal>
+          <Reveal delay={80}>
+            <div style={{ marginTop: 30 }}>
+              <RiskHonesty />
+            </div>
+          </Reveal>
+          <Reveal delay={120}>
+            <p
+              className="dxd-mono"
+              style={{
+                marginTop: 40,
+                fontSize: 12.5,
+                lineHeight: 1.75,
+                color: "var(--d-ink)",
+                borderLeft: "2px solid var(--d-bronze)",
+                paddingLeft: 16,
+                maxWidth: 720,
+              }}
+            >
+              And we tell you what we <em>can&apos;t</em> see. Your business logic, the auth
+              checks inside your own code — no scanner reads those. Rather than quietly leaving
+              them off the report, we hand you the exact prompts to audit them yourself. The
+              honesty is the product.
+            </p>
+          </Reveal>
         </section>
 
         <section className="dxd-section" id="pricing">
