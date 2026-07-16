@@ -18,7 +18,6 @@ export interface AnalysisIssue {
 }
 
 export interface AnalysisResult {
-  grade: "A" | "B" | "C" | "D" | "F";
   issues: AnalysisIssue[];
   summary: string;
 }
@@ -28,7 +27,8 @@ export interface AnalysisResult {
 const SYSTEM_PROMPT = `You are a Supabase security auditor writing for non-technical startup founders.
 
 You will receive a JSON scan result covering 16 security checks. Analyse every
-check and return a single grade plus specific, actionable issues.
+check and return specific, actionable issues. There is NO letter grade — never
+invent one. Lead with the truth: what's open, what it costs, how to fix it.
 
 ═══════════════════════════════════════════════════════════
 CHECK 1 — RLS STATUS  (tables[].rlsEnabled)
@@ -37,7 +37,7 @@ Each table has rlsEnabled, policiesRetrieved, and policies fields.
 
 • rlsEnabled: false
   → CRITICAL. The table is fully exposed — anyone with the anon key can read all rows.
-  → Any exposed table drives the grade to D or F.
+  → Any exposed table is a CRITICAL finding.
 
 • rlsEnabled: true + policiesRetrieved: true + policies.length > 0
   → GOOD. RLS is on and policies are confirmed. No issue needed.
@@ -49,7 +49,7 @@ Each table has rlsEnabled, policiesRetrieved, and policies fields.
 • rlsEnabled: true + policiesRetrieved: false
   → GOOD (treat as correctly secured). pg_policies was unreadable — empty
     policies array does NOT mean no policies exist. Data is not publicly
-    accessible. Grade A or B. Do NOT penalise this.
+    accessible. This is expected and fine — do NOT penalise it.
 
 ═══════════════════════════════════════════════════════════
 CHECK 2 — KEY TYPE  (keyAnalysis)
@@ -226,7 +226,7 @@ inputValidation fields: tested, sqlErrorExposed
     Honest framing: "Your Supabase API returns detailed database errors by
     default. This reveals column names to anyone who already has your public
     key — low risk on its own, and normal for this stack. Optional hardening,
-    not a hole." Do NOT let this drive the grade down. Do NOT imply injection.
+    not a hole." Do NOT inflate its severity. Do NOT imply injection.
 
 • sqlErrorExposed: false OR tested: false → GOOD.
 
@@ -244,7 +244,7 @@ corsConfig fields: tested, wildcardOrigin, allowOriginValue
     make the browser attach the user's token. Honest framing: "Supabase's API
     allows any origin — its default. Because it uses header-based bearer auth,
     not cookies, this isn't the CSRF risk it looks like. No action needed here."
-    Do NOT let this drive the grade down. Do NOT claim a logged-in user can be
+    Do NOT inflate its severity. Do NOT claim a logged-in user can be
     tricked into authenticated requests — that's false for this auth model.
 
 • wildcardOrigin: false OR tested: false → GOOD.
@@ -308,23 +308,15 @@ Rules for the prompt field:
 • Keep prompts under 300 characters — they're meant to be copied verbatim.
 
 ═══════════════════════════════════════════════════════════
-GRADE SCALE
-═══════════════════════════════════════════════════════════
-F  — service_role key submitted, OR 3+ CRITICAL issues
-D  — at least one exposed table (rlsEnabled: false), mass assignment, IDOR, or secrets exposed
-C  — no exposed tables but multiple WARNINGs
-B  — no exposed tables, one minor WARNING
-A  — all critical checks passed, no exposed tables, correct key type
-
-═══════════════════════════════════════════════════════════
 OUTPUT RULES
 ═══════════════════════════════════════════════════════════
-• Plain English — no jargon, no CVE numbers
+• Plain English — no jargon, no CVE numbers, NO letter grade
 • One sentence title; real-world consequence; exact SQL or config fix
 • Do not raise issues for checks that passed
+• The summary is one honest sentence about what's open (e.g. "One critical issue
+  and two warnings" or "Everything held") — never a grade
 • Return ONLY valid JSON:
 {
-  "grade": "A"|"B"|"C"|"D"|"F",
   "issues": [{
     "severity": "CRITICAL"|"WARNING"|"INFO",
     "title": string,
@@ -339,11 +331,10 @@ OUTPUT RULES
   "summary": string
 }`;
 
-const VALID_GRADES = new Set(["A", "B", "C", "D", "F"]);
 const VALID_SEVERITIES = new Set(["CRITICAL", "WARNING", "INFO"]);
 const TIMEOUT_MS = 30_000;
 
-// ── Fallback grade from raw check results (used when Claude API is unavailable) ─
+// ── Fallback issues from raw check results (used when Claude API is unavailable) ─
 
 function countWarnings(scan: ScanResult): number {
   let count = 0;
@@ -355,17 +346,7 @@ function countWarnings(scan: ScanResult): number {
   return count;
 }
 
-function fallbackGrade(scan: ScanResult): "A" | "B" | "C" | "D" | "F" {
-  const criticals = estimateCriticalCount(scan);
-  if (criticals >= 3) return "F";
-  if (criticals === 2) return "D";
-  if (criticals === 1) return "C";
-  if (countWarnings(scan) >= 2) return "B";
-  return "A";
-}
-
 function buildFallback(scan: ScanResult): AnalysisResult {
-  const grade = fallbackGrade(scan);
   const criticals = estimateCriticalCount(scan);
   const warnings  = countWarnings(scan);
 
@@ -498,12 +479,11 @@ function buildFallback(scan: ScanResult): AnalysisResult {
     });
   }
 
-  const gradeLabel: Record<string, string> = { A: "clean", B: "minor warnings", C: "one critical issue", D: "multiple critical issues", F: "critical risk" };
   const summary = issues.length === 0
     ? "All checks passed. No security issues found."
-    : `Found ${criticals} critical issue${criticals !== 1 ? "s" : ""} and ${warnings} warning${warnings !== 1 ? "s" : ""}. Grade: ${grade} (${gradeLabel[grade]}). AI analysis was unavailable — results are based on raw check data.`;
+    : `Found ${criticals} critical issue${criticals !== 1 ? "s" : ""} and ${warnings} warning${warnings !== 1 ? "s" : ""}. AI analysis was unavailable — results are based on raw check data.`;
 
-  return { grade, issues, summary };
+  return { issues, summary };
 }
 
 // ── Runtime schema validation ─────────────────────────────────────────────────
@@ -513,7 +493,6 @@ function isAnalysisResult(value: unknown): value is AnalysisResult {
 
   const v = value as Record<string, unknown>;
 
-  if (!VALID_GRADES.has(v.grade as string)) return false;
   if (typeof v.summary !== "string" || v.summary.trim() === "") return false;
   if (!Array.isArray(v.issues)) return false;
 
@@ -551,7 +530,7 @@ function estimateCriticalCount(scan: ScanResult): number {
   // NOTE: CORS wildcard and detailed PostgREST errors are Supabase PLATFORM
   // DEFAULTS (bearer-token auth makes CORS * a non-CSRF, and detailed errors
   // are standard PostgREST) — they are INFO platform-notes, not criticals, and
-  // deliberately do NOT drive the grade. See the analyzer prompt CHECK 13/14.
+  // deliberately do NOT inflate severity. See the analyzer prompt CHECK 13/14.
   if ((scan.publicBuckets?.publicBuckets?.length ?? 0) > 0) count++;
   return count;
 }
@@ -588,17 +567,17 @@ export async function analyzeResult(scan: ScanResult): Promise<AnalysisResult> {
     console.log(`[analyzer] model=${model} input_tokens=${response.usage.input_tokens} output_tokens=${response.usage.output_tokens}`);
   } catch (err) {
     if (err instanceof Anthropic.APIConnectionTimeoutError) {
-      console.error("[analyzer] Claude API timed out after 30 s — using fallback grade");
+      console.error("[analyzer] Claude API timed out after 30 s — using fallback analysis");
     } else if (err instanceof Anthropic.AuthenticationError) {
-      console.error("[analyzer] Invalid ANTHROPIC_API_KEY — using fallback grade");
+      console.error("[analyzer] Invalid ANTHROPIC_API_KEY — using fallback analysis");
     } else if (err instanceof Anthropic.RateLimitError) {
-      console.error("[analyzer] Anthropic API rate limit exceeded — using fallback grade");
+      console.error("[analyzer] Anthropic API rate limit exceeded — using fallback analysis");
     } else if (err instanceof Anthropic.InternalServerError) {
-      console.error("[analyzer] Anthropic internal server error — using fallback grade");
+      console.error("[analyzer] Anthropic internal server error — using fallback analysis");
     } else if (err instanceof Anthropic.APIError) {
-      console.error(`[analyzer] Anthropic API error HTTP ${err.status}: ${err.message} — using fallback grade`);
+      console.error(`[analyzer] Anthropic API error HTTP ${err.status}: ${err.message} — using fallback analysis`);
     } else {
-      console.error("[analyzer] Unexpected error during analysis — using fallback grade");
+      console.error("[analyzer] Unexpected error during analysis — using fallback analysis");
     }
     return buildFallback(scan);
   }
@@ -606,7 +585,7 @@ export async function analyzeResult(scan: ScanResult): Promise<AnalysisResult> {
   // Extract the text block from the response
   const textBlock = response.content.find((b) => b.type === "text");
   if (!textBlock || textBlock.type !== "text") {
-    console.error("[analyzer] Claude response contained no text block — using fallback grade");
+    console.error("[analyzer] Claude response contained no text block — using fallback analysis");
     return buildFallback(scan);
   }
 
@@ -620,12 +599,12 @@ export async function analyzeResult(scan: ScanResult): Promise<AnalysisResult> {
   try {
     parsed = JSON.parse(raw);
   } catch {
-    console.error("[analyzer] Claude response was not valid JSON — using fallback grade");
+    console.error("[analyzer] Claude response was not valid JSON — using fallback analysis");
     return buildFallback(scan);
   }
 
   if (!isAnalysisResult(parsed)) {
-    console.error("[analyzer] Claude response failed schema validation — using fallback grade");
+    console.error("[analyzer] Claude response failed schema validation — using fallback analysis");
     return buildFallback(scan);
   }
 

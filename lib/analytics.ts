@@ -4,7 +4,7 @@
 // components/PostHogInit.tsx (mounted in app/(d)/layout.tsx); everything
 // else calls track() and never touches posthog directly. Rules:
 // - Never put keys, URLs, emails, or scan content in properties — counts,
-//   grades, and booleans only. The privacy page describes PostHog as
+//   counts and booleans only. The privacy page describes PostHog as
 //   product-usage analytics; keep it true.
 // - No key configured (local dev) → everything silently no-ops.
 

@@ -135,11 +135,8 @@ export function WatchPanel({
                       }}
                     >
                       <span style={{ color: "var(--d-muted)" }}>{formatWhen(t.created_at)}</span>
-                      <span className="dxd-serif" style={{ fontSize: 16, fontWeight: 700 }}>
-                        {t.grade ?? "—"}
-                      </span>
                       <span style={{ color: "var(--d-muted)" }}>
-                        {t.issue_count ?? "—"} issues
+                        {t.issue_count ?? "—"} open
                         {delta !== null && delta !== 0 && (
                           <span style={{ color: delta < 0 ? "var(--d-bronze)" : "var(--d-muted)" }}>
                             {" "}
@@ -154,7 +151,7 @@ export function WatchPanel({
               </div>
             ) : (
               <p style={{ margin: 0, fontSize: 13, color: "var(--d-muted)" }}>
-                Your audits will accumulate here — grade and open-issue count, every run.
+                Your audits will accumulate here — the open-finding count, every run.
               </p>
             )}
           </div>

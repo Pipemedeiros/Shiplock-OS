@@ -104,7 +104,6 @@ export async function POST(req: NextRequest) {
     .from("scan_logs")
     .insert({
       project_ref: urlHash.slice(-6),
-      grade: analysis.grade,
       issue_count: analysis.issues.length,
       critical_count: criticalCount,
       ip_hash: ipHash,
@@ -147,7 +146,6 @@ export async function POST(req: NextRequest) {
       await admin.from("monitoring_snapshots").insert({
         user_id: userId,
         trigger_source: "manual",
-        grade: analysis.grade,
         findings: extractFindings(scanResult),
       });
     } catch (err) {
@@ -163,7 +161,6 @@ export async function POST(req: NextRequest) {
     .insert({
       user_id: userId,
       project_url_hash: urlHash,
-      grade: analysis.grade,
       issue_count: analysis.issues.length,
       full_issues: fullIssues,
       preview_issues: previewIssues,
@@ -174,7 +171,6 @@ export async function POST(req: NextRequest) {
   // (gated above), so the response is always the full shape.
   return NextResponse.json(
     {
-      grade: analysis.grade,
       summary: analysis.summary,
       isPaid: true,
       issues: fullIssues,

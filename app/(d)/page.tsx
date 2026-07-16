@@ -49,8 +49,8 @@ function ExampleAuditPanel() {
       </div>
 
       <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 20 }}>
-        <span className="dxd-serif" style={{ fontSize: 44, fontWeight: 700 }}>C+</span>
-        <span style={{ fontSize: 14, color: "var(--d-muted)" }}>4 issues found · 1 critical</span>
+        <span className="dxd-serif" style={{ fontSize: 44, fontWeight: 700 }}>4</span>
+        <span style={{ fontSize: 14, color: "var(--d-muted)" }}>open findings · 1 critical</span>
       </div>
 
       <div className="dxd-mono" style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 12.5 }}>
@@ -76,7 +76,7 @@ function ExampleAuditPanel() {
       </div>
 
       <p style={{ marginTop: 16, fontSize: 11.5, lineHeight: 1.6, color: "var(--d-muted)" }}>
-        A sample of what lands in your dashboard on retainer — grade, every finding, and a
+        A sample of what lands in your dashboard on retainer — every finding, and a
         ready-to-paste fix for each.
       </p>
     </div>
@@ -90,7 +90,7 @@ const HOW_IT_WORKS = [
   },
   {
     title: "First scan in 90 seconds",
-    body: "Sixteen checks across four attack surfaces, the same ground an enterprise audit covers. You get a grade and a plain-English list of what we found.",
+    body: "Sixteen checks across four attack surfaces, the same ground an enterprise audit covers. You get a plain-English list of exactly what we found.",
   },
   {
     title: "Then we keep watching",
@@ -139,7 +139,7 @@ const PRICING = {
     per: "/month",
     tagline: "The $50k audit, running all the time.",
     features: [
-      "Full 16-check scan, grade A through F",
+      "Full 16-check scan across four attack surfaces",
       "Step-by-step fixes for every finding, as prompts for Cursor, Lovable, Bolt, v0",
       "A live edge that blocks credential stuffing, scanners, and floods — fails open, never a real user",
       "Optional GitHub scan: committed secrets, vulnerable deps, with fix PRs you approve",
@@ -554,7 +554,7 @@ export default function LandingPage() {
             <p className="dxd-lede">
               Sign in, put us on retainer — 7 days free before the first charge — then paste
               your Supabase URL and anon key (and, optionally, your app&apos;s live URL for two
-              more checks). The first audit, grade and every finding, runs immediately.
+              more checks). The first audit — every finding, and the fix for each — runs immediately.
             </p>
           </Reveal>
           <Reveal delay={100}>

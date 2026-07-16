@@ -1,8 +1,7 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
-import type { PreviewIssue, FullIssue, Grade } from "@/lib/types";
+import type { PreviewIssue, FullIssue } from "@/lib/types";
 
 export interface LatestScan {
-  grade: Grade | null;
   issue_count: number | null;
   preview_issues: PreviewIssue[] | null;
   full_issues: FullIssue[] | null;
@@ -23,19 +22,18 @@ export interface LatestScan {
 // client used elsewhere in server pages can never read it. This must go
 // through the service-role client, same as app/api/scan/route.ts does.
 export interface ScanTimelineEntry {
-  grade: Grade | null;
   issue_count: number | null;
   created_at: string | null;
 }
 
-// Preview-safe fields only (grade/count/date — the same data preview_issues
-// callers may already see), so no paywall filtering is needed at the call
-// site. Still service-role for the same grant reasons as getLatestScan.
+// Preview-safe fields only (count/date — the same data preview_issues callers
+// may already see), so no paywall filtering is needed at the call site. Still
+// service-role for the same grant reasons as getLatestScan.
 export async function getScanTimeline(userId: string, limit = 8): Promise<ScanTimelineEntry[]> {
   const admin = getSupabaseAdmin();
   const { data } = await admin
     .from("scan_history")
-    .select("grade, issue_count, created_at")
+    .select("issue_count, created_at")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -46,7 +44,7 @@ export async function getLatestScan(userId: string): Promise<LatestScan | null> 
   const admin = getSupabaseAdmin();
   const { data } = await admin
     .from("scan_history")
-    .select("grade, issue_count, preview_issues, full_issues, created_at, project_url_hash")
+    .select("issue_count, preview_issues, full_issues, created_at, project_url_hash")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(1)

@@ -17,7 +17,7 @@ export function buildAgentBrief(scan: LatestScan): string {
   lines.push("# ShipLock security brief");
   lines.push("");
   lines.push(
-    `Generated ${date} · Grade ${scan.grade ?? "—"} · ${issues.length} open finding${issues.length === 1 ? "" : "s"}` +
+    `Generated ${date} · ${issues.length} open finding${issues.length === 1 ? "" : "s"}` +
       (scan.project_url_hash ? ` · project ...${scan.project_url_hash.slice(-6)}` : "")
   );
   lines.push("");

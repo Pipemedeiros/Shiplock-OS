@@ -1,5 +1,4 @@
 // ShipLock shared types
-export type Grade = 'A' | 'B' | 'C' | 'D' | 'F';
 export type Severity = 'CRITICAL' | 'WARNING' | 'INFO';
 
 export interface PreviewIssue {
@@ -18,7 +17,6 @@ export interface FullIssue extends PreviewIssue {
 }
 
 export interface ScanResponse {
-  grade: Grade;
   summary: string;
   isPaid: boolean;
   issues: PreviewIssue[] | FullIssue[];

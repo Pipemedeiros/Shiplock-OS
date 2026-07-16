@@ -5,7 +5,6 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { checkCheckoutRateLimit } from "@/lib/rateLimit";
 
 const schema = z.object({
-  grade: z.string().max(1).optional(),
   summary: z.string().max(300).optional(),
 });
 
@@ -38,7 +37,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
-  const { grade, summary } = parsed.data;
+  const { summary } = parsed.data;
 
   const priceId = process.env.STRIPE_PRICE_ID;
   if (!priceId) {
@@ -62,7 +61,6 @@ export async function POST(req: NextRequest) {
       },
       metadata: {
         userId,
-        grade: grade ?? "",
         summary: summary ?? "",
       },
       success_url: `${appUrl}/?payment=success`,

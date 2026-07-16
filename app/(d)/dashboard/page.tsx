@@ -174,7 +174,7 @@ export default async function DashboardPage() {
                 <h1 className="dxd-statement">You haven&apos;t run an audit yet.</h1>
                 <p className="dxd-lede" style={{ margin: "16px 0 24px" }}>
                   {isPaid
-                    ? "Connect your Supabase project to run the first audit — grade, findings, and the fix for every issue."
+                    ? "Connect your Supabase project to run the first audit — findings and the fix for every issue."
                     : "Put us on retainer, then connect your Supabase project to run the first audit."}
                 </p>
                 <Link href="/onboarding" className="dxd-btn dxd-btn-paper">
@@ -288,7 +288,7 @@ export default async function DashboardPage() {
                   </p>
                 </div>
                 <span className="dxd-connect-cta">
-                  <UpgradeButton grade={latest.grade ?? undefined} />
+                  <UpgradeButton />
                 </span>
               </div>
             </section>

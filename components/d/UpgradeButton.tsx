@@ -11,17 +11,15 @@ import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
 import { track } from "@/lib/analytics";
 
 export function UpgradeButton({
-  grade,
   summary,
 }: {
-  grade?: string;
   summary?: string;
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   async function handleUpgrade() {
-    track("checkout_started", { from_scan: Boolean(grade) });
+    track("checkout_started", { from_scan: Boolean(summary) });
     setError("");
     setLoading(true);
     try {
@@ -38,7 +36,7 @@ export function UpgradeButton({
             ? { Authorization: `Bearer ${session.access_token}` }
             : {}),
         },
-        body: JSON.stringify({ grade, summary }),
+        body: JSON.stringify({ summary }),
       });
       const data = await res.json();
       if (!res.ok || !data.url) {

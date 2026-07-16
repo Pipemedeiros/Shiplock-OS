@@ -82,7 +82,6 @@ export function ConnectAndScanForm() {
 
       const scan = data as ScanResponse;
       track("scan_completed", {
-        grade: scan.grade,
         issue_count: scan.issues.length,
         critical_count: scan.issues.filter((i) => i.severity === "CRITICAL").length,
       });
@@ -173,8 +172,11 @@ export function ConnectAndScanForm() {
       {phase === "report" && result && (
         <div ref={reportRef} style={{ scrollMarginTop: 24 }}>
           <div style={{ display: "flex", gap: 28, alignItems: "flex-start", flexWrap: "wrap" }}>
-            <p className="dxd-grade dxd-serif" aria-label={`Grade ${result.grade}`}>
-              <DecryptText text={result.grade} duration={900} />
+            <p
+              className="dxd-grade dxd-serif"
+              aria-label={`${result.issues.length} open finding${result.issues.length === 1 ? "" : "s"}`}
+            >
+              <DecryptText text={String(result.issues.length)} duration={900} />
             </p>
             <div style={{ flex: 1, minWidth: 240 }}>
               <p style={{ margin: "8px 0 6px", fontWeight: 600, fontSize: 16.5 }}>
