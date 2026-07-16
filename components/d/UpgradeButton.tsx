@@ -58,8 +58,12 @@ export function UpgradeButton({
       <button type="button" className="dxd-btn" onClick={handleUpgrade} disabled={loading}>
         {loading ? <Loader2 className="size-4 animate-spin" /> : "Put us on retainer — $49/mo"}
       </button>
+      <p style={{ fontSize: 12, color: "var(--d-muted)", marginTop: 10, lineHeight: 1.6 }}>
+        7 days free — no charge today. Cancel anytime in one click. Secure checkout by Stripe;
+        we never see your card.
+      </p>
       {error && (
-        <p style={{ fontSize: 13, color: "var(--d-signal)", marginTop: 10 }}>{error}</p>
+        <p style={{ fontSize: 13, color: "var(--d-signal)", marginTop: 8 }}>{error}</p>
       )}
     </div>
   );

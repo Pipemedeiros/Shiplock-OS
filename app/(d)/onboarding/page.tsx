@@ -4,6 +4,7 @@ import { getSupabaseServer } from "@/lib/supabaseServer";
 import { LockMark } from "@/components/d/Brand";
 import { ConnectAndScanForm } from "@/components/d/ConnectAndScanForm";
 import { UpgradeButton } from "@/components/d/UpgradeButton";
+import { Reveal } from "@/components/d/bits";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -11,30 +12,31 @@ export const metadata: Metadata = {
 
 
 // Post-sign-in onboarding: connect-your-stack step between OAuth and the
-// dashboard. GitHub/Vercel/Cloudflare are presented honestly — none of
-// those connection flows exist yet (no /api/monitor/enable, no GitHub App,
-// no Vercel integration) — must stay consistent with
-// app/dashboard-preview/page.tsx's own "Coming soon" labels. Database is
-// the one real, live connection: the form below calls the real,
-// unmodified POST /api/scan.
-const SOURCES = [
+// dashboard. Database is the live connection the form below drives (real,
+// unmodified POST /api/scan). The cards beneath describe the rest of the
+// retainer — all real capabilities the customer sets up from their dashboard
+// after the first scan; kept honest about what needs a one-time setup step.
+const INCLUDED = [
   {
-    name: "GitHub",
-    provider: "Source scanning",
+    name: "Source scanning",
+    provider: "GitHub · read-only",
+    note: "connect your repo",
     description:
-      "Leaked secrets and vulnerable dependencies caught in your repository before they ever reach production.",
+      "Committed secrets and vulnerable dependencies found in your repository — delivered as fix pull requests you review and merge. We never push to your code.",
   },
   {
-    name: "Vercel",
-    provider: "Deploy monitoring",
+    name: "Live traffic protection",
+    provider: "Your edge · fails open",
+    note: "one small file",
     description:
-      "A fresh security pass triggered on every deploy, plus environment variable audits for weak or exposed secrets.",
+      "Turns credential stuffing, vulnerability scanners, and floods away from your login. It lives in your app — no DNS change — and if ShipLock is ever down, your app just serves normally.",
   },
   {
-    name: "Cloudflare",
-    provider: "Edge protection",
+    name: "Every deploy, re-audited",
+    provider: "Continuous",
+    note: "one webhook",
     description:
-      "Rate limiting, bot detection, and credential-stuffing protection at the edge — stopped before it reaches your app.",
+      "A fresh scan on every production deploy, deep scans on a schedule, and critical checks hourly — you only hear from us when something new appears.",
   },
 ];
 
@@ -90,39 +92,44 @@ export default async function OnboardingPage() {
         {isPaid ? (
           <ConnectAndScanForm />
         ) : (
-          <section className="dxd-connect-card" aria-label="Subscribe to run your first audit">
-            <div>
-              <h4>Put us on retainer to run your first audit</h4>
-              <p>
-                $49/month, cancel anytime — 7 days free before the first charge. Once you&apos;re
-                subscribed, paste your Supabase URL and anon key here and the first scan runs
-                immediately.
-              </p>
-            </div>
-            <span className="dxd-connect-cta">
-              <UpgradeButton />
-            </span>
-          </section>
+          <Reveal>
+            <section className="dxd-connect-card" aria-label="Subscribe to run your first audit">
+              <div>
+                <h4>Put us on retainer to run your first audit</h4>
+                <p>
+                  Paste your Supabase URL and anon key the moment you&apos;re in, and the first
+                  scan — grade, every finding, and a fix for each — runs immediately. The key we
+                  ask for is the same public one your app already ships to every visitor; never
+                  anything more.
+                </p>
+              </div>
+              <span className="dxd-connect-cta">
+                <UpgradeButton />
+              </span>
+            </section>
+          </Reveal>
         )}
 
         <section style={{ marginTop: 56 }}>
           <p className="dxd-panel-label" style={{ marginBottom: 14 }}>
-            Rolling out — your account is ready either way
+            The rest of the retainer — set up when you&apos;re ready
           </p>
           <div className="dxd-stakes">
-            {SOURCES.map((s) => (
-              <div className="dxd-connect-card" key={s.name} style={{ flexDirection: "column" }}>
-                <div style={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "flex-start" }}>
-                  <h4>{s.name}</h4>
-                  <span className="dxd-mono" style={{ fontSize: 10, color: "var(--d-muted)" }}>
-                    Coming soon
+            {INCLUDED.map((s, i) => (
+              <Reveal key={s.name} delay={i * 80}>
+                <div className="dxd-connect-card" style={{ flexDirection: "column", height: "100%" }}>
+                  <div style={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+                    <h4>{s.name}</h4>
+                    <span className="dxd-mono" style={{ fontSize: 10, color: "var(--d-bronze)", whiteSpace: "nowrap" }}>
+                      {s.note}
+                    </span>
+                  </div>
+                  <span className="dxd-scope" style={{ color: "var(--d-muted)" }}>
+                    {s.provider}
                   </span>
+                  <p>{s.description}</p>
                 </div>
-                <span className="dxd-scope" style={{ color: "var(--d-muted)" }}>
-                  {s.provider}
-                </span>
-                <p>{s.description}</p>
-              </div>
+              </Reveal>
             ))}
           </div>
         </section>

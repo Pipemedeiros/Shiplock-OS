@@ -64,7 +64,13 @@ export function WatchPanel({
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 14 }}>
             <h3 style={{ margin: 0, fontSize: 15 }}>Watch log</h3>
             <span className="dxd-mono" style={{ fontSize: 11, color: status.enabled ? "var(--d-bronze)" : "var(--d-muted)" }}>
-              {status.enabled ? "● watching" : "○ paused"}
+              {status.enabled ? (
+                <>
+                  <span className="dxd-livedot">●</span> watching
+                </>
+              ) : (
+                "○ paused"
+              )}
             </span>
           </div>
           {entries.length > 0 ? (

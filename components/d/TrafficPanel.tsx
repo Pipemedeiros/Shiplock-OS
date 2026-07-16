@@ -49,7 +49,13 @@ export function TrafficPanel({
               className="dxd-mono"
               style={{ fontSize: 11, color: status.installed ? "var(--d-bronze)" : "var(--d-muted)" }}
             >
-              {status.installed ? "● protecting" : "○ not installed"}
+              {status.installed ? (
+                <>
+                  <span className="dxd-livedot">●</span> protecting
+                </>
+              ) : (
+                "○ not installed"
+              )}
             </span>
           </div>
 

@@ -21,6 +21,7 @@ import { WatchPanel } from "@/components/d/WatchPanel";
 import { TrafficPanel } from "@/components/d/TrafficPanel";
 import { GuardrailPanel } from "@/components/d/GuardrailPanel";
 import { GitHubPanel, type SourceFinding } from "@/components/d/GitHubPanel";
+import { Reveal } from "@/components/d/bits";
 import type { PreviewIssue, FullIssue } from "@/lib/types";
 
 export const metadata: Metadata = {
@@ -224,30 +225,40 @@ export default async function DashboardPage() {
           </section>
 
           {watchStatus && (
-            <WatchPanel
-              entries={watchLog}
-              status={watchStatus}
-              timeline={timeline}
-              webhookUrl={webhookUrl}
-            />
+            <Reveal>
+              <WatchPanel
+                entries={watchLog}
+                status={watchStatus}
+                timeline={timeline}
+                webhookUrl={webhookUrl}
+              />
+            </Reveal>
           )}
 
           {isPaid && protectionStatus && trafficSnippet && (
-            <TrafficPanel
-              status={protectionStatus}
-              blocks={trafficBlocks}
-              threats={trafficThreats}
-              snippet={trafficSnippet}
-              webSnippet={trafficWebSnippet}
-              expressSnippet={trafficExpressSnippet}
-            />
+            <Reveal>
+              <TrafficPanel
+                status={protectionStatus}
+                blocks={trafficBlocks}
+                threats={trafficThreats}
+                snippet={trafficSnippet}
+                webSnippet={trafficWebSnippet}
+                expressSnippet={trafficExpressSnippet}
+              />
+            </Reveal>
           )}
 
           {isPaid && githubConfigured && (
-            <GitHubPanel connected={githubConnected} findings={sourceFindings} />
+            <Reveal>
+              <GitHubPanel connected={githubConnected} findings={sourceFindings} />
+            </Reveal>
           )}
 
-          {isPaid && <GuardrailPanel guardrails={GUARDRAILS} jwtPosture={jwtPosture} />}
+          {isPaid && (
+            <Reveal>
+              <GuardrailPanel guardrails={GUARDRAILS} jwtPosture={jwtPosture} />
+            </Reveal>
+          )}
 
           {agentBrief && (
             <section style={{ marginTop: 40 }} aria-label="AI-agent brief">
