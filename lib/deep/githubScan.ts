@@ -87,8 +87,10 @@ export function scanSecrets(files: RepoFile[]): GithubFinding[] {
 // a sensitive variable — not the mere string "password" in a message.
 const LOG_PROP_RE =
   /(console\.(log|error|warn|info|debug)|logger\.\w+)\s*\([^)]*\.(password|passwd|secret|token|access_?token|refresh_?token|api_?key|apiKey|authorization|cookie|private_?key|privateKey|service_?role|serviceRole)\b/i;
+// Exclude LLM/usage token COUNTS (input_tokens/output_tokens/prompt_tokens…) —
+// those are numbers, not auth secrets. Guard the bare "token" alternative.
 const LOG_TEMPLATE_RE =
-  /(console\.(log|error|warn|info|debug)|logger\.\w+)\s*\(\s*`[^`]*\$\{[^}]*(token|secret|password|apikey|authorization|cookie|private_?key)[^}]*\}/i;
+  /(console\.(log|error|warn|info|debug)|logger\.\w+)\s*\(\s*`[^`]*\$\{[^}]*((?<!input_)(?<!output_)(?<!prompt_)(?<!completion_)(?<!total_)(?<!num_)(?<!max_)token|secret|password|apikey|authorization|cookie|private_?key)[^}]*\}/i;
 
 export function scanLoggedSecrets(files: RepoFile[]): GithubFinding[] {
   const findings: GithubFinding[] = [];

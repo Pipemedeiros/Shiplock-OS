@@ -56,6 +56,13 @@ describe("scanLoggedSecrets", () => {
     ];
     expect(scanLoggedSecrets(clean)).toEqual([]);
   });
+
+  it("does not flag LLM token COUNTS (input_tokens/output_tokens)", () => {
+    const counts: RepoFile[] = [
+      { path: "a.ts", content: "console.log(`model=${m} input_tokens=${res.usage.input_tokens} output_tokens=${res.usage.output_tokens}`)" },
+    ];
+    expect(scanLoggedSecrets(counts)).toEqual([]);
+  });
 });
 
 describe("scanTokenStorage", () => {
