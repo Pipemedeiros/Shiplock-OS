@@ -12,6 +12,7 @@ Judge these patterns:
 1. Privilege escalation (highest confidence available): an RPC with securityDefiner:true AND anonExecute:true bypasses RLS as its owner and is anon-callable — a real critical risk. This is your strongest signal because it comes from SQL, not a heuristic.
 2. Broken access control (A01): flag ONLY when a mutating endpoint takes a resource id FROM CLIENT INPUT (usesClientInputInWrite:true) AND hasOwnershipScope:false. If the id is derived from the session, or hasOwnershipScope:true, do NOT flag — it's likely fine.
 3. Mass assignment: usesClientInputInWrite:true where client fields (price/role/quantity) could reach a privileged write — flag at MEDIUM/LOW.
+4. Middleware-only auth (CVE-2025-29927 class): if middlewareAuthGate is true, endpoints that rely on it (hasAuth:false in-handler) can be bypassed by a crafted request that skips Next.js middleware. Flag ONE finding: "Auth appears enforced in middleware, not in the handlers — a crafted request can bypass middleware (CVE-2025-29927). Enforce the auth/ownership check inside each protected handler too." MEDIUM confidence.
 
 CONSERVATISM RULES (the map is coarse — avoid false alarms):
 - hasAuth:false does NOT mean "no auth". Real routes authenticate by request-signature (Stripe webhooks), unguessable path/header tokens, or shared secrets — none visible here. If mutates:true AND hasAuth:false, phrase it as "no session-based auth detected — VERIFY a signature/token check exists" at MEDIUM confidence, NEVER a definitive missing-auth CRITICAL, and NEVER say "trivial to forge".
@@ -42,5 +43,5 @@ export function buildReasoningUserPrompt(ctx: ReasoningContext): string {
     securityDefiner: r.securityDefiner,
     anonExecute: r.anonExecute,
   }));
-  return JSON.stringify({ endpoints, rpcs }, null, 2);
+  return JSON.stringify({ middlewareAuthGate: ctx.middlewareAuthGate, endpoints, rpcs }, null, 2);
 }

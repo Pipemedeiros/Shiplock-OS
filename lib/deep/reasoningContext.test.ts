@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractEndpoints, extractRpcs, isRouteFile } from "./reasoningContext";
+import { extractEndpoints, extractRpcs, isRouteFile, detectMiddlewareAuthGate } from "./reasoningContext";
 import type { RepoFile } from "./githubScan";
 
 describe("isRouteFile", () => {
@@ -40,6 +40,26 @@ describe("extractEndpoints", () => {
 
   it("ignores non-route files", () => {
     expect(extractEndpoints([{ path: "lib/x.ts", content: "export function POST(){}" }])).toEqual([]);
+  });
+});
+
+describe("detectMiddlewareAuthGate", () => {
+  it("detects a session-based middleware that redirects (CVE-2025-29927 class)", () => {
+    const files: RepoFile[] = [
+      { path: "middleware.ts", content: `export async function middleware(req){ const {data:{user}} = await supabase.auth.getUser(); if(!user) return NextResponse.redirect(new URL("/auth", req.url)); }` },
+    ];
+    expect(detectMiddlewareAuthGate(files)).toBe(true);
+  });
+
+  it("ignores a middleware that only refreshes/sets headers (no access decision)", () => {
+    const files: RepoFile[] = [
+      { path: "middleware.ts", content: `export function middleware(){ const res = NextResponse.next(); res.headers.set("x-nonce", n); return res; }` },
+    ];
+    expect(detectMiddlewareAuthGate(files)).toBe(false);
+  });
+
+  it("is false when there is no middleware", () => {
+    expect(detectMiddlewareAuthGate([{ path: "app/api/x/route.ts", content: "export function GET(){}" }])).toBe(false);
   });
 });
 

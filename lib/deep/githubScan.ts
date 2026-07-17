@@ -80,6 +80,34 @@ export function scanSecrets(files: RepoFile[]): GithubFinding[] {
   return findings;
 }
 
+// ── Secrets / tokens logged ────────────────────────────────────────────────
+// Logging a secret ships it to wherever logs go (Vercel, a log drain, a
+// third-party) and retains it. High-precision: matches a log call that logs a
+// SENSITIVE PROPERTY (obj.password / req.headers.authorization) or interpolates
+// a sensitive variable — not the mere string "password" in a message.
+const LOG_PROP_RE =
+  /(console\.(log|error|warn|info|debug)|logger\.\w+)\s*\([^)]*\.(password|passwd|secret|token|access_?token|refresh_?token|api_?key|apiKey|authorization|cookie|private_?key|privateKey|service_?role|serviceRole)\b/i;
+const LOG_TEMPLATE_RE =
+  /(console\.(log|error|warn|info|debug)|logger\.\w+)\s*\(\s*`[^`]*\$\{[^}]*(token|secret|password|apikey|authorization|cookie|private_?key)[^}]*\}/i;
+
+export function scanLoggedSecrets(files: RepoFile[]): GithubFinding[] {
+  const findings: GithubFinding[] = [];
+  for (const file of files) {
+    if (!/\.(ts|tsx|js|jsx|mjs|cjs)$/i.test(file.path)) continue;
+    if (LOG_PROP_RE.test(file.content) || LOG_TEMPLATE_RE.test(file.content)) {
+      findings.push({
+        id: `github:logged_secret:${file.path}`,
+        severity: "WARNING",
+        title: `Sensitive value written to logs in ${file.path}`,
+        consequence:
+          `${file.path} appears to log a secret/token/credential. Logs are shipped and retained wherever your host or log drain sends them — anyone with log access then has the secret. Remove it or redact before logging.`,
+        packageName: null, version: null, vulnId: null, cveId: null,
+      });
+    }
+  }
+  return findings;
+}
+
 // ── Token-storage anti-pattern ─────────────────────────────────────────────
 // The default @supabase/supabase-js browser client keeps the session in
 // localStorage, where any XSS can read it. The cookie-based @supabase/ssr

@@ -1,6 +1,6 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { getInstallationToken, listRepos, listTree, getFile, queryOsv } from "./github";
-import { scanSecrets, scanTokenStorage, extractDependencies, depFindings, type RepoFile, type GithubFinding } from "./githubScan";
+import { scanSecrets, scanTokenStorage, scanLoggedSecrets, extractDependencies, depFindings, type RepoFile, type GithubFinding } from "./githubScan";
 
 // Full source scan for a connected GitHub App installation: read-only repo
 // contents -> committed secrets, token-storage anti-pattern, dependency CVEs
@@ -33,7 +33,7 @@ async function scanRepo(token: string, fullName: string, branch: string): Promis
     if (/(^|\/)package-lock\.json$/.test(c.path) && !packageLock) packageLock = content;
   }
 
-  const findings: GithubFinding[] = [...scanSecrets(files), ...scanTokenStorage(files)];
+  const findings: GithubFinding[] = [...scanSecrets(files), ...scanTokenStorage(files), ...scanLoggedSecrets(files)];
 
   if (packageJson) {
     const deps = extractDependencies(packageJson, packageLock);

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   scanSecrets,
   scanTokenStorage,
+  scanLoggedSecrets,
   extractDependencies,
   depFindings,
   type RepoFile,
@@ -34,6 +35,26 @@ describe("scanSecrets", () => {
 
   it("is quiet on clean files", () => {
     expect(scanSecrets([{ path: "index.ts", content: "export const x = 1;" }])).toEqual([]);
+  });
+});
+
+describe("scanLoggedSecrets", () => {
+  it("flags logging a sensitive property or interpolated secret", () => {
+    const hits: RepoFile[] = [
+      { path: "a.ts", content: "console.log(req.headers.authorization)" },
+      { path: "b.ts", content: "logger.info(user.password)" },
+      { path: "c.ts", content: "console.error(`token=${accessToken}`)" },
+    ];
+    expect(scanLoggedSecrets(hits).map((f) => f.id.split(":").pop())).toEqual(["a.ts", "b.ts", "c.ts"]);
+  });
+
+  it("does not flag the mere word in a message or non-source files", () => {
+    const clean: RepoFile[] = [
+      { path: "d.ts", content: 'console.log("password required")' },
+      { path: "e.ts", content: "console.log(user.email)" },
+      { path: "notes.md", content: "console.log(user.password)" },
+    ];
+    expect(scanLoggedSecrets(clean)).toEqual([]);
   });
 });
 

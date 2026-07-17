@@ -25,6 +25,10 @@ export interface Rpc {
 export interface ReasoningContext {
   endpoints: Endpoint[];
   rpcs: Rpc[];
+  // True when the app has a middleware/proxy that makes auth decisions
+  // (redirects/rewrites based on a session). If routes rely on it instead of
+  // an in-handler check, they're bypassable — the CVE-2025-29927 class.
+  middlewareAuthGate: boolean;
 }
 
 const ROUTE_RE = /(^|\/)(app\/.*\/route\.(ts|tsx|js|mjs)|pages\/api\/.*\.(ts|js))$/;
@@ -103,6 +107,23 @@ export function extractRpcs(files: RepoFile[]): Rpc[] {
   return [...byName.values()].slice(0, MAX_RPCS);
 }
 
+const MIDDLEWARE_FILE_RE = /(^|\/)(middleware|proxy)\.(ts|js|mjs)$/;
+const MW_SESSION_RE = /getUser|auth\.uid|getSession|isAuthenticated|\.auth\b|session/i;
+const MW_DECISION_RE = /redirect|rewrite|NextResponse\.(redirect|rewrite)/i;
+
+// Does the app gate access in middleware (session-based redirect/rewrite)? If so
+// and routes lack their own in-handler check, they're bypassable (CVE-2025-29927:
+// a crafted request can skip Next.js middleware). This is a cheap, named-CVE win.
+export function detectMiddlewareAuthGate(files: RepoFile[]): boolean {
+  return files.some(
+    (f) => MIDDLEWARE_FILE_RE.test(f.path) && MW_SESSION_RE.test(f.content) && MW_DECISION_RE.test(f.content)
+  );
+}
+
 export function buildReasoningContext(files: RepoFile[]): ReasoningContext {
-  return { endpoints: extractEndpoints(files), rpcs: extractRpcs(files) };
+  return {
+    endpoints: extractEndpoints(files),
+    rpcs: extractRpcs(files),
+    middlewareAuthGate: detectMiddlewareAuthGate(files),
+  };
 }

@@ -112,7 +112,11 @@ export async function reasonOverContext(ctx: ReasoningContext): Promise<Reasoned
 async function fetchContextFiles(token: string, fullName: string, branch: string): Promise<RepoFile[]> {
   const tree = await listTree(token, fullName, branch);
   const candidates = tree
-    .filter((t) => t.size <= MAX_FILE_BYTES && (isRouteFile(t.path) || /\.sql$/i.test(t.path)))
+    .filter(
+      (t) =>
+        t.size <= MAX_FILE_BYTES &&
+        (isRouteFile(t.path) || /\.sql$/i.test(t.path) || /(^|\/)(middleware|proxy)\.(ts|js|mjs)$/.test(t.path))
+    )
     .slice(0, MAX_FILES_PER_REPO);
   const files: RepoFile[] = [];
   for (const c of candidates) {
