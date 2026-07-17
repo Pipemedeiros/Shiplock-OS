@@ -9,7 +9,10 @@ import { ingestTrafficEvent } from "@/lib/traffic/ingest";
 // `{ ok: true }` regardless of outcome — no enumeration, and the snippet
 // treats it fire-and-forget anyway. Everything downstream is fail-open.
 
-const OK = NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
+// Fresh response per call — a Response body is a single-use stream, so a shared
+// module-level NextResponse would break under concurrent requests (this is the
+// highest-volume endpoint). Same reason the blocklist route uses a function.
+const ok = () => NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
 
 const bodySchema = z.object({
   source_id: z.string().min(1).max(64),
@@ -23,10 +26,10 @@ const bodySchema = z.object({
 export async function POST(req: NextRequest) {
   try {
     const token = req.headers.get("x-site") ?? new URL(req.url).searchParams.get("site");
-    if (!token) return OK;
+    if (!token) return ok();
 
     const parsed = bodySchema.safeParse(await req.json().catch(() => null));
-    if (!parsed.success) return OK;
+    if (!parsed.success) return ok();
 
     const admin = getSupabaseAdmin();
     const { data: profile } = await admin
@@ -37,7 +40,7 @@ export async function POST(req: NextRequest) {
 
     // Unknown token, or a lapsed subscriber — traffic protection pauses with
     // the subscription, same as the rest of the watch. Answer generically.
-    if (!profile || !profile.is_paid) return OK;
+    if (!profile || !profile.is_paid) return ok();
 
     const b = parsed.data;
     await ingestTrafficEvent({
@@ -53,9 +56,9 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return OK;
+    return ok();
   } catch (err) {
     console.error("[traffic/ingest]", err instanceof Error ? err.message : err);
-    return OK; // fail open, always generic
+    return ok(); // fail open, always generic
   }
 }
