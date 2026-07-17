@@ -68,6 +68,7 @@ function pushCritical(
   out.push({
     id: `policy:${p.schemaname}.${p.tablename}:${p.policyname}:${reason}`,
     severity, title, consequence,
+    packageName: null, version: null, vulnId: null, cveId: null,
   });
 }
 
@@ -157,6 +158,7 @@ export function mapAdvisors(advisors: SupabaseAdvisor[]): GithubFinding[] {
       title: (a.title ?? a.name) + target,
       consequence: [a.detail, a.description, a.remediation].filter(Boolean).join(" ") ||
         "Supabase's security advisor flagged this configuration.",
+      packageName: null, version: null, vulnId: null, cveId: null,
     });
   }
   return out;
