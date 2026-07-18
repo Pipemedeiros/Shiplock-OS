@@ -9,7 +9,7 @@ import { Pool } from "pg";
 //
 // Instantiated LAZILY and only when both env vars are present, so the app
 // builds and runs completely untouched until 2FA is deliberately enabled.
-// Requires (see BETTER_AUTH.md): BETTER_AUTH_SECRET and DATABASE_URL (a direct
+// Requires (see ROADMAP.md): BETTER_AUTH_SECRET and DATABASE_URL (a direct
 // Postgres connection string from Supabase — the app otherwise only uses the
 // REST layer, so this is a new, 2FA-only credential).
 
@@ -35,7 +35,7 @@ export function isBetterAuthConfigured(): boolean {
 
 export function getBetterAuth() {
   if (!isBetterAuthConfigured()) {
-    throw new Error("BETTER_AUTH_SECRET and DATABASE_URL must be set to use 2FA (see BETTER_AUTH.md).");
+    throw new Error("BETTER_AUTH_SECRET and DATABASE_URL must be set to use 2FA (see ROADMAP.md).");
   }
   if (instance) return instance;
   const created = createInstance();

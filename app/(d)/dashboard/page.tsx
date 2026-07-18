@@ -335,7 +335,7 @@ export default async function DashboardPage() {
           {/* 2FA appears only once Better Auth is configured (env vars set) —
               enrollment is opt-in, so a gated mount can never lock anyone out.
               The identity bridge + enforcement gate land in the browser-tested
-              pass once configured (BETTER_AUTH.md). */}
+              pass once configured (ROADMAP.md). */}
           {isPaid && isBetterAuthConfigured() && (
             <Reveal>
               <TwoFactorSetup />

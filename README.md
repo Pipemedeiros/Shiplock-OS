@@ -1,36 +1,38 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ShipLock
 
-## Getting Started
+Continuous, enterprise-methodology security monitoring for AI-built apps —
+built for founders shipping on Lovable/Bolt/Cursor/v0 with a Supabase backend who
+can build but aren't security experts. $49/month, 7-day trial.
 
-First, run the development server:
+The differentiator is continuous depth + honesty, delivered at a consumer price —
+not a one-off grade, and **not** an autonomous offensive agent (that direction was
+dropped by design).
 
+## What it does
+- **Scan** — 16 external checks across auth/access, data exposure, config, and
+  injection (`lib/scanner.ts`).
+- **Deep layer** — RLS policy-logic detection, source SAST (secrets, dependency
+  CVEs, weak crypto, client XSS, injection), and a reasoning pass, via a connected
+  GitHub App.
+- **Traffic protection** — a fail-open edge mirror + attacker blocklist.
+- **Monitoring** — deploy-triggered, hourly critical-check, and 48h deep passes.
+- **Fixes** — one reviewable, editable **PR** per finding (migration PR for
+  DB/RLS the customer merges; ShipLock never writes prod directly).
+- **Verified report** — a shareable security-posture attestation.
+
+## Stack
+Next.js 16 (App Router) · TypeScript · Tailwind · Supabase · Stripe · Resend ·
+Vercel · PostHog · Anthropic.
+
+## Development
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run dev      # local dev server
+npm run build    # must pass before commit
+npm run lint     # must pass before commit
+npm test         # vitest
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Docs
+- `CLAUDE.md` — architecture, rules, and non-negotiable boundaries (source of truth).
+- `ROADMAP.md` — current state, launch checklist, coverage honesty, roadmap.
+- `marketing.md` / `marketing-strategy.md` — market research + GTM.

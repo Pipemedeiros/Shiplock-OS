@@ -25,7 +25,7 @@ const envSchema = z.object({
   VERCEL_CLIENT_SECRET: optionalSecret,
   // Optional: the GitHub App (source scanning) may not be registered yet.
   // lib/deep/github.ts throws a clear error at call time if these are unset.
-  // See GITHUB_APP_SETUP.md for how to create the App and obtain these.
+  // See ROADMAP.md for how to create the App and obtain these.
   GITHUB_APP_ID: optionalSecret,
   GITHUB_APP_PRIVATE_KEY: optionalSecret,
   GITHUB_APP_CLIENT_ID: optionalSecret,
@@ -34,7 +34,7 @@ const envSchema = z.object({
   GITHUB_WEBHOOK_SECRET: optionalSecret,
   // Optional: Better Auth 2FA (layered on Supabase Auth). lib/betterAuth.ts is
   // only instantiated when BOTH are present. DATABASE_URL is a direct Postgres
-  // connection (Supabase) used only by the 2FA layer. See BETTER_AUTH.md.
+  // connection (Supabase) used only by the 2FA layer. See ROADMAP.md.
   BETTER_AUTH_SECRET: optionalSecret,
   DATABASE_URL: optionalSecret,
 });

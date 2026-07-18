@@ -9,7 +9,7 @@ import { runMonitoringPass } from "@/lib/monitoring";
 // registering a properly HMAC-signed Vercel webhook programmatically
 // requires a Vercel API token per customer (item 8, not built yet).
 // Until then, a customer adds this URL manually in their own Vercel
-// account's webhook settings — see REMAINING_BUILD_REPORT.md item 1.
+// account's webhook settings — see ROADMAP.md.
 //
 // Event shape assumptions (type: "deployment.ready",
 // payload.deployment.target: "production") are based on Vercel's
