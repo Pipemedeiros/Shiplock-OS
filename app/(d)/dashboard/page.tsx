@@ -24,6 +24,7 @@ import { VerifiedPanel } from "@/components/d/VerifiedPanel";
 import { TwoFactorSetup } from "@/components/d/TwoFactorSetup";
 import { isBetterAuthConfigured } from "@/lib/betterAuth";
 import { FixesPanel } from "@/components/d/FixesPanel";
+import { McpPanel } from "@/components/d/McpPanel";
 import { getFixFindings } from "@/lib/fixes/findings";
 import type { FixableFinding } from "@/lib/fixes/lane";
 import { GitHubPanel, type SourceFinding } from "@/components/d/GitHubPanel";
@@ -155,6 +156,16 @@ export default async function DashboardPage() {
   // editable, reviewable fix. Shared with the MCP endpoints so both see the
   // same set.
   const fixFindings: FixableFinding[] = isPaid ? await getFixFindings(user.id) : [];
+
+  // MCP tokens (metadata only) for the "Connect your coding agent" panel.
+  const { data: mcpTokens } = isPaid
+    ? await getSupabaseAdmin()
+        .from("api_tokens")
+        .select("id, name, created_at, last_used_at")
+        .eq("user_id", user.id)
+        .is("revoked_at", null)
+        .order("created_at", { ascending: false })
+    : { data: [] };
 
   // Agent brief (paid only) — scan findings + the deep findings just assembled,
   // so one paste covers the whole surface.
@@ -319,6 +330,12 @@ export default async function DashboardPage() {
           {isPaid && fixFindings.length > 0 && (
             <Reveal>
               <FixesPanel findings={fixFindings} />
+            </Reveal>
+          )}
+
+          {isPaid && (
+            <Reveal>
+              <McpPanel initialTokens={mcpTokens ?? []} />
             </Reveal>
           )}
 

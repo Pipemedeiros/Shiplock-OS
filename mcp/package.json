@@ -1,0 +1,19 @@
+{
+  "name": "@shiplock/mcp",
+  "version": "0.1.0",
+  "description": "MCP server for ShipLock — pull your app's security findings and fixes into your coding agent (Claude Code, Cursor, Codex).",
+  "type": "module",
+  "bin": {
+    "shiplock-mcp": "index.mjs"
+  },
+  "files": [
+    "index.mjs",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  }
+}
