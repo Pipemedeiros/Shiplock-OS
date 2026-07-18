@@ -7,7 +7,12 @@
 // reviews the diff and commits), or applied as a reviewable PR via open_fix_pr.
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+  ListResourcesRequestSchema,
+  ReadResourceRequestSchema,
+} from "@modelcontextprotocol/sdk/types.js";
 
 const BASE = (process.env.SHIPLOCK_URL || "https://shiplock.dev").replace(/\/+$/, "");
 const TOKEN = process.env.SHIPLOCK_TOKEN;
@@ -46,11 +51,37 @@ const TOOLS = [
       required: ["findingId", "editedContent"],
     },
   },
+  {
+    name: "run_scan",
+    description:
+      "Re-scan the connected project to confirm a fix resolved. Returns the number of new findings since the last scan. No-op with a reason if no project is connected.",
+    inputSchema: { type: "object", properties: {} },
+  },
 ];
 
-const server = new Server({ name: "shiplock", version: "0.1.0" }, { capabilities: { tools: {} } });
+const RESOURCES = [
+  { uri: "shiplock://brief", name: "ShipLock security brief", description: "Every open finding with its fix, formatted for the agent.", mimeType: "text/markdown" },
+  { uri: "shiplock://posture", name: "ShipLock posture", description: "Current security posture summary (counts, last scan).", mimeType: "application/json" },
+];
+
+const server = new Server({ name: "shiplock", version: "0.1.0" }, { capabilities: { tools: {}, resources: {} } });
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS }));
+
+server.setRequestHandler(ListResourcesRequestSchema, async () => ({ resources: RESOURCES }));
+
+server.setRequestHandler(ReadResourceRequestSchema, async (req) => {
+  const { uri } = req.params;
+  if (uri === "shiplock://brief") {
+    const { markdown } = await api("/api/mcp/brief");
+    return { contents: [{ uri, mimeType: "text/markdown", text: markdown }] };
+  }
+  if (uri === "shiplock://posture") {
+    const posture = await api("/api/mcp/posture");
+    return { contents: [{ uri, mimeType: "application/json", text: JSON.stringify(posture, null, 2) }] };
+  }
+  throw new Error(`Unknown resource: ${uri}`);
+});
 
 server.setRequestHandler(CallToolRequestSchema, async (req) => {
   const { name, arguments: args = {} } = req.params;
@@ -65,6 +96,8 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
         method: "POST",
         body: JSON.stringify({ findingId: args.findingId, editedContent: args.editedContent }),
       });
+    } else if (name === "run_scan") {
+      result = await api("/api/mcp/scan", { method: "POST", body: "{}" });
     } else {
       throw new Error(`Unknown tool: ${name}`);
     }
