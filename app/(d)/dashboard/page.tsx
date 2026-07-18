@@ -21,6 +21,8 @@ import { WatchPanel } from "@/components/d/WatchPanel";
 import { TrafficPanel } from "@/components/d/TrafficPanel";
 import { GuardrailPanel } from "@/components/d/GuardrailPanel";
 import { VerifiedPanel } from "@/components/d/VerifiedPanel";
+import { TwoFactorSetup } from "@/components/d/TwoFactorSetup";
+import { isBetterAuthConfigured } from "@/lib/betterAuth";
 import { GitHubPanel, type SourceFinding } from "@/components/d/GitHubPanel";
 import { Reveal } from "@/components/d/bits";
 import type { PreviewIssue, FullIssue } from "@/lib/types";
@@ -282,6 +284,16 @@ export default async function DashboardPage() {
                 initialToken={verifiedToken}
                 appUrl={env.NEXT_PUBLIC_APP_URL}
               />
+            </Reveal>
+          )}
+
+          {/* 2FA appears only once Better Auth is configured (env vars set) —
+              enrollment is opt-in, so a gated mount can never lock anyone out.
+              The identity bridge + enforcement gate land in the browser-tested
+              pass once configured (BETTER_AUTH.md). */}
+          {isPaid && isBetterAuthConfigured() && (
+            <Reveal>
+              <TwoFactorSetup />
             </Reveal>
           )}
 
