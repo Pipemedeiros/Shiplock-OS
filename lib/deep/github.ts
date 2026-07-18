@@ -184,7 +184,10 @@ export async function getFileSha(token: string, fullName: string, path: string, 
 }
 
 export async function putFile(
-  token: string, fullName: string, path: string, branch: string, contentUtf8: string, sha: string, message: string
+  // sha is omitted when creating a NEW file (migrations / fix-request files);
+  // required when updating an existing one. JSON.stringify drops undefined, so
+  // the GitHub contents API sees no `sha` on create, which is what it wants.
+  token: string, fullName: string, path: string, branch: string, contentUtf8: string, sha: string | undefined, message: string
 ): Promise<void> {
   await ghWrite(token, `/repos/${fullName}/contents/${path.split("/").map(encodeURIComponent).join("/")}`, "PUT", {
     message,
