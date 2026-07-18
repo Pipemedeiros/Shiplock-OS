@@ -20,6 +20,7 @@ import { AgentBrief } from "@/components/d/AgentBrief";
 import { WatchPanel } from "@/components/d/WatchPanel";
 import { TrafficPanel } from "@/components/d/TrafficPanel";
 import { GuardrailPanel } from "@/components/d/GuardrailPanel";
+import { VerifiedPanel } from "@/components/d/VerifiedPanel";
 import { GitHubPanel, type SourceFinding } from "@/components/d/GitHubPanel";
 import { Reveal } from "@/components/d/bits";
 import type { PreviewIssue, FullIssue } from "@/lib/types";
@@ -130,6 +131,20 @@ export default async function DashboardPage() {
     ]);
     githubConnected = Boolean(gh?.github_installation_id);
     sourceFindings = (findings ?? []) as SourceFinding[];
+  }
+
+  // Verified-report share state (paid only) — service-role read, same as the
+  // other per-user tokens (webhook/ingest).
+  let verifiedEnabled = false;
+  let verifiedToken: string | null = null;
+  if (isPaid) {
+    const { data: vr } = await getSupabaseAdmin()
+      .from("user_profiles")
+      .select("verified_report_enabled, verified_report_token")
+      .eq("id", user.id)
+      .maybeSingle();
+    verifiedEnabled = Boolean(vr?.verified_report_enabled);
+    verifiedToken = (vr?.verified_report_token as string | null) ?? null;
   }
 
   return (
@@ -257,6 +272,16 @@ export default async function DashboardPage() {
           {isPaid && (
             <Reveal>
               <GuardrailPanel guardrails={GUARDRAILS} jwtPosture={jwtPosture} />
+            </Reveal>
+          )}
+
+          {isPaid && (
+            <Reveal>
+              <VerifiedPanel
+                initialEnabled={verifiedEnabled}
+                initialToken={verifiedToken}
+                appUrl={env.NEXT_PUBLIC_APP_URL}
+              />
             </Reveal>
           )}
 

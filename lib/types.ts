@@ -36,6 +36,10 @@ export interface UserProfile {
   monitor_webhook_token: string;
   traffic_ingest_token: string;
   bonus_scans: number;
+  // Public "ShipLock Verified" share link — unguessable read-only token,
+  // off by default (migration 030).
+  verified_report_token?: string | null;
+  verified_report_enabled?: boolean;
 }
 
 // ── Edge traffic protection ────────────────────────────────────────────────
