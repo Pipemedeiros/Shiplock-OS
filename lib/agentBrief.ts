@@ -7,7 +7,15 @@ const SEVERITY_RANK: Record<Severity, number> = { CRITICAL: 0, WARNING: 1, INFO:
 // responsible for only invoking this when isPaid && latest, since
 // full_issues (fix/codefix) is the exact data the paywall protects. This
 // function does no auth/paywall checking itself; it's a pure formatter.
-export function buildAgentBrief(scan: LatestScan): string {
+// Deep findings (GitHub source, RLS policy, injection) surfaced from
+// deep_findings — title/severity/consequence only, same preview-safe shape.
+export interface DeepBriefFinding {
+  title: string;
+  severity: Severity;
+  consequence: string;
+}
+
+export function buildAgentBrief(scan: LatestScan, deepFindings: DeepBriefFinding[] = []): string {
   const issues = (scan.full_issues ?? []) as FullIssue[];
   const sorted = [...issues].sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity]);
   const date = scan.created_at ? new Date(scan.created_at).toISOString() : "unknown";
@@ -45,15 +53,19 @@ export function buildAgentBrief(scan: LatestScan): string {
   );
   lines.push("");
 
-  if (issues.length === 0) {
+  if (issues.length === 0 && deepFindings.length === 0) {
     lines.push("## Findings");
     lines.push("");
     lines.push("No open findings on the latest scan. Nothing for the agent to do here.");
     return lines.join("\n");
   }
 
-  lines.push("## Findings");
+  lines.push("## Database & configuration findings");
   lines.push("");
+  if (issues.length === 0) {
+    lines.push("No open database/configuration findings on the latest scan.");
+    lines.push("");
+  }
 
   for (const issue of sorted) {
     lines.push(`### [${issue.severity}] ${issue.title}`);
@@ -70,6 +82,24 @@ export function buildAgentBrief(scan: LatestScan): string {
       lines.push("```");
     }
     lines.push("");
+  }
+
+  // Source & deep findings (GitHub secrets/deps, RLS policy logic, injection).
+  if (deepFindings.length > 0) {
+    const deepSorted = [...deepFindings].sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity]);
+    lines.push("## Source code & deep findings");
+    lines.push("");
+    lines.push(
+      "From your connected repository and deeper analysis. Apply the described fix; the same " +
+        "RLS/auth/destructive guardrail above applies — flag those for review, never silent auto-apply."
+    );
+    lines.push("");
+    for (const d of deepSorted) {
+      lines.push(`### [${d.severity}] ${d.title}`);
+      lines.push("");
+      lines.push(`**What to do:** ${d.consequence}`);
+      lines.push("");
+    }
   }
 
   return lines.join("\n");

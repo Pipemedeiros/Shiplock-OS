@@ -70,9 +70,8 @@ export default async function DashboardPage() {
     ? (isPaid ? latest.full_issues : latest.preview_issues) ?? []
     : [];
 
-  // Contains fix/codefix — same sensitivity as full_issues above, so only
-  // ever build this when the paywall filtering already resolved to paid.
-  const agentBrief = isPaid && latest ? buildAgentBrief(latest) : null;
+  // The agent brief (fix/codefix content — paid only) is built after the fix
+  // list below, so it can include deep findings too.
 
   // Watch-panel data: counts and metadata only, nothing paywall-sensitive
   // (see lib/monitoring/watchLog.ts). The deploy-webhook URL is the one
@@ -182,6 +181,18 @@ export default async function DashboardPage() {
       fixFindings.push({ id: d.finding_id, source: src, title: d.title, severity: d.severity, fix: d.consequence });
     }
   }
+
+  // Agent brief (paid only) — scan findings + the deep findings just assembled,
+  // so one paste covers the whole surface.
+  const agentBrief =
+    isPaid && latest
+      ? buildAgentBrief(
+          latest,
+          fixFindings
+            .filter((f) => f.source !== "scan")
+            .map((f) => ({ title: f.title, severity: f.severity, consequence: f.fix }))
+        )
+      : null;
 
   return (
     <main className="dxd">
