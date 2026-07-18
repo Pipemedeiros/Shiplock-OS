@@ -359,28 +359,40 @@ export default function LandingPage() {
         <section className="dxd-section" id="fixes">
           <Reveal>
             <p className="dxd-eyebrow">The handoff</p>
-            <h2 className="dxd-h2">Findings arrive as fixes your agent can apply.</h2>
+            <h2 className="dxd-h2">Findings arrive as fixes — one button, fully reviewable.</h2>
             <p className="dxd-lede">
-              You build by telling an agent what you want. So that&apos;s how we deliver: every
-              finding ships with a step-by-step fix and a prompt written for the tool you build
-              in — paste it into Cursor, Lovable, Bolt, or Claude Code and let it do the work.
-              Your dashboard also carries a single downloadable brief covering every open
-              finding, ready to hand to your agent whole.
+              Every finding comes with an exact fix and a button to apply it. Database and
+              access-control changes open a migration pull request you review, edit, and merge —
+              your own deploy applies it. We never write to your database directly. Nothing about
+              a fix is silent; each one is a diff you approve.
             </p>
           </Reveal>
           <Reveal>
             <div className="dxd-surface" style={{ maxWidth: 640, margin: "28px auto 0" }}>
               <p className="dxd-mono" style={{ fontSize: 11, color: "var(--d-muted)", textTransform: "uppercase", letterSpacing: "0.1em", margin: "0 0 12px" }}>
-                Example fix prompt — anonymized · one per finding
+                Example fix — anonymized · one reviewable PR per finding
               </p>
               <p className="dxd-mono" style={{ fontSize: 12.5, lineHeight: 1.7, margin: 0, color: "var(--d-ink)", background: "var(--d-porcelain)", border: "1px solid var(--d-line)", borderRadius: 8, padding: "14px 16px" }}>
-                Enable row-level security on the `invoices` table, then add a policy so users can
-                only select rows where user_id = auth.uid(). Show me the SQL before running it —
-                do not modify any other table or policy.
+                supabase/migrations/…_shiplock_enable_rls_invoices.sql<br />
+                ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;<br />
+                CREATE POLICY owner_only ON invoices<br />
+                &nbsp;&nbsp;USING (auth.uid() = user_id);
               </p>
               <p style={{ marginTop: 14, fontSize: 11.5, lineHeight: 1.6, color: "var(--d-muted)" }}>
-                Every prompt tells your agent to show its work before touching auth, RLS, or
-                data — the fix stays reviewable by you, by design.
+                Opened as a pull request you read, edit, and merge — never applied to your
+                production database by us. Auth, RLS, and data changes stay in your hands, by
+                design.
+              </p>
+            </div>
+          </Reveal>
+          <Reveal>
+            <div className="dxd-surface" style={{ maxWidth: 640, margin: "20px auto 0" }}>
+              <p className="dxd-eyebrow" style={{ margin: "0 0 8px" }}>Or don&apos;t leave your editor</p>
+              <h3 style={{ margin: "0 0 8px", fontSize: 18 }}>Connect ShipLock to your coding agent.</h3>
+              <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.7, color: "var(--d-muted)" }}>
+                Add ShipLock to Claude Code, Cursor, or Codex. Your agent pulls your open findings
+                into context and writes the fixes right where you work — each one a diff you review
+                before it lands. The whole audit, in the tool you already build in.
               </p>
             </div>
           </Reveal>
