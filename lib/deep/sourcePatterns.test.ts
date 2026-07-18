@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { scanWeakCrypto, scanClientXss, scanSecretsInUrl, scanCodePatterns } from "./sourcePatterns";
+import { scanWeakCrypto, scanClientXss, scanSecretsInUrl, scanInjection, scanCodePatterns } from "./sourcePatterns";
 import type { RepoFile } from "./githubScan";
 
 const file = (path: string, content: string): RepoFile => ({ path, content });
@@ -51,6 +51,38 @@ describe("scanSecretsInUrl", () => {
   });
   it("does NOT flag a normal query param", () => {
     expect(scanSecretsInUrl([file("lib/api.ts", "fetch(`/search?q=${term}&page=2`)")])).toEqual([]);
+  });
+});
+
+describe("scanInjection", () => {
+  it("flags interpolated raw SQL (template)", () => {
+    const r = scanInjection([file("api/u.ts", "const rows = await db.query(`SELECT * FROM users WHERE id = ${id}`);")]);
+    expect(r[0].id).toContain("sql_injection");
+    expect(r[0].severity).toBe("CRITICAL");
+  });
+  it("flags concatenated SQL in a query call", () => {
+    const r = scanInjection([file("api/u.ts", `client.query("SELECT * FROM t WHERE name = '" + name + "'")`)]);
+    expect(r.some((x) => x.id.includes("sql_injection"))).toBe(true);
+  });
+  it("flags command injection via interpolated exec", () => {
+    const r = scanInjection([file("api/run.ts", "execSync(`convert ${file} out.png`)")]);
+    expect(r[0].id).toContain("command_injection");
+  });
+  it("flags path traversal from request input", () => {
+    const r = scanInjection([file("api/dl.ts", "fs.readFile(req.query.path, cb)")]);
+    expect(r[0].id).toContain("path_traversal");
+  });
+  it("flags open redirect to a user-supplied target", () => {
+    const r = scanInjection([file("api/go.ts", "return NextResponse.redirect(req.nextUrl.searchParams.get('to'))")]);
+    expect(r[0].id).toContain("open_redirect");
+  });
+  it("does NOT flag parameterized SQL or static queries", () => {
+    expect(scanInjection([file("api/u.ts", "db.query('SELECT * FROM users WHERE id = $1', [id])")])).toEqual([]);
+    expect(scanInjection([file("api/u.ts", "db.query(`SELECT count(*) FROM users`)")])).toEqual([]);
+  });
+  it("does NOT flag a static redirect or allow-listed file read", () => {
+    expect(scanInjection([file("api/go.ts", "return NextResponse.redirect('/dashboard')")])).toEqual([]);
+    expect(scanInjection([file("api/dl.ts", "fs.readFile('./public/logo.png', cb)")])).toEqual([]);
   });
 });
 

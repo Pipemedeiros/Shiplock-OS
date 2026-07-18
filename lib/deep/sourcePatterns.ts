@@ -93,7 +93,62 @@ export function scanSecretsInUrl(files: RepoFile[]): GithubFinding[] {
   return out;
 }
 
+// ── Injection sinks (SQLi / command / path / open-redirect) ────────────────
+// The biggest Strix-class category we can catch statically. High precision:
+// every pattern requires evidence of DYNAMIC input (a `${...}` interpolation,
+// `+` concatenation, or a request field), so fully-static strings never fire.
+type Sev = GithubFinding["severity"];
+const INJECTION_CHECKS: { id: string; label: string; severity: Sev; res: RegExp[]; fix: string }[] = [
+  {
+    id: "sql_injection", label: "SQL injection", severity: "CRITICAL",
+    res: [
+      // raw SQL in a template literal with an interpolation
+      /`[^`]*\b(select|insert\s+into|update|delete\s+from|drop\s+table|union\s+select)\b[^`]*\$\{/i,
+      // a query/raw call whose SQL string is concatenated with + (bounded by
+      // the call parens, so embedded quotes inside the SQL don't break it)
+      /(?:\.query|\.raw|\.execute|sequelize\.query|knex\.raw)\s*\(\s*['"`][^)]*\b(select|insert|update|delete|where|from)\b[^)]*\+/i,
+    ],
+    fix: "Never build SQL by concatenating or interpolating input. Use parameterized queries / bound parameters (e.g. $1 placeholders), or your ORM's safe query builder.",
+  },
+  {
+    id: "command_injection", label: "OS command injection", severity: "CRITICAL",
+    res: [
+      /\b(exec|execSync|execFile|spawn|spawnSync)\s*\(\s*`[^`]*\$\{/,
+      /\b(exec|execSync|execFile|spawn|spawnSync)\s*\(\s*['"][^'"]*['"]\s*\+/,
+    ],
+    fix: "Don't pass interpolated/concatenated input to a shell. Use the array-args form of execFile/spawn (no shell), and validate against an allow-list.",
+  },
+  {
+    id: "path_traversal", label: "path traversal", severity: "WARNING",
+    res: [
+      /\b(readFile|readFileSync|createReadStream|sendFile|writeFile|writeFileSync|unlink)\s*\([^)]*(req\.(query|params|body)|searchParams|nextUrl)/i,
+    ],
+    fix: "Resolve the final path and confirm it stays inside the intended directory (path.resolve + prefix check), or map input to an allow-list of files — never feed request input straight into a file path.",
+  },
+  {
+    id: "open_redirect", label: "open redirect", severity: "WARNING",
+    res: [
+      /\b(redirect|res\.redirect|NextResponse\.redirect)\s*\(\s*[^)]*(req\.(query|params|body)|searchParams\.get|nextUrl\.searchParams)/i,
+    ],
+    fix: "Validate the redirect target against an allow-list of your own paths/hosts before redirecting — never redirect to a raw user-supplied URL.",
+  },
+];
+
+export function scanInjection(files: RepoFile[]): GithubFinding[] {
+  const out: GithubFinding[] = [];
+  for (const file of files) {
+    if (!CODE_RE.test(file.path)) continue;
+    for (const check of INJECTION_CHECKS) {
+      if (!check.res.some((re) => re.test(file.content))) continue;
+      out.push(f(`github:injection:${check.id}:${file.path}`, check.severity,
+        `Possible ${check.label} in ${file.path}`,
+        `${file.path} appears to build a ${check.label === "path traversal" ? "file path" : check.label === "open redirect" ? "redirect" : "command"} from untrusted input. ${check.fix}`));
+    }
+  }
+  return out;
+}
+
 // Aggregate — one call for the run orchestrator.
 export function scanCodePatterns(files: RepoFile[]): GithubFinding[] {
-  return [...scanWeakCrypto(files), ...scanClientXss(files), ...scanSecretsInUrl(files)];
+  return [...scanWeakCrypto(files), ...scanClientXss(files), ...scanSecretsInUrl(files), ...scanInjection(files)];
 }
