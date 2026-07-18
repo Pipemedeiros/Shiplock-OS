@@ -24,9 +24,8 @@ import { VerifiedPanel } from "@/components/d/VerifiedPanel";
 import { TwoFactorSetup } from "@/components/d/TwoFactorSetup";
 import { isBetterAuthConfigured } from "@/lib/betterAuth";
 import { FixesPanel } from "@/components/d/FixesPanel";
-import { slug } from "@/lib/fixes/content";
-import type { FixableFinding, FindingSource } from "@/lib/fixes/lane";
-import type { Severity } from "@/lib/types";
+import { getFixFindings } from "@/lib/fixes/findings";
+import type { FixableFinding } from "@/lib/fixes/lane";
 import { GitHubPanel, type SourceFinding } from "@/components/d/GitHubPanel";
 import { Reveal } from "@/components/d/bits";
 import type { PreviewIssue, FullIssue } from "@/lib/types";
@@ -152,35 +151,10 @@ export default async function DashboardPage() {
     verifiedToken = (vr?.verified_report_token as string | null) ?? null;
   }
 
-  // Unified fix list (paid): scan findings + deep findings, each with a
-  // buttoned, editable, reviewable fix. Dependency findings are excluded here —
-  // they're applied via the GitHub panel's bulk "Open fix PRs".
-  const fixFindings: FixableFinding[] = [];
-  if (isPaid) {
-    for (const iss of (latest?.full_issues ?? []) as FullIssue[]) {
-      if (!iss.fix) continue;
-      fixFindings.push({
-        id: `scan:${slug(iss.title)}`, source: "scan", title: iss.title,
-        severity: iss.severity, fix: iss.fix, filePath: iss.codefix?.file,
-      });
-    }
-    const { data: deep } = await getSupabaseAdmin()
-      .from("deep_findings")
-      .select("finding_id, source, title, severity, consequence")
-      .eq("user_id", user.id)
-      .is("archived_at", null)
-      .order("detected_at", { ascending: false })
-      .limit(50);
-    for (const d of (deep ?? []) as Array<{ finding_id: string; title: string; severity: Severity; consequence: string }>) {
-      if (d.finding_id.includes("github:dep:")) continue; // deps → GitHub panel bulk PR
-      const src: FindingSource = d.finding_id.startsWith("policy:")
-        ? "policy"
-        : d.finding_id.startsWith("advisor:")
-          ? "advisor"
-          : "github";
-      fixFindings.push({ id: d.finding_id, source: src, title: d.title, severity: d.severity, fix: d.consequence });
-    }
-  }
+  // Unified fix list (paid): scan + deep findings, each with a buttoned,
+  // editable, reviewable fix. Shared with the MCP endpoints so both see the
+  // same set.
+  const fixFindings: FixableFinding[] = isPaid ? await getFixFindings(user.id) : [];
 
   // Agent brief (paid only) — scan findings + the deep findings just assembled,
   // so one paste covers the whole surface.
