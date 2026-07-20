@@ -1836,6 +1836,12 @@
   transform: scale(var(--sc, 1));
   transition: transform 140ms ease;
 }
+/* Keep each word intact so a line only ever breaks at a space (the per-letter
+   spans above would otherwise let the browser break mid-word). */
+.dxd-proximity-word {
+  display: inline-block;
+  white-space: nowrap;
+}
 
 /* ── landing: stakes + watch-in-practice sections ── */
 .dxd-stakes {
@@ -2600,3 +2606,7 @@
   .dxd-ff-stage { animation: none; }
   .dxd-ff-link::after { animation: none; opacity: 0.5; }
 }
+
+/* Safety net: never let a stray wide element cause horizontal overflow / cut-off
+   at the viewport edge (landing + dashboard both use .dxd). */
+.dxd { overflow-x: hidden; }

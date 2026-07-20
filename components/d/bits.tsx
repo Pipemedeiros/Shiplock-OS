@@ -266,11 +266,21 @@ export function ProximityText({
         });
       }}
     >
-      {[...text].map((ch, i) => (
-        <span key={i} data-l className="dxd-proximity-char">
-          {ch === " " ? " " : ch}
-        </span>
-      ))}
+      {/* Group letters by WORD so lines only break at spaces — a bare
+          per-letter split lets the browser break mid-word ("protecti"/"ng"). */}
+      {text.split(/(\s+)/).map((chunk, ci) =>
+        /^\s+$/.test(chunk) ? (
+          <span key={ci}> </span>
+        ) : (
+          <span key={ci} className="dxd-proximity-word">
+            {[...chunk].map((ch, i) => (
+              <span key={`${ci}-${i}`} data-l className="dxd-proximity-char">
+                {ch}
+              </span>
+            ))}
+          </span>
+        )
+      )}
     </span>
   );
 }
