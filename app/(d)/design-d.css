@@ -2497,3 +2497,36 @@
   .dxd-surface:hover { transform: none; box-shadow: none; }
   .dxd-btn:hover, .dxd-btn:active { transform: none; }
 }
+
+/* ── Hero audit panel: a slow bronze scan-line sweeps the findings, reading as
+   "under continuous watch" — the product's core promise, shown not told. ── */
+@keyframes dxd-scan-sweep {
+  0%   { transform: translateY(-8px); opacity: 0; }
+  10%  { opacity: 0.9; }
+  90%  { opacity: 0.9; }
+  100% { transform: translateY(var(--scan-h, 240px)); opacity: 0; }
+}
+.dxd-scanwrap { position: relative; }
+.dxd-scanline {
+  position: absolute; left: -1px; right: -1px; top: 0; height: 2px; pointer-events: none; z-index: 2;
+  background: linear-gradient(90deg, transparent, var(--d-bronze-light), transparent);
+  box-shadow: 0 0 14px 2px rgba(201, 169, 97, 0.35);
+  border-radius: 2px;
+  animation: dxd-scan-sweep 4.8s cubic-bezier(0.45, 0, 0.2, 1) infinite;
+}
+@media (prefers-reduced-motion: reduce) { .dxd-scanline { display: none; } }
+
+/* ── Proof band: the value reframed for a founder with something to lose. ── */
+.dxd-proof {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 30px;
+  border-top: 1px solid var(--d-line); border-bottom: 1px solid var(--d-line);
+  padding: 34px 0;
+}
+@media (max-width: 760px) { .dxd-proof { grid-template-columns: 1fr 1fr; gap: 26px; } }
+@media (max-width: 400px) { .dxd-proof { grid-template-columns: 1fr; } }
+.dxd-proof-num {
+  font-family: var(--dx-font-newsreader), serif; font-weight: 400;
+  font-size: clamp(34px, 4.6vw, 52px); line-height: 1; letter-spacing: -0.02em; color: var(--d-ink);
+}
+.dxd-proof-num em { font-style: italic; color: var(--d-bronze-light); }
+.dxd-proof-label { margin-top: 12px; font-size: 13px; line-height: 1.55; color: var(--d-muted); }

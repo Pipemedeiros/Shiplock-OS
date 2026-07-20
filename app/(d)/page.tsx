@@ -43,8 +43,8 @@ function ExampleAuditPanel() {
         <p className="dxd-mono" style={{ fontSize: 11, color: "var(--d-muted)", textTransform: "uppercase", letterSpacing: "0.1em", margin: 0 }}>
           Example audit — anonymized
         </p>
-        <span className="dxd-mono" style={{ fontSize: 11, color: "var(--d-muted)", background: "var(--d-porcelain)", padding: "2px 7px", borderRadius: 4 }}>
-          scan #4471
+        <span className="dxd-mono" style={{ fontSize: 11, color: "var(--d-verified)", background: "var(--d-porcelain)", padding: "2px 8px", borderRadius: 4, display: "inline-flex", alignItems: "center", gap: 5 }}>
+          <span className="dxd-livedot" style={{ fontSize: 8 }}>●</span> on watch
         </span>
       </div>
 
@@ -53,7 +53,8 @@ function ExampleAuditPanel() {
         <span style={{ fontSize: 14, color: "var(--d-muted)" }}>open findings · 1 critical</span>
       </div>
 
-      <div className="dxd-mono" style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 12.5 }}>
+      <div className="dxd-scanwrap dxd-mono" style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 12.5 }}>
+        <span className="dxd-scanline" aria-hidden="true" />
         {EXAMPLE_FINDINGS.map((f) => (
           <div
             key={f.text}
@@ -213,6 +214,29 @@ export default function LandingPage() {
       </div>
 
       <div className="dxd-shell">
+        <section className="dxd-section" id="proof" style={{ paddingTop: 56 }} aria-label="Why founders put us on retainer">
+          <div className="dxd-proof">
+            <RevealList step={80}>
+              <div>
+                <div className="dxd-proof-num">$49</div>
+                <div className="dxd-proof-label">The $50,000 enterprise audit — run continuously, for $49 a month.</div>
+              </div>
+              <div>
+                <div className="dxd-proof-num">16</div>
+                <div className="dxd-proof-label">Checks across four attack surfaces, re-run on every deploy.</div>
+              </div>
+              <div>
+                <div className="dxd-proof-num">90<em>s</em></div>
+                <div className="dxd-proof-label">From one paste to your first findings — just a URL and the public key your app already ships.</div>
+              </div>
+              <div>
+                <div className="dxd-proof-num">0</div>
+                <div className="dxd-proof-label">Consoles to babysit. You only hear from us when something new appears — silence means safe.</div>
+              </div>
+            </RevealList>
+          </div>
+        </section>
+
         <section className="dxd-section" id="stakes">
           <Reveal>
             <p className="dxd-eyebrow">Why this matters</p>
