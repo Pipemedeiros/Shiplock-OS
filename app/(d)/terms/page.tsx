@@ -76,8 +76,7 @@ export default function TermsPage() {
                 live for the pieces we say are live: deploy-triggered re-scans, an hourly
                 lightweight critical-check pass, and a full deep scan every 48 hours. GitHub
                 source scanning and the coding-agent integration activate when you connect them;
-                anything we haven&apos;t shipped yet — Vercel environment audits and the
-                Cloudflare edge layer — is labeled
+                anything we haven&apos;t shipped yet — such as Vercel environment audits — is labeled
                 &ldquo;coming soon&rdquo; in the product itself, and we won&apos;t bill you
                 differently based on roadmap features landing.
               </p>

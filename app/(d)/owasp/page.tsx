@@ -74,7 +74,7 @@ const CATEGORIES = [
     name: "Software or Data Integrity Failures",
     body: "Unsigned or unverified updates, a compromised build pipeline, deserializing data from a source you shouldn't trust.",
     coverage:
-      "Not covered today. Needs visibility into your build/deploy pipeline, which is the not-yet-built GitHub App and Vercel integrations on our roadmap, not the current URL-and-anon-key scan.",
+      "Partially covered once you connect GitHub: our source scan flags vulnerable and outdated dependencies — the software-supply-chain slice of this category. Deeper build-pipeline integrity (unsigned updates, insecure deserialization) is beyond the current scan.",
   },
   {
     id: "A09",
