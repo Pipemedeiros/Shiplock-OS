@@ -2463,3 +2463,37 @@
 @media (prefers-reduced-motion: reduce) {
   .dxd-risk-fill { animation: none; }
 }
+
+/* ── Mobile hardening (2026-07) ────────────────────────────────────────────
+   Safe phone-width guards: tighter side padding, and nothing may force a
+   horizontal scroll — wide code/tables scroll inside their own box instead. */
+.dxd pre,
+.dxd table {
+  max-width: 100%;
+  overflow-x: auto;
+}
+@media (max-width: 480px) {
+  .dxd-shell { padding: 0 16px; }
+  .dxd-section { padding-top: 48px; }
+  .dxd-hero-actions { flex-wrap: wrap; }
+  .dxd-hero-actions .dxd-btn { flex: 1 1 auto; justify-content: center; }
+}
+
+/* ── Subtle interactive motion (2026-07) ───────────────────────────────────
+   Cards gently lift on hover; buttons get a small press response. Guarded by
+   reduced-motion. Adds life without touching layout. */
+.dxd-surface {
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.dxd-surface:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px -18px rgba(15, 27, 45, 0.35);
+  border-color: var(--d-bronze-light);
+}
+.dxd-btn { transition: transform 0.14s ease, background 0.2s ease, color 0.2s ease, border-color 0.2s ease; }
+.dxd-btn:hover { transform: translateY(-1px); }
+.dxd-btn:active { transform: translateY(0); }
+@media (prefers-reduced-motion: reduce) {
+  .dxd-surface:hover { transform: none; box-shadow: none; }
+  .dxd-btn:hover, .dxd-btn:active { transform: none; }
+}

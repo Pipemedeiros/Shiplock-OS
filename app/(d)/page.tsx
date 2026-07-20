@@ -100,7 +100,7 @@ const HOW_IT_WORKS = [
 
 const STACK_SPEAKS = {
   builder: ["Lovable", "Bolt", "v0", "Cursor", "Replit"],
-  database: ["Supabase", "Firebase"],
+  database: ["Supabase"],
   host: ["Vercel", "Netlify"],
   source: ["GitHub"],
 };
