@@ -6,6 +6,7 @@ import { Seal } from "@/components/d/Seal";
 import { LockMark } from "@/components/d/Brand";
 import { TrafficDefense } from "@/components/d/TrafficDefense";
 import { RiskHonesty } from "@/components/d/RiskHonesty";
+import { FixFlow } from "@/components/d/FixFlow";
 
 // Real landing page, Design D visuals. Same reason as before this reskin:
 // no dynamic data here, so Next would otherwise statically prerender at
@@ -390,6 +391,9 @@ export default function LandingPage() {
               your own deploy applies it. We never write to your database directly. Nothing about
               a fix is silent; each one is a diff you approve.
             </p>
+          </Reveal>
+          <Reveal>
+            <FixFlow />
           </Reveal>
           <Reveal>
             <div className="dxd-surface" style={{ maxWidth: 640, margin: "28px auto 0" }}>
