@@ -1,6 +1,7 @@
 import { createHash } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { scanProject, ScanError } from "@/lib/scanner";
+import { runExposedPathScan } from "@/lib/security/exposedPathsRun";
 import { analyzeResult } from "@/lib/analyzer";
 import { validateSupabaseUrl, validateAnonKey, validateAppUrl, ValidationError } from "@/lib/sanitize";
 import { getClientIpHash } from "@/lib/rateLimit";
@@ -140,6 +141,9 @@ export async function POST(req: NextRequest) {
           monitoring_enabled: true,
           monitored_project_url: supabaseUrl,
           monitored_anon_key_encrypted: encrypt(anonKey),
+          // Persist the app URL (when given) so exposed-path probes can re-run
+          // later, not just at scan time. Raw, like monitored_project_url.
+          ...(appUrl ? { monitored_app_url: appUrl } : {}),
         })
         .eq("id", userId);
 
@@ -148,6 +152,17 @@ export async function POST(req: NextRequest) {
         trigger_source: "manual",
         findings: extractFindings(scanResult),
       });
+
+      // Dynamic exposed-path probes against the live app (git repo, DB dumps,
+      // credential files) — complements the scanner's .env checks. Best-effort;
+      // findings land in deep_findings and surface everywhere the others do.
+      if (appUrl) {
+        try {
+          await runExposedPathScan(userId, appUrl);
+        } catch (e) {
+          console.error("[scan] exposed-path probe failed:", e instanceof Error ? e.message : e);
+        }
+      }
     } catch (err) {
       console.error(
         "[scan] monitoring enrollment failed (scan result still returned):",

@@ -64,6 +64,10 @@ export function fixLane(f: FixableFinding): FixLane {
     return lane("code-pr", "Open fix PR", true);
   }
 
+  // ── Exposed-path findings → a fix-request PR (remove the file / block the
+  // path at the host; rotate anything leaked). Not a silent change. ──
+  if (id.startsWith("exposed:")) return lane("code-pr", "Open fix PR", true);
+
   // ── RLS policy-logic findings → migration PR. ──
   if (id.startsWith("policy:")) return lane("migration-pr", "Open migration PR", true);
 
