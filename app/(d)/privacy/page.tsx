@@ -69,8 +69,19 @@ export default function PrivacyPage() {
                 flag it as a critical finding and don&apos;t store it.
               </p>
               <p>
-                <b>Scan results:</b> the grade, findings, and fixes from every audit we run, tied
+                <b>Scan results:</b> the findings and fixes from every audit we run, tied
                 to your account, so your dashboard can show your history.
+              </p>
+              <p>
+                <b>Optional connections:</b> if you connect GitHub, we read your repository
+                contents to scan for committed secrets and vulnerable dependencies, and can open
+                fix pull requests to a new branch for you to review and merge — we never push to
+                your default branch and never apply changes to your production database. If you
+                connect your coding agent, we issue a personal access token (stored only as a
+                hash) that the ShipLock tool on your own machine uses to read your findings. If
+                you turn on a public Verified report, the posture summary at its link becomes
+                shareable — counts and coverage only, never your specific findings — and it stays
+                off until you enable it.
               </p>
               <p>
                 <b>Billing:</b> Stripe handles your card details directly — we never see or store
@@ -82,8 +93,9 @@ export default function PrivacyPage() {
             <div>
               <h2 className="dxd-h2" style={{ fontSize: 22 }}>What we don&apos;t collect</h2>
               <p>
-                We never ask for your Supabase service_role key, database password, or repository
-                access. Scanning uses only the same public anon key your app&apos;s own frontend
+                We never ask for your Supabase service_role key or database password. Any GitHub
+                access is optional, granted by you, and used only to scan your source and open fix
+                PRs you review. Scanning uses only the same public anon key your app&apos;s own frontend
                 already exposes to every visitor. We don&apos;t read the contents of your
                 database tables — a scan checks configuration (is a table protected, is a key
                 exposed, does an endpoint answer without authentication), not your users&apos;
@@ -98,8 +110,9 @@ export default function PrivacyPage() {
                 <b>Resend</b> — transactional email (alerts, receipts).{" "}
                 <b>PostHog</b> — product analytics on how the app itself is used, not your scan
                 data. <b>Anthropic</b> — your scan&apos;s raw check results are sent to power the
-                plain-English grade and fixes; this payload never contains your anon key or any
-                row of your data, by construction. We don&apos;t sell data to anyone, ever.
+                plain-English findings and fixes; this payload never contains your anon key or any
+                row of your data, by construction. <b>GitHub</b> — if you connect it, for source
+                scanning and fix PRs. We don&apos;t sell data to anyone, ever.
               </p>
             </div>
 

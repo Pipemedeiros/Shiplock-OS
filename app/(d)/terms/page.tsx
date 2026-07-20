@@ -70,12 +70,14 @@ export default function TermsPage() {
             <div>
               <h2 className="dxd-h2" style={{ fontSize: 22 }}>What you get</h2>
               <p>
-                A 16-check audit of your connected Supabase project, a grade, and — while your
-                subscription is active — the fix and a copy-paste AI-agent prompt for every
-                finding. Continuous monitoring is genuinely live for the pieces we say are live:
-                deploy-triggered re-scans, an hourly lightweight critical-check pass, and a full
-                deep scan every 48 hours. Anything we haven&apos;t shipped yet — GitHub source
-                scanning, Vercel environment audits, the Cloudflare edge layer — is labeled
+                A 16-check audit of your connected Supabase project and — while your
+                subscription is active — the fix for every finding, delivered as a reviewable
+                pull request or handed to your coding agent. Continuous monitoring is genuinely
+                live for the pieces we say are live: deploy-triggered re-scans, an hourly
+                lightweight critical-check pass, and a full deep scan every 48 hours. GitHub
+                source scanning and the coding-agent integration activate when you connect them;
+                anything we haven&apos;t shipped yet — Vercel environment audits and the
+                Cloudflare edge layer — is labeled
                 &ldquo;coming soon&rdquo; in the product itself, and we won&apos;t bill you
                 differently based on roadmap features landing.
               </p>
