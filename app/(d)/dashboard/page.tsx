@@ -101,6 +101,7 @@ export default async function DashboardPage() {
   // project URL, no extra credential. Best-effort: on any failure it returns an
   // informational "unknown" rather than throwing.
   let jwtPosture: JwtSigningPosture | null = null;
+  let projectRef: string | null = null; // <ref> from https://<ref>.supabase.co — for Supabase deep links
   if (isPaid) {
     const { data: monitored } = await getSupabaseAdmin()
       .from("user_profiles")
@@ -108,7 +109,14 @@ export default async function DashboardPage() {
       .eq("id", user.id)
       .maybeSingle();
     const projectUrl = monitored?.monitored_project_url as string | null | undefined;
-    if (projectUrl) jwtPosture = await auditJwtSigning(projectUrl);
+    if (projectUrl) {
+      jwtPosture = await auditJwtSigning(projectUrl);
+      try {
+        projectRef = new URL(projectUrl).hostname.split(".")[0] || null;
+      } catch {
+        projectRef = null;
+      }
+    }
   }
 
   // GitHub source scanning — only surfaced once the App is registered
@@ -319,7 +327,7 @@ export default async function DashboardPage() {
 
           {isPaid && fixFindings.length > 0 && (
             <Reveal>
-              <FixesPanel findings={fixFindings} />
+              <FixesPanel findings={fixFindings} projectRef={projectRef} />
             </Reveal>
           )}
 

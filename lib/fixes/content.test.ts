@@ -54,8 +54,9 @@ describe("buildDeepLink", () => {
   it("routes a rotate instruction → api settings", () => {
     expect(buildDeepLink(f({ title: "Service role key", fix: "Rotate the service_role key." }), "ref123")).toContain("/settings/api");
   });
-  it("falls back to a generic dashboard when no project ref", () => {
-    expect(buildDeepLink(f({ fix: "x" }))).toContain("https://supabase.com/dashboard");
+  it("falls back to the project picker (valid URL) when no project ref", () => {
+    // Without a ref, a settings path would be malformed — send to the picker.
+    expect(buildDeepLink(f({ title: "Leaked password", fix: "enable it" }))).toBe("https://supabase.com/dashboard/projects");
   });
 });
 

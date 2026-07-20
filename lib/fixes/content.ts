@@ -58,7 +58,10 @@ const SUPABASE_SETTINGS: { test: RegExp; path: string }[] = [
 ];
 
 export function buildDeepLink(f: FixableFinding, projectRef?: string | null): string {
-  const base = projectRef ? `https://supabase.com/dashboard/project/${projectRef}` : "https://supabase.com/dashboard";
+  // Supabase dashboard deep links require a project ref (/project/<ref>/…). With
+  // no ref, a settings path is malformed — send the user to the project picker.
+  if (!projectRef) return "https://supabase.com/dashboard/projects";
+  const base = `https://supabase.com/dashboard/project/${projectRef}`;
   const hay = `${f.title}\n${f.fix}`;
   for (const s of SUPABASE_SETTINGS) if (s.test.test(hay)) return base + s.path;
   return base + "/settings/api";

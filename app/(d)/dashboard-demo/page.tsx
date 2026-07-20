@@ -170,7 +170,7 @@ export default function DashboardDemoPage() {
         </Reveal>
 
         <Reveal>
-          <FixesPanel findings={fixFindings} />
+          <FixesPanel findings={fixFindings} projectRef="demo_project_ref" />
         </Reveal>
 
         <Reveal>
