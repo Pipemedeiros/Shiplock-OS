@@ -103,7 +103,6 @@ const HOW_IT_WORKS = [
 const STACK_SPEAKS = {
   builder: ["Lovable", "Bolt", "v0", "Cursor", "Replit"],
   database: ["Supabase"],
-  host: ["Vercel", "Netlify"],
   source: ["GitHub"],
 };
 
@@ -326,7 +325,6 @@ export default function LandingPage() {
                 [
                   { slot: "Builder", names: STACK_SPEAKS.builder, scope: "detected from the app itself — nothing to connect" },
                   { slot: "Database", names: STACK_SPEAKS.database, scope: "the public key your frontend already ships — never more" },
-                  { slot: "Host", names: STACK_SPEAKS.host, scope: "coming soon · optional, read-only, selected projects" },
                   { slot: "Source", names: STACK_SPEAKS.source, scope: "optional · read-only — committed secrets, vulnerable deps, fix PRs you approve" },
                 ] as const
               ).map((r) => (

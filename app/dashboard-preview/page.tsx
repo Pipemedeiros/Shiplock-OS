@@ -45,7 +45,6 @@ const SOURCES = [
     name: "GitHub",
     path: "M12 2C6.48 2 2 6.58 2 12.2c0 4.5 2.87 8.31 6.84 9.66.5.1.68-.22.68-.5 0-.24-.01-1.04-.01-1.88-2.78.62-3.37-1.24-3.37-1.24-.45-1.18-1.11-1.5-1.11-1.5-.9-.63.07-.62.07-.62 1 .07 1.53 1.05 1.53 1.05.89 1.56 2.34 1.11 2.91.85.09-.66.35-1.11.63-1.37-2.22-.26-4.56-1.14-4.56-5.06 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.71 0 0 .84-.28 2.75 1.05a9.29 9.29 0 0 1 5 0c1.91-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.45.1 2.71.64.72 1.03 1.63 1.03 2.75 0 3.93-2.34 4.79-4.57 5.05.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.81 0 .27.18.6.69.5A9.96 9.96 0 0 0 22 12.2C22 6.58 17.52 2 12 2Z",
   },
-  { name: "Vercel", path: "M12 3 L22 21 H2 Z" },
   {
     name: "Supabase",
     path: "M13.6 2.1c.5-.6 1.5-.2 1.5.6v9.1h6.1c.9 0 1.4 1.1.8 1.8L11.9 21.9c-.5.6-1.5.2-1.5-.6v-9.1H4.3c-.9 0-1.4-1.1-.8-1.8L13.6 2.1Z",
@@ -85,7 +84,7 @@ export default function DashboardPreviewPage() {
 
       <div className="mx-auto max-w-5xl px-6 py-12">
         <h1 className="font-display text-3xl font-bold text-foreground">Security dashboard</h1>
-        <p className="mt-2 text-muted-foreground">acme-app.vercel.app · sample project, for illustration only</p>
+        <p className="mt-2 text-muted-foreground">acme-app.com · sample project, for illustration only</p>
 
         <div className="mt-10 grid gap-6 lg:grid-cols-[1fr_1.4fr]">
           {/* Health score — `isolate` keeps the -z-10 texture above the
