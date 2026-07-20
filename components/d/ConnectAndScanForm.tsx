@@ -131,7 +131,7 @@ export function ConnectAndScanForm() {
             <input
               id="dxd-app-url"
               type="url"
-              placeholder="https://yourapp.vercel.app"
+              placeholder="https://yourapp.com"
               value={appUrl}
               onChange={(e) => setAppUrl(e.target.value)}
               spellCheck={false}

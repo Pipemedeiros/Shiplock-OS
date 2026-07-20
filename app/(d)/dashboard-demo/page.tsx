@@ -143,7 +143,6 @@ export default function DashboardDemoPage() {
               { issue_count: 5, created_at: iso(600) },
               { issue_count: 7, created_at: iso(3000) },
             ]}
-            webhookUrl="https://shiplock.dev/api/monitor/vercel/demo_webhook"
           />
         </Reveal>
 

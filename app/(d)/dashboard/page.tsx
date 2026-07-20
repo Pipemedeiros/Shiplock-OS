@@ -74,16 +74,11 @@ export default async function DashboardPage() {
   // list below, so it can include deep findings too.
 
   // Watch-panel data: counts and metadata only, nothing paywall-sensitive
-  // (see lib/monitoring/watchLog.ts). The deploy-webhook URL is the one
-  // exception — it's a live credential for triggering scans, so it's only
-  // surfaced while the retainer is active.
+  // (see lib/monitoring/watchLog.ts). PR re-scans run through the GitHub App
+  // automatically — no per-user webhook URL to surface anymore.
   const [watchLog, watchStatus, timeline] = latest
     ? await Promise.all([getWatchLog(user.id), getWatchStatus(user.id), getScanTimeline(user.id)])
     : [[], null, []];
-  const webhookUrl =
-    isPaid && watchStatus?.webhookToken
-      ? `${env.NEXT_PUBLIC_APP_URL}/api/monitor/vercel/${watchStatus.webhookToken}`
-      : null;
 
   // Live traffic protection — paid only. Independent of scan findings (it's
   // about inbound traffic), so it's fetched off is_paid, not `latest`. Counts
@@ -273,12 +268,7 @@ export default async function DashboardPage() {
 
           {watchStatus && (
             <Reveal>
-              <WatchPanel
-                entries={watchLog}
-                status={watchStatus}
-                timeline={timeline}
-                webhookUrl={webhookUrl}
-              />
+              <WatchPanel entries={watchLog} status={watchStatus} timeline={timeline} />
             </Reveal>
           )}
 

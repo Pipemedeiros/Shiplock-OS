@@ -42,12 +42,10 @@ export function WatchPanel({
   entries,
   status,
   timeline,
-  webhookUrl,
 }: {
   entries: WatchLogEntry[];
   status: WatchStatus;
   timeline: ScanTimelineEntry[];
-  webhookUrl: string | null;
 }) {
   const lastEvent = entries[0]?.createdAt ?? null;
   const nextDeepDue = status.lastDeepScanAt
@@ -156,31 +154,14 @@ export function WatchPanel({
             )}
           </div>
 
-          {webhookUrl && (
-            <div className="dxd-surface">
-              <h3 style={{ margin: "0 0 10px", fontSize: 15 }}>Every deploy, re-audited</h3>
-              <p style={{ margin: "0 0 12px", fontSize: 12.5, lineHeight: 1.7, color: "var(--d-muted)" }}>
-                Add this webhook once in your Vercel project — Settings → Webhooks, event
-                “Deployment Ready”, production — and every deploy triggers an immediate re-scan.
-                The address is unique to your account; treat it like a password.
-              </p>
-              <p
-                className="dxd-mono"
-                style={{
-                  margin: 0,
-                  fontSize: 11.5,
-                  wordBreak: "break-all",
-                  background: "var(--d-porcelain)",
-                  border: "1px solid var(--d-line)",
-                  borderRadius: 8,
-                  padding: "10px 12px",
-                  userSelect: "all",
-                }}
-              >
-                {webhookUrl}
-              </p>
-            </div>
-          )}
+          <div className="dxd-surface">
+            <h3 style={{ margin: "0 0 10px", fontSize: 15 }}>Every pull request, re-audited</h3>
+            <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.7, color: "var(--d-muted)" }}>
+              Connect your GitHub repo once and every pull request is re-scanned automatically —
+              nothing to paste, no webhook to manage. New secrets, vulnerable dependencies, and
+              risky changes are caught before they merge.
+            </p>
+          </div>
         </div>
       </div>
     </section>

@@ -431,18 +431,18 @@ export default function LandingPage() {
             <p className="dxd-lede">
               A scan is a photograph, and your app doesn&apos;t hold still. One prompt to your
               coding agent tomorrow can quietly undo today&apos;s fix — which is why a
-              point-in-time report, however deep, expires on your next deploy. So we re-check,
-              on every deploy and on a schedule, and only speak up when something actually
+              point-in-time report, however deep, expires on your next change. So we re-check,
+              on every pull request and on a schedule, and only speak up when something actually
               changed.
             </p>
           </Reveal>
           <div className="dxd-watchrows">
             <Reveal>
               <div className="dxd-watchrow">
-                <h3>Every deploy, re-audited</h3>
+                <h3>Every pull request, re-audited</h3>
                 <p>
-                  Add ShipLock&apos;s webhook URL to your Vercel project once. Every production
-                  deploy triggers an immediate re-scan.
+                  Connect your GitHub repo once. Every pull request is re-scanned automatically —
+                  new secrets, vulnerable dependencies, and risky changes caught before they merge.
                 </p>
               </div>
             </Reveal>

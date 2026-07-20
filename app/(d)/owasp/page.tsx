@@ -118,7 +118,7 @@ const NOT_SCANNABLE = [
     intro:
       "You don't need a SIEM. You need to know if something changed. Ask your agent to check for the absence of these, not add anything heavy:",
     prompt:
-      "Does this app log failed login attempts anywhere I'd ever actually look? Is there any alert if signups or database reads spike far above normal in a short window? If a background job or webhook handler throws, does that failure go anywhere besides a Vercel log I'd have to think to check?",
+      "Does this app log failed login attempts anywhere I'd ever actually look? Is there any alert if signups or database reads spike far above normal in a short window? If a background job or webhook handler throws, does that failure go anywhere besides a log I'd have to think to check?",
   },
 ];
 
