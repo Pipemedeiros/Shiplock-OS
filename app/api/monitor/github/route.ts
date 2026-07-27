@@ -12,6 +12,10 @@ import { runGithubScan } from "@/lib/deep/githubRun";
 
 const RESCAN_ACTIONS = new Set(["opened", "reopened", "synchronize", "ready_for_review"]);
 
+// How long after a source scan we collapse further push-triggered scans into
+// the one that already ran. See the comment at the call site.
+const COALESCE_WINDOW_MS = 10 * 60 * 1000;
+
 function verify(raw: string, sigHeader: string | null, secret: string): boolean {
   if (!sigHeader) return false;
   const expected = "sha256=" + createHmac("sha256", secret).update(raw).digest("hex");
@@ -49,12 +53,38 @@ export async function POST(req: NextRequest) {
     const admin = getSupabaseAdmin();
     const { data: profile } = await admin
       .from("user_profiles")
-      .select("id, is_paid")
+      .select("id, is_paid, last_source_scan_at")
       .eq("github_installation_id", installationId)
       .maybeSingle();
-    if (profile?.is_paid) {
-      await runGithubScan(profile.id as string, installationId);
+
+    if (!profile?.is_paid) {
+      return NextResponse.json({ ok: true });
     }
+
+    // ── Coalescing window ────────────────────────────────────────────────
+    // `synchronize` fires on EVERY push to an open pull request, and
+    // runGithubScan scans the repo set from scratch each time. Twenty pushes
+    // to one PR, or a batch of Dependabot PRs, would otherwise mean twenty
+    // full re-scans — hundreds of GitHub API calls against a 5,000/hour
+    // installation limit, for results that are usually identical.
+    //
+    // A short window collapses that burst into one scan. It costs at most
+    // COALESCE_WINDOW_MS of staleness on a finding, and the hourly critical
+    // pass and 48-hour deep scan both run regardless — so nothing is skipped,
+    // only de-duplicated. `opened` and `reopened` bypass the window: a brand
+    // new PR is the event most likely to carry genuinely new code.
+    const burstable = payload.action === "synchronize" || payload.action === "ready_for_review";
+    const last = profile.last_source_scan_at ? Date.parse(profile.last_source_scan_at as string) : 0;
+    if (burstable && Date.now() - last < COALESCE_WINDOW_MS) {
+      return NextResponse.json({ ok: true, coalesced: true });
+    }
+
+    await admin
+      .from("user_profiles")
+      .update({ last_source_scan_at: new Date().toISOString() })
+      .eq("id", profile.id as string);
+
+    await runGithubScan(profile.id as string, installationId);
   } catch (err) {
     console.error("[monitor/github] PR re-scan failed:", err instanceof Error ? err.message : err);
   }
