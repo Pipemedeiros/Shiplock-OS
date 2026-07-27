@@ -7,6 +7,7 @@ import { LockMark } from "@/components/d/Brand";
 import { TrafficDefense } from "@/components/d/TrafficDefense";
 import { RiskHonesty } from "@/components/d/RiskHonesty";
 import { FixFlow } from "@/components/d/FixFlow";
+import { PLANS, isPlanConfigured } from "@/lib/plans";
 
 // Real landing page, Design D visuals. Same reason as before this reskin:
 // no dynamic data here, so Next would otherwise statically prerender at
@@ -18,9 +19,9 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   // Landing keeps the layout's default title (no template suffix doubling).
-  title: { absolute: "ShipLock — Continuous security monitoring for AI-built apps" },
+  title: { absolute: "ShipLock — Continuous security monitoring for Supabase apps" },
   description:
-    "Sixteen security checks — RLS, exposed tables, public buckets, leaked secrets — plus a live edge that turns credential-stuffing bots and scanners away from your login, all running continuously against your app. Built for founders who shipped with Lovable, Bolt, v0, or Cursor and found paying users. $49/month, 7 days free.",
+    "Continuous security monitoring for Supabase apps in production. Permissive RLS policies, exposed keys, public buckets and vulnerable dependencies — found continuously, fixed by pull request, and provable with a live report when a customer asks. $49/month, 7 days free.",
 };
 
 const SEVERITY_STYLES: Record<string, string> = {
@@ -78,85 +79,50 @@ function ExampleAuditPanel() {
       </div>
 
       <p style={{ marginTop: 16, fontSize: 11.5, lineHeight: 1.6, color: "var(--d-muted)" }}>
-        A sample of what lands in your dashboard on retainer — every finding, and a
-        ready-to-paste fix for each.
+        A sample of what lands in your dashboard on retainer — every finding, and a fix
+        you can merge for each.
       </p>
     </div>
   );
 }
 
-const HOW_IT_WORKS = [
-  {
-    title: "Connect in one paste",
-    body: "Your project URL and anon key — the same key your app already shares with every visitor's browser. Add your app's live URL too, optionally, for two more checks — everything we ask for is already public, never a credential beyond that key.",
-  },
-  {
-    title: "First scan in 90 seconds",
-    body: "Sixteen checks across four attack surfaces, the same ground an enterprise audit covers. You get a plain-English list of exactly what we found.",
-  },
-  {
-    title: "Then we keep watching",
-    body: "Every deploy triggers a re-scan, deep scans run on a schedule, and you only hear from us when something new appears. Silence means you're clean.",
-  },
-];
-
-const STACK_SPEAKS = {
-  builder: ["Lovable", "Bolt", "v0", "Cursor", "Replit"],
-  database: ["Supabase"],
-  source: ["GitHub"],
-};
-
-// Grouped from the real 16 checks lib/scanner.ts runs (docblock at the top
-// of scanProject()) and the real finding titles lib/analyzer.ts produces —
-// not from app/design/_shared/data.ts's mock CHECKS list, which this
-// section used to (wrongly) copy. Every name here corresponds to an actual
-// function in the scanner; nothing here is aspirational.
-const SURFACES: { name: string; blurb: string; checks: string[] }[] = [
+// Four attack surfaces, described by the risk each one carries — deliberately
+// not a mechanism-by-mechanism list of how the scanner probes for them. What
+// we cover is public; how we detect it is the product. Coverage detail, mapped
+// to a real standard, lives on /owasp.
+const SURFACES: { name: string; blurb: string }[] = [
   {
     name: "Auth & access",
-    blurb: "Who can sign in, hammer your endpoints, or reach admin routes they shouldn't.",
-    checks: ["Auth admin endpoint exposure", "Login rate limiting", "REST API rate limiting"],
+    blurb:
+      "Who can sign in, hammer your endpoints, or reach admin routes they were never meant to see.",
   },
   {
     name: "Data exposure",
-    blurb: "Whether your database or storage answers questions it should refuse to answer.",
-    checks: ["Row-level security", "Unauthenticated table access", "IDOR on user data", "Public storage buckets"],
+    blurb:
+      "Whether your database and storage answer questions they should refuse — the failure behind almost every AI-built app breach on record.",
   },
   {
     name: "Configuration",
-    blurb: "Settings, dependencies, and headers that quietly decide how protected you are.",
-    checks: ["Service-role key exposure", "Secrets & .env exposure", "HTTPS enforcement", "Bot-protection headers", "CORS wildcard policy", "Dependency slop-squatting"],
+    blurb:
+      "The settings, keys, dependencies, and headers that quietly decide how protected you actually are.",
   },
   {
     name: "Injection & logic",
-    blurb: "Whether crafted input or a sloppy endpoint can make your app do things you never wrote.",
-    checks: ["Mass assignment", "SQL error / input validation", "Stack trace exposure"],
+    blurb:
+      "Whether crafted input or a careless endpoint can make your app do things you never wrote.",
   },
 ];
 
-const PRICING = {
-  paid: {
-    price: "$49",
-    per: "/month",
-    tagline: "The $50k audit, running all the time.",
-    features: [
-      "Full 16-check scan across four attack surfaces",
-      "Step-by-step fixes for every finding, as prompts for Cursor, Lovable, Bolt, v0",
-      "A live edge that blocks credential stuffing, scanners, and floods — fails open, never a real user",
-      "Optional GitHub scan: committed secrets, vulnerable deps, with fix PRs you approve",
-      "Re-scan on every deploy; deep scans on schedule, critical checks hourly",
-      "Alerts only when something new appears — silence means you're clean",
-    ],
-  },
-  trialNote: "First 7 days free. Cancel anytime before you're charged.",
-  contrastNote:
-    "A one-time scan answers “am I OK today?” The retainer answers “am I still OK?” — every hour, every deploy, and in full depth every 48 hours.",
-};
-
 const TRUST_LINE =
-  "We only ever ask for your app's public key, plus an optional public URL — never a credential beyond that key, the same one your own frontend already exposes to every visitor. No repo access, no admin tokens, no exceptions.";
+  "We only ever ask for your app's public key, plus an optional public URL — never a credential beyond that key, the same one your own frontend already exposes to every visitor. No admin tokens, and we never write to your production database.";
 
 export default function LandingPage() {
+  // Only advertise terms that actually have a Stripe price behind them.
+  // Monthly always shows — it's the plan the product has always had; the
+  // prepaid terms stay hidden until the owner creates those prices, so no one
+  // can click through to a dead checkout.
+  const plans = PLANS.filter((p) => p.id === "monthly" || isPlanConfigured(p));
+
   return (
     <main className="dxd">
       <div className="dxd-band">
@@ -169,9 +135,9 @@ export default function LandingPage() {
               ShipLock
             </Link>
             <div className="dxd-nav-links">
-              <a href="#method">The method</a>
-              <a href="#defense">Live defense</a>
-              <Link href="/owasp">OWASP Top 10</Link>
+              <a href="#watch">The watch</a>
+              <a href="#fixes">Fixes</a>
+              <Link href="/owasp">Coverage</Link>
               <Link href="/incidents">Real incidents</Link>
               <a href="#pricing">Pricing</a>
               <Link href="/auth" className="dxd-btn dxd-btn-ghost">
@@ -182,26 +148,26 @@ export default function LandingPage() {
 
           <header className="dxd-hero">
             <div>
-              <p className="dxd-eyebrow">Security on retainer · for apps that earn</p>
+              <p className="dxd-eyebrow">Security on retainer · Supabase apps in production</p>
               <h1 className="dxd-display">
-                <ProximityText text="You built something worth protecting." />
+                <ProximityText text="One permissive policy exposes every row." />
                 <br />
                 <em>
-                  <ShinyText>We carry the worry.</ShinyText>
+                  <ShinyText>We find it, fix it, and keep proving it.</ShinyText>
                 </em>
               </h1>
               <p className="dxd-lede">
-                ShipLock runs the same class of checks a $50,000 enterprise audit opens with — continuously,
-                against your live app — and stands guard at your login while it does. Built for
-                founders who shipped with AI, found paying users, and would rather not bet the
-                business on their own security guesswork.
+                ShipLock runs an auditor&apos;s depth against your live Supabase project —
+                continuously, not once. Findings come back as pull requests you merge. And when a
+                customer asks whether you&apos;re secure, you have a live report to send them
+                instead of a promise.
               </p>
               <div className="dxd-hero-actions">
                 <a href="#get-started" className="dxd-btn dxd-btn-paper">
-                  Put us on retainer
+                  Start the audit
                 </a>
-                <a href="#method" className="dxd-btn dxd-btn-ghost">
-                  The method
+                <a href="#pricing" className="dxd-btn dxd-btn-ghost">
+                  $49/month · 7 days free
                 </a>
               </div>
             </div>
@@ -214,16 +180,21 @@ export default function LandingPage() {
       </div>
 
       <div className="dxd-shell">
-        <section className="dxd-section" id="proof" style={{ paddingTop: 56 }} aria-label="Why founders put us on retainer">
+        {/* ── 2 · The watch ─────────────────────────────────────────────
+            Proof band, the live edge, and the three monitoring triggers,
+            folded into one section. This is the differentiator against
+            running a one-shot scanner yourself, so it demonstrates rather
+            than argues. */}
+        <section className="dxd-section" id="watch" style={{ paddingTop: 56 }}>
           <div className="dxd-proof">
             <RevealList step={80}>
               <div>
                 <div className="dxd-proof-num">$49</div>
-                <div className="dxd-proof-label">The $50,000 enterprise audit — run continuously, for $49 a month.</div>
+                <div className="dxd-proof-label">The depth of a $50,000 enterprise audit — running continuously, for $49 a month.</div>
               </div>
               <div>
                 <div className="dxd-proof-num">16</div>
-                <div className="dxd-proof-label">Checks across four attack surfaces, re-run on every deploy.</div>
+                <div className="dxd-proof-label">Checks across four attack surfaces, re-run on every pull request.</div>
               </div>
               <div>
                 <div className="dxd-proof-num">90<em>s</em></div>
@@ -235,57 +206,130 @@ export default function LandingPage() {
               </div>
             </RevealList>
           </div>
+
+          <Reveal>
+            <p className="dxd-eyebrow" style={{ marginTop: 56 }}>The watch, in practice</p>
+            <h2 className="dxd-h2">A scan is a photograph. Your app doesn&apos;t hold still.</h2>
+            <p className="dxd-lede">
+              One prompt to your coding agent tomorrow can quietly undo today&apos;s fix — which is
+              why a point-in-time report, however deep, expires on your next change. So we re-check
+              continuously, and speak up only when something actually changed.
+            </p>
+          </Reveal>
+
+          <div className="dxd-watchrows">
+            <RevealList step={90}>
+              <div className="dxd-watchrow">
+                <h3>Every pull request, re-audited</h3>
+                <p>
+                  Connect your GitHub repo once. Every pull request is re-scanned automatically —
+                  new secrets, vulnerable dependencies, and risky changes caught before they merge.
+                </p>
+              </div>
+              <div className="dxd-watchrow">
+                <h3>Deep audits on schedule, critical checks hourly</h3>
+                <p>
+                  A full sixteen-check pass re-runs every 48 hours; a lightweight critical pass runs
+                  every hour, watching the fastest-moving risks.
+                </p>
+              </div>
+              <div className="dxd-watchrow">
+                <h3>A live edge at your front door</h3>
+                <p>
+                  Credential-stuffing bots and scanners are knocking right now. One small file — it
+                  fails open, always — mirrors your auth routes to us, and once an attack is
+                  unmistakable, that source gets shut out. Never on a hunch, so a real customer
+                  never hits a wall.
+                </p>
+              </div>
+            </RevealList>
+          </div>
+
+          <Reveal delay={80}>
+            <div style={{ marginTop: 30 }}>
+              <TrafficDefense />
+            </div>
+          </Reveal>
+
+          <Reveal>
+            <div className="dxd-surfaces" style={{ marginTop: 40 }}>
+              {SURFACES.map((s) => (
+                <SpotlightCard className="dxd-surface" key={s.name}>
+                  <h3>{s.name}</h3>
+                  <p>{s.blurb}</p>
+                </SpotlightCard>
+              ))}
+            </div>
+            <p className="dxd-rescan-note" style={{ marginTop: 18 }}>
+              Sixteen checks span those four surfaces, mapped to the OWASP Top 10:2025 —{" "}
+              <Link href="/owasp">including what we can&apos;t catch, named honestly →</Link>
+            </p>
+          </Reveal>
+
+          <div className="dxd-trust">
+            <div>
+              <h3>Something to send when they ask.</h3>
+              <p>
+                Turn on a public report and you get a live page showing which checks run against
+                your project, when they last ran, and what&apos;s covered — updated continuously,
+                not a PDF that expired the day it was written. It shows posture and cadence, never
+                your specific findings. It is not a SOC 2 report and never claims to be; it&apos;s
+                the honest answer for the eighteen months before you need one.
+              </p>
+              <p style={{ marginTop: 12 }}>{TRUST_LINE}</p>
+            </div>
+            <Seal state="intact" size={148} />
+          </div>
         </section>
 
+        {/* ── 3 · The stakes ──────────────────────────────────────────── */}
         <section className="dxd-section" id="stakes">
           <Reveal>
-            <p className="dxd-eyebrow">Why this matters</p>
-            <h2 className="dxd-h2">One open table can undo two years of work.</h2>
+            <p className="dxd-eyebrow">Why this matters now</p>
+            <h2 className="dxd-h2">The bill arrives before the breach does.</h2>
             <p className="dxd-lede">
-              Your app has paying customers now. That changes what a security mistake costs —
-              it stops being embarrassing and starts being expensive. Three ways, specifically:
+              You already know roughly where the gaps are. What changes once you have real users
+              isn&apos;t the risk — it&apos;s that the risk starts having a due date.
             </p>
           </Reveal>
           <div className="dxd-stakes">
             <RevealList step={90}>
               <SpotlightCard className="dxd-stake">
-                <span className="dxd-stake-num">I · THE BREACH</span>
-                <h3>Apps get broken through boring doors.</h3>
+                <span className="dxd-stake-num">I · THE DEAL</span>
+                <h3>The first serious customer asks you to prove it.</h3>
                 <p>
-                  Not Hollywood hacking — an unlocked database table, a sign-up flow that never
-                  verifies emails, a key sitting in the client bundle. Attackers scan for these
-                  automatically, at scale, every day.
+                  Not a breach — a questionnaire. Someone&apos;s procurement team wants to know how
+                  access is controlled and who checks. SOC 2 answers that for $20,000 and three
+                  months. Until you&apos;re there, the honest answer is a live report showing what
+                  runs against your project and when it last ran.
                 </p>
               </SpotlightCard>
               <SpotlightCard className="dxd-stake">
-                <span className="dxd-stake-num">II · THE LEGAL WEIGHT</span>
+                <span className="dxd-stake-num">II · THE BLIND SPOT</span>
+                <h3>The dangerous policy looks exactly like a safe one.</h3>
+                <p>
+                  A table with RLS enabled and <code>USING (true)</code> refuses anonymous reads —
+                  so from outside it passes. Every signed-in user can still read every row. It is
+                  the most common real Supabase critical, and it is invisible to anything checking
+                  from the outside with an anon key.
+                </p>
+              </SpotlightCard>
+              <SpotlightCard className="dxd-stake">
+                <span className="dxd-stake-num">III · THE LEGAL WEIGHT</span>
                 <h3>Customer data makes it a legal matter.</h3>
                 <p>
-                  The moment real people&apos;s data leaks, you owe things: breach notifications
-                  to affected users, answers to privacy regulators, and potentially damages —
+                  The moment real people&apos;s data leaks, you owe things: breach notifications to
+                  affected users, answers to privacy regulators, and potentially damages —
                   customers can and do sue over exposed personal data.
-                </p>
-              </SpotlightCard>
-              <SpotlightCard className="dxd-stake">
-                <span className="dxd-stake-num">III · THE TRUST</span>
-                <h3>Revenue is trust with a renewal date.</h3>
-                <p>
-                  People pay you monthly because they assume you&apos;re keeping their data
-                  safe. A breach converts your best customers into your loudest churn.
                 </p>
               </SpotlightCard>
             </RevealList>
           </div>
           <Reveal>
-            <p className="dxd-stake-close">
-              You don&apos;t need to be scared of any of this. You need someone carrying it.
-            </p>
-          </Reveal>
-          <Reveal>
             <p className="dxd-mono" style={{ marginTop: 28, fontSize: 12.5, lineHeight: 1.7, color: "var(--d-muted)", borderLeft: "2px solid var(--d-bronze)", paddingLeft: 16 }}>
-              This isn&apos;t hypothetical. CVE-2025-48757: 170+ live apps built with an AI
-              builder were found serving names, emails, and financial data to anyone who asked —
-              one missing database rule, rated CVSS 9.3.{" "}
+              This isn&apos;t hypothetical. CVE-2025-48757: 170+ live apps built with an AI builder
+              were found serving names, emails, and financial data to anyone who asked — one
+              missing database rule, rated CVSS 9.3.{" "}
               <Link href="/incidents" style={{ color: "var(--d-ink)" }}>
                 We wrote up what actually happened →
               </Link>
@@ -293,92 +337,7 @@ export default function LandingPage() {
           </Reveal>
         </section>
 
-        <section className="dxd-section" id="method">
-          <p className="dxd-eyebrow">The method</p>
-          <h2 className="dxd-h2">Three steps. Then the weight is ours.</h2>
-          <div className="dxd-steps">
-            {HOW_IT_WORKS.map((s, i) => (
-              <div className="dxd-step" key={s.title}>
-                <span className="dxd-step-num dxd-serif">No. {i + 1}</span>
-                <div>
-                  <h3>{s.title}</h3>
-                  <p>{s.body}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="dxd-section" id="stack">
-          <Reveal>
-            <p className="dxd-eyebrow">Your stack</p>
-            <h2 className="dxd-h2">Fluent in whatever you built with.</h2>
-            <p className="dxd-lede">
-              The audit runs against your live app — not your source, not your builder — so it
-              works the moment you paste a key, whoever wrote the code. Four slots; every
-              provider spoken.
-            </p>
-          </Reveal>
-          <Reveal>
-            <div className="dxd-speak" role="table" aria-label="Supported stack, by slot">
-              {(
-                [
-                  { slot: "Builder", names: STACK_SPEAKS.builder, scope: "detected from the app itself — nothing to connect" },
-                  { slot: "Database", names: STACK_SPEAKS.database, scope: "the public key your frontend already ships — never more" },
-                  { slot: "Source", names: STACK_SPEAKS.source, scope: "optional · read-only — committed secrets, vulnerable deps, fix PRs you approve" },
-                ] as const
-              ).map((r) => (
-                <div className="dxd-speak-row" role="row" key={r.slot}>
-                  <span className="dxd-speak-cat" role="cell">{r.slot}</span>
-                  <span className="dxd-speak-names" role="cell">
-                    {r.names.map((n, i) => (
-                      <span key={n}>
-                        {i > 0 && <i aria-hidden="true"> · </i>}
-                        {n}
-                      </span>
-                    ))}
-                  </span>
-                  <span className="dxd-speak-scope dxd-mono" role="cell">{r.scope}</span>
-                </div>
-              ))}
-            </div>
-          </Reveal>
-        </section>
-
-        <section className="dxd-section" id="what-we-check">
-          <p className="dxd-eyebrow">Scope of engagement</p>
-          <h2 className="dxd-h2">Sixteen checks, named precisely.</h2>
-          <p className="dxd-lede" style={{ marginBottom: 8 }}>
-            You know your stack. Here is exactly what we hold against it — no euphemisms.
-          </p>
-          <div className="dxd-surfaces">
-            {SURFACES.map((s) => (
-              <SpotlightCard className="dxd-surface" key={s.name}>
-                <h3>{s.name}</h3>
-                <p>{s.blurb}</p>
-                <ul>
-                  {s.checks.map((c) => (
-                    <li key={c}>
-                      <span>{c.toLowerCase()}</span>
-                    </li>
-                  ))}
-                </ul>
-              </SpotlightCard>
-            ))}
-          </div>
-
-          <div className="dxd-trust">
-            <div>
-              <h3>Check our work. That&apos;s rather the point.</h3>
-              <p>
-                {TRUST_LINE} You&apos;re technical enough to audit us — so we make it possible,
-                and unnecessary.
-              </p>
-            </div>
-            <Seal state="intact" size={148} />
-          </div>
-        </section>
-
+        {/* ── 4 · Fixes ───────────────────────────────────────────────── */}
         <section className="dxd-section" id="fixes">
           <Reveal>
             <p className="dxd-eyebrow">The handoff</p>
@@ -386,8 +345,8 @@ export default function LandingPage() {
             <p className="dxd-lede">
               Every finding comes with an exact fix and a button to apply it. Database and
               access-control changes open a migration pull request you review, edit, and merge —
-              your own deploy applies it. We never write to your database directly. Nothing about
-              a fix is silent; each one is a diff you approve.
+              your own deploy applies it. We never write to your database directly. Nothing about a
+              fix is silent; each one is a diff you approve.
             </p>
           </Reveal>
           <Reveal>
@@ -398,7 +357,7 @@ export default function LandingPage() {
               <p className="dxd-mono" style={{ fontSize: 11, color: "var(--d-muted)", textTransform: "uppercase", letterSpacing: "0.1em", margin: "0 0 12px" }}>
                 Example fix — anonymized · one reviewable PR per finding
               </p>
-              <p className="dxd-mono" style={{ fontSize: 12.5, lineHeight: 1.7, margin: 0, color: "var(--d-ink)", background: "var(--d-porcelain)", border: "1px solid var(--d-line)", borderRadius: 8, padding: "14px 16px" }}>
+              <p className="dxd-mono" style={{ fontSize: 12.5, lineHeight: 1.7, margin: 0, color: "var(--d-ink)", background: "var(--d-porcelain)", border: "1px solid var(--d-line)", borderRadius: 8, padding: "14px 16px", overflowX: "auto" }}>
                 supabase/migrations/…_shiplock_enable_rls_invoices.sql<br />
                 ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;<br />
                 CREATE POLICY owner_only ON invoices<br />
@@ -406,8 +365,7 @@ export default function LandingPage() {
               </p>
               <p style={{ marginTop: 14, fontSize: 11.5, lineHeight: 1.6, color: "var(--d-muted)" }}>
                 Opened as a pull request you read, edit, and merge — never applied to your
-                production database by us. Auth, RLS, and data changes stay in your hands, by
-                design.
+                production database by us. Auth, RLS, and data changes stay in your hands, by design.
               </p>
             </div>
           </Reveal>
@@ -424,114 +382,61 @@ export default function LandingPage() {
           </Reveal>
         </section>
 
-        <section className="dxd-section" id="watch">
-          <Reveal>
-            <p className="dxd-eyebrow">The watch, in practice</p>
-            <h2 className="dxd-h2">What we monitor — and exactly how.</h2>
-            <p className="dxd-lede">
-              A scan is a photograph, and your app doesn&apos;t hold still. One prompt to your
-              coding agent tomorrow can quietly undo today&apos;s fix — which is why a
-              point-in-time report, however deep, expires on your next change. So we re-check,
-              on every pull request and on a schedule, and only speak up when something actually
-              changed.
-            </p>
-          </Reveal>
-          <div className="dxd-watchrows">
-            <Reveal>
-              <div className="dxd-watchrow">
-                <h3>Every pull request, re-audited</h3>
-                <p>
-                  Connect your GitHub repo once. Every pull request is re-scanned automatically —
-                  new secrets, vulnerable dependencies, and risky changes caught before they merge.
+        {/* ── 5 · Pricing ─────────────────────────────────────────────── */}
+        <section className="dxd-section" id="pricing">
+          <p className="dxd-eyebrow">Terms</p>
+          <h2 className="dxd-h2">One engagement. Three ways to pay for it.</h2>
+          <p className="dxd-lede" style={{ marginBottom: 8 }}>
+            The same product on every term — nothing is held back on the monthly plan. Longer terms
+            are simply cheaper, paid once, with no auto-renewal and no cancellation fee.
+          </p>
+          <p className="dxd-lede" style={{ marginBottom: 8 }}>
+            For scale: a first-year SOC 2 runs $20,000–$60,000 once you count the audit, the
+            tooling, and your own time. That answers a different question, for a bigger company,
+            on a longer clock. This is what you run in the meantime — and what makes that audit
+            less painful when it does arrive.
+          </p>
+          <div className="dxd-pricing">
+            {plans.map((plan) => (
+              <SpotlightCard
+                className={`dxd-price-card${plan.featured ? " dxd-featured" : ""}`}
+                key={plan.id}
+              >
+                <p className="dxd-price-name">{plan.name}</p>
+                <p className="dxd-price dxd-serif">
+                  {plan.price}
+                  <span>{plan.per}</span>
                 </p>
-              </div>
-            </Reveal>
-            <Reveal>
-              <div className="dxd-watchrow">
-                <h3>Deep audits on schedule, critical checks hourly</h3>
-                <p>
-                  A full 16-check pass re-runs every 48 hours; a lightweight critical-checks
-                  pass runs every hour, watching the fastest-moving risks.
-                </p>
-              </div>
-            </Reveal>
-            <Reveal>
-              <div className="dxd-watchrow">
-                <h3>Alerts that respect you</h3>
-                <p>
-                  You hear from us when something <b>new</b> appears — once, with the brief
-                  attached. No re-alerts on things you already know. Silence is a statement:
-                  everything held.
-                </p>
-              </div>
-            </Reveal>
+                <p className="dxd-price-tag">{plan.tagline}</p>
+                <ul>
+                  {plan.features.map((f) => (
+                    <li key={f}>{f}</li>
+                  ))}
+                </ul>
+                <a href="#get-started" className={plan.featured ? "dxd-btn" : "dxd-btn dxd-btn-ghost"}>
+                  {plan.cta}
+                </a>
+              </SpotlightCard>
+            ))}
           </div>
+          <p className="dxd-rescan-note">
+            A one-time scan answers &ldquo;am I OK today?&rdquo; The retainer answers &ldquo;am I
+            still OK?&rdquo; — every pull request, every hour, and in full depth every 48 hours.
+          </p>
         </section>
 
-        <section className="dxd-section" id="defense">
-          <Reveal>
-            <p className="dxd-eyebrow">The front door · live</p>
-            <h2 className="dxd-h2">Between scans, we stand at your door.</h2>
-            <p className="dxd-lede">
-              Scanning finds the holes. But your login page is being knocked on right now —
-              credential-stuffing bots, vulnerability scanners, brute-force floods, all
-              automated, all indifferent to how careful you were. So we don&apos;t just report
-              them. We watch the attack take shape, and the moment it&apos;s unmistakable, we
-              shut that source out.
-            </p>
-          </Reveal>
-          <Reveal delay={80}>
-            <div style={{ marginTop: 28 }}>
-              <TrafficDefense />
-            </div>
-          </Reveal>
-          <div className="dxd-watchrows" style={{ marginTop: 32 }}>
-            <RevealList step={90}>
-              <div className="dxd-watchrow">
-                <h3>One small file — and it fails open, always</h3>
-                <p>
-                  We generate a snippet for your app (Next.js, Hono, Cloudflare Workers,
-                  Express). It watches only your auth and API routes. If ShipLock is ever
-                  unreachable, it does nothing at all and your app serves normally — we can never
-                  be the reason you go down. No DNS changes, no proxy in front of you.
-                </p>
-              </div>
-              <div className="dxd-watchrow">
-                <h3>We&apos;re sure before we ever turn traffic away</h3>
-                <p>
-                  We don&apos;t block on a hunch. The first unusual requests get through — and
-                  get mirrored to us. Only once the pattern is unmistakable (a burst of logins, a
-                  scanner walking <code>.env</code> and <code>wp-admin</code>, a flood) does that
-                  source get blocked; its next requests get a 429. Anything ambiguous we flag,
-                  never block — so a real customer of yours never hits a wall they didn&apos;t
-                  deserve.
-                </p>
-              </div>
-              <div className="dxd-watchrow">
-                <h3>A stolen session, caught in the act</h3>
-                <p>
-                  One valid login suddenly used from many places at once is the signature of a
-                  hijacked session — something no configuration scan can ever see. We watch for
-                  it and tell you, without ever touching the token itself; we only see a salted
-                  hash, never the session.
-                </p>
-              </div>
-            </RevealList>
-          </div>
-        </section>
-
-        <section className="dxd-section" id="honest">
+        {/* ── 6 · Honest limits, then the door ────────────────────────── */}
+        <section className="dxd-section" id="get-started">
           <Reveal>
             <p className="dxd-eyebrow">What we won&apos;t promise</p>
             <h2 className="dxd-h2">No one can make your app unhackable. We&apos;ll never pretend otherwise.</h2>
             <p className="dxd-lede">
-              Every tool that promises &ldquo;100% protected&rdquo; is selling you something, and
-              some part of you already knows it. Software has bugs; people make mistakes;
-              determined attackers are patient. What&apos;s actually true is quieter and more
-              useful: almost every app that gets breached is breached through a known, ordinary,
-              closeable hole. We close those, we watch them stay closed, and we turn away the
-              automated attacks hitting your door — which moves you from the app that gets
-              breached to the one that isn&apos;t worth the effort.
+              Every tool promising &ldquo;100% protected&rdquo; is selling you something, and some
+              part of you already knows it. What&apos;s actually true is quieter and more useful:
+              almost every app that gets breached is breached through a known, ordinary, closeable
+              hole. We close those, we watch them stay closed, and we turn away the automated
+              attacks hitting your door — which moves you from the app that gets breached to the one
+              that isn&apos;t worth the effort.
             </p>
           </Reveal>
           <Reveal delay={80}>
@@ -543,7 +448,7 @@ export default function LandingPage() {
             <p
               className="dxd-mono"
               style={{
-                marginTop: 40,
+                marginTop: 36,
                 fontSize: 12.5,
                 lineHeight: 1.75,
                 color: "var(--d-ink)",
@@ -552,50 +457,25 @@ export default function LandingPage() {
                 maxWidth: 720,
               }}
             >
-              And we tell you what we <em>can&apos;t</em> see. Your business logic, the auth
-              checks inside your own code — no scanner reads those. Rather than quietly leaving
-              them off the report, we hand you the exact prompts to audit them yourself. The
-              honesty is the product.
+              And we tell you what we <em>can&apos;t</em> see. Your business logic, the auth checks
+              inside your own code — no scanner reads those. Rather than quietly leaving them off
+              the report, we hand you the exact prompts to audit them yourself. The honesty is the
+              product.
             </p>
           </Reveal>
-        </section>
 
-        <section className="dxd-section" id="pricing">
-          <p className="dxd-eyebrow">Terms</p>
-          <h2 className="dxd-h2">One engagement. One number.</h2>
-          <div className="dxd-pricing">
-            <SpotlightCard className="dxd-price-card dxd-featured">
-              <p className="dxd-price-name">The retainer · monitor</p>
-              <p className="dxd-price dxd-serif">
-                {PRICING.paid.price}
-                <span>{PRICING.paid.per}</span>
+          <Reveal delay={120}>
+            <div style={{ marginTop: 56, borderTop: "1px solid var(--d-line)", paddingTop: 40 }}>
+              <p className="dxd-eyebrow">Get started</p>
+              <h2 className="dxd-h2">Connect the project. Get the first findings in 90 seconds.</h2>
+              <p className="dxd-lede">
+                Sign in, start the trial — 7 days free before the first charge — then paste your
+                Supabase URL and anon key. Nothing we ask for is a credential beyond the public key
+                your frontend already ships. The first audit runs immediately.
               </p>
-              <p className="dxd-price-tag">{PRICING.paid.tagline}</p>
-              <ul>
-                {PRICING.paid.features.map((f) => (
-                  <li key={f}>{f}</li>
-                ))}
-              </ul>
-              <a href="#get-started" className="dxd-btn">
-                Put us on retainer
-              </a>
-            </SpotlightCard>
-          </div>
-          <p className="dxd-rescan-note">{PRICING.contrastNote}</p>
-          <p className="dxd-rescan-note">{PRICING.trialNote}</p>
-        </section>
-
-        <section className="dxd-section" id="get-started">
-          <Reveal>
-            <p className="dxd-eyebrow">Get started</p>
-            <h2 className="dxd-h2">Connect your project. We carry the rest.</h2>
-            <p className="dxd-lede">
-              Sign in, put us on retainer — 7 days free before the first charge — then paste
-              your Supabase URL and anon key (and, optionally, your app&apos;s live URL for two
-              more checks). The first audit — every finding, and the fix for each — runs immediately.
-            </p>
+            </div>
           </Reveal>
-          <Reveal delay={100}>
+          <Reveal delay={160}>
             <div style={{ marginTop: 28, display: "flex", justifyContent: "center" }}>
               <OAuthButtons />
             </div>
@@ -604,12 +484,11 @@ export default function LandingPage() {
 
         <footer className="dxd-footer">
           <span className="dxd-serif" style={{ fontSize: 15 }}>
-            ShipLock<span style={{ color: "var(--d-bronze)" }}>.</span> On retainer since
-            today.
+            ShipLock<span style={{ color: "var(--d-bronze)" }}>.</span> On retainer since today.
           </span>
           <span>
-            <Link href="/owasp">OWASP Top 10</Link> · <Link href="/incidents">Real incidents</Link>{" "}
-            · <Link href="/terms">Terms</Link> · <Link href="/privacy">Privacy</Link> ·{" "}
+            <Link href="/owasp">Coverage</Link> · <Link href="/incidents">Real incidents</Link> ·{" "}
+            <Link href="/terms">Terms</Link> · <Link href="/privacy">Privacy</Link> ·{" "}
             <Link href="/dashboard-preview">Product preview →</Link> · support@shiplock.dev
           </span>
         </footer>
