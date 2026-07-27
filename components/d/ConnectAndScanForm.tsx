@@ -36,6 +36,11 @@ export function ConnectAndScanForm() {
   const [anonKey, setAnonKey] = useState("");
   const [appUrl, setAppUrl] = useState("");
   const [error, setError] = useState("");
+  // Set when /api/scan returns 409 project_limit: the subscription already
+  // watches a different project. Switching is a deliberate act, so the user
+  // confirms it rather than us silently moving the watch (which is what the
+  // old behaviour did — the previous project just stopped being monitored).
+  const [projectConflict, setProjectConflict] = useState<string | null>(null);
   const [result, setResult] = useState<ScanResponse | null>(null);
   const reportRef = useRef<HTMLDivElement>(null);
 
@@ -47,11 +52,12 @@ export function ConnectAndScanForm() {
     }
   }, [phase]);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent, replaceProject = false) {
     e.preventDefault();
     // Counts/booleans only — never the URL or key (lib/analytics.ts rule).
-    track("scan_started", { has_app_url: Boolean(appUrl) });
+    track("scan_started", { has_app_url: Boolean(appUrl), replace_project: replaceProject });
     setError("");
+    setProjectConflict(null);
     setPhase("scanning");
 
     try {
@@ -68,13 +74,21 @@ export function ConnectAndScanForm() {
             ? { Authorization: `Bearer ${session.access_token}` }
             : {}),
         },
-        body: JSON.stringify({ supabaseUrl, anonKey, ...(appUrl ? { appUrl } : {}) }),
+        body: JSON.stringify({
+          supabaseUrl,
+          anonKey,
+          ...(appUrl ? { appUrl } : {}),
+          ...(replaceProject ? { replaceProject: true } : {}),
+        }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
         track("scan_failed", { status: res.status });
+        if (res.status === 409 && data.code === "project_limit") {
+          setProjectConflict(data.currentProject ?? "your current project");
+        }
         setError(data.error ?? "Scan failed — check your project URL and anon key.");
         setPhase("connect");
         return;
@@ -147,6 +161,32 @@ export function ConnectAndScanForm() {
           </p>
           {error && (
             <p style={{ fontSize: 13, color: "var(--d-signal)", margin: "0 0 16px" }}>{error}</p>
+          )}
+          {projectConflict && (
+            <div
+              style={{
+                margin: "0 0 16px",
+                padding: "14px 16px",
+                border: "1px solid var(--d-line)",
+                borderLeft: "2px solid var(--d-attention)",
+                borderRadius: "0 8px 8px 0",
+                background: "var(--d-porcelain)",
+              }}
+            >
+              <p style={{ margin: "0 0 12px", fontSize: 13, lineHeight: 1.7 }}>
+                Moving the watch means <b>{projectConflict}</b> stops being monitored. Its scan
+                history stays, but it won&apos;t be re-checked and you won&apos;t get alerts for
+                it any more.
+              </p>
+              <button
+                type="button"
+                className="dxd-btn dxd-btn-ghost"
+                style={{ fontSize: 12, padding: "6px 12px" }}
+                onClick={(e) => handleSubmit(e, true)}
+              >
+                Switch the watch to this project
+              </button>
+            </div>
           )}
           <button type="submit" className="dxd-btn" style={{ width: "100%" }}>
             Begin the first audit
