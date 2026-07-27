@@ -132,7 +132,10 @@ export default function DashboardDemoPage() {
         <Reveal>
           <WatchPanel
             entries={[
-              { trigger: "deploy", createdAt: iso(30), findingCount: 4, criticalCount: 1, newCount: 0 },
+              // NOTE: there is no "github_pr" trigger to show here — per-PR source
+              // scans write to deep_findings and never create a monitoring_snapshot,
+              // so they don't appear in the watch log at all. See SCAN-ECONOMICS.md §5.
+              { trigger: "scheduled_48h", createdAt: iso(30), findingCount: 4, criticalCount: 1, newCount: 0 },
               { trigger: "hourly", createdAt: iso(90), findingCount: 4, criticalCount: 1, newCount: null },
               { trigger: "scheduled_48h", createdAt: iso(600), findingCount: 5, criticalCount: 2, newCount: 1 },
             ]}
