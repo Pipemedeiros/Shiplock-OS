@@ -42,7 +42,7 @@ export default function PrivacyPage() {
               <h1 className="dxd-display" style={{ fontSize: "clamp(30px,4.5vw,44px)" }}>
                 Privacy Policy
               </h1>
-              <p className="dxd-lede">Last updated 2026-07-11.</p>
+              <p className="dxd-lede">Last updated 2026-07-27.</p>
             </div>
           </header>
         </div>
@@ -104,15 +104,61 @@ export default function PrivacyPage() {
             </div>
 
             <div>
-              <h2 className="dxd-h2" style={{ fontSize: 22 }}>Who we share it with</h2>
+              <h2 className="dxd-h2" style={{ fontSize: 22 }}>
+                Who we share it with — our sub-processors
+              </h2>
               <p>
-                <b>Stripe</b> — billing and subscription management.{" "}
-                <b>Resend</b> — transactional email (alerts, receipts).{" "}
-                <b>PostHog</b> — product analytics on how the app itself is used, not your scan
-                data. <b>Anthropic</b> — your scan&apos;s raw check results are sent to power the
-                plain-English findings and fixes; this payload never contains your anon key or any
-                row of your data, by construction. <b>GitHub</b> — if you connect it, for source
-                scanning and fix PRs. We don&apos;t sell data to anyone, ever.
+                These are every third party that processes data on our behalf, what they handle,
+                and why. We don&apos;t sell data to anyone, ever. If we add or replace one, we
+                update this list before the change takes effect.
+              </p>
+              <div style={{ overflowX: "auto", margin: "14px 0" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5, minWidth: 460 }}>
+                  <thead>
+                    <tr style={{ textAlign: "left", borderBottom: "1px solid var(--d-line)" }}>
+                      <th style={{ padding: "8px 10px 8px 0" }}>Provider</th>
+                      <th style={{ padding: "8px 10px 8px 0" }}>What it handles</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ["Supabase", "Our own database and authentication — your account record, scan history, and monitoring settings."],
+                      ["Vercel", "Hosting for the ShipLock application itself."],
+                      ["Stripe", "Billing and subscription management. Card details go to Stripe directly; we never see them."],
+                      ["Resend", "Transactional email — alerts and receipts. Receives your email address."],
+                      ["PostHog", "Product analytics on how the app is used. Not your scan data."],
+                      ["Anthropic", "Turns raw check results into plain-English findings and fixes. This payload never contains your anon key or any row of your data, by construction."],
+                      ["GitHub", "Only if you connect it: source scanning and fix pull requests."],
+                    ].map(([name, what]) => (
+                      <tr key={name} style={{ borderBottom: "1px solid var(--d-line)" }}>
+                        <td style={{ padding: "10px 10px 10px 0", fontWeight: 600, whiteSpace: "nowrap" }}>{name}</td>
+                        <td style={{ padding: "10px 10px 10px 0", color: "var(--d-muted)", lineHeight: 1.6 }}>{what}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p>
+                Monitoring runs never call Anthropic at all — findings from a scheduled re-check
+                are worked out deterministically from the raw result, so no scan data leaves our
+                own systems on those passes.
+              </p>
+            </div>
+
+            <div>
+              <h2 className="dxd-h2" style={{ fontSize: 22 }}>Your rights over your data</h2>
+              <p>
+                You can ask us for a copy of what we hold about you, ask us to correct it, or ask
+                us to delete it — email{" "}
+                <a href="mailto:support@shiplock.dev">support@shiplock.dev</a> and we&apos;ll
+                action it. Deleting your account removes your scan history, the monitored project
+                URL, and your encrypted anon key. You can stop monitoring at any time by
+                disconnecting the project or cancelling, and you can revoke coding-agent tokens
+                and turn off the Verified report from your dashboard whenever you like.
+              </p>
+              <p>
+                If your use of ShipLock means we process personal data on your behalf and you need
+                a data processing agreement, email us and we&apos;ll put one in place.
               </p>
             </div>
 
