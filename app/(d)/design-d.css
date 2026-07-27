@@ -122,22 +122,32 @@
   opacity: 1;
 }
 
-/* The nav had no mobile handling at all — on phones the link row overflowed
-   the shell. Let it wrap into tidy rows instead of adding a JS hamburger:
-   five short links wrap cleanly at this size. */
+/* Mobile nav. Letting the link row wrap (the previous approach) technically
+   fitted, but produced a 162px-tall three-row block with "Sign in" stranded as
+   a full-width button — it read as a broken layout rather than a nav.
+   On phones the section links come out entirely: they're anchors to sections
+   the visitor is about to scroll through anyway, and they're all repeated in
+   the footer. What stays is the wordmark and the one action that matters. */
 @media (max-width: 700px) {
   .dxd-nav {
-    flex-wrap: wrap;
-    row-gap: 10px;
-    padding: 18px 0;
+    flex-wrap: nowrap;
+    align-items: center;
+    padding: 16px 0;
+    gap: 12px;
   }
   .dxd-nav-links {
-    flex-wrap: wrap;
-    gap: 12px 16px;
-    row-gap: 8px;
+    gap: 12px;
+    flex-shrink: 0;
   }
-  .dxd-nav-links a {
+  /* Everything except the button — anchors and the account metadata spans. */
+  .dxd-nav-links > a:not(.dxd-btn),
+  .dxd-nav-links > span:not(:last-child) {
+    display: none;
+  }
+  .dxd-nav-links .dxd-btn {
     font-size: 13px;
+    padding: 7px 14px;
+    white-space: nowrap;
   }
 }
 
@@ -274,6 +284,16 @@
   grid-template-columns: 1.15fr 0.85fr;
   gap: 48px;
   align-items: start;
+}
+
+/* Grid items default to a min-content floor (`1fr` == `minmax(auto, 1fr)`),
+   so the nowrap finding rows inside the example-audit panel were forcing the
+   hero column to ~420px on a 390px screen. The column — and every sibling
+   stretching to it — then overflowed and got clipped by `.dxd`'s
+   overflow-x: hidden, which is why the hero looked cut off on phones while
+   the rest of the page was fine. min-width: 0 removes that floor. */
+.dxd-hero > * {
+  min-width: 0;
 }
 
 @media (max-width: 920px) {
@@ -1296,26 +1316,39 @@
   opacity: 1;
 }
 
-@keyframes dxdl-flash {
+/* The sweep: a segment travelling the hex perimeter, so the lock reads as
+   working through the surfaces rather than sitting still. dasharray/offset are
+   in user units of the 300-wide viewBox — the hex perimeter is ~672, and the
+   lit segment is ~110 of it (roughly one edge). */
+@keyframes dxdl-sweep {
   0% {
-    opacity: 0.9;
-    stroke-width: 2;
-    r: 112;
+    stroke-dashoffset: 672;
   }
   100% {
-    opacity: 0;
-    stroke-width: 0.5;
-    r: 132;
+    stroke-dashoffset: 0;
   }
 }
 
-.dxdl-flash {
-  opacity: 0;
+.dxdl-sweep {
+  stroke-dasharray: 110 562;
+  stroke-dashoffset: 672;
+  opacity: 0.75;
+  animation: dxdl-sweep 6s linear infinite;
 }
 
-.dxdl[data-locked="true"] .dxdl-flash {
-  animation: dxdl-flash 1s ease-out both;
-  animation-delay: 500ms;
+/* Clean: one full trace, then it rests. Nothing left to sweep for. */
+.dxdl[data-locked="true"] .dxdl-sweep {
+  animation: dxdl-sweep 2.4s ease-out both;
+  opacity: 0.9;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dxdl-sweep {
+    animation: none;
+    stroke-dashoffset: 0;
+    stroke-dasharray: none;
+    opacity: 0.35;
+  }
 }
 
 .dxdl-center {
@@ -1434,7 +1467,14 @@
   font-size: 10.5px;
   padding: 6px 10px;
   border-radius: 6px;
-  white-space: nowrap;
+  /* Finding titles run long; nowrap made the tooltip ~420px and pushed it off
+     both edges of a phone screen, where it was then clipped. Let it wrap and
+     cap it to the lock's own width. */
+  white-space: normal;
+  max-width: min(260px, 80vw);
+  width: max-content;
+  text-align: center;
+  line-height: 1.5;
   opacity: 0;
   pointer-events: none;
   transition: opacity 140ms ease;
@@ -1675,7 +1715,7 @@
   color: var(--d-bronze-light);
 }
 
-.dxd-band .dxdl-flash {
+.dxd-band .dxdl-sweep {
   stroke: var(--d-bronze-light);
 }
 
@@ -2610,3 +2650,155 @@
 /* Safety net: never let a stray wide element cause horizontal overflow / cut-off
    at the viewport edge (landing + dashboard both use .dxd). */
 .dxd { overflow-x: hidden; }
+
+/* ── Dashboard section tabs ──────────────────────────────────────────
+   The dashboard is four surfaces now (Overview / Findings / Watch /
+   Settings). These sit on the navy band under the account bar. */
+.dxd-tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin: 22px 0 -1px;
+  border-bottom: 1px solid var(--d-line-navy);
+}
+
+.dxd-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 16px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--d-muted-light);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.dxd-tab:hover {
+  color: #eef3f9;
+}
+
+.dxd-tab[data-active="true"] {
+  color: var(--d-bronze-light);
+  border-bottom-color: var(--d-bronze-light);
+}
+
+.dxd-tab:focus-visible {
+  outline: 2px solid var(--d-bronze-light);
+  outline-offset: -2px;
+  border-radius: 4px 4px 0 0;
+}
+
+.dxd-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--d-line-navy);
+  color: #eef3f9;
+  font-family: var(--dx-font-geist-mono), monospace;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dxd-tab[data-active="true"] .dxd-tab-count {
+  background: var(--d-bronze);
+  color: #0a1220;
+}
+
+@media (max-width: 640px) {
+  .dxd-tabs {
+    gap: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .dxd-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .dxd-tab {
+    padding: 10px 13px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+}
+
+/* ── Mobile hero typography (2026-07-27) ──────────────────────────────────
+   Measured on a 390px viewport, not guessed. Nothing overflowed here — the
+   problems were proportional: a display face at its 38px floor eating three
+   lines against a 40px line-height, an eyebrow whose wide tracking stranded
+   one word on a second line, and two equal-weight full-width buttons where
+   only one is actually an action. */
+@media (max-width: 560px) {
+  .dxd-hero {
+    padding: 34px 0 56px;
+  }
+
+  /* Serif display needs air between lines far more than it needs size. */
+  .dxd-display {
+    font-size: clamp(30px, 8.6vw, 38px);
+    line-height: 1.12;
+    letter-spacing: -0.015em;
+  }
+
+  /* 0.18em tracking at 11px is ~2px a character — enough to push the last
+     word alone onto line two. Tighten it and let the line hold. */
+  .dxd-eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+  }
+
+  .dxd-hero .dxd-lede {
+    font-size: 16px;
+    margin: 20px 0 26px;
+  }
+
+  /* The primary CTA stays a full-width button. The price is information, not
+     a second equally-weighted action — it reads as a quiet line beneath. */
+  .dxd-hero-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .dxd-hero-actions .dxd-btn-paper {
+    width: 100%;
+    justify-content: center;
+  }
+  .dxd-hero-actions .dxd-btn-ghost {
+    border: none;
+    background: none;
+    padding: 2px 0;
+    font-size: 13px;
+    color: var(--d-muted-light);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+/* ── Traffic pulse bars (dashboard) ──────────────────────────────────
+   Real request volume, so the bars grow from zero on load rather than
+   animating on a loop — this is a chart, not decoration. */
+@keyframes dxd-pulse-grow {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+.dxd-pulse-bar {
+  display: block;
+  min-width: 3px;
+  border-radius: 2px 2px 0 0;
+  background: linear-gradient(to top, var(--d-bronze), var(--d-bronze-light));
+  transform-origin: bottom;
+  animation: dxd-pulse-grow 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.dxd-band .dxd-pulse-bar {
+  background: linear-gradient(to top, var(--d-bronze-light), #e6d3a3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dxd-pulse-bar { animation: none; transform: none; }
+}

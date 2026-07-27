@@ -6,7 +6,7 @@ import { ImageResponse } from "next/og";
 // owner's logo lands, swap the <svg> block only.
 
 export const runtime = "edge";
-export const alt = "ShipLock — continuous security monitoring for AI-built apps";
+export const alt = "ShipLock — continuous security monitoring for Supabase apps in production";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -33,13 +33,16 @@ export default function OpengraphImage() {
             viewBox="0 0 24 24"
             fill="none"
             stroke="#8a6b2f"
-            strokeWidth="2"
+            strokeWidth="1.1"
             strokeLinecap="round"
             strokeLinejoin="round"
           >
-            <path d="M8.2 11V8.4a3.8 3.8 0 0 1 7.6 0V11" />
-            <rect x="4.9" y="11" width="14.2" height="9" rx="2.6" />
-            <circle cx="12" cy="15.5" r="1.25" fill="#8a6b2f" stroke="none" />
+            <path d="M8.4 10.4V7.2a3.6 3.6 0 0 1 7.2 0v3.2" />
+            <path d="M12 8.4 18.4 12.1v7L12 22.8l-6.4-3.7v-7L12 8.4Z" />
+            <circle cx="12" cy="14.6" r="1.2" />
+            <path d="M12 15.8v2" />
+            <path d="M5.6 16.3 13.6 20.9" opacity="0.9" />
+            <path d="M5.6 18.9 10.6 21.8" opacity="0.5" />
           </svg>
           <div style={{ fontSize: 56, fontWeight: 700, display: "flex" }}>
             ShipLock<span style={{ color: "#8a6b2f" }}>.</span>
@@ -55,8 +58,8 @@ export default function OpengraphImage() {
             flexDirection: "column",
           }}
         >
-          <span>You built something worth protecting.</span>
-          <span style={{ color: "#8a6b2f", fontStyle: "italic" }}>We carry the worry.</span>
+          <span>One permissive policy exposes every row.</span>
+          <span style={{ color: "#8a6b2f", fontStyle: "italic" }}>We find it, fix it, and keep proving it.</span>
         </div>
         <div
           style={{
