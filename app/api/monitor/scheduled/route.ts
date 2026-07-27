@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { runMonitoringPass } from "@/lib/monitoring";
 import { pruneOldTraffic } from "@/lib/traffic/prune";
 import { runPolicyScan } from "@/lib/deep/supabaseMgmtRun";
+import { sendWeeklyDigest } from "@/lib/monitoring/digest";
 
 const FULL_SCAN_INTERVAL_MS = 48 * 60 * 60 * 1000;
 
@@ -88,6 +89,34 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Weekly digest (migration 038). Rides the daily cron and self-limits to once
+  // a week per user, so no new schedule is needed — which matters, since the
+  // Vercel plan only allows daily-frequency crons. This is the churn
+  // countermeasure: alerts only fire on NEW findings, so a healthy customer
+  // hears nothing for months and cannot tell "working" from "dead".
+  let digestsSent = 0;
+  const { data: digestCandidates } = await admin
+    .from("user_profiles")
+    .select("id, email, last_digest_sent_at")
+    .eq("is_paid", true)
+    .eq("monitoring_enabled", true);
+
+  for (const profile of digestCandidates ?? []) {
+    try {
+      const sent = await sendWeeklyDigest(
+        profile.id as string,
+        (profile.email as string | null) ?? null,
+        (profile.last_digest_sent_at as string | null) ?? null
+      );
+      if (sent) digestsSent++;
+    } catch (err) {
+      console.error(
+        `[monitor/scheduled] digest failed for user ${profile.id}:`,
+        err instanceof Error ? err.message : err
+      );
+    }
+  }
+
   // Prepaid-term expiry (migration 033). Monthly subscribers have paid_until
   // NULL and are governed by Stripe's own cancel event, so they're untouched.
   // Sweeping here rather than checking an expiry at every is_paid read site
@@ -102,6 +131,7 @@ export async function GET(req: NextRequest) {
     failed,
     pruned: pruned.ok,
     policyChecked,
+    digestsSent,
     expired,
   });
 }
