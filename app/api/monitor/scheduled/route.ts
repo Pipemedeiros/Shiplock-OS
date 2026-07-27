@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { runMonitoringPass } from "@/lib/monitoring";
 import { pruneOldTraffic } from "@/lib/traffic/prune";
+import { runPolicyScan } from "@/lib/deep/supabaseMgmtRun";
 
 const FULL_SCAN_INTERVAL_MS = 48 * 60 * 60 * 1000;
 
@@ -63,5 +64,62 @@ export async function GET(req: NextRequest) {
   // one). Fail-soft — never affects the monitoring result.
   const pruned = await pruneOldTraffic();
 
-  return NextResponse.json({ checked: profiles?.length ?? 0, succeeded, failed, pruned: pruned.ok });
+  // RLS policy pass for anyone with the read-only Supabase connection
+  // (migration 034). Separate from the scan above because it needs a different
+  // credential and reads policy definitions rather than probing endpoints —
+  // this is the check that catches `USING (true)`, which an external scan
+  // structurally cannot see. Fail-soft per user.
+  let policyChecked = 0;
+  const { data: connected } = await admin
+    .from("user_profiles")
+    .select("id")
+    .eq("is_paid", true)
+    .not("supabase_mgmt_token_encrypted", "is", null);
+
+  for (const profile of connected ?? []) {
+    try {
+      const result = await runPolicyScan(profile.id);
+      if (result.ok) policyChecked++;
+    } catch (err) {
+      console.error(
+        `[monitor/scheduled] policy scan failed for user ${profile.id}:`,
+        err instanceof Error ? err.message : err
+      );
+    }
+  }
+
+  // Prepaid-term expiry (migration 033). Monthly subscribers have paid_until
+  // NULL and are governed by Stripe's own cancel event, so they're untouched.
+  // Sweeping here rather than checking an expiry at every is_paid read site
+  // keeps the paywall on the single is_paid gate — the paywall has regressed
+  // before when read paths diverged (see CLAUDE.md), so we don't add a second
+  // source of truth. Cost is up to ~24h of grace past the end date.
+  const expired = await expirePrepaidTerms();
+
+  return NextResponse.json({
+    checked: profiles?.length ?? 0,
+    succeeded,
+    failed,
+    pruned: pruned.ok,
+    policyChecked,
+    expired,
+  });
+}
+
+/** Flips is_paid false for prepaid terms whose window has passed. */
+async function expirePrepaidTerms(): Promise<number> {
+  const admin = getSupabaseAdmin();
+  const { data, error } = await admin
+    .from("user_profiles")
+    .update({ is_paid: false, monitoring_enabled: false })
+    .eq("is_paid", true)
+    .not("paid_until", "is", null)
+    .lt("paid_until", new Date().toISOString())
+    .select("id");
+
+  if (error) {
+    console.error("[monitor/scheduled] prepaid expiry sweep error:", error.message);
+    return 0;
+  }
+  return data?.length ?? 0;
 }

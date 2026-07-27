@@ -1,0 +1,126 @@
+"use client";
+
+// Read-only Supabase Management connection. This is what lets us read your
+// actual RLS policies rather than only inferring that RLS is missing — the
+// difference between "this table is unprotected" and "this table has a policy
+// that lets every logged-in user read every row", which is the more common and
+// more dangerous failure.
+
+import { useState } from "react";
+import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
+
+export function SupabasePanel({
+  connected,
+  projectRef,
+  configured,
+}: {
+  connected: boolean;
+  projectRef: string | null;
+  configured: boolean;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [isConnected, setIsConnected] = useState(connected);
+
+  async function post(path: string) {
+    setBusy(true);
+    setMessage("");
+    try {
+      const supabase = getSupabaseBrowser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(path, {
+        method: "POST",
+        headers: session?.access_token
+          ? { Authorization: `Bearer ${session.access_token}` }
+          : {},
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage(data.error ?? "That didn't work. Try again.");
+        return;
+      }
+      if (path.endsWith("/disconnect")) {
+        setIsConnected(false);
+        setMessage("Disconnected. Policy checks have stopped.");
+      } else {
+        setMessage(
+          data.findings === 0
+            ? "Checked your policies — nothing permissive found."
+            : `Checked your policies — ${data.findings} issue${data.findings === 1 ? "" : "s"} on your Findings tab.`
+        );
+      }
+    } catch {
+      setMessage("Couldn't reach the server.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="dxd-surface">
+      <h3 style={{ margin: "0 0 10px", fontSize: 15 }}>Supabase — policy access</h3>
+      <p style={{ margin: "0 0 12px", fontSize: 12.5, lineHeight: 1.7, color: "var(--d-muted)" }}>
+        Your anon key shows us whether a table is protected. It can&apos;t show us whether the
+        protection is <em>correct</em> — a policy that lets every signed-in user read every row
+        looks identical from outside. Connecting read-only access lets us check the policies
+        themselves.
+      </p>
+      <p style={{ margin: "0 0 14px", fontSize: 12.5, lineHeight: 1.7, color: "var(--d-muted)" }}>
+        <b>We only ever read.</b> ShipLock never writes to your production database — database
+        and access-control fixes always arrive as a migration pull request you review and merge.
+        You can disconnect at any time, which deletes the token.
+      </p>
+
+      {!configured ? (
+        <p className="dxd-mono" style={{ fontSize: 11.5, color: "var(--d-muted-light)" }}>
+          Not available yet — this connection is being finished.
+        </p>
+      ) : (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          {isConnected ? (
+            <>
+              <button
+                type="button"
+                className="dxd-btn"
+                onClick={() => post("/api/deep/supabase/scan")}
+                disabled={busy}
+                style={{ fontSize: 12, padding: "6px 12px" }}
+              >
+                {busy ? "…" : "Check policies now"}
+              </button>
+              <button
+                type="button"
+                className="dxd-btn dxd-btn-ghost"
+                onClick={() => post("/api/deep/supabase/disconnect")}
+                disabled={busy}
+                style={{ fontSize: 12, padding: "6px 12px" }}
+              >
+                Disconnect
+              </button>
+              <span className="dxd-mono" style={{ fontSize: 11, color: "var(--d-verified)" }}>
+                ● Connected{projectRef ? ` · ${projectRef}` : ""}
+              </span>
+            </>
+          ) : (
+            <>
+              <a
+                href="/api/deep/supabase/connect"
+                className="dxd-btn"
+                style={{ fontSize: 12, padding: "6px 12px" }}
+              >
+                Connect read-only access
+              </a>
+              <span className="dxd-mono" style={{ fontSize: 11, color: "var(--d-muted-light)" }}>
+                ○ Not connected
+              </span>
+            </>
+          )}
+        </div>
+      )}
+
+      {message && (
+        <p style={{ fontSize: 12, color: "var(--d-muted)", marginTop: 10 }}>{message}</p>
+      )}
+    </div>
+  );
+}

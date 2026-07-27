@@ -23,6 +23,12 @@ const envSchema = z.object({
   // they must stay optional here so app startup isn't blocked on them.
   VERCEL_CLIENT_ID: optionalSecret,
   VERCEL_CLIENT_SECRET: optionalSecret,
+  // Optional: the Supabase OAuth app (read-only Management API access, which
+  // powers the RLS policy detector) may not be registered yet. The UI hides
+  // the connection entirely until both are set — see
+  // lib/deep/supabaseMgmt.ts's isSupabaseMgmtConfigured().
+  SUPABASE_OAUTH_CLIENT_ID: optionalSecret,
+  SUPABASE_OAUTH_CLIENT_SECRET: optionalSecret,
   // Optional: the GitHub App (source scanning) may not be registered yet.
   // lib/deep/github.ts throws a clear error at call time if these are unset.
   // See ROADMAP.md for how to create the App and obtain these.
