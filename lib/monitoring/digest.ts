@@ -1,5 +1,7 @@
 import { Resend } from "resend";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { getLatestScan } from "@/lib/scanHistory";
+import type { Severity } from "@/lib/types";
 
 // The weekly digest — the churn countermeasure.
 //
@@ -81,6 +83,18 @@ export async function collectDigest(userId: string): Promise<DigestData> {
     .eq("user_id", userId)
     .gte("detected_at", weekAgo);
 
+  // CRITICAL: deep_findings holds ONLY the deep sources (github, policy,
+  // exposed-path, advisor). The 16-check scan's findings live in
+  // scan_history.full_issues — a different table entirely. Counting only
+  // deep_findings would tell a customer with 4 open scan findings, one of them
+  // critical, that "nothing is open" — the exact inverse of the truth, in the
+  // one email whose entire purpose is to be a truthful record. Merge both, the
+  // same way lib/fixes/findings.ts does for the dashboard.
+  const latest = await getLatestScan(userId);
+  const scanIssues = (latest?.full_issues ?? []) as { severity: Severity }[];
+  const scanOpen = scanIssues.length;
+  const scanCritical = scanIssues.filter((i) => i.severity === "CRITICAL").length;
+
   const passCount = passes.count ?? 0;
   const requestsWatched = pulse.count ?? 0;
 
@@ -88,8 +102,8 @@ export async function collectDigest(userId: string): Promise<DigestData> {
     passes: passCount,
     newFindings: newFindings.count ?? 0,
     resolvedFindings: resolved.count ?? 0,
-    openFindings: open.count ?? 0,
-    openCritical: critical.count ?? 0,
+    openFindings: (open.count ?? 0) + scanOpen,
+    openCritical: (critical.count ?? 0) + scanCritical,
     requestsWatched,
     threatsHandled: threats.count ?? 0,
     // If nothing ran and we saw no traffic, there is no work to report and a
