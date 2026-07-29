@@ -63,11 +63,17 @@ export function Lock({
           />
         </defs>
 
+        {/* Shackle geometry is the mark's, scaled — not eyeballed. Mapping
+            Brand.tsx's 24-unit space onto this one (scale = BODY_R / 7.2,
+            centre (12,15.6) -> (150,222)) puts the legs at x 94/206 with their
+            feet at y 141, so they meet the hexagon's upper edges exactly.
+            The previous ±42 legs were both too narrow and too high, which read
+            as a shackle floating detached above the body. */}
         <g className="dxdl-shackle">
           <path
-            d="M 108 128 V 96 A 42 42 0 0 1 192 96 V 128"
+            d="M 94 141.1 V 91.3 A 56 56 0 0 1 206 91.3 V 141.1"
             fill="none"
-            strokeWidth="7"
+            strokeWidth="9"
             strokeLinecap="round"
           />
         </g>
