@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { createProvingBranch, runOnBranch } from "./branch";
+import { attemptProvingBranch, createProvingBranch, runOnBranch } from "./branch";
 import { ProvingGroundViolation } from "./guard";
 
 const settings = { killSwitchOn: false, provingGroundEnabled: true };
@@ -79,5 +79,37 @@ describe("runOnBranch", () => {
     await runOnBranch("t", handle, settings, "select 1");
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(String(fetchMock.mock.calls[0][0])).toContain("branch-1");
+  });
+});
+
+// Verified against the live Supabase API on 2026-07-30: creating a branch on a
+// FREE-plan organisation returns 402 PaymentRequired. That is permanent and
+// actionable, unlike a transient failure, and collapsing the two would leave a
+// free-plan customer with a feature that never runs and no way to know why.
+describe("plan requirement is distinguishable", () => {
+  const fetchMock = vi.fn();
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("reports plan_required on a 402", async () => {
+    fetchMock.mockResolvedValue({ status: 402, ok: false, json: async () => ({}) });
+    const a = await attemptProvingBranch("t", "prod-1");
+    expect(a.handle).toBeNull();
+    expect(a.failure).toBe("plan_required");
+  });
+
+  it("reports a generic failure on other errors", async () => {
+    fetchMock.mockResolvedValue({ status: 500, ok: false, json: async () => ({}) });
+    expect((await attemptProvingBranch("t", "prod-1")).failure).toBe("unavailable");
+  });
+
+  it("still fails closed if the API returns the production ref", async () => {
+    fetchMock.mockResolvedValue({ status: 200, ok: true, json: async () => ({ ref: "prod-1" }) });
+    const a = await attemptProvingBranch("t", "prod-1");
+    expect(a.handle).toBeNull();
+    expect(a.failure).toBe("unavailable");
   });
 });

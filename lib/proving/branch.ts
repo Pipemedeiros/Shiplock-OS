@@ -24,11 +24,35 @@ export interface BranchHandle {
  * `isEphemeralBranch` is ever set to true — a caller cannot construct one, which
  * is what makes the guard meaningful rather than advisory.
  */
+export type BranchFailure = "plan_required" | "unavailable";
+
+export interface BranchAttempt {
+  handle: BranchHandle | null;
+  failure?: BranchFailure;
+}
+
 export async function createProvingBranch(
   accessToken: string,
   productionRef: string,
   name = `shiplock-proving-${Date.now()}`
 ): Promise<BranchHandle | null> {
+  return (await attemptProvingBranch(accessToken, productionRef, name)).handle;
+}
+
+/**
+ * Like createProvingBranch, but distinguishes WHY it failed.
+ *
+ * Supabase Branching requires the customer's organisation to be on the Pro plan
+ * — verified against the live API, which returns 402 PaymentRequired on a free
+ * organisation. That is a permanent, actionable state, not a transient error,
+ * and collapsing it into a generic failure would leave a customer on the free
+ * plan with a feature that silently never runs and no way to know why.
+ */
+export async function attemptProvingBranch(
+  accessToken: string,
+  productionRef: string,
+  name = `shiplock-proving-${Date.now()}`
+): Promise<BranchAttempt> {
   try {
     const res = await fetch(`${API}/v1/projects/${encodeURIComponent(productionRef)}/branches`, {
       method: "POST",
@@ -36,30 +60,33 @@ export async function createProvingBranch(
       body: JSON.stringify({ branch_name: name }),
       signal: AbortSignal.timeout(60_000),
     });
-    if (!res.ok) return null;
+    if (res.status === 402) return { handle: null, failure: "plan_required" };
+    if (!res.ok) return { handle: null, failure: "unavailable" };
 
     const json = (await res.json()) as { ref?: unknown; id?: unknown };
     const ref = typeof json.ref === "string" ? json.ref : typeof json.id === "string" ? json.id : null;
-    if (!ref) return null;
+    if (!ref) return { handle: null, failure: "unavailable" };
 
     // The identity check the guard depends on. If the API ever returns the
     // parent's ref, we must not proceed — and we refuse here as well as in the
     // guard, because two independent refusals are what a boundary this
     // consequential deserves.
-    if (ref === productionRef) return null;
+    if (ref === productionRef) return { handle: null, failure: "unavailable" };
 
     return {
-      ref,
-      target: {
+      handle: {
         ref,
-        parentRef: productionRef,
-        isEphemeralBranch: true,
-        // Supabase branches copy schema, functions and config but NOT data.
-        containsProductionData: false,
+        target: {
+          ref,
+          parentRef: productionRef,
+          isEphemeralBranch: true,
+          // Supabase branches copy schema, functions and config but NOT data.
+          containsProductionData: false,
+        },
       },
     };
   } catch {
-    return null;
+    return { handle: null, failure: "unavailable" };
   }
 }
 

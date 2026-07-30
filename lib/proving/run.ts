@@ -1,5 +1,5 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { createProvingBranch, deleteProvingBranch, runOnBranch } from "./branch";
+import { attemptProvingBranch, deleteProvingBranch, runOnBranch } from "./branch";
 import { canProve, type CustomerAutonomySettings } from "./guard";
 import {
   buildProbeSql,
@@ -47,8 +47,19 @@ export async function runProvingGround(
   // to test nothing would be pure cost.
   if (targets.length === 0) return { ran: false, reason: "nothing_to_probe", findings: [], probed: 0 };
 
-  const handle = await createProvingBranch(accessToken, productionRef);
-  if (!handle) return { ran: false, reason: "branch_unavailable", findings: [], probed: 0 };
+  const attempt = await attemptProvingBranch(accessToken, productionRef);
+  const handle = attempt.handle;
+  if (!handle) {
+    // "plan_required" is permanent and actionable; "branch_unavailable" is
+    // transient. A customer on the free plan needs to be told which, or the
+    // feature silently never runs and they never learn why.
+    return {
+      ran: false,
+      reason: attempt.failure === "plan_required" ? "plan_required" : "branch_unavailable",
+      findings: [],
+      probed: 0,
+    };
+  }
 
   const findings: ProvenFinding[] = [];
   let probed = 0;
