@@ -11,6 +11,7 @@ import { GitHubPanel, type SourceFinding } from "@/components/d/GitHubPanel";
 import { VerifiedPanel } from "@/components/d/VerifiedPanel";
 import { FixesPanel } from "@/components/d/FixesPanel";
 import { McpPanel } from "@/components/d/McpPanel";
+import { TwoFactorSetup } from "@/components/d/TwoFactorSetup";
 import { AgentBrief } from "@/components/d/AgentBrief";
 import { Reveal } from "@/components/d/bits";
 import { GUARDRAILS } from "@/lib/guardrails";
@@ -229,6 +230,10 @@ export default function DashboardDemoPage() {
 
         <Reveal>
           <McpPanel initialTokens={[{ id: "1", name: "MCP token", created_at: iso(200), last_used_at: iso(5) }]} />
+        </Reveal>
+
+        <Reveal>
+          <TwoFactorSetup />
         </Reveal>
 
         <section style={{ marginTop: 40 }} aria-label="AI-agent brief">
