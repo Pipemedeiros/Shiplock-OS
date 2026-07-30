@@ -140,7 +140,7 @@ export function ConnectAndScanForm() {
           </div>
           <div className="dxd-field">
             <label htmlFor="dxd-app-url">
-              Your app&apos;s live URL — optional, but it makes the audit about your app
+              Your app&apos;s live URL — leave blank and we&apos;ll detect it
             </label>
             <input
               id="dxd-app-url"
@@ -153,11 +153,14 @@ export function ConnectAndScanForm() {
           </div>
           <p className="dxd-keynote">
             We only ever ask for your app&apos;s public key and, optionally, its public URL —
-            already public either way, not credentials. No repo access, no admin tokens, no
-            exceptions. Skip the URL and we still run 14 of 16 checks against your database; add
-            it and we also look at your <em>deployed app</em> for an exposed package.json or .env
-            the Supabase URL alone can&apos;t see. Either way we grade honestly: anything that&apos;s
-            just a Supabase platform default, we label as a note — never dress it up as a red alarm.
+            already public either way, not credentials. No admin tokens, no exceptions. The URL
+            lets us check your <em>deployed app</em> too, for things the Supabase URL alone
+            can&apos;t see: an exposed .env, source maps, or a key that ended up in the JavaScript
+            you serve. You don&apos;t have to type it — once you connect Supabase we read it from
+            your project&apos;s own auth settings, since Supabase already needs it to send
+            password-reset email. Fill it in only if you want us watching a different address than
+            the one configured there. Either way we report honestly: anything that&apos;s just a
+            Supabase platform default is labelled a note, never dressed up as a red alarm.
           </p>
           {error && (
             <p style={{ fontSize: 13, color: "var(--d-signal)", margin: "0 0 16px" }}>{error}</p>
@@ -230,9 +233,11 @@ export function ConnectAndScanForm() {
               )}
               {!result.appUrlChecked && (
                 <p style={{ margin: "6px 0 0", color: "var(--d-muted)", fontSize: 13.5, lineHeight: 1.6 }}>
-                  This scan didn&apos;t include your app&apos;s live URL, so 2 of 16 checks
-                  (exposed package.json, exposed .env) couldn&apos;t look at anything real. Add
-                  it on your next scan for full coverage.
+                  This scan didn&apos;t include your app&apos;s live URL, so the checks that look
+                  at your deployed app — exposed .env and package.json, source maps, keys in your
+                  shipped JavaScript, email spoofing — had nothing to examine. Connect Supabase and
+                  we&apos;ll pick the URL up from your project&apos;s auth settings automatically;
+                  the next scheduled pass then covers it with nothing else for you to do.
                 </p>
               )}
             </div>

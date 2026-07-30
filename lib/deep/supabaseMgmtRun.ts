@@ -14,6 +14,7 @@ import {
 } from "./supabaseMgmt";
 import { analyzePolicies, mapAdvisors, mergePolicyFindings } from "./policyScan";
 import { scanAuthConfig } from "./authConfigScan";
+import { deriveAppUrl } from "./deriveAppUrl";
 
 export interface PolicyScanOutcome {
   ok: boolean;
@@ -27,7 +28,7 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
   const { data: row } = await admin
     .from("user_profiles")
     .select(
-      "supabase_mgmt_token_encrypted, supabase_mgmt_refresh_encrypted, supabase_mgmt_expires_at, supabase_mgmt_project_ref"
+      "supabase_mgmt_token_encrypted, supabase_mgmt_refresh_encrypted, supabase_mgmt_expires_at, supabase_mgmt_project_ref, monitored_app_url"
     )
     .eq("id", userId)
     .maybeSingle();
@@ -77,6 +78,32 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
       // clean bill of health — a failed fetch must never look like a pass.
       ...scanAuthConfig(authConfig),
     ];
+
+    // Unit 5: work out the app URL instead of asking for it.
+    //
+    // The onboarding field for this was optional, so people skipped it, and
+    // skipping it silently disabled a whole surface — exposed paths, source
+    // maps, secrets in the shipped bundle, email authentication. That produced
+    // the worst possible state: a customer who believes they are fully monitored
+    // while a third of the product isn't running.
+    //
+    // Supabase already knows the answer, because it needs the same URL to send
+    // password-reset email. Only fills a BLANK value: a URL the customer typed
+    // themselves is deliberate and always wins.
+    if (!row.monitored_app_url) {
+      const derived = deriveAppUrl(authConfig);
+      if (derived) {
+        await admin
+          .from("user_profiles")
+          .update({ monitored_app_url: derived })
+          .eq("id", userId)
+          .then(
+            () => {},
+            () => {}
+          );
+        console.log(`[supabaseMgmt] derived app URL for ${userId}: ${derived}`);
+      }
+    }
   } catch (err) {
     console.error(
       "[supabaseMgmt] policy scan failed:",
