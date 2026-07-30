@@ -3,7 +3,8 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { runMonitoringPass } from "@/lib/monitoring";
 import { pruneOldTraffic } from "@/lib/traffic/prune";
 import { runPolicyScan } from "@/lib/deep/supabaseMgmtRun";
-import { runGraphReasoner } from "@/lib/graph/graphRun";
+import { runGraphReasoner, saveFacts } from "@/lib/graph/graphRun";
+import { collectTrafficFacts } from "@/lib/traffic/graphFacts";
 import { sendWeeklyDigest } from "@/lib/monitoring/digest";
 
 const FULL_SCAN_INTERVAL_MS = 48 * 60 * 60 * 1000;
@@ -104,6 +105,13 @@ export async function GET(req: NextRequest) {
   let pathsFound = 0;
   for (const profile of paidUsers ?? []) {
     try {
+      // Traffic facts are collected immediately before reasoning rather than on
+      // their own schedule: they are the one input that changes by the minute,
+      // and a stale "under attack" signal is worse than none — it would keep a
+      // path marked urgent long after the attack stopped.
+      const hotPaths = await collectTrafficFacts(profile.id);
+      if (hotPaths.length > 0) await saveFacts(profile.id, "traffic", { hotPaths });
+
       const result = await runGraphReasoner(profile.id);
       pathsFound += result.newCount;
     } catch (err) {
