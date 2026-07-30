@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const probeMock = vi.fn();
 const auditMock = vi.fn();
+const emailMock = vi.fn();
 const selectChainMock = vi.fn();
 const insertMock = vi.fn();
 const updateInMock = vi.fn();
@@ -9,6 +10,8 @@ const updateSpy = vi.fn();
 
 vi.mock("./exposedPaths", () => ({ probeExposedPaths: probeMock }));
 vi.mock("./bundleAudit", () => ({ auditShippedBundle: auditMock }));
+// Mocked so the suite never performs real DNS lookups.
+vi.mock("./emailAuth", () => ({ auditEmailAuth: emailMock, nodeTxtResolver: vi.fn() }));
 vi.mock("@/lib/supabase", () => ({
   getSupabaseAdmin: () => ({
     from: (table: string) => {
@@ -38,16 +41,34 @@ describe("runExposedPathScan", () => {
   beforeEach(() => {
     probeMock.mockReset().mockResolvedValue([]);
     auditMock.mockReset().mockResolvedValue([]);
+    emailMock.mockReset().mockResolvedValue([]);
     selectChainMock.mockReset().mockResolvedValue({ data: [] });
     insertMock.mockReset().mockResolvedValue({ data: null, error: null });
     updateInMock.mockReset().mockResolvedValue({ data: null, error: null });
     updateSpy.mockReset();
   });
 
-  it("runs both the path probes and the bundle audit against the app URL", async () => {
+  it("runs all three collectors against the app URL", async () => {
     await runExposedPathScan("u1", "https://app.example.com");
     expect(probeMock).toHaveBeenCalledWith("https://app.example.com");
     expect(auditMock).toHaveBeenCalledWith("https://app.example.com");
+    expect(emailMock).toHaveBeenCalledWith("https://app.example.com", expect.anything());
+  });
+
+  it("persists email-auth findings alongside the others", async () => {
+    emailMock.mockResolvedValue([finding("email_auth:dmarc_missing")]);
+    const result = await runExposedPathScan("u1", "https://app.example.com");
+    expect(result.newCount).toBe(1);
+    const rows = insertMock.mock.calls[0][0] as { finding_id: string }[];
+    expect(rows[0].finding_id).toBe("email_auth:dmarc_missing");
+  });
+
+  it("keeps the other two collectors' findings when the email audit throws", async () => {
+    emailMock.mockRejectedValue(new Error("ETIMEOUT"));
+    probeMock.mockResolvedValue([finding("exposed:git_exposed")]);
+    auditMock.mockResolvedValue([finding("bundle:shipped_secret:aws_access_key")]);
+    const result = await runExposedPathScan("u1", "https://app.example.com");
+    expect(result.newCount).toBe(2);
   });
 
   it("persists findings from both sources under one source label", async () => {

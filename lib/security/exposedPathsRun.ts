@@ -1,10 +1,12 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { probeExposedPaths, type ExposedFinding } from "./exposedPaths";
 import { auditShippedBundle } from "./bundleAudit";
+import { auditEmailAuth, nodeTxtResolver } from "./emailAuth";
 
 // Everything we can learn from the customer's app URL alone, in one pass:
 //  - exposed-path probes (.git, database dumps, credential files)
 //  - the shipped bundle audit (D6 source maps, D7 secrets in public JS)
+//  - email authentication on their domain (D12 SPF/DKIM/DMARC)
 // Both take the same single input and hit the same host, so they share a pass
 // and a source label. Findings persist into deep_findings (source='exposed-path')
 // and flow into the dashboard fix list, the agent brief, MCP, and the Verified
@@ -23,11 +25,12 @@ export async function runExposedPathScan(
 ): Promise<{ total: number; newCount: number; resolvedCount: number; newFindings: ExposedFinding[] }> {
   // Independent: a failure in one must not cost us the other's findings. Both
   // are already best-effort internally and resolve to [] on network trouble.
-  const [paths, bundle] = await Promise.all([
+  const [paths, bundle, email] = await Promise.all([
     probeExposedPaths(appUrl).catch(() => []),
     auditShippedBundle(appUrl).catch(() => []),
+    auditEmailAuth(appUrl, nodeTxtResolver).catch(() => []),
   ]);
-  const findings = [...paths, ...bundle];
+  const findings = [...paths, ...bundle, ...email];
 
   const admin = getSupabaseAdmin();
   const nowIso = new Date().toISOString();

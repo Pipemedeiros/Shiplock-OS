@@ -1,8 +1,9 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { getInstallationToken, listRepos, listTree, getFile, queryOsv } from "./github";
+import { getInstallationToken, listRepos, listTree, getFile, queryOsv, type Repo } from "./github";
 import { scanSecrets, scanTokenStorage, scanLoggedSecrets, extractDependencies, depFindings, type RepoFile, type GithubFinding } from "./githubScan";
 import { scanCodePatterns } from "./sourcePatterns";
 import { scanClientExposure } from "./clientExposure";
+import { checkRepoVisibility } from "./repoVisibility";
 
 // Full source scan for a connected GitHub App installation: read-only repo
 // contents -> committed secrets, token-storage anti-pattern, dependency CVEs
@@ -32,7 +33,8 @@ export function readPriority(path: string): number {
   return 2;
 }
 
-async function scanRepo(token: string, fullName: string, branch: string): Promise<GithubFinding[]> {
+async function scanRepo(token: string, repo: Repo): Promise<GithubFinding[]> {
+  const { fullName, defaultBranch: branch } = repo;
   const tree = await listTree(token, fullName, branch);
   const candidates = tree
     .filter((t) => t.size <= MAX_FILE_BYTES && CANDIDATE_RE.test(t.path))
@@ -72,6 +74,11 @@ async function scanRepo(token: string, fullName: string, branch: string): Promis
     }
   }
 
+  // C22 last, because it READS the findings above: a public repo is only a
+  // critical problem when we also found credentials in it. Runs before the id
+  // namespacing below so its secret-class matching sees the bare ids.
+  findings.push(...checkRepoVisibility(repo, findings));
+
   // Namespace finding ids by repo so the same issue in two repos stays distinct.
   return findings.map((f) => ({ ...f, id: `${fullName}::${f.id}` }));
 }
@@ -87,7 +94,7 @@ export async function runGithubScan(
   const all: GithubFinding[] = [];
   for (const repo of repos) {
     try {
-      all.push(...(await scanRepo(token, repo.fullName, repo.defaultBranch)));
+      all.push(...(await scanRepo(token, repo)));
     } catch {
       continue; // one bad repo shouldn't fail the pass
     }

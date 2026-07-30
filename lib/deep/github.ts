@@ -47,6 +47,14 @@ export async function getInstallationToken(installationId: string | number): Pro
 export interface Repo {
   fullName: string; // owner/name
   defaultBranch: string;
+  /**
+   * Whether GitHub reports the repo as private. `null` when the field is absent
+   * from the response — treated as unknown, never as public, so we can't invent
+   * a "your repo is public" alarm out of a missing field.
+   */
+  isPrivate: boolean | null;
+  /** GitHub's own label: "public" | "private" | "internal". Null if absent. */
+  visibility: string | null;
 }
 
 export async function listRepos(token: string): Promise<Repo[]> {
@@ -55,8 +63,20 @@ export async function listRepos(token: string): Promise<Repo[]> {
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   if (!res.ok) throw new Error(`GitHub list repos HTTP ${res.status}`);
-  const json = (await res.json()) as { repositories?: Array<{ full_name: string; default_branch: string }> };
-  return (json.repositories ?? []).map((r) => ({ fullName: r.full_name, defaultBranch: r.default_branch }));
+  const json = (await res.json()) as {
+    repositories?: Array<{
+      full_name: string;
+      default_branch: string;
+      private?: boolean;
+      visibility?: string;
+    }>;
+  };
+  return (json.repositories ?? []).map((r) => ({
+    fullName: r.full_name,
+    defaultBranch: r.default_branch,
+    isPrivate: typeof r.private === "boolean" ? r.private : null,
+    visibility: typeof r.visibility === "string" ? r.visibility : null,
+  }));
 }
 
 export interface TreeEntry { path: string; size: number }
