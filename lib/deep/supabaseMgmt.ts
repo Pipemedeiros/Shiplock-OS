@@ -15,6 +15,7 @@
 import { decrypt } from "@/lib/crypto";
 import type { PgPolicy, SupabaseAdvisor } from "./policyScan";
 import { GRANT_INVENTORY_SQL } from "./grantScan";
+import { EXTENSION_SQL, NETWORK_GRANT_SQL, CRON_JOB_SQL, FDW_SQL } from "./extensionScan";
 
 const API = "https://api.supabase.com";
 const AUTHORIZE_URL = `${API}/v1/oauth/authorize`;
@@ -402,4 +403,39 @@ export async function fetchColumnGrants(
     // Unknown is not a finding.
     return [];
   }
+}
+
+/**
+ * A8/A15/A16/A17 — what the database can reach.
+ *
+ * Each query is independent and best-effort: cron.job does not exist unless
+ * pg_cron is installed, and a failure there must not cost us the others. A
+ * missing result is left UNDEFINED rather than empty, so the analyzer can tell
+ * "we looked and found none" apart from "we could not look".
+ */
+export async function fetchDatabaseCapabilities(
+  accessToken: string,
+  projectRef: string
+): Promise<{
+  extensions?: { name: string; schema: string }[];
+  networkGrants?: { schema: string; name: string; grantee: string }[];
+  cronJobs?: { name: string | null; schedule: string; runs_as: string; command: string }[];
+  foreignServers?: { server: string; wrapper: string }[];
+}> {
+  const attempt = async <T>(sql: string): Promise<T[] | undefined> => {
+    try {
+      return await runReadQuery<T>(accessToken, projectRef, sql);
+    } catch {
+      return undefined;
+    }
+  };
+
+  const [extensions, networkGrants, cronJobs, foreignServers] = await Promise.all([
+    attempt<{ name: string; schema: string }>(EXTENSION_SQL),
+    attempt<{ schema: string; name: string; grantee: string }>(NETWORK_GRANT_SQL),
+    attempt<{ name: string | null; schedule: string; runs_as: string; command: string }>(CRON_JOB_SQL),
+    attempt<{ server: string; wrapper: string }>(FDW_SQL),
+  ]);
+
+  return { extensions, networkGrants, cronJobs, foreignServers };
 }

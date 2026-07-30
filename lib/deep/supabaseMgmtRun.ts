@@ -15,11 +15,13 @@ import {
   fetchRowCounts,
   fetchAuthAuditLog,
   fetchColumnGrants,
+  fetchDatabaseCapabilities,
 } from "./supabaseMgmt";
 import { analyzePolicies, mapAdvisors, mergePolicyFindings } from "./policyScan";
 import { scanAuthConfig } from "./authConfigScan";
 import { scanAuthPolicy } from "./authPolicyScan";
 import { analyzeGrants } from "./grantScan";
+import { scanExtensions } from "./extensionScan";
 import { deriveAppUrl } from "./deriveAppUrl";
 import { saveFacts } from "@/lib/graph/graphRun";
 import { buildInventory } from "@/lib/exposure/model";
@@ -94,6 +96,8 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
       ...scanAuthPolicy(authConfig),
       // A5 — column grants to anon/authenticated. The bug we shipped ourselves.
       ...analyzeGrants(await fetchColumnGrants(token.accessToken, projectRef)),
+      // A8/A15/A16/A17 — what the database itself can reach.
+      ...scanExtensions(await fetchDatabaseCapabilities(token.accessToken, projectRef)),
     ];
 
     // Feed the graph's database collector with the raw facts, not our verdicts.
