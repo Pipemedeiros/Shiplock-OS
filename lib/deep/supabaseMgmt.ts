@@ -14,6 +14,7 @@
 
 import { decrypt } from "@/lib/crypto";
 import type { PgPolicy, SupabaseAdvisor } from "./policyScan";
+import { GRANT_INVENTORY_SQL } from "./grantScan";
 
 const API = "https://api.supabase.com";
 const AUTHORIZE_URL = `${API}/v1/oauth/authorize`;
@@ -375,6 +376,30 @@ export async function fetchAuthAuditLog(
     const rows = Array.isArray(json) ? json : (json?.result ?? json?.data ?? []);
     return Array.isArray(rows) ? (rows as Record<string, unknown>[]) : [];
   } catch {
+    return [];
+  }
+}
+
+/** A5 — column grants held by the roles a browser can reach. */
+export async function fetchColumnGrants(
+  accessToken: string,
+  projectRef: string
+): Promise<{ grantee: string; table: string; column: string; privilege: string }[]> {
+  try {
+    const rows = await runReadQuery<{
+      grantee: string;
+      table_name: string;
+      column_name: string;
+      privilege_type: string;
+    }>(accessToken, projectRef, GRANT_INVENTORY_SQL);
+    return rows.map((r) => ({
+      grantee: r.grantee,
+      table: r.table_name,
+      column: r.column_name,
+      privilege: r.privilege_type,
+    }));
+  } catch {
+    // Unknown is not a finding.
     return [];
   }
 }

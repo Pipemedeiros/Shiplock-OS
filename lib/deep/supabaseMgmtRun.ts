@@ -14,10 +14,12 @@ import {
   fetchSchemaColumns,
   fetchRowCounts,
   fetchAuthAuditLog,
+  fetchColumnGrants,
 } from "./supabaseMgmt";
 import { analyzePolicies, mapAdvisors, mergePolicyFindings } from "./policyScan";
 import { scanAuthConfig } from "./authConfigScan";
 import { scanAuthPolicy } from "./authPolicyScan";
+import { analyzeGrants } from "./grantScan";
 import { deriveAppUrl } from "./deriveAppUrl";
 import { saveFacts } from "@/lib/graph/graphRun";
 import { buildInventory } from "@/lib/exposure/model";
@@ -90,6 +92,8 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
       ...scanAuthConfig(authConfig),
       // B1/B2/B4/B5/B11 — same config object, no extra request.
       ...scanAuthPolicy(authConfig),
+      // A5 — column grants to anon/authenticated. The bug we shipped ourselves.
+      ...analyzeGrants(await fetchColumnGrants(token.accessToken, projectRef)),
     ];
 
     // Feed the graph's database collector with the raw facts, not our verdicts.

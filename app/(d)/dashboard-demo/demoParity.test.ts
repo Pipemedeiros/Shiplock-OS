@@ -39,6 +39,13 @@ const EXEMPT: Record<string, string> = {
   UpgradeButton: "starts a real checkout",
   ConnectAndScanForm: "runs a real scan against a real project",
   SupabasePanel: "starts a real OAuth flow",
+  // The real Settings page mounts this ONLY behind isBetterAuthConfigured().
+  // Rendering it unconditionally in the preview 500s the page, because the
+  // Better Auth client is constructed at module scope and the env vars are not
+  // set — which is exactly what happened when this guard first flagged it and
+  // the panel was added instead of exempted. A preview that always shows a
+  // conditionally-mounted panel would also misrepresent the product.
+  TwoFactorSetup: "the real Settings tab mounts it only when Better Auth is configured",
 };
 
 function componentImports(file: string): string[] {
