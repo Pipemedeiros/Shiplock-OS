@@ -228,3 +228,16 @@ describe("runtime findings", () => {
     }
   });
 });
+
+describe("proven findings", () => {
+  it("routes a proven tenant-isolation failure to a migration PR", () => {
+    const l = fixLane({
+      id: "proven:tenant_isolation:public.invoices",
+      source: "proven" as const,
+      title: "t",
+      severity: "CRITICAL" as const,
+      fix: "x",
+    });
+    expect(l.method).toBe("migration-pr");
+  });
+});

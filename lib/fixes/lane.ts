@@ -21,7 +21,8 @@ export type FindingSource =
   | "dns" // email authentication records
   | "auth-config" // Supabase auth URL configuration
   | "graph" // a correlated attack path spanning several collectors
-  | "runtime"; // a live attack observed in the auth audit log
+  | "runtime" // a live attack observed in the auth audit log
+  | "proven"; // demonstrated in a sandboxed replica, not inferred
 
 export interface FixableFinding {
   id: string; // finding_id (deep) or a stable scan-issue key
@@ -147,6 +148,10 @@ export function fixLane(f: FixableFinding): FixLane {
   // ── A newly-published CVE in an existing dependency is still a dependency
   // bump: same automated, non-editable lane as github:dep. ──
   if (id.startsWith("github:dep:") || /^zero-?day:/.test(id)) return lane("dep-pr", "Open fix PR", false);
+
+  // ── A proven tenant-isolation failure has a specific, known fix: a policy
+  // comparing the owner column to auth.uid(). Migration PR. ──
+  if (id.startsWith("proven:")) return lane("migration-pr", "Open migration PR", true);
 
   // ── A live attack is not a code defect. There is no PR that makes it stop;
   // the actions are operational (reset a session, enable rate limiting, require
