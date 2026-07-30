@@ -4,6 +4,7 @@ import { OAuthButtons } from "@/components/marketing/oauth-buttons";
 import { ProximityText, Reveal, RevealList, ShinyText, SpotlightCard } from "@/components/d/bits";
 import { Seal } from "@/components/d/Seal";
 import { LockMark } from "@/components/d/Brand";
+import { ProvingAnimation } from "@/components/d/ProvingAnimation";
 import { TrafficDefense } from "@/components/d/TrafficDefense";
 import { RiskHonesty } from "@/components/d/RiskHonesty";
 import { FixFlow } from "@/components/d/FixFlow";
@@ -137,8 +138,9 @@ export default function LandingPage() {
             <div className="dxd-nav-links">
               <a href="#watch">The watch</a>
               <a href="#fixes">Fixes</a>
-              <Link href="/owasp">Coverage</Link>
-              <Link href="/incidents">Real incidents</Link>
+              <Link href="/coverage">Scope</Link>
+              <Link href="/owasp">OWASP</Link>
+              <Link href="/incidents">Incidents</Link>
               <a href="#pricing">Pricing</a>
               <Link href="/auth" className="dxd-btn dxd-btn-ghost">
                 Sign in
@@ -337,6 +339,42 @@ export default function LandingPage() {
           </Reveal>
         </section>
 
+        {/* ── 3b · Sandboxed exploitation ─────────────────────────────── */}
+        <section className="dxd-section" id="proving">
+          <Reveal>
+            <p className="dxd-eyebrow">Proof, not inference</p>
+            <h2 className="dxd-h2">We exploit a copy of your schema, never your app.</h2>
+            <p className="dxd-lede">
+              Reading a policy tells you what it should do. Running against it tells you what it
+              does. For tenant isolation — the failure where one signed-in customer reaches
+              another&apos;s rows — we settle the question by trying it, inside an environment
+              built for the purpose and destroyed afterwards.
+            </p>
+          </Reveal>
+
+          <Reveal>
+            <ProvingAnimation />
+          </Reveal>
+
+          <Reveal>
+            <p className="dxd-lede" style={{ marginTop: 22 }}>
+              The arena holds your schema and policies and none of your data. The accounts in it
+              are synthetic, so there is no row belonging to a real person for anything to reach.
+              A control query runs first: if the arena cannot return the caller&apos;s own row,
+              the result is discarded rather than reported as clean — a broken sandbox that says
+              &ldquo;no leak&rdquo; is worse than no sandbox at all.
+            </p>
+            <p className="dxd-lede" style={{ marginTop: 14 }}>
+              Where the fixed probe finds nothing, a reasoning agent proposes further queries.
+              It contributes ideas, never authority: every statement it composes is checked by a
+              deterministic guard that permits read-only queries inside the disposable schema and
+              refuses everything else, and each attempt — including the refused ones — is kept as
+              evidence. We never point it at anything you operate.{" "}
+              <Link href="/coverage">The full scope, including where each capability stops →</Link>
+            </p>
+          </Reveal>
+        </section>
+
         {/* ── 4 · Fixes ───────────────────────────────────────────────── */}
         <section className="dxd-section" id="fixes">
           <Reveal>
@@ -487,7 +525,8 @@ export default function LandingPage() {
             ShipLock<span style={{ color: "var(--d-bronze)" }}>.</span> On retainer since today.
           </span>
           <span>
-            <Link href="/owasp">Coverage</Link> · <Link href="/incidents">Real incidents</Link> ·{" "}
+            <Link href="/coverage">Scope</Link> · <Link href="/owasp">OWASP</Link> ·{" "}
+            <Link href="/incidents">Incidents</Link> · <Link href="/accessibility">Accessibility</Link> ·{" "}
             <Link href="/terms">Terms</Link> · <Link href="/privacy">Privacy</Link> ·{" "}
             <Link href="/dashboard-demo">Product preview →</Link> · support@shiplock.dev
           </span>
