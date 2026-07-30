@@ -3,6 +3,8 @@ import { getLatestScan } from "@/lib/scanHistory";
 import { slug } from "./content";
 import type { FixableFinding, FindingSource } from "./lane";
 import type { FullIssue, Severity } from "@/lib/types";
+import { loadReachabilityIndex } from "@/lib/graph/graphRun";
+import { triageByReachability } from "@/lib/graph/reachability";
 
 // Single source of truth for the open, fixable findings of a user — scan
 // findings (full_issues, paid-gated content) + deep findings (GitHub source,
@@ -49,5 +51,19 @@ export async function getFixFindings(userId: string): Promise<FixableFinding[]> 
     out.push({ id: d.finding_id, source: src, title: d.title, severity: d.severity, fix: d.consequence });
   }
 
-  return out;
+  // C6 reachability triage. Reorders by severity ADJUSTED for whether the
+  // vulnerable code is actually reachable, so a live WARNING outranks a CRITICAL
+  // that exists only in a build script.
+  //
+  // Nothing is ever removed — triageByReachability returns exactly what it was
+  // given — and if the source collector has not run, every verdict is `unknown`
+  // and the original severity ordering stands. Fail-soft: a triage failure must
+  // never cost the customer their finding list.
+  try {
+    const index = await loadReachabilityIndex(userId);
+    return triageByReachability(out, index).map((t) => t.finding);
+  } catch (err) {
+    console.error("[findings] reachability triage failed:", err instanceof Error ? err.message : err);
+    return out;
+  }
 }

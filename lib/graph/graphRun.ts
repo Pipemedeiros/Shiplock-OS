@@ -2,6 +2,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { findAttackPaths } from "./attackPaths";
 import type { GraphInput } from "./graph";
 import type { RouteFact } from "./routeInventory";
+import type { ReachabilityIndex } from "./reachability";
 
 // Persistence and execution for the reasoner.
 //
@@ -15,6 +16,13 @@ export type Collector = "source" | "db" | "traffic";
 
 export interface SourceFacts {
   routes: RouteFact[];
+  /**
+   * Files reachable from an entry point, computed at scan time because that is
+   * the only moment the repo contents are in memory. Storing the verdict rather
+   * than the corpus keeps this to a few hundred strings instead of megabytes.
+   */
+  liveFiles?: string[];
+  hasEntryPoints?: boolean;
 }
 
 export interface DbFacts {
@@ -162,4 +170,35 @@ export async function runGraphReasoner(
   }
 
   return { total: paths.length, newCount: fresh.length, resolvedCount: resolved.length };
+}
+
+/**
+ * Rebuilds the reachability index from stored facts, for use at read time.
+ *
+ * `hasEntryPoints` is false whenever the source collector has not run or found
+ * nothing, which makes every verdict `unknown` — the safeguard that stops an
+ * empty index from demoting a customer's entire finding list at once.
+ */
+export async function loadReachabilityIndex(userId: string): Promise<ReachabilityIndex> {
+  const input = await loadGraphInput(userId);
+  const { data } = await getSupabaseAdmin()
+    .from("graph_facts")
+    .select("facts")
+    .eq("user_id", userId)
+    .eq("collector", "source")
+    .maybeSingle();
+
+  const facts = (data?.facts ?? {}) as SourceFacts;
+  const exposedTables = new Set<string>();
+  for (const route of input.routes ?? []) {
+    for (const table of route.tables) {
+      exposedTables.add(table.startsWith("rpc:") ? table : table.replace(/^public\./, ""));
+    }
+  }
+
+  return {
+    liveFiles: new Set(facts.liveFiles ?? []),
+    hasEntryPoints: facts.hasEntryPoints === true,
+    exposedTables,
+  };
 }
