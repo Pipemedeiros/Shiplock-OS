@@ -11,10 +11,20 @@ import {
   fetchPolicies,
   fetchAdvisors,
   fetchAuthConfig,
+  fetchSchemaColumns,
+  fetchRowCounts,
+  fetchAuthAuditLog,
 } from "./supabaseMgmt";
 import { analyzePolicies, mapAdvisors, mergePolicyFindings } from "./policyScan";
 import { scanAuthConfig } from "./authConfigScan";
 import { deriveAppUrl } from "./deriveAppUrl";
+import { saveFacts } from "@/lib/graph/graphRun";
+import { buildInventory } from "@/lib/exposure/model";
+import { runAuthLogScan } from "@/lib/runtime/authRun";
+import { runProvingGround } from "@/lib/proving/run";
+import { findAttackPaths } from "@/lib/graph/attackPaths";
+import { loadGraphInput } from "@/lib/graph/graphRun";
+import { buildTableFacts } from "@/lib/graph/graph";
 
 export interface PolicyScanOutcome {
   ok: boolean;
@@ -78,6 +88,109 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
       // clean bill of health — a failed fetch must never look like a pass.
       ...scanAuthConfig(authConfig),
     ];
+
+    // Feed the graph's database collector with the raw facts, not our verdicts.
+    // The reasoner combines them with route facts to produce paths neither
+    // source can see alone.
+    await saveFacts(userId, "db", { policies, advisors, authConfig }, { merge: true });
+
+    // A21 exposure inventory. SCHEMA ONLY — column names and row counts, never
+    // a value. Best-effort: a project we cannot enumerate simply has no
+    // inventory, which the model reports as "we don't know" rather than zero.
+    try {
+      const columns = await fetchSchemaColumns(token.accessToken, projectRef);
+      const tables = [...new Set(columns.map((c) => c.table))];
+      const rowCounts = await fetchRowCounts(token.accessToken, projectRef, tables);
+      await saveFacts(
+        userId,
+        "db",
+        { inventory: buildInventory(columns, rowCounts) },
+        { merge: true }
+      );
+    } catch (err) {
+      console.error(
+        "[supabaseMgmt] schema inventory failed:",
+        err instanceof Error ? err.message : err
+      );
+    }
+
+    // The proving ground. Inert unless the customer opted in AND the kill switch
+    // is off — both default off in migration 040, so this changes nothing for
+    // anyone until they ask for it. Wired here because this is the only place
+    // holding a Management API token and the project ref together.
+    //
+    // What it probes comes from the reasoner: the graph decides WHAT to test,
+    // the proving ground decides whether it is TRUE.
+    try {
+      const { data: settingsRow } = await admin
+        .from("user_profiles")
+        .select("proving_ground_enabled, autonomy_kill_switch")
+        .eq("id", userId)
+        .maybeSingle();
+
+      const settings = {
+        provingGroundEnabled: settingsRow?.proving_ground_enabled === true,
+        killSwitchOn: settingsRow?.autonomy_kill_switch === true,
+      };
+
+      if (settings.provingGroundEnabled && !settings.killSwitchOn) {
+        // Uses the FULL graph input, not just the facts collected in this pass.
+        // Attack paths need a route -> table edge, and routes come from the
+        // source collector on a different trigger — so building paths from
+        // policies and advisors alone yields zero targets and the proving ground
+        // would silently never probe anything.
+        const graphInput = await loadGraphInput(userId);
+        const suspected = new Set(
+          findAttackPaths({ ...graphInput, policies, advisors })
+            .filter((p) => p.id.includes("tenant_isolation") || p.id.includes("anon_read"))
+            .map((p) => p.id.split(":").pop() ?? "")
+            .filter(Boolean)
+        );
+
+        // Fallback that makes this useful without GitHub connected: a policy
+        // that filters nothing is worth PROVING whether or not we can see a
+        // route reaching it, because anything holding the anon key can use it
+        // directly. Without this the proving ground would be dead for every
+        // customer who connected only Supabase.
+        for (const t of buildTableFacts({ policies, advisors }).values()) {
+          if (t.permissivePolicy || t.rlsEnabled === false) suspected.add(t.qualified);
+        }
+
+        const schema = new Map<string, string[]>();
+        for (const c of await fetchSchemaColumns(token.accessToken, projectRef)) {
+          schema.set(c.table, [...(schema.get(c.table) ?? []), c.column]);
+        }
+
+        const result = await runProvingGround(
+          userId,
+          token.accessToken,
+          projectRef,
+          settings,
+          [...suspected],
+          schema
+        );
+        if (result.ran) {
+          await admin
+            .from("user_profiles")
+            .update({ last_proving_run_at: new Date().toISOString() })
+            .eq("id", userId);
+        }
+      }
+    } catch (err) {
+      console.error(
+        "[supabaseMgmt] proving ground failed:",
+        err instanceof Error ? err.message : err
+      );
+    }
+
+    // E5-E7 runtime detection from the auth audit log. Zero friction: this
+    // needs no snippet installed, only the Supabase connection they already
+    // made. Best-effort — the log endpoint is experimental.
+    try {
+      await runAuthLogScan(userId, await fetchAuthAuditLog(token.accessToken, projectRef));
+    } catch (err) {
+      console.error("[supabaseMgmt] auth log scan failed:", err instanceof Error ? err.message : err);
+    }
 
     // Unit 5: work out the app URL instead of asking for it.
     //

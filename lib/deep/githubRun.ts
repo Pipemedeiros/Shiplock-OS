@@ -4,6 +4,10 @@ import { scanSecrets, scanTokenStorage, scanLoggedSecrets, extractDependencies, 
 import { scanCodePatterns } from "./sourcePatterns";
 import { scanClientExposure } from "./clientExposure";
 import { checkRepoVisibility } from "./repoVisibility";
+import { collectRoutes } from "@/lib/graph/routeInventory";
+import { buildReachabilityIndex } from "@/lib/graph/reachability";
+import { saveFacts } from "@/lib/graph/graphRun";
+import type { RouteFact } from "@/lib/graph/routeInventory";
 
 // Full source scan for a connected GitHub App installation: read-only repo
 // contents -> committed secrets, token-storage anti-pattern, dependency CVEs
@@ -33,7 +37,13 @@ export function readPriority(path: string): number {
   return 2;
 }
 
-async function scanRepo(token: string, repo: Repo): Promise<GithubFinding[]> {
+async function scanRepo(
+  token: string,
+  repo: Repo,
+  routeSink?: RouteFact[],
+  liveFileSink?: Set<string>,
+  depSink?: Map<string, string>
+): Promise<GithubFinding[]> {
   const { fullName, defaultBranch: branch } = repo;
   const tree = await listTree(token, fullName, branch);
   const candidates = tree
@@ -67,10 +77,25 @@ async function scanRepo(token: string, repo: Repo): Promise<GithubFinding[]> {
 
   if (packageJson) {
     const deps = extractDependencies(packageJson, packageLock);
+    // Kept for the scheduled CVE re-check (F1), which must work without a push.
+    if (depSink) for (const d of deps) depSink.set(d.name, d.version);
     try {
       findings.push(...depFindings(await queryOsv(deps)));
     } catch {
       /* OSV unavailable — skip dep findings for this repo, keep the rest */
+    }
+  }
+
+  // Feed the graph's source collector. Routes are facts, not findings — they
+  // go to graph_facts, never to deep_findings.
+  if (routeSink) {
+    const routes = collectRoutes(files);
+    routeSink.push(...routes);
+    // C6: which files this repo actually reaches from an entry point. Computed
+    // here because this is the only point the repo contents exist in memory.
+    if (liveFileSink) {
+      const index = buildReachabilityIndex({ files, routes });
+      if (index.hasEntryPoints) for (const f of index.liveFiles) liveFileSink.add(f);
     }
   }
 
@@ -96,13 +121,30 @@ export async function runGithubScan(
   // a repo that threw produced ZERO findings, and treating that as "everything in
   // it is fixed" would silently close real open issues.
   const scannedRepos: string[] = [];
+  const routes: RouteFact[] = [];
+  const liveFiles = new Set<string>();
+  const deps = new Map<string, string>();
   for (const repo of repos) {
     try {
-      all.push(...(await scanRepo(token, repo)));
+      all.push(...(await scanRepo(token, repo, routes, liveFiles, deps)));
       scannedRepos.push(repo.fullName);
     } catch {
       continue; // one bad repo shouldn't fail the pass
     }
+  }
+
+  // Only record routes when at least one repo was actually read. Saving an
+  // empty inventory after a failed pass would tell the reasoner the customer has
+  // no API at all, silently closing every path that runs through one.
+  if (scannedRepos.length > 0) {
+    await saveFacts(userId, "source", {
+      routes,
+      liveFiles: [...liveFiles],
+      // False when no repo yielded an entry point, which makes every
+      // reachability verdict `unknown` rather than demoting everything at once.
+      hasEntryPoints: liveFiles.size > 0,
+      dependencies: [...deps].map(([name, version]) => ({ name, version })),
+    });
   }
 
   const { data: existing } = await admin

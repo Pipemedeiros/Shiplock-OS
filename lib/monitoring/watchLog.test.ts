@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { annotateWatchLog } from "./watchLog";
 import type { Finding } from "./findings";
 
-const finding = (id: string, severity: Finding["severity"] = "HIGH"): Finding => ({
+const finding = (id: string, severity: Finding["severity"] = "WARNING"): Finding => ({
   id,
   severity,
   title: id,

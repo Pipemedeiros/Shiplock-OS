@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { assertReadOnly } from "./supabaseMgmt";
+import { assertReadOnly, buildRowCountSql, quoteIdent } from "./supabaseMgmt";
 
 // The guard that keeps CLAUDE.md's non-negotiable true: ShipLock never writes a
 // customer's production database. The Management API query endpoint would
@@ -48,5 +48,37 @@ describe("assertReadOnly", () => {
 
   it("is case-insensitive", () => {
     expect(() => assertReadOnly("dRoP TaBlE users")).toThrow();
+  });
+});
+
+describe("schema inventory SQL", () => {
+  it("builds a single UNION ALL statement", () => {
+    const sql = buildRowCountSql(["profiles", "payments"])!;
+    expect(sql).toContain("union all");
+    expect(sql.split(";").length).toBe(1);
+  });
+
+  // The transport's guarantee only holds if what we hand it is a single SELECT.
+  it("passes its own read-only guard", () => {
+    expect(() => assertReadOnly(buildRowCountSql(["profiles"])!)).not.toThrow();
+  });
+
+  it("refuses table names that are not plain identifiers", () => {
+    expect(buildRowCountSql(['users"; drop table x; --'])).toBeNull();
+    expect(buildRowCountSql(["a b"])).toBeNull();
+  });
+
+  it("keeps the valid tables when one is rejected", () => {
+    const sql = buildRowCountSql(["profiles", "bad name"])!;
+    expect(sql).toContain("profiles");
+    expect(sql).not.toContain("bad name");
+  });
+
+  it("returns null for no usable tables", () => {
+    expect(buildRowCountSql([])).toBeNull();
+  });
+
+  it("quotes identifiers", () => {
+    expect(quoteIdent("profiles")).toBe('"profiles"');
   });
 });

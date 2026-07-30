@@ -115,7 +115,9 @@ describe("extractDependencies", () => {
 
 describe("depFindings", () => {
   it("builds one finding per vuln with a stable id", () => {
-    const vulns: OsvVuln[] = [{ id: "GHSA-xxxx", cveId: "CVE-2025-0001", summary: "RCE.", severity: "CRITICAL" }];
+    const vulns: OsvVuln[] = [
+      { id: "GHSA-xxxx", cveId: "CVE-2025-0001", summary: "RCE.", severity: "CRITICAL", fixedVersion: "1.0.1" },
+    ];
     const f = depFindings([{ dep: { name: "left-pad", version: "1.0.0" }, vulns }]);
     expect(f).toHaveLength(1);
     expect(f[0].id).toBe("github:dep:left-pad:GHSA-xxxx");

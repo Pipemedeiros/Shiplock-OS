@@ -257,3 +257,124 @@ export async function fetchAuthConfig(
     return null;
   }
 }
+
+// ── Schema inventory for the exposure model (A21) ──────────────────────────
+//
+// SCHEMA ONLY. These two queries return column NAMES and row COUNTS. They never
+// select a column's contents, and they must never be extended to — "ShipLock
+// never reads your users' data" is a customer-facing promise, and this is the
+// exact place it would be broken for a marginal accuracy gain.
+
+export interface SchemaColumn {
+  table: string;
+  column: string;
+}
+
+export async function fetchSchemaColumns(
+  accessToken: string,
+  projectRef: string
+): Promise<SchemaColumn[]> {
+  const rows = await runReadQuery<{ table_name: string; column_name: string }>(
+    accessToken,
+    projectRef,
+    `select table_name, column_name from information_schema.columns
+     where table_schema = 'public'
+     order by table_name, ordinal_position`
+  );
+  return rows.map((r) => ({ table: r.table_name, column: r.column_name }));
+}
+
+/** Postgres identifier quoting, so an odd table name cannot break out. */
+export function quoteIdent(name: string): string {
+  return `"${name.replace(/"/g, '""')}"`;
+}
+
+/**
+ * Builds one UNION ALL statement counting every named table.
+ *
+ * EXACT counts, deliberately. pg_stat_user_tables.n_live_tup would be cheaper
+ * but it is a statistics ESTIMATE, and §13.5 guardrail 6 forbids estimated row
+ * counts in the exposure model — a plausible-looking number built on a guess is
+ * exactly the failure this feature cannot afford.
+ *
+ * Exported for tests: the escaping and the single-statement shape are what keep
+ * this inside assertReadOnly's guarantees.
+ */
+export function buildRowCountSql(tables: string[]): string | null {
+  const safe = tables.filter((t) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(t));
+  if (safe.length === 0) return null;
+  return safe
+    .map((t) => `select '${t}' as table_name, count(*)::bigint as n from public.${quoteIdent(t)}`)
+    .join(" union all ");
+}
+
+export async function fetchRowCounts(
+  accessToken: string,
+  projectRef: string,
+  tables: string[]
+): Promise<Map<string, number>> {
+  const sql = buildRowCountSql(tables);
+  if (!sql) return new Map();
+  try {
+    const rows = await runReadQuery<{ table_name: string; n: number | string }>(
+      accessToken,
+      projectRef,
+      sql
+    );
+    const out = new Map<string, number>();
+    for (const r of rows) {
+      const n = typeof r.n === "string" ? Number.parseInt(r.n, 10) : r.n;
+      if (Number.isFinite(n)) out.set(r.table_name, n);
+    }
+    return out;
+  } catch {
+    // Counting can fail on a large or busy database. An absent count means the
+    // exposure model reports no number for that table, which is correct.
+    return new Map();
+  }
+}
+
+// ── Auth audit log (E5-E7) ─────────────────────────────────────────────────
+//
+// Supabase's log endpoint is EXPERIMENTAL: the path, the query shape and the
+// field names have all moved between versions, and we cannot verify this against
+// a live project until a customer connects one. So it is written to fail into
+// silence rather than into a wrong answer — an unrecognised response yields no
+// events, which yields no findings, which is the correct behaviour for "we could
+// not look". lib/runtime/authEvents.ts normalises whatever shape does come back.
+//
+// The alternative — inventing findings from a response we half-understood — is
+// the failure this codebase has produced repeatedly and is explicitly guarded
+// against here.
+
+const AUTH_LOG_HOURS = 24; // the endpoint's documented maximum range
+
+export async function fetchAuthAuditLog(
+  accessToken: string,
+  projectRef: string
+): Promise<Record<string, unknown>[]> {
+  const iso = (d: Date) => d.toISOString();
+  const end = new Date();
+  const start = new Date(end.getTime() - AUTH_LOG_HOURS * 60 * 60 * 1000);
+
+  const url =
+    `${API}/v1/projects/${encodeURIComponent(projectRef)}/analytics/endpoints/logs.all` +
+    `?iso_timestamp_start=${encodeURIComponent(iso(start))}` +
+    `&iso_timestamp_end=${encodeURIComponent(iso(end))}` +
+    `&sql=${encodeURIComponent(
+      "select id, timestamp, event_message, metadata from auth_logs order by timestamp desc limit 1000"
+    )}`;
+
+  try {
+    const res = await fetch(url, {
+      headers: { authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) return [];
+    const json = await res.json();
+    const rows = Array.isArray(json) ? json : (json?.result ?? json?.data ?? []);
+    return Array.isArray(rows) ? (rows as Record<string, unknown>[]) : [];
+  } catch {
+    return [];
+  }
+}

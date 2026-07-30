@@ -176,3 +176,68 @@ describe("repo namespace stripping — the rules must match REAL ids", () => {
     expect(fixLane(f("acme/app::github:dep:lodash"))).toEqual(fixLane(f("github:dep:lodash")));
   });
 });
+
+describe("attack paths", () => {
+  const f = (id: string) => ({
+    id,
+    source: "graph" as const,
+    title: "t",
+    severity: "CRITICAL" as const,
+    fix: "x",
+  });
+
+  // A path breaks if ANY step is fixed, so there is no single artefact to
+  // generate. Forcing one PR would pick a step arbitrarily and hide the choice.
+  it("routes an attack path to a draft PR, keeping the choice of step with the human", () => {
+    const l = fixLane(f("path:tenant_isolation:/api/invoices:public.invoices"));
+    expect(l.method).toBe("draft-pr");
+    expect(l.editable).toBe(true);
+  });
+
+  it("routes every path variant the same way", () => {
+    for (const id of [
+      "path:anon_read:/api/x:public.t",
+      "path:service_role_unscoped:/api/x:public.t",
+      "path:anon_sensitive_unknown:/api/x:public.t",
+    ]) {
+      expect(fixLane(f(id)).method, id).toBe("draft-pr");
+    }
+  });
+});
+
+describe("runtime findings", () => {
+  const f = (id: string) => ({
+    id,
+    source: "runtime" as const,
+    title: "t",
+    severity: "CRITICAL" as const,
+    fix: "x",
+  });
+
+  // A live attack is not a code defect — no diff makes it stop.
+  it("routes a live attack to auth settings, not a PR", () => {
+    for (const id of [
+      "runtime:credential_stuffing:src-a",
+      "runtime:takeover_sequence:user1",
+      "runtime:brute_force:user1",
+      "runtime:signup_burst:src-a",
+    ]) {
+      const l = fixLane(f(id));
+      expect(l.method, id).toBe("deep-link");
+      expect(l.external).toBe("supabase");
+    }
+  });
+});
+
+describe("proven findings", () => {
+  it("routes a proven tenant-isolation failure to a migration PR", () => {
+    const l = fixLane({
+      id: "proven:tenant_isolation:public.invoices",
+      source: "proven" as const,
+      title: "t",
+      severity: "CRITICAL" as const,
+      fix: "x",
+    });
+    expect(l.method).toBe("migration-pr");
+  });
+});

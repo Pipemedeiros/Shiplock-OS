@@ -10,6 +10,7 @@ import {
 import { diffSnapshots } from "./diff";
 import { sendNewFindingsAlert } from "./alerts";
 import { runExposedPathScan } from "@/lib/security/exposedPathsRun";
+import { saveFacts } from "@/lib/graph/graphRun";
 
 export interface MonitoredProfile {
   id: string;
@@ -64,6 +65,7 @@ export async function runMonitoringPass(
   // next wider pass: a spurious duplicate alert for something that was
   // never actually fixed.
   let currentFindings: Finding[];
+  let scanTables: { name: string; rlsEnabled: boolean }[] = [];
   if (triggerSource === "hourly") {
     const fresh = extractCriticalFindings(
       await scanCriticalChecks(profile.monitored_project_url, anonKey)
@@ -71,7 +73,17 @@ export async function runMonitoringPass(
     const carriedForward = previousFindings.filter((f) => !isCriticalScopeFindingId(f.id));
     currentFindings = [...carriedForward, ...fresh];
   } else {
-    currentFindings = extractFindings(await scanProject(profile.monitored_project_url, anonKey));
+    const scan = await scanProject(profile.monitored_project_url, anonKey);
+    scanTables = (scan.tables ?? []).map((t) => ({ name: t.name, rlsEnabled: t.rlsEnabled }));
+    currentFindings = extractFindings(scan);
+  }
+
+  // Contribute per-table RLS state to the graph's database collector. Full scans
+  // only: the hourly pass uses a 4-check subset that does not enumerate tables,
+  // so writing from there would replace a complete picture with a partial one.
+  // Merged, because the Management API scan owns the other half of these facts.
+  if (triggerSource !== "hourly" && Array.isArray(scanTables) && scanTables.length > 0) {
+    await saveFacts(profile.id, "db", { scanTables }, { merge: true });
   }
 
   const { newFindings } = diffSnapshots(previousFindings, currentFindings);

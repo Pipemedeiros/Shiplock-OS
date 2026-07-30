@@ -80,7 +80,15 @@ function describeServerOnly(src: string): string {
   return `${hit} (a server-only secret)`;
 }
 
-const IMPORT_RE = /(?:import|export)[\s\S]{0,200}?from\s*["']([^"']+)["']|require\s*\(\s*["']([^"']+)["']\s*\)|import\s*\(\s*["']([^"']+)["']\s*\)/g;
+// TYPE-ONLY IMPORTS ARE EXCLUDED. `import type { X } from "./server"` is erased
+// by TypeScript at compile time — nothing from that module reaches the browser,
+// so following it would be reasoning about code that does not exist at runtime.
+// Found by running this detector against ShipLock's own codebase: it reported
+// components/d/TrafficPulse.tsx as leaking the service-role key through a type
+// import of an interface. Telling a customer to rotate their service-role key
+// because of an erased import would be a false positive on the single
+// highest-severity finding we produce.
+const IMPORT_RE = /(?:import|export)(?!\s+type\s)[\s\S]{0,200}?from\s*["']([^"']+)["']|require\s*\(\s*["']([^"']+)["']\s*\)|import\s*\(\s*["']([^"']+)["']\s*\)/g;
 
 const EXTS = ["", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"];
 const INDEXES = ["/index.ts", "/index.tsx", "/index.js", "/index.jsx"];
