@@ -16,7 +16,15 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
-  const { supabaseUrl: rawUrl, anonKey: rawAnonKey, appUrl: rawAppUrl } = (body ?? {}) as Record<string, unknown>;
+  const {
+    supabaseUrl: rawUrl,
+    anonKey: rawAnonKey,
+    appUrl: rawAppUrl,
+    // Deliberate opt-in to move the subscription's single monitored project to
+    // a different one. Never inferred — see the project-limit gate below.
+    replaceProject: rawReplaceProject,
+  } = (body ?? {}) as Record<string, unknown>;
+  const replaceProject = rawReplaceProject === true;
 
   let supabaseUrl: string;
   let anonKey: string;
@@ -51,11 +59,42 @@ export async function POST(req: NextRequest) {
 
   const { data: profile } = await admin
     .from("user_profiles")
-    .select("is_paid")
+    .select("is_paid, monitored_project_url")
     .eq("id", userId)
     .single();
   if (!profile?.is_paid) {
     return NextResponse.json({ error: "Subscribe to run a scan." }, { status: 402 });
+  }
+
+  // ── One project per subscription ────────────────────────────────────────
+  // monitored_project_url is a single column, so enrolling a second project
+  // silently OVERWRITES the first: the earlier project stops being monitored
+  // with no notice to anyone. That's the real damage here — worse than the
+  // billing leak of scanning unlimited projects on one seat, because the
+  // customer keeps believing both are watched.
+  //
+  // Until per-project records exist (see ROADMAP), the boundary is explicit:
+  // a different project needs `replaceProject: true`, which is a deliberate
+  // switch the customer is told about, not an accident.
+  const existingProject = profile.monitored_project_url as string | null;
+  if (existingProject && existingProject !== supabaseUrl && !replaceProject) {
+    let existingRef = "your current project";
+    try {
+      existingRef = new URL(existingProject).hostname.split(".")[0] || existingRef;
+    } catch {
+      /* keep the generic label */
+    }
+    return NextResponse.json(
+      {
+        error:
+          `Your subscription covers one project, and it's currently watching ${existingRef}. ` +
+          `Switching moves the watch to the new project and stops monitoring ${existingRef} — ` +
+          `its scan history is kept. To cover both at once, add a second subscription.`,
+        code: "project_limit",
+        currentProject: existingRef,
+      },
+      { status: 409 }
+    );
   }
 
   // No rate-limit gate here — a paid, authenticated caller doesn't need

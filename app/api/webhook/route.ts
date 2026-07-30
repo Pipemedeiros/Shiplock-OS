@@ -53,6 +53,17 @@ export async function POST(req: NextRequest) {
     const customerId = session.customer as string;
     const subscriptionId = session.subscription as string | null;
 
+    // Prepaid terms (mode: "payment") buy a fixed window rather than a
+    // renewing subscription, so access has to carry an end date. The monthly
+    // subscription leaves paid_until null and is governed by Stripe's own
+    // renewal/cancel events instead. Expiry is swept daily — see
+    // app/api/monitor/scheduled/route.ts.
+    const months = Number(session.metadata?.months ?? "0");
+    const paidUntil =
+      session.mode === "payment" && months > 0
+        ? new Date(Date.now() + months * 30 * 24 * 60 * 60 * 1000).toISOString()
+        : null;
+
     if (email) {
       // user_profiles.id is a NOT NULL foreign key to auth.users with no
       // default, so an upsert with onConflict:'email' fails outright if no
@@ -65,7 +76,7 @@ export async function POST(req: NextRequest) {
       // during the 2026-06-22 security audit).
       const { data: updated, error } = await admin
         .from("user_profiles")
-        .update({ is_paid: true, stripe_customer_id: customerId })
+        .update({ is_paid: true, stripe_customer_id: customerId, paid_until: paidUntil })
         .eq("email", email)
         .select("id");
 

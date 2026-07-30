@@ -9,12 +9,18 @@ import {
 } from "./findings";
 import { diffSnapshots } from "./diff";
 import { sendNewFindingsAlert } from "./alerts";
+import { runExposedPathScan } from "@/lib/security/exposedPathsRun";
 
 export interface MonitoredProfile {
   id: string;
   email: string | null;
   monitored_project_url: string;
   monitored_anon_key_encrypted: string;
+  /**
+   * The customer's own live app URL, when we have one. Optional because the
+   * hourly pass neither needs nor selects it.
+   */
+  monitored_app_url?: string | null;
 }
 
 export type TriggerSource = "deploy" | "hourly" | "scheduled_48h";
@@ -70,6 +76,35 @@ export async function runMonitoringPass(
 
   const { newFindings } = diffSnapshots(previousFindings, currentFindings);
 
+  // Everything above reasons about the Supabase project. This looks at what the
+  // customer's app actually serves the public: exposed paths, source maps, and
+  // secrets baked into the shipped JavaScript.
+  //
+  // It runs on the FULL passes only, never hourly. The bundle audit downloads
+  // real chunks (up to 8 per pass), which is the wrong weight for something that
+  // fires every hour — and unlike a leaked key in the database layer, a bundle
+  // only changes when the customer deploys.
+  //
+  // It has to run here at all because these checks used to run exactly once, in
+  // /api/scan at signup, and never again. That is backwards for this class of
+  // bug: a service-role key doesn't usually ship on day one, it gets introduced
+  // by a later deploy when something needed to "just work". Checking only at
+  // signup means checking at the one moment the mistake hasn't happened yet.
+  const appNewFindings: Finding[] = [];
+  if (triggerSource !== "hourly" && profile.monitored_app_url) {
+    try {
+      const result = await runExposedPathScan(profile.id, profile.monitored_app_url);
+      appNewFindings.push(...result.newFindings);
+    } catch (err) {
+      // Never let this fail the pass — the Supabase-side snapshot above is
+      // already written and is the load-bearing part of monitoring.
+      console.error(
+        `[monitor] app-surface scan failed for user ${profile.id}:`,
+        err instanceof Error ? err.message : err
+      );
+    }
+  }
+
   await admin
     .from("monitoring_snapshots")
     .insert({
@@ -93,9 +128,12 @@ export async function runMonitoringPass(
       .then(() => {}, () => {});
   }
 
-  if (newFindings.length > 0 && profile.email) {
-    await sendNewFindingsAlert(profile.id, profile.email, newFindings);
+  // One email for both lanes. alerts.ts dedups per (user, finding id) over 7
+  // days, so a check that flaps can't turn into a stream of mails.
+  const allNewFindings = [...newFindings, ...appNewFindings];
+  if (allNewFindings.length > 0 && profile.email) {
+    await sendNewFindingsAlert(profile.id, profile.email, allNewFindings);
   }
 
-  return { newFindingsCount: newFindings.length };
+  return { newFindingsCount: allNewFindings.length };
 }

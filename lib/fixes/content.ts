@@ -52,12 +52,50 @@ export function buildCodeFix(f: FixableFinding, now = new Date()): FixArtifact {
 }
 
 const SUPABASE_SETTINGS: { test: RegExp; path: string }[] = [
+  // Most specific first — the redirect allow-list and Site URL both live on the
+  // URL-configuration page, and their fix text mentions "api key" often enough
+  // that a later rule would otherwise win.
+  { test: /redirect allow-list|site url|url configuration/i, path: "/auth/url-configuration" },
   { test: /leaked.?password|password settings/i, path: "/auth/providers" },
   { test: /jwt|signing keys/i, path: "/settings/auth" },
   { test: /rotate|service.?role|api key/i, path: "/settings/api" },
 ];
 
-export function buildDeepLink(f: FixableFinding, projectRef?: string | null): string {
+/** `owner/name` from a namespaced finding id (`owner/name::github:…`). */
+export function repoFromFindingId(id: string): string | null {
+  const [prefix] = id.split("::");
+  return /^[\w.-]+\/[\w.-]+$/.test(prefix) ? prefix : null;
+}
+
+/**
+ * Where a deep-link fix sends the user, or `null` when there is genuinely no
+ * page to send them to.
+ *
+ * Returning null matters. Two of these fixes have no destination: an email-auth
+ * record is edited wherever the customer's DNS happens to live, which we don't
+ * know, and a leaked third-party key is rotated in that vendor's console, not
+ * Supabase's. Pointing those at a plausible-looking Supabase settings page would
+ * be worse than showing no button — it sends someone confidently to the wrong
+ * place and lets them believe they've done the fix.
+ */
+export function buildDeepLink(
+  f: FixableFinding,
+  projectRef?: string | null,
+  external?: "supabase" | "provider" | "github" | "dns"
+): string | null {
+  // DNS: no destination we can know.
+  if (external === "dns") return null;
+
+  if (external === "github") {
+    const repo = repoFromFindingId(f.id);
+    return repo ? `https://github.com/${repo}/settings` : "https://github.com/settings/repositories";
+  }
+
+  // A non-Supabase credential is rotated in the vendor's own console. We don't
+  // maintain a URL table for every provider, and guessing would be worse than
+  // letting the fix text say which key to roll.
+  if (external === "provider" && !/supabase/i.test(`${f.title}\n${f.fix}`)) return null;
+
   // Supabase dashboard deep links require a project ref (/project/<ref>/…). With
   // no ref, a settings path is malformed — send the user to the project picker.
   if (!projectRef) return "https://supabase.com/dashboard/projects";

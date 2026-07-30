@@ -4,6 +4,7 @@ import { getSupabaseServer } from "@/lib/supabaseServer";
 import { LockMark } from "@/components/d/Brand";
 import { ConnectAndScanForm } from "@/components/d/ConnectAndScanForm";
 import { UpgradeButton } from "@/components/d/UpgradeButton";
+import { PLANS, isPlanConfigured } from "@/lib/plans";
 import { Reveal } from "@/components/d/bits";
 
 export const metadata: Metadata = {
@@ -32,11 +33,11 @@ const INCLUDED = [
       "Turns credential stuffing, vulnerability scanners, and floods away from your login. It lives in your app — no DNS change — and if ShipLock is ever down, your app just serves normally.",
   },
   {
-    name: "Every deploy, re-audited",
+    name: "Every pull request, re-audited",
     provider: "Continuous",
     note: "one webhook",
     description:
-      "A fresh scan on every production deploy, deep scans on a schedule, and critical checks hourly — you only hear from us when something new appears.",
+      "A fresh scan on every pull request, deep scans on a schedule, and critical checks hourly — you only hear from us when something new appears.",
   },
 ];
 
@@ -60,6 +61,10 @@ export default async function OnboardingPage() {
     .eq("id", user.id)
     .single();
   const isPaid = profile?.is_paid ?? false;
+
+  // Same rule as the landing page: monthly always offered, prepaid terms only
+  // once the owner has created their Stripe prices, so no button 400s.
+  const plans = PLANS.filter((p) => p.id === "monthly" || isPlanConfigured(p));
 
   return (
     <main className="dxd">
@@ -98,13 +103,31 @@ export default async function OnboardingPage() {
                 <h4>Put us on retainer to run your first audit</h4>
                 <p>
                   Paste your Supabase URL and anon key the moment you&apos;re in, and the first
-                  scan — grade, every finding, and a fix for each — runs immediately. The key we
-                  ask for is the same public one your app already ships to every visitor; never
-                  anything more.
+                  audit — every finding, and a fix for each — runs immediately. The key we ask for
+                  is the same public one your app already ships to every visitor; never anything
+                  more.
                 </p>
+                {plans.length > 1 && (
+                  <p style={{ marginTop: 10, fontSize: 12.5, lineHeight: 1.7, color: "var(--d-muted)" }}>
+                    Same product on every term. Prepaid terms are a single charge — nothing
+                    auto-renews, so there is nothing to cancel and no fee if you stop.
+                  </p>
+                )}
               </div>
-              <span className="dxd-connect-cta">
-                <UpgradeButton />
+              <span className="dxd-connect-cta" style={{ display: "grid", gap: 18 }}>
+                {plans.map((plan) => (
+                  <UpgradeButton
+                    key={plan.id}
+                    plan={plan.id}
+                    variant={plan.featured ? "primary" : "ghost"}
+                    label={`${plan.cta} — ${plan.price}${plan.per === "once" ? "" : plan.per}`}
+                    note={
+                      plan.mode === "subscription"
+                        ? "7 days free — no charge today. Cancel anytime in one click. Secure checkout by Stripe; we never see your card."
+                        : `One charge for ${plan.months} months. No auto-renewal, no cancellation fee. Secure checkout by Stripe; we never see your card.`
+                    }
+                  />
+                ))}
               </span>
             </section>
           </Reveal>

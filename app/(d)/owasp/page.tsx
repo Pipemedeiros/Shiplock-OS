@@ -39,7 +39,7 @@ const CATEGORIES = [
     name: "Software Supply Chain Failures",
     body: "A dependency you pulled in — sometimes one an AI coding tool invented or mis-typed — turns out to be malicious, compromised, or simply doesn't exist and is sitting there waiting for someone to register it. See our incidents page for a real 2025 npm worm that spread exactly this way.",
     coverage:
-      "Partial: our dependency slop-squatting check catches invented or suspiciously new packages in package.json — but only if you add your app's live URL on the scan form (optional; without it, there's no real package.json for this check to read, since your Supabase project URL never serves one). Even then, it does not check known-CVE databases against your installed dependency versions — that needs source access, which is a roadmap item (GitHub App integration), not live today.",
+      "Partial: we flag invented or suspiciously new dependencies — the failure mode behind AI-hallucinated package names — but this needs your app's live URL, which is optional on the scan form. Known-CVE matching against your installed versions requires source access; connect GitHub and that comes with it.",
   },
   {
     id: "A04",
@@ -53,7 +53,7 @@ const CATEGORIES = [
     name: "Injection",
     body: "Crafted input reaches a query or command in a way the developer didn't intend — the classic SQL injection, plus its modern variants.",
     coverage:
-      "Partial: our input validation check probes whether a crafted query parameter leaks a raw SQL error, a strong signal of injection risk. It's a signal, not exhaustive fuzzing of every endpoint and parameter.",
+      "Partial: we test your endpoints for the signals that indicate injection is reachable, and our source scan covers SQL, command, path, and redirect injection in your own code. It's strong coverage of the common shapes, not exhaustive fuzzing of every endpoint and parameter.",
   },
   {
     id: "A06",
@@ -81,7 +81,7 @@ const CATEGORIES = [
     name: "Security Logging and Alerting Failures",
     body: "An incident happens and nobody finds out — no logs, no alerting, no one watching.",
     coverage:
-      "We don't scan whether your own app logs correctly. But this is the category our continuous-monitoring product exists to backstop for you specifically: deploy-triggered re-scans, an hourly critical-check pass, and alerts the moment something new appears.",
+      "We don't scan whether your own app logs correctly. But this is the category our continuous-monitoring product exists to backstop for you specifically: every pull request re-audited, an hourly critical-check pass, a deep audit every 48 hours, and alerts the moment something new appears.",
   },
   {
     id: "A10",

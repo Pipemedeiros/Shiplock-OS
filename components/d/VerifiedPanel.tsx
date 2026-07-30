@@ -28,6 +28,38 @@ export function VerifiedPanel({
   const [token, setToken] = useState<string | null>(initialToken);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [install, setInstall] = useState<{ state: string; detail: string } | null>(null);
+  const [checking, setChecking] = useState(false);
+
+  // Confirms the customer's own site actually links to their report. A badge
+  // nobody verifies is worth nothing as an attestation — anyone could paste the
+  // markup. Fail-soft: "unknown" never accuses them of not installing it.
+  async function checkBadge() {
+    setChecking(true);
+    setInstall(null);
+    try {
+      const supabase = getSupabaseBrowser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/verified", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({ action: "check_badge" }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setInstall({ state: "unknown", detail: data.error ?? "Couldn't check just now." });
+        return;
+      }
+      setInstall({ state: data.state, detail: data.detail });
+    } catch {
+      setInstall({ state: "unknown", detail: "Couldn't reach the server." });
+    } finally {
+      setChecking(false);
+    }
+  }
 
   async function call(action: "enable" | "disable" | "rotate") {
     setError("");
@@ -84,7 +116,7 @@ export function VerifiedPanel({
             Rotate link
           </button>
         )}
-        <span className="dxd-mono" style={{ fontSize: 11, color: enabled ? "#4ade80" : "var(--d-muted-light)" }}>
+        <span className="dxd-mono" style={{ fontSize: 11, color: enabled ? "var(--d-verified)" : "var(--d-muted-light)" }}>
           {enabled ? "● Public" : "○ Private"}
         </span>
       </div>
@@ -103,6 +135,38 @@ export function VerifiedPanel({
           <div style={{ marginTop: 14 }}>
             <div className="dxd-mono" style={{ fontSize: 11, color: "var(--d-muted)" }}>Embed badge (paste on your site)</div>
             <pre className="dxd-mono" style={preStyle}>{badge}</pre>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginTop: 10 }}>
+              <button
+                type="button"
+                className="dxd-btn dxd-btn-ghost"
+                onClick={checkBadge}
+                disabled={checking}
+                style={{ fontSize: 12, padding: "6px 12px" }}
+              >
+                {checking ? "Checking…" : "Check it's live"}
+              </button>
+              {install && (
+                <span
+                  className="dxd-mono"
+                  style={{
+                    fontSize: 11,
+                    color:
+                      install.state === "installed"
+                        ? "var(--d-verified)"
+                        : install.state === "not_found"
+                          ? "var(--d-attention)"
+                          : "var(--d-muted)",
+                  }}
+                >
+                  {install.state === "installed" ? "●" : "○"} {install.detail}
+                </span>
+              )}
+            </div>
+            <p style={{ margin: "8px 0 0", fontSize: 11.5, lineHeight: 1.6, color: "var(--d-muted-light)" }}>
+              We fetch your app&apos;s homepage and look for a link back to your report. That
+              confirms the badge is real, not that it&apos;s on every page.
+            </p>
           </div>
         </>
       )}

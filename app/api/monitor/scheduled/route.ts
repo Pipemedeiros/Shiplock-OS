@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { runMonitoringPass } from "@/lib/monitoring";
 import { pruneOldTraffic } from "@/lib/traffic/prune";
+import { runPolicyScan } from "@/lib/deep/supabaseMgmtRun";
+import { sendWeeklyDigest } from "@/lib/monitoring/digest";
 
 const FULL_SCAN_INTERVAL_MS = 48 * 60 * 60 * 1000;
 
@@ -22,7 +24,7 @@ export async function GET(req: NextRequest) {
 
   const { data: profiles, error } = await admin
     .from("user_profiles")
-    .select("id, email, monitored_project_url, monitored_anon_key_encrypted, last_monitored_at")
+    .select("id, email, monitored_project_url, monitored_anon_key_encrypted, monitored_app_url, last_monitored_at")
     .eq("monitoring_enabled", true)
     .not("monitored_project_url", "is", null)
     .not("monitored_anon_key_encrypted", "is", null)
@@ -45,6 +47,10 @@ export async function GET(req: NextRequest) {
           email: profile.email,
           monitored_project_url: profile.monitored_project_url,
           monitored_anon_key_encrypted: profile.monitored_anon_key_encrypted,
+          // Enables the app-surface half of the pass (exposed paths, source
+          // maps, secrets in the shipped bundle). Null for customers who never
+          // gave us an app URL — the Supabase-side scan still runs.
+          monitored_app_url: profile.monitored_app_url,
         },
         "scheduled_48h"
       );
@@ -63,5 +69,91 @@ export async function GET(req: NextRequest) {
   // one). Fail-soft — never affects the monitoring result.
   const pruned = await pruneOldTraffic();
 
-  return NextResponse.json({ checked: profiles?.length ?? 0, succeeded, failed, pruned: pruned.ok });
+  // RLS policy pass for anyone with the read-only Supabase connection
+  // (migration 034). Separate from the scan above because it needs a different
+  // credential and reads policy definitions rather than probing endpoints —
+  // this is the check that catches `USING (true)`, which an external scan
+  // structurally cannot see. Fail-soft per user.
+  let policyChecked = 0;
+  const { data: connected } = await admin
+    .from("user_profiles")
+    .select("id")
+    .eq("is_paid", true)
+    .not("supabase_mgmt_token_encrypted", "is", null);
+
+  for (const profile of connected ?? []) {
+    try {
+      const result = await runPolicyScan(profile.id);
+      if (result.ok) policyChecked++;
+    } catch (err) {
+      console.error(
+        `[monitor/scheduled] policy scan failed for user ${profile.id}:`,
+        err instanceof Error ? err.message : err
+      );
+    }
+  }
+
+  // Weekly digest (migration 038). Rides the daily cron and self-limits to once
+  // a week per user, so no new schedule is needed — which matters, since the
+  // Vercel plan only allows daily-frequency crons. This is the churn
+  // countermeasure: alerts only fire on NEW findings, so a healthy customer
+  // hears nothing for months and cannot tell "working" from "dead".
+  let digestsSent = 0;
+  const { data: digestCandidates } = await admin
+    .from("user_profiles")
+    .select("id, email, last_digest_sent_at")
+    .eq("is_paid", true)
+    .eq("monitoring_enabled", true);
+
+  for (const profile of digestCandidates ?? []) {
+    try {
+      const sent = await sendWeeklyDigest(
+        profile.id as string,
+        (profile.email as string | null) ?? null,
+        (profile.last_digest_sent_at as string | null) ?? null
+      );
+      if (sent) digestsSent++;
+    } catch (err) {
+      console.error(
+        `[monitor/scheduled] digest failed for user ${profile.id}:`,
+        err instanceof Error ? err.message : err
+      );
+    }
+  }
+
+  // Prepaid-term expiry (migration 033). Monthly subscribers have paid_until
+  // NULL and are governed by Stripe's own cancel event, so they're untouched.
+  // Sweeping here rather than checking an expiry at every is_paid read site
+  // keeps the paywall on the single is_paid gate — the paywall has regressed
+  // before when read paths diverged (see CLAUDE.md), so we don't add a second
+  // source of truth. Cost is up to ~24h of grace past the end date.
+  const expired = await expirePrepaidTerms();
+
+  return NextResponse.json({
+    checked: profiles?.length ?? 0,
+    succeeded,
+    failed,
+    pruned: pruned.ok,
+    policyChecked,
+    digestsSent,
+    expired,
+  });
+}
+
+/** Flips is_paid false for prepaid terms whose window has passed. */
+async function expirePrepaidTerms(): Promise<number> {
+  const admin = getSupabaseAdmin();
+  const { data, error } = await admin
+    .from("user_profiles")
+    .update({ is_paid: false, monitoring_enabled: false })
+    .eq("is_paid", true)
+    .not("paid_until", "is", null)
+    .lt("paid_until", new Date().toISOString())
+    .select("id");
+
+  if (error) {
+    console.error("[monitor/scheduled] prepaid expiry sweep error:", error.message);
+    return 0;
+  }
+  return data?.length ?? 0;
 }

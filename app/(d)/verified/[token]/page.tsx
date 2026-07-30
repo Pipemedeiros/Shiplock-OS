@@ -26,7 +26,7 @@ function Stat({ label, value, good }: { label: string; value: string; good?: boo
       }}
     >
       <div className="dxd-mono" style={{ fontSize: 11, opacity: 0.7, marginBottom: 6 }}>{label}</div>
-      <div style={{ fontSize: 20, fontWeight: 600, color: good ? "#4ade80" : "inherit" }}>{value}</div>
+      <div style={{ fontSize: 20, fontWeight: 600, color: good ? "var(--d-verified)" : "inherit" }}>{value}</div>
     </div>
   );
 }
@@ -50,11 +50,13 @@ function ReportBody({ report }: { report: VerifiedReport }) {
       <div
         style={{
           display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", borderRadius: 12,
-          border: `1px solid ${verified ? "rgba(74,222,128,0.4)" : "var(--d-line,#1f2a3a)"}`,
-          background: verified ? "rgba(74,222,128,0.08)" : "transparent", marginBottom: 28,
+          border: `1px solid ${verified ? "var(--d-verified)" : "var(--d-line,#1f2a3a)"}`,
+          background: verified ? "rgba(30,122,85,0.08)" : "transparent", marginBottom: 28,
         }}
       >
-        <span style={{ fontSize: 22 }}>{verified ? "🛡️" : "○"}</span>
+        <span style={{ display: "flex", color: verified ? "var(--d-verified)" : "var(--d-muted, #7d8ca1)" }}>
+          {verified ? <LockMark size={22} /> : <span style={{ fontSize: 22 }}>○</span>}
+        </span>
         <div>
           <div style={{ fontWeight: 600 }}>
             {verified ? "Continuously monitored by ShipLock" : "Monitoring not currently active"}
@@ -110,9 +112,39 @@ function ReportBody({ report }: { report: VerifiedReport }) {
       </section>
 
       {/* The honest boundary — rendered prominently, never buried. */}
-      <p style={{ fontSize: 13, lineHeight: 1.6, opacity: 0.7, borderTop: "1px solid var(--d-line,#1f2a3a)", paddingTop: 20, marginBottom: 32 }}>
+      <p style={{ fontSize: 13, lineHeight: 1.6, opacity: 0.7, borderTop: "1px solid var(--d-line,#1f2a3a)", paddingTop: 20, marginBottom: 20 }}>
         {report.disclaimer}
       </p>
+
+      {/* Scope of what this page asserts, stated to the READER rather than to
+          the customer. A disclaimer living in our terms binds the customer who
+          agreed to them, not the investor or buyer relying on this page — and
+          reliance by a non-expert on a specialist's public assertion is
+          precisely the negligent-misrepresentation fact pattern. So it says so
+          here, where the relying party actually sees it. See LEGAL-MEMO.md §2. */}
+      <div
+        style={{
+          fontSize: 12.5,
+          lineHeight: 1.65,
+          opacity: 0.62,
+          border: "1px solid var(--d-line,#1f2a3a)",
+          borderRadius: 10,
+          padding: "14px 16px",
+          marginBottom: 32,
+        }}
+      >
+        <div className="dxd-mono" style={{ fontSize: 10.5, letterSpacing: "0.1em", marginBottom: 8 }}>
+          WHAT THIS PAGE IS, AND ISN&apos;T
+        </div>
+        <p style={{ margin: 0 }}>
+          This page reports that a project is connected to ShipLock, which automated checks we
+          run, and when they last ran. It is <strong>not</strong> a security certification, an
+          audit opinion, a penetration test, or a compliance attestation, and it does not state
+          that this application is secure or free of vulnerabilities — no automated tool can
+          establish that. It is published by the project&apos;s owner for information only.
+          ShipLock accepts no liability to any reader for decisions taken in reliance on it.
+        </p>
+      </div>
 
       <footer style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
         <span className="dxd-mono" style={{ fontSize: 11, opacity: 0.6 }}>Live report · verified by ShipLock</span>

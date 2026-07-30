@@ -29,7 +29,7 @@ export const SCOPE_COVERED: string[] = [
   "Exposed secrets and committed credentials",
   "Known-vulnerable dependencies (CVEs)",
   "Security misconfiguration and session-token signing",
-  "Continuous monitoring for new issues on every deploy",
+  "Continuous monitoring for new issues on every pull request",
 ];
 export const SCOPE_NOT_COVERED: string[] = [
   "Deep business-logic flaws unique to the application",
@@ -103,7 +103,7 @@ export function buildVerifiedReport(d: VerifiedReportData): VerifiedReport {
     monitored: d.monitoringEnabled && d.isPaid,
     clean: d.openCriticalCount === 0,
     lastVerifiedAt: d.lastScanAt,
-    cadence: ["On every deploy", "Hourly critical-check pass", "Full deep scan every 48h"],
+    cadence: ["On every pull request", "Hourly critical-check pass", "Full deep scan every 48h"],
     checksPassing,
     totalChecks: TOTAL_CHECKS,
     openCriticalCount: Math.max(0, d.openCriticalCount),

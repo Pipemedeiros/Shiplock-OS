@@ -3,13 +3,18 @@
 // image) the customer drops on their own site. Every badge links back to the
 // live report → the distribution loop.
 
-// The badge MARK is a placeholder shield today. Logo is still an open decision
-// (CLAUDE.md), so this is the single point to swap when it lands — replace
-// BADGE_MARK with the final logo's inline SVG and nothing else changes.
+// The badge MARK is the micro cut of the mark in components/d/Brand.tsx
+// (LockGlyphMicro) — the badge renders at 14px on someone else's site, where the
+// open keyhole and the diagonal sweep both fill in. Bronze (#c9a961), the dark-
+// theme accent from design-d.css, because the badge always sits on the navy
+// chip below. Swap here and in Brand.tsx together; nothing else embeds the mark.
 const BADGE_MARK =
-  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
-  '<path d="M12 2 4 5v6c0 5 3.4 8.5 8 11 4.6-2.5 8-6 8-11V5l-8-3Z" fill="#4ade80"/>' +
-  '<path d="m9 12 2 2 4-4" stroke="#0b1220" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
+  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c9a961" ' +
+  'stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" ' +
+  'xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+  '<path d="M8.4 10.4V7.2a3.6 3.6 0 0 1 7.2 0v3.2"/>' +
+  '<path d="M12 8.4 18.4 12.1v7L12 22.8l-6.4-3.7v-7L12 8.4Z"/>' +
+  '<circle cx="12" cy="15.4" r="1.35" fill="#c9a961" stroke="none"/>' +
   "</svg>";
 
 export function reportUrl(token: string, appUrl: string): string {

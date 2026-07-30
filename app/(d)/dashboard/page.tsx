@@ -1,387 +1,200 @@
-import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { getSupabaseServer } from "@/lib/supabaseServer";
-import { getLatestScan, getScanTimeline } from "@/lib/scanHistory";
-import { getWatchLog, getWatchStatus } from "@/lib/monitoring/watchLog";
+import { requireDashboardSession } from "@/lib/dashboard";
+import { getLatestScan } from "@/lib/scanHistory";
+import { getWatchStatus } from "@/lib/monitoring/watchLog";
 import { getProtectionStatus, getRecentBlocks, getRecentThreats } from "@/lib/traffic/trafficLog";
+import { getTrafficPulse, EMPTY_PULSE } from "@/lib/traffic/pulse";
 import { buildSnippet, buildWebSnippet, buildExpressSnippet } from "@/lib/traffic/snippet";
-import { GUARDRAILS } from "@/lib/guardrails";
-import { auditJwtSigning, type JwtSigningPosture } from "@/lib/security/sessionAudit";
-import { getSupabaseAdmin } from "@/lib/supabase";
-import { buildAgentBrief } from "@/lib/agentBrief";
-import { env } from "@/lib/env";
-import { SignOutButton } from "@/components/sign-out-button";
-import { ManageBillingButton } from "@/components/d/ManageBillingButton";
-import { LockMark } from "@/components/d/Brand";
-import { CoverageBoard } from "@/components/d/CoverageBoard";
-import { UpgradeButton } from "@/components/d/UpgradeButton";
-import { AgentBrief } from "@/components/d/AgentBrief";
-import { WatchPanel } from "@/components/d/WatchPanel";
-import { TrafficPanel } from "@/components/d/TrafficPanel";
-import { GuardrailPanel } from "@/components/d/GuardrailPanel";
-import { VerifiedPanel } from "@/components/d/VerifiedPanel";
-import { TwoFactorSetup } from "@/components/d/TwoFactorSetup";
-import { isBetterAuthConfigured } from "@/lib/betterAuth";
-import { FixesPanel } from "@/components/d/FixesPanel";
-import { McpPanel } from "@/components/d/McpPanel";
 import { getFixFindings } from "@/lib/fixes/findings";
-import type { FixableFinding } from "@/lib/fixes/lane";
-import { GitHubPanel, type SourceFinding } from "@/components/d/GitHubPanel";
+import { fixLane } from "@/lib/fixes/lane";
+import { env } from "@/lib/env";
+import { PostureHeadline } from "@/components/d/CoverageBoard";
+import { TrafficPanel } from "@/components/d/TrafficPanel";
+import { TrafficPulse } from "@/components/d/TrafficPulse";
+import { UpgradeButton } from "@/components/d/UpgradeButton";
 import { Reveal } from "@/components/d/bits";
 import type { PreviewIssue, FullIssue } from "@/lib/types";
 
-export const metadata: Metadata = {
-  robots: { index: false, follow: false },
-};
-
-
 const TOTAL_CHECKS = 16; // lib/scanner.ts always runs the same 16 checks
 
-export default async function DashboardPage() {
-  const supabase = await getSupabaseServer();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+// Overview — the "is everything alright?" page. Posture, the live edge, and
+// what's waiting on the customer to merge. Detail lives on the other tabs.
+export default async function DashboardOverviewPage() {
+  const { userId, isPaid } = await requireDashboardSession();
+  const latest = await getLatestScan(userId);
 
-  if (!user) {
-    redirect("/auth");
-  }
-
-  // RLS-scoped read — the "users can read own profile" policy restricts
-  // this to the caller's own row regardless of which auth method they used.
-  const { data: profile } = await supabase
-    .from("user_profiles")
-    .select("is_paid")
-    .eq("id", user.id)
-    .single();
-
-  const isPaid = profile?.is_paid ?? false;
-  const provider = user.app_metadata?.provider ?? "email";
-
-  // full_issues has no SELECT grant for `authenticated`, even for the row's
-  // own owner — must go through the service-role client (lib/scanHistory.ts).
-  const latest = await getLatestScan(user.id);
-
-  // Paywall filtering happens here, explicitly, mirroring
-  // app/api/scan/route.ts's own pattern — never spread full_issues into
-  // props when the caller isn't paid.
+  // Paywall filtering happens here, explicitly, mirroring app/api/scan's own
+  // pattern — never spread full_issues into props when the caller isn't paid.
   const issues: (PreviewIssue | FullIssue)[] = latest
     ? (isPaid ? latest.full_issues : latest.preview_issues) ?? []
     : [];
 
-  // The agent brief (fix/codefix content — paid only) is built after the fix
-  // list below, so it can include deep findings too.
+  const watchStatus = latest ? await getWatchStatus(userId) : null;
 
-  // Watch-panel data: counts and metadata only, nothing paywall-sensitive
-  // (see lib/monitoring/watchLog.ts). PR re-scans run through the GitHub App
-  // automatically — no per-user webhook URL to surface anymore.
-  const [watchLog, watchStatus, timeline] = latest
-    ? await Promise.all([getWatchLog(user.id), getWatchStatus(user.id), getScanTimeline(user.id)])
-    : [[], null, []];
+  // Live traffic protection — paid only, and independent of scan findings
+  // (it's about inbound traffic). The ingest token is a live credential, so
+  // the install snippet is only ever built for the paid owner.
+  const [protectionStatus, trafficBlocks, trafficThreats, trafficPulse] = isPaid
+    ? await Promise.all([
+        getProtectionStatus(userId),
+        getRecentBlocks(userId),
+        getRecentThreats(userId),
+        // Proof-of-work: the one number that is large and true every day.
+        // Blocks and findings are both rare by design, so without this the
+        // dashboard reads as "nothing is happening" — see lib/traffic/pulse.ts.
+        getTrafficPulse(userId),
+      ])
+    : [null, [], [], EMPTY_PULSE];
 
-  // Live traffic protection — paid only. Independent of scan findings (it's
-  // about inbound traffic), so it's fetched off is_paid, not `latest`. Counts
-  // and metadata only; the ingest token is a live credential, so the install
-  // snippet is only built for the paid owner viewing their own dashboard.
-  const [protectionStatus, trafficBlocks, trafficThreats] = isPaid
-    ? await Promise.all([getProtectionStatus(user.id), getRecentBlocks(user.id), getRecentThreats(user.id)])
-    : [null, [], []];
   const trafficSnippet = protectionStatus?.ingestToken
     ? buildSnippet(protectionStatus.ingestToken, env.NEXT_PUBLIC_APP_URL)
     : null;
-  const trafficWebSnippet = protectionStatus?.ingestToken
-    ? buildWebSnippet(protectionStatus.ingestToken, env.NEXT_PUBLIC_APP_URL)
-    : "";
-  const trafficExpressSnippet = protectionStatus?.ingestToken
-    ? buildExpressSnippet(protectionStatus.ingestToken, env.NEXT_PUBLIC_APP_URL)
-    : "";
 
-  // Live JWT-signing posture (paid only) — externally checkable from the stored
-  // project URL, no extra credential. Best-effort: on any failure it returns an
-  // informational "unknown" rather than throwing.
-  let jwtPosture: JwtSigningPosture | null = null;
-  let projectRef: string | null = null; // <ref> from https://<ref>.supabase.co — for Supabase deep links
-  if (isPaid) {
-    const { data: monitored } = await getSupabaseAdmin()
-      .from("user_profiles")
-      .select("monitored_project_url")
-      .eq("id", user.id)
-      .maybeSingle();
-    const projectUrl = monitored?.monitored_project_url as string | null | undefined;
-    if (projectUrl) {
-      jwtPosture = await auditJwtSigning(projectUrl);
-      try {
-        projectRef = new URL(projectUrl).hostname.split(".")[0] || null;
-      } catch {
-        projectRef = null;
-      }
-    }
+  // Count only — the fix content itself lives on the Findings tab. "Waiting on
+  // you" means fixes that land as a pull request; deep-link fixes (a Supabase
+  // toggle, a secret rotation) aren't merged, so they're not listed here.
+  const fixFindings = isPaid ? await getFixFindings(userId) : [];
+  const prReady = fixFindings.filter((f) => fixLane(f).method !== "deep-link");
+
+  if (!latest) {
+    return (
+      <section className="dxd-dash-hero">
+        <p className="dxd-eyebrow">The coverage board</p>
+        <h1 className="dxd-statement">You haven&apos;t run an audit yet.</h1>
+        <p className="dxd-lede" style={{ margin: "16px 0 24px" }}>
+          {isPaid
+            ? "Connect your Supabase project to run the first audit — findings and the fix for every issue."
+            : "Put us on retainer, then connect your Supabase project to run the first audit."}
+        </p>
+        <Link href="/onboarding" className="dxd-btn dxd-btn-paper">
+          {isPaid ? "Run your first audit" : "Get started"}
+        </Link>
+      </section>
+    );
   }
-
-  // GitHub source scanning — only surfaced once the App is registered
-  // (GITHUB_APP_SLUG set). Reads connection state + active source findings.
-  const githubConfigured = Boolean(env.GITHUB_APP_SLUG);
-  let githubConnected = false;
-  let sourceFindings: SourceFinding[] = [];
-  if (isPaid && githubConfigured) {
-    const admin = getSupabaseAdmin();
-    const [{ data: gh }, { data: findings }] = await Promise.all([
-      admin.from("user_profiles").select("github_installation_id").eq("id", user.id).maybeSingle(),
-      admin
-        .from("deep_findings")
-        .select("title, severity, consequence")
-        .eq("user_id", user.id)
-        .eq("source", "github")
-        .is("archived_at", null)
-        .order("detected_at", { ascending: false })
-        .limit(20),
-    ]);
-    githubConnected = Boolean(gh?.github_installation_id);
-    sourceFindings = (findings ?? []) as SourceFinding[];
-  }
-
-  // Verified-report share state (paid only) — service-role read, same as the
-  // other per-user tokens (webhook/ingest).
-  let verifiedEnabled = false;
-  let verifiedToken: string | null = null;
-  if (isPaid) {
-    const { data: vr } = await getSupabaseAdmin()
-      .from("user_profiles")
-      .select("verified_report_enabled, verified_report_token")
-      .eq("id", user.id)
-      .maybeSingle();
-    verifiedEnabled = Boolean(vr?.verified_report_enabled);
-    verifiedToken = (vr?.verified_report_token as string | null) ?? null;
-  }
-
-  // Unified fix list (paid): scan + deep findings, each with a buttoned,
-  // editable, reviewable fix. Shared with the MCP endpoints so both see the
-  // same set.
-  const fixFindings: FixableFinding[] = isPaid ? await getFixFindings(user.id) : [];
-
-  // MCP tokens (metadata only) for the "Connect your coding agent" panel.
-  const { data: mcpTokens } = isPaid
-    ? await getSupabaseAdmin()
-        .from("api_tokens")
-        .select("id, name, created_at, last_used_at")
-        .eq("user_id", user.id)
-        .is("revoked_at", null)
-        .order("created_at", { ascending: false })
-    : { data: [] };
-
-  // Agent brief (paid only) — scan findings + the deep findings just assembled,
-  // so one paste covers the whole surface.
-  const agentBrief =
-    isPaid && latest
-      ? buildAgentBrief(
-          latest,
-          fixFindings
-            .filter((f) => f.source !== "scan")
-            .map((f) => ({ title: f.title, severity: f.severity, consequence: f.fix }))
-        )
-      : null;
 
   return (
-    <main className="dxd">
-      <div className="dxd-band">
-        <div className="dxd-shell">
-          <nav className="dxd-nav" aria-label="Main">
-            <Link href="/" className="dxd-wordmark">
-              <span className="dxd-wordmark-lock">
-                <LockMark size={19} />
-              </span>
-              ShipLock
-            </Link>
-            <div className="dxd-nav-links">
-              {latest?.project_url_hash && (
-                <span className="dxd-mono" style={{ fontSize: 12, color: "var(--d-muted-light)" }}>
-                  project ...{latest.project_url_hash.slice(-6)}
-                </span>
-              )}
-              <span style={{ fontSize: 13 }}>{user.email}</span>
-              <span
-                className="dxd-mono"
-                style={{ fontSize: 11, color: "var(--d-muted-light)", textTransform: "capitalize" }}
-              >
-                {provider}
-              </span>
-              <span className="dxd-mono" style={{ fontSize: 11 }}>
-                {isPaid ? "Pro" : latest ? "Lapsed" : "Not subscribed"}
-              </span>
-              {(isPaid || latest) && <ManageBillingButton />}
-              <SignOutButton />
+    <>
+      <section className="dxd-dash-hero">
+        <p className="dxd-eyebrow">The coverage board</p>
+        <PostureHeadline issues={issues} totalChecks={TOTAL_CHECKS} />
+        <p className="dxd-lede" style={{ marginTop: 18, fontSize: 14 }}>
+          {watchStatus?.lastDeepScanAt
+            ? `Last deep audit ${new Date(watchStatus.lastDeepScanAt).toLocaleString()}. Every pull request is re-checked as it opens.`
+            : "Every pull request is re-checked as it opens, with a deep audit on schedule."}{" "}
+          <Link href="/dashboard/watch">See the watch log →</Link>
+        </p>
+      </section>
+
+      {/* Waiting on you — the only action-shaped thing on this page. */}
+      {isPaid && (
+        <section style={{ marginTop: 40 }} aria-label="Waiting on you">
+          <p className="dxd-panel-label" style={{ margin: "0 0 12px" }}>
+            Waiting on you
+          </p>
+          {prReady.length === 0 ? (
+            <div className="dxd-surface">
+              <p style={{ margin: 0, fontSize: 14, lineHeight: 1.7, color: "var(--d-muted)" }}>
+                Nothing needs merging. When a finding has a fix we can prepare, it arrives here as
+                a pull request you review and merge — we never write to your database.
+              </p>
             </div>
-          </nav>
-
-          <header className="dxd-dash-hero">
-            <p className="dxd-eyebrow">The coverage board</p>
-
-            {latest ? (
-              <CoverageBoard issues={issues} totalChecks={TOTAL_CHECKS} />
-            ) : (
-              <>
-                <h1 className="dxd-statement">You haven&apos;t run an audit yet.</h1>
-                <p className="dxd-lede" style={{ margin: "16px 0 24px" }}>
-                  {isPaid
-                    ? "Connect your Supabase project to run the first audit — findings and the fix for every issue."
-                    : "Put us on retainer, then connect your Supabase project to run the first audit."}
-                </p>
-                <Link href="/onboarding" className="dxd-btn dxd-btn-paper">
-                  {isPaid ? "Run your first audit" : "Get started"}
-                </Link>
-              </>
-            )}
-          </header>
-        </div>
-      </div>
-
-      {latest && (
-        <div className="dxd-shell dxd-dash-body">
-          <section aria-label="Your connected stack">
-            <p className="dxd-panel-label" style={{ margin: "0 0 12px" }}>
-              Your stack · what the watch can see
-            </p>
-            <div className="dxd-stack">
-              <div className="dxd-stack-tile">
-                <span className="dxd-stack-name">
-                  <span className="dxd-stack-cat">Database</span>
-                  <h3>Supabase</h3>
-                  <span className="dxd-stack-role">public key only, never more</span>
-                </span>
-                <span className="dxd-stack-status dxd-chip dxd-chip-verified">Connected</span>
-              </div>
-              <div className="dxd-stack-tile">
-                <span className="dxd-stack-name">
-                  <span className="dxd-stack-cat">Host</span>
-                  <h3>—</h3>
-                  <span className="dxd-stack-role">read-only, selected projects</span>
-                </span>
-                <span className="dxd-mono" style={{ fontSize: 11, color: "var(--d-muted)" }}>
-                  Coming soon
-                </span>
-              </div>
-              <div className="dxd-stack-tile">
-                <span className="dxd-stack-name">
-                  <span className="dxd-stack-cat">Source</span>
-                  <h3>—</h3>
-                  <span className="dxd-stack-role">contents: read-only</span>
-                </span>
-                <span className="dxd-mono" style={{ fontSize: 11, color: "var(--d-muted)" }}>
-                  Coming soon
-                </span>
-              </div>
+          ) : (
+            <div className="dxd-surface">
+              <p style={{ margin: "0 0 14px", fontSize: 14, lineHeight: 1.7 }}>
+                <b>
+                  {prReady.length} fix{prReady.length === 1 ? "" : "es"}
+                </b>{" "}
+                {prReady.length === 1 ? "is" : "are"} ready to open as a reviewable pull request.
+                You read the diff, you merge it, your own deploy applies it.
+              </p>
+              <ul style={{ margin: "0 0 16px", paddingLeft: 18, display: "grid", gap: 6 }}>
+                {prReady.slice(0, 4).map((f) => (
+                  <li key={f.id} style={{ fontSize: 13.5, lineHeight: 1.6 }}>
+                    {f.title}
+                  </li>
+                ))}
+              </ul>
+              <Link href="/dashboard/findings" className="dxd-btn">
+                Review the fixes
+              </Link>
             </div>
-          </section>
-
-          {watchStatus && (
-            <Reveal>
-              <WatchPanel entries={watchLog} status={watchStatus} timeline={timeline} />
-            </Reveal>
           )}
-
-          {isPaid && protectionStatus && trafficSnippet && (
-            <Reveal>
-              <TrafficPanel
-                status={protectionStatus}
-                blocks={trafficBlocks}
-                threats={trafficThreats}
-                snippet={trafficSnippet}
-                webSnippet={trafficWebSnippet}
-                expressSnippet={trafficExpressSnippet}
-              />
-            </Reveal>
-          )}
-
-          {isPaid && githubConfigured && (
-            <Reveal>
-              <GitHubPanel connected={githubConnected} findings={sourceFindings} />
-            </Reveal>
-          )}
-
-          {isPaid && (
-            <Reveal>
-              <GuardrailPanel guardrails={GUARDRAILS} jwtPosture={jwtPosture} />
-            </Reveal>
-          )}
-
-          {isPaid && (
-            <Reveal>
-              <VerifiedPanel
-                initialEnabled={verifiedEnabled}
-                initialToken={verifiedToken}
-                appUrl={env.NEXT_PUBLIC_APP_URL}
-              />
-            </Reveal>
-          )}
-
-          {/* 2FA appears only once Better Auth is configured (env vars set) —
-              enrollment is opt-in, so a gated mount can never lock anyone out.
-              The identity bridge + enforcement gate land in the browser-tested
-              pass once configured (ROADMAP.md). */}
-          {isPaid && isBetterAuthConfigured() && (
-            <Reveal>
-              <TwoFactorSetup />
-            </Reveal>
-          )}
-
-          {isPaid && fixFindings.length > 0 && (
-            <Reveal>
-              <FixesPanel findings={fixFindings} projectRef={projectRef} />
-            </Reveal>
-          )}
-
-          {isPaid && (
-            <Reveal>
-              <McpPanel initialTokens={mcpTokens ?? []} />
-            </Reveal>
-          )}
-
-          {agentBrief && (
-            <section style={{ marginTop: 40 }} aria-label="AI-agent brief">
-              <p className="dxd-panel-label" style={{ margin: "0 0 12px" }}>
-                For your coding agent
-              </p>
-              <p className="dxd-lede" style={{ marginBottom: 16 }}>
-                Every open finding, formatted to hand straight to Cursor, Lovable, Bolt, or
-                whatever you build in.
-              </p>
-              <AgentBrief markdown={agentBrief} />
-            </section>
-          )}
-
-          {!isPaid && (
-            <section style={{ marginTop: 40 }}>
-              <p className="dxd-panel-label" style={{ margin: "0 0 12px" }}>
-                Terms of engagement
-              </p>
-              <div className="dxd-connect-card">
-                <div>
-                  <h4>Your retainer lapsed</h4>
-                  <p>
-                    Fixes, SQL, copy-paste AI prompts, and the watch all pause when the
-                    subscription does. Resubscribe to see this scan&apos;s findings in full and
-                    pick the watch back up.
-                  </p>
-                </div>
-                <span className="dxd-connect-cta">
-                  <UpgradeButton />
-                </span>
-              </div>
-            </section>
-          )}
-
-          <footer className="dxd-footer">
-            <span className="dxd-serif" style={{ fontSize: 15 }}>
-              ShipLock<span style={{ color: "var(--d-bronze)" }}>.</span>
-            </span>
-            <span>
-              last scanned{" "}
-              {latest.created_at ? new Date(latest.created_at).toLocaleString() : "—"}
-            </span>
-          </footer>
-        </div>
+        </section>
       )}
-    </main>
+
+      {isPaid && (
+        <Reveal>
+          <TrafficPulse pulse={trafficPulse} />
+        </Reveal>
+      )}
+
+      {isPaid && protectionStatus && trafficSnippet && (
+        <Reveal>
+          <TrafficPanel
+            status={protectionStatus}
+            blocks={trafficBlocks}
+            threats={trafficThreats}
+            snippet={trafficSnippet}
+            webSnippet={
+              protectionStatus.ingestToken
+                ? buildWebSnippet(protectionStatus.ingestToken, env.NEXT_PUBLIC_APP_URL)
+                : ""
+            }
+            expressSnippet={
+              protectionStatus.ingestToken
+                ? buildExpressSnippet(protectionStatus.ingestToken, env.NEXT_PUBLIC_APP_URL)
+                : ""
+            }
+          />
+        </Reveal>
+      )}
+
+      <section style={{ marginTop: 40 }} aria-label="Your connected stack">
+        <p className="dxd-panel-label" style={{ margin: "0 0 12px" }}>
+          Your stack · what the watch can see
+        </p>
+        <div className="dxd-stack">
+          <div className="dxd-stack-tile">
+            <span className="dxd-stack-name">
+              <span className="dxd-stack-cat">Database</span>
+              <h3>Supabase</h3>
+              <span className="dxd-stack-role">public key only, never more</span>
+            </span>
+            <span className="dxd-stack-status dxd-chip dxd-chip-verified">Connected</span>
+          </div>
+          <div className="dxd-stack-tile">
+            <span className="dxd-stack-name">
+              <span className="dxd-stack-cat">Source</span>
+              <h3>GitHub</h3>
+              <span className="dxd-stack-role">contents: read-only</span>
+            </span>
+            <Link href="/dashboard/settings" className="dxd-mono" style={{ fontSize: 11 }}>
+              Manage →
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {!isPaid && (
+        <section style={{ marginTop: 40 }}>
+          <p className="dxd-panel-label" style={{ margin: "0 0 12px" }}>
+            Terms of engagement
+          </p>
+          <div className="dxd-connect-card">
+            <div>
+              <h4>Your retainer lapsed</h4>
+              <p>
+                Fixes, the watch, and the live edge all pause when the subscription does.
+                Resubscribe to see this audit&apos;s findings in full and pick the watch back up.
+              </p>
+            </div>
+            <span className="dxd-connect-cta">
+              <UpgradeButton />
+            </span>
+          </div>
+        </section>
+      )}
+    </>
   );
 }

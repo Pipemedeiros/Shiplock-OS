@@ -1,7 +1,9 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { getInstallationToken, listRepos, listTree, getFile, queryOsv } from "./github";
+import { getInstallationToken, listRepos, listTree, getFile, queryOsv, type Repo } from "./github";
 import { scanSecrets, scanTokenStorage, scanLoggedSecrets, extractDependencies, depFindings, type RepoFile, type GithubFinding } from "./githubScan";
 import { scanCodePatterns } from "./sourcePatterns";
+import { scanClientExposure } from "./clientExposure";
+import { checkRepoVisibility } from "./repoVisibility";
 
 // Full source scan for a connected GitHub App installation: read-only repo
 // contents -> committed secrets, token-storage anti-pattern, dependency CVEs
@@ -16,10 +18,31 @@ const MAX_FILE_BYTES = 200_000; // skip large/binary blobs
 // Files worth reading for secret / token-storage detection, plus manifests.
 const CANDIDATE_RE = /(^|\/)(\.env(\.[\w-]+)?|package\.json|package-lock\.json|.*\.(ts|tsx|js|jsx|mjs|cjs|json|ya?ml|env)|.*\.pem)$/i;
 
-async function scanRepo(token: string, fullName: string, branch: string): Promise<GithubFinding[]> {
+// Read order matters because MAX_FILES_PER_REPO truncates. The tree arrives in
+// directory-traversal order, so on a repo with a large app/ directory the cap
+// used to fall before the root manifests — silently disabling dependency
+// scanning — and before lib/, which breaks the import chains scanClientExposure
+// walks from client components. Rank by what each check needs first:
+//   0  dotenv files and manifests: tiny, and every secret/dependency check
+//      depends on them. Never let these be the files we drop.
+//   1  application source: where client components and their imports live.
+//   2  everything else the candidate filter allowed.
+export function readPriority(path: string): number {
+  if (/(^|\/)(\.env(\.[\w-]+)?|package(-lock)?\.json)$/i.test(path)) return 0;
+  if (/^(src\/|app\/|components\/|lib\/|pages\/|utils\/|server\/)/i.test(path)) return 1;
+  return 2;
+}
+
+async function scanRepo(token: string, repo: Repo): Promise<GithubFinding[]> {
+  const { fullName, defaultBranch: branch } = repo;
   const tree = await listTree(token, fullName, branch);
   const candidates = tree
     .filter((t) => t.size <= MAX_FILE_BYTES && CANDIDATE_RE.test(t.path))
+    // Stable within a priority band, so the set we read is deterministic and a
+    // finding doesn't appear and vanish between passes.
+    .map((t, index) => ({ t, index, rank: readPriority(t.path) }))
+    .sort((a, b) => a.rank - b.rank || a.index - b.index)
+    .map((entry) => entry.t)
     .slice(0, MAX_FILES_PER_REPO);
 
   const files: RepoFile[] = [];
@@ -34,7 +57,13 @@ async function scanRepo(token: string, fullName: string, branch: string): Promis
     if (/(^|\/)package-lock\.json$/.test(c.path) && !packageLock) packageLock = content;
   }
 
-  const findings: GithubFinding[] = [...scanSecrets(files), ...scanTokenStorage(files), ...scanLoggedSecrets(files), ...scanCodePatterns(files)];
+  const findings: GithubFinding[] = [
+    ...scanSecrets(files),
+    ...scanTokenStorage(files),
+    ...scanLoggedSecrets(files),
+    ...scanCodePatterns(files),
+    ...scanClientExposure(files),
+  ];
 
   if (packageJson) {
     const deps = extractDependencies(packageJson, packageLock);
@@ -45,6 +74,11 @@ async function scanRepo(token: string, fullName: string, branch: string): Promis
     }
   }
 
+  // C22 last, because it READS the findings above: a public repo is only a
+  // critical problem when we also found credentials in it. Runs before the id
+  // namespacing below so its secret-class matching sees the bare ids.
+  findings.push(...checkRepoVisibility(repo, findings));
+
   // Namespace finding ids by repo so the same issue in two repos stays distinct.
   return findings.map((f) => ({ ...f, id: `${fullName}::${f.id}` }));
 }
@@ -52,15 +86,20 @@ async function scanRepo(token: string, fullName: string, branch: string): Promis
 export async function runGithubScan(
   userId: string,
   installationId: string | number
-): Promise<{ total: number; newCount: number }> {
+): Promise<{ total: number; newCount: number; resolvedCount: number }> {
   const admin = getSupabaseAdmin();
   const token = await getInstallationToken(installationId);
   const repos = (await listRepos(token)).slice(0, MAX_REPOS);
 
   const all: GithubFinding[] = [];
+  // Which repos we actually finished reading. Load-bearing for archiving below:
+  // a repo that threw produced ZERO findings, and treating that as "everything in
+  // it is fixed" would silently close real open issues.
+  const scannedRepos: string[] = [];
   for (const repo of repos) {
     try {
-      all.push(...(await scanRepo(token, repo.fullName, repo.defaultBranch)));
+      all.push(...(await scanRepo(token, repo)));
+      scannedRepos.push(repo.fullName);
     } catch {
       continue; // one bad repo shouldn't fail the pass
     }
@@ -74,6 +113,30 @@ export async function runGithubScan(
     .is("archived_at", null);
   const activeIds = new Set((existing ?? []).map((r) => r.finding_id as string));
 
+  // Re-verify after merge. Without this, a customer merges the fix PR we opened
+  // and the finding stays CRITICAL forever — the dashboard and the weekly digest
+  // both keep counting work that is already done, which teaches people our
+  // findings don't track reality. The per-PR webhook already re-runs this scan on
+  // every pull request, so merging a fix is itself the re-check; all that was
+  // missing is closing what no longer reproduces.
+  //
+  // Scoped to repos we SUCCESSFULLY scanned, for the reason above. Finding ids
+  // are namespaced `owner/name::…` by scanRepo, which is what makes this
+  // scoping possible.
+  const currentIds = new Set(all.map((f) => f.id));
+  const resolved = [...activeIds].filter(
+    (id) => !currentIds.has(id) && scannedRepos.some((fullName) => id.startsWith(`${fullName}::`))
+  );
+  if (resolved.length > 0) {
+    await admin
+      .from("deep_findings")
+      .update({ archived_at: new Date().toISOString() })
+      .eq("user_id", userId)
+      .eq("source", "github")
+      .is("archived_at", null)
+      .in("finding_id", resolved);
+  }
+
   const fresh = all.filter((f) => !activeIds.has(f.id));
   if (fresh.length > 0) {
     await admin.from("deep_findings").insert(
@@ -84,5 +147,5 @@ export async function runGithubScan(
       }))
     );
   }
-  return { total: all.length, newCount: fresh.length };
+  return { total: all.length, newCount: fresh.length, resolvedCount: resolved.length };
 }

@@ -62,44 +62,176 @@ describe("analyzePolicies — stays quiet on correct policies (no false positive
   });
 });
 
-describe("mapAdvisors — surfaces security lints, drops noise", () => {
-  it("maps a permissive_rls_policy ERROR to a CRITICAL finding", () => {
-    const advisors: SupabaseAdvisor[] = [
-      { name: "permissive_rls_policy", title: "Permissive RLS policy", level: "ERROR", detail: "Table exposes rows", cache_key: "abc", metadata: { name: "orders", schema: "public" } },
-    ];
-    const f = mapAdvisors(advisors);
+describe("mapAdvisors — deny-list, so new Supabase rules surface automatically", () => {
+  const adv = (over: Partial<SupabaseAdvisor> = {}): SupabaseAdvisor => ({
+    name: "rls_disabled_in_public",
+    level: "ERROR",
+    cache_key: "k1",
+    metadata: { name: "orders", schema: "public" },
+    ...over,
+  });
+
+  // The regression that motivated the rewrite. The old allowlist held
+  // "permissive_rls_policy", but the real Splinter slug is
+  // "rls_policy_always_true" — so the single most important lint Supabase emits
+  // was silently discarded.
+  it("surfaces rls_policy_always_true (0024) — the USING(true) case", () => {
+    const f = mapAdvisors([adv({ name: "rls_policy_always_true", level: "WARN" })]);
+    expect(f).toHaveLength(1);
+    expect(f[0].severity).toBe("CRITICAL"); // overridden up from Supabase's WARN
+    expect(f[0].consequence).toMatch(/every signed-in user can read every row/i);
+  });
+
+  it("surfaces sensitive_columns_exposed (0023) — the other slug the allowlist got wrong", () => {
+    expect(mapAdvisors([adv({ name: "sensitive_columns_exposed" })])).toHaveLength(1);
+  });
+
+  it("surfaces a lint it has never seen, rather than dropping it", () => {
+    const f = mapAdvisors([adv({ name: "some_future_lint_0030", level: "ERROR", detail: "New rule." })]);
     expect(f).toHaveLength(1);
     expect(f[0].severity).toBe("CRITICAL");
-    expect(f[0].title).toContain("orders");
+    expect(f[0].consequence).toBe("New rule."); // falls back to Supabase's text
   });
 
-  it("drops unknown / non-security lints", () => {
-    expect(mapAdvisors([{ name: "unused_index", level: "INFO" }])).toEqual([]);
+  it("normalises the Splinter number prefix", () => {
+    const bare = mapAdvisors([adv({ name: "rls_policy_always_true", level: "WARN" })]);
+    const prefixed = mapAdvisors([adv({ name: "0024_rls_policy_always_true", level: "WARN" })]);
+    expect(prefixed).toHaveLength(1);
+    expect(prefixed[0].severity).toBe(bare[0].severity);
+    expect(prefixed[0].id).toBe(bare[0].id); // same finding, not a duplicate
   });
 
-  it("drops rls_enabled_no_policy (deny-all is the secure service-role-only pattern, not an exposure)", () => {
-    expect(mapAdvisors([{ name: "rls_enabled_no_policy", level: "INFO", metadata: { name: "stripe_webhook_events" } }])).toEqual([]);
+  it("normalises case and surrounding whitespace", () => {
+    expect(mapAdvisors([adv({ name: "  RLS_Policy_Always_True  ", level: "WARN" })])[0].severity).toBe("CRITICAL");
   });
 
-  it("surfaces leaked-password-protection disabled as a WARNING", () => {
-    const f = mapAdvisors([{ name: "auth_leaked_password_protection", level: "WARN", detail: "enable HIBP", cache_key: "z" }]);
+  it("raises policy_exists_rls_disabled (0007) from INFO to CRITICAL", () => {
+    // Policies written while RLS is off: the developer believes the table is
+    // protected and it is fully readable. Supabase rates this INFO.
+    const f = mapAdvisors([adv({ name: "policy_exists_rls_disabled", level: "INFO" })]);
+    expect(f[0].severity).toBe("CRITICAL");
+    expect(f[0].consequence).toMatch(/false impression/i);
+  });
+
+  it("drops performance lints — non-actionable alerts are pure triage burden", () => {
+    for (const name of [
+      "unindexed_foreign_keys", "auth_rls_initplan", "no_primary_key", "unused_index",
+      "multiple_permissive_policies", "duplicate_index", "unsupported_reg_types",
+      "table_bloat", "fkey_to_auth_unique",
+    ]) {
+      expect(mapAdvisors([adv({ name, level: "WARN" })]), name).toEqual([]);
+    }
+  });
+
+  it("drops rls_enabled_no_policy (0008) — deny-all is the SECURE pattern", () => {
+    expect(mapAdvisors([adv({ name: "rls_enabled_no_policy", level: "INFO" })])).toEqual([]);
+  });
+
+  it("still drops 0008 when it arrives number-prefixed", () => {
+    expect(mapAdvisors([adv({ name: "0008_rls_enabled_no_policy", level: "INFO" })])).toEqual([]);
+  });
+
+  it("surfaces leaked-password protection as a WARNING", () => {
+    const f = mapAdvisors([adv({ name: "auth_leaked_password_protection", level: "WARN", metadata: null })]);
     expect(f).toHaveLength(1);
     expect(f[0].severity).toBe("WARNING");
   });
+
+  it("prefers our consequence text over Supabase's engineer-facing remediation", () => {
+    const f = mapAdvisors([adv({ name: "rls_disabled_in_public", detail: "Enable RLS via ALTER TABLE." })]);
+    expect(f[0].consequence).toMatch(/publishable key/i);
+    expect(f[0].consequence).not.toMatch(/ALTER TABLE/);
+  });
+
+  it("names the affected object in the title", () => {
+    expect(mapAdvisors([adv()])[0].title).toContain("public.orders");
+  });
+
+  it("gives distinct ids to the same lint on different objects", () => {
+    const f = mapAdvisors([
+      adv({ cache_key: "a", metadata: { name: "orders", schema: "public" } }),
+      adv({ cache_key: "b", metadata: { name: "invoices", schema: "public" } }),
+    ]);
+    expect(new Set(f.map((x) => x.id)).size).toBe(2);
+  });
+
+  // Edge cases: the API is experimental and the shape is documented as varying.
+  it("survives a missing name, empty list, and absent metadata", () => {
+    expect(mapAdvisors([])).toEqual([]);
+    expect(mapAdvisors([{ level: "ERROR" }])).toEqual([]);
+    expect(mapAdvisors([{ name: "unknown_lint" }])).toHaveLength(1); // level defaults
+  });
+
+  it("defaults an unknown level to WARNING rather than throwing", () => {
+    expect(mapAdvisors([adv({ name: "unknown_lint", level: "BANANA" })])[0].severity).toBe("WARNING");
+  });
+
+  it("never emits an empty consequence", () => {
+    const f = mapAdvisors([{ name: "unknown_lint", level: "WARN" }]);
+    expect(f[0].consequence.length).toBeGreaterThan(0);
+  });
 });
 
-describe("mergePolicyFindings — policy findings win over overlapping advisors", () => {
-  it("drops a permissive_rls_policy advisor when a policy finding exists", () => {
+describe("mergePolicyFindings — our policy findings win over duplicate advisors", () => {
+  const adv = (name: string, table: string, schema = "public"): SupabaseAdvisor => ({
+    name, level: "ERROR", cache_key: `ck-${name}-${table}`, metadata: { schema, name: table },
+  });
+
+  it("drops the rls_policy_always_true advisor when we already reported that table ourselves", () => {
     const policyF = analyzePolicies([pol({ tablename: "orders", qual: "true" })]);
-    const advisorF = mapAdvisors([{ name: "permissive_rls_policy", level: "ERROR", cache_key: "x", metadata: { name: "orders" } }]);
-    const merged = mergePolicyFindings(policyF, advisorF);
-    expect(merged.filter((f) => f.id.startsWith("advisor:permissive_rls_policy"))).toHaveLength(0);
+    const merged = mergePolicyFindings(policyF, mapAdvisors([adv("rls_policy_always_true", "orders")]));
+    expect(merged.filter((f) => f.id.startsWith("advisor:rls_policy_always_true"))).toHaveLength(0);
     expect(merged.filter((f) => f.id.startsWith("policy:"))).toHaveLength(1);
   });
 
-  it("keeps non-overlapping advisors (e.g. security_definer_view)", () => {
-    const advisorF = mapAdvisors([{ name: "security_definer_view", level: "ERROR", cache_key: "y", metadata: { name: "v" } }]);
-    const merged = mergePolicyFindings([], advisorF);
+  // The bug this replaces: dedupe was global, so ANY policy finding suppressed
+  // EVERY overlapping advisor. A permissive policy on `orders` silently hid a
+  // permissive policy on `invoices` — a false negative in the highest-severity class.
+  it("keeps an overlapping advisor for a DIFFERENT table", () => {
+    const policyF = analyzePolicies([pol({ tablename: "orders", qual: "true" })]);
+    const merged = mergePolicyFindings(policyF, mapAdvisors([adv("rls_policy_always_true", "invoices")]));
+    expect(merged.filter((f) => f.id === "advisor:rls_policy_always_true:public.invoices")).toHaveLength(1);
+    expect(merged).toHaveLength(2);
+  });
+
+  it("dedupes per schema, not just per table name", () => {
+    const policyF = analyzePolicies([pol({ schemaname: "public", tablename: "orders", qual: "true" })]);
+    const merged = mergePolicyFindings(policyF, mapAdvisors([adv("rls_policy_always_true", "orders", "billing")]));
+    expect(merged.filter((f) => f.id.endsWith("billing.orders"))).toHaveLength(1);
+  });
+
+  it("also dedupes rls_references_user_metadata against a matching policy finding", () => {
+    const policyF = analyzePolicies([
+      pol({ tablename: "orders", qual: "(auth.jwt() -> 'user_metadata' ->> 'role') = 'admin'" }),
+    ]);
+    expect(policyF.length).toBeGreaterThan(0);
+    const merged = mergePolicyFindings(policyF, mapAdvisors([adv("rls_references_user_metadata", "orders")]));
+    expect(merged.filter((f) => f.id.startsWith("advisor:rls_references_user_metadata"))).toHaveLength(0);
+  });
+
+  it("keeps non-overlapping advisors untouched even when policy findings exist", () => {
+    const policyF = analyzePolicies([pol({ tablename: "orders", qual: "true" })]);
+    const merged = mergePolicyFindings(
+      policyF,
+      mapAdvisors([adv("security_definer_view", "orders"), adv("policy_exists_rls_disabled", "orders")])
+    );
+    expect(merged.filter((f) => f.id.startsWith("advisor:"))).toHaveLength(2);
+  });
+
+  it("keeps every advisor when we have no policy findings at all", () => {
+    const merged = mergePolicyFindings([], mapAdvisors([adv("rls_policy_always_true", "orders")]));
     expect(merged).toHaveLength(1);
+  });
+
+  it("handles both sides empty", () => {
+    expect(mergePolicyFindings([], [])).toEqual([]);
+  });
+
+  it("survives an advisor with no metadata (id falls back to cache_key, never dedupes wrongly)", () => {
+    const policyF = analyzePolicies([pol({ tablename: "orders", qual: "true" })]);
+    const merged = mergePolicyFindings(policyF, mapAdvisors([
+      { name: "rls_policy_always_true", level: "ERROR", cache_key: "orphan" },
+    ]));
+    expect(merged.filter((f) => f.id === "advisor:rls_policy_always_true:orphan")).toHaveLength(1);
   });
 });
