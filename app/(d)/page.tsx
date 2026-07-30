@@ -80,8 +80,8 @@ function ExampleAuditPanel() {
       </div>
 
       <p style={{ marginTop: 16, fontSize: 11.5, lineHeight: 1.6, color: "var(--d-muted)" }}>
-        A sample of what lands in your dashboard on retainer — every finding, and a fix
-        you can merge for each.
+        Representative output: severity, the asset, and a remediation you can merge. Passing
+        checks are shown alongside failing ones — a control that was verified is a result.
       </p>
     </div>
   );
@@ -95,27 +95,27 @@ const SURFACES: { name: string; blurb: string }[] = [
   {
     name: "Auth & access",
     blurb:
-      "Who can sign in, hammer your endpoints, or reach admin routes they were never meant to see.",
+      "Session handling, token configuration, rate limiting on the auth endpoints, and whether privileged routes actually verify authorisation rather than only authentication.",
   },
   {
     name: "Data exposure",
     blurb:
-      "Whether your database and storage answer questions they should refuse — the failure behind almost every AI-built app breach on record.",
+      "Whether row-level security, column grants and storage policies refuse the queries they are meant to refuse. This is the surface behind nearly every documented breach of an AI-built application.",
   },
   {
     name: "Configuration",
     blurb:
-      "The settings, keys, dependencies, and headers that quietly decide how protected you actually are.",
+      "Credential handling, response headers, source maps, CI workflow permissions, and dependencies carrying published advisories.",
   },
   {
     name: "Injection & logic",
     blurb:
-      "Whether crafted input or a careless endpoint can make your app do things you never wrote.",
+      "Untrusted input reaching a query or a template, mass assignment on write endpoints, and server-side request forgery through user-supplied URLs.",
   },
 ];
 
 const TRUST_LINE =
-  "We only ever ask for your app's public key, plus an optional public URL — never a credential beyond that key, the same one your own frontend already exposes to every visitor. No admin tokens, and we never write to your production database.";
+  "Onboarding takes your project URL and the publishable key your client already ships to every visitor. Deeper checks use a read-only Management API grant you authorise over OAuth and can revoke at any time — the transport refuses anything that is not a single SELECT. Secret keys are never stored; if one is submitted it is flagged and discarded. Autonomous remediation is off by default and, when enabled, is bounded to reversible actions with the inverse computed before the change.";
 
 export default function LandingPage() {
   // Only advertise terms that actually have a Stripe price behind them.
@@ -159,10 +159,11 @@ export default function LandingPage() {
                 </em>
               </h1>
               <p className="dxd-lede">
-                ShipLock runs an auditor&apos;s depth against your live Supabase project —
-                continuously, not once. Findings come back as pull requests you merge. And when a
-                customer asks whether you&apos;re secure, you have a live report to send them
-                instead of a promise.
+                ShipLock audits your live Supabase project — row-level security, auth
+                configuration, storage, grants, dependencies and the routes that reach them — on
+                every pull request rather than once a quarter. Tenant-isolation failures are
+                demonstrated against a disposable copy of your schema, not inferred from reading
+                policy text. Findings arrive as migration pull requests you review and merge.
               </p>
               <div className="dxd-hero-actions">
                 <a href="#get-started" className="dxd-btn dxd-btn-paper">
@@ -192,30 +193,31 @@ export default function LandingPage() {
             <RevealList step={80}>
               <div>
                 <div className="dxd-proof-num">$49</div>
-                <div className="dxd-proof-label">The depth of a $50,000 enterprise audit — running continuously, for $49 a month.</div>
+                <div className="dxd-proof-label">Per month. A comparable application security assessment runs $50,000 and is performed once a year.</div>
               </div>
               <div>
                 <div className="dxd-proof-num">16</div>
-                <div className="dxd-proof-label">Checks across four attack surfaces, re-run on every pull request.</div>
+                <div className="dxd-proof-label">Checks across four surfaces — access control, data exposure, configuration, injection — re-run on every pull request.</div>
               </div>
               <div>
                 <div className="dxd-proof-num">90<em>s</em></div>
-                <div className="dxd-proof-label">From one paste to your first findings — just a URL and the public key your app already ships.</div>
+                <div className="dxd-proof-label">To first findings. The inputs are your project URL and the publishable key your client already ships.</div>
               </div>
               <div>
                 <div className="dxd-proof-num">0</div>
-                <div className="dxd-proof-label">Consoles to babysit. You only hear from us when something new appears — silence means safe.</div>
+                <div className="dxd-proof-label">Dashboards to watch. Findings are diffed against the previous pass by stable identifier, so you hear from us on change, not on recurrence.</div>
               </div>
             </RevealList>
           </div>
 
           <Reveal>
             <p className="dxd-eyebrow" style={{ marginTop: 56 }}>The watch, in practice</p>
-            <h2 className="dxd-h2">A scan is a photograph. Your app doesn&apos;t hold still.</h2>
+            <h2 className="dxd-h2">A point-in-time assessment expires at your next deploy.</h2>
             <p className="dxd-lede">
-              One prompt to your coding agent tomorrow can quietly undo today&apos;s fix — which is
-              why a point-in-time report, however deep, expires on your next change. So we re-check
-              continuously, and speak up only when something actually changed.
+              Security posture is a property of the current commit, not of the codebase in general.
+              One agent-authored migration can drop a policy that a report from last week certified.
+              So the audit re-runs on a schedule and on every pull request, and each pass is diffed
+              against the last — you are alerted on new findings, not re-alerted on known ones.
             </p>
           </Reveal>
 
@@ -224,24 +226,27 @@ export default function LandingPage() {
               <div className="dxd-watchrow">
                 <h3>Every pull request, re-audited</h3>
                 <p>
-                  Connect your GitHub repo once. Every pull request is re-scanned automatically —
-                  new secrets, vulnerable dependencies, and risky changes caught before they merge.
+                  One GitHub App installation. Every pull request is re-scanned before merge:
+                  committed credentials, dependencies with known advisories, workflow permissions,
+                  and changes to the code paths that enforce access control.
                 </p>
               </div>
               <div className="dxd-watchrow">
                 <h3>Deep audits on schedule, critical checks hourly</h3>
                 <p>
-                  A full sixteen-check pass re-runs every 48 hours; a lightweight critical pass runs
-                  every hour, watching the fastest-moving risks.
+                  A full sixteen-check pass every 48 hours. Between them, an hourly pass covering
+                  the four failures that appear without a deploy — RLS switched off, a bucket made
+                  public, credentials exposed at the origin, a secret key in use.
                 </p>
               </div>
               <div className="dxd-watchrow">
                 <h3>A live edge at your front door</h3>
                 <p>
-                  Credential-stuffing bots and scanners are knocking right now. One small file — it
-                  fails open, always — mirrors your auth routes to us, and once an attack is
-                  unmistakable, that source gets shut out. Never on a hunch, so a real customer
-                  never hits a wall.
+                  A middleware snippet mirrors auth-route metadata to us and fails open by
+                  construction: if we are slow or down, your request proceeds. Credential stuffing
+                  and enumeration are scored per source, and a source is blocked only on
+                  unambiguous signal — false positives here lock out paying users, so the
+                  threshold is deliberately conservative.
                 </p>
               </div>
             </RevealList>
@@ -272,11 +277,11 @@ export default function LandingPage() {
             <div>
               <h3>Something to send when they ask.</h3>
               <p>
-                Turn on a public report and you get a live page showing which checks run against
-                your project, when they last ran, and what&apos;s covered — updated continuously,
-                not a PDF that expired the day it was written. It shows posture and cadence, never
-                your specific findings. It is not a SOC 2 report and never claims to be; it&apos;s
-                the honest answer for the eighteen months before you need one.
+                A shareable page showing which controls are assessed against your project, the
+                cadence, and when each last ran. It publishes posture and timestamps, never your
+                specific findings — a report that enumerated your open issues would be a target
+                map. It is not a SOC 2 report and does not substitute for one; it is a verifiable
+                answer for the period before you have one.
               </p>
               <p style={{ marginTop: 12 }}>{TRUST_LINE}</p>
             </div>
@@ -288,10 +293,11 @@ export default function LandingPage() {
         <section className="dxd-section" id="stakes">
           <Reveal>
             <p className="dxd-eyebrow">Why this matters now</p>
-            <h2 className="dxd-h2">The bill arrives before the breach does.</h2>
+            <h2 className="dxd-h2">Three reasons this becomes urgent before anything leaks.</h2>
             <p className="dxd-lede">
-              You already know roughly where the gaps are. What changes once you have real users
-              isn&apos;t the risk — it&apos;s that the risk starts having a due date.
+              You likely know roughly where your gaps are. What changes once you have real users is
+              not the technical risk — it is that the risk acquires a counterparty, a deadline and a
+              regulator.
             </p>
           </Reveal>
           <div className="dxd-stakes">
@@ -300,29 +306,31 @@ export default function LandingPage() {
                 <span className="dxd-stake-num">I · THE DEAL</span>
                 <h3>The first serious customer asks you to prove it.</h3>
                 <p>
-                  Not a breach — a questionnaire. Someone&apos;s procurement team wants to know how
-                  access is controlled and who checks. SOC 2 answers that for $20,000 and three
-                  months. Until you&apos;re there, the honest answer is a live report showing what
-                  runs against your project and when it last ran.
+                  Not a breach — a security questionnaire. Procurement wants to know how access is
+                  controlled, who verifies it, and how often. SOC 2 Type I answers that for
+                  $20,000 and three months. Before that, a live posture report showing the controls
+                  assessed and their last run is a defensible answer rather than an assurance.
                 </p>
               </SpotlightCard>
               <SpotlightCard className="dxd-stake">
                 <span className="dxd-stake-num">II · THE BLIND SPOT</span>
                 <h3>The dangerous policy looks exactly like a safe one.</h3>
                 <p>
-                  A table with RLS enabled and <code>USING (true)</code> refuses anonymous reads —
-                  so from outside it passes. Every signed-in user can still read every row. It is
-                  the most common real Supabase critical, and it is invisible to anything checking
-                  from the outside with an anon key.
+                  A table with RLS enabled and a <code>USING (true)</code> policy refuses anonymous
+                  reads, so it passes any external probe holding only a publishable key. Every
+                  authenticated user still reads every row. This is the most common critical
+                  finding on Supabase, and detecting it requires evaluating the policy as a
+                  signed-in caller — which is what the sandbox exists to do.
                 </p>
               </SpotlightCard>
               <SpotlightCard className="dxd-stake">
                 <span className="dxd-stake-num">III · THE LEGAL WEIGHT</span>
                 <h3>Customer data makes it a legal matter.</h3>
                 <p>
-                  The moment real people&apos;s data leaks, you owe things: breach notifications to
-                  affected users, answers to privacy regulators, and potentially damages —
-                  customers can and do sue over exposed personal data.
+                  Once personal data is exposed, obligations attach regardless of company size:
+                  notification to affected users, response to privacy regulators within statutory
+                  deadlines, and civil liability. None of these scale down because you are a team
+                  of two.
                 </p>
               </SpotlightCard>
             </RevealList>
@@ -379,12 +387,13 @@ export default function LandingPage() {
         <section className="dxd-section" id="fixes">
           <Reveal>
             <p className="dxd-eyebrow">The handoff</p>
-            <h2 className="dxd-h2">Findings arrive as fixes — one button, fully reviewable.</h2>
+            <h2 className="dxd-h2">Remediation is a diff, and the diff is yours to approve.</h2>
             <p className="dxd-lede">
-              Every finding comes with an exact fix and a button to apply it. Database and
-              access-control changes open a migration pull request you review, edit, and merge —
-              your own deploy applies it. We never write to your database directly. Nothing about a
-              fix is silent; each one is a diff you approve.
+              Each finding ships with its remediation. Schema and access-control changes open a
+              migration pull request on a new branch — you review it, edit it, merge it, and your
+              own pipeline applies it. Application logic is never machine-authored; those open as
+              draft pull requests for you or your coding agent to finish. Nothing is applied
+              silently, and every action carries a stored inverse.
             </p>
           </Reveal>
           <Reveal>
@@ -402,8 +411,9 @@ export default function LandingPage() {
                 &nbsp;&nbsp;USING (auth.uid() = user_id);
               </p>
               <p style={{ marginTop: 14, fontSize: 11.5, lineHeight: 1.6, color: "var(--d-muted)" }}>
-                Opened as a pull request you read, edit, and merge — never applied to your
-                production database by us. Auth, RLS, and data changes stay in your hands, by design.
+                Opened as a pull request against a new branch, never merged by us. Auth, RLS and
+                schema changes stay under your review by design — the blast radius of a wrong
+                policy is your entire user base.
               </p>
             </div>
           </Reveal>
@@ -412,9 +422,9 @@ export default function LandingPage() {
               <p className="dxd-eyebrow" style={{ margin: "0 0 8px" }}>Or don&apos;t leave your editor</p>
               <h3 style={{ margin: "0 0 8px", fontSize: 18 }}>Connect ShipLock to your coding agent.</h3>
               <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.7, color: "var(--d-muted)" }}>
-                Add ShipLock to Claude Code, Cursor, or Codex. Your agent pulls your open findings
-                into context and writes the fixes right where you work — each one a diff you review
-                before it lands. The whole audit, in the tool you already build in.
+                ShipLock exposes its findings over MCP. Add it to Claude Code, Cursor or Codex and
+                your agent pulls open findings and their remediations into context, then writes the
+                changes in your working tree — still a diff you review before it lands.
               </p>
             </div>
           </Reveal>
@@ -429,10 +439,10 @@ export default function LandingPage() {
             are simply cheaper, paid once, with no auto-renewal and no cancellation fee.
           </p>
           <p className="dxd-lede" style={{ marginBottom: 8 }}>
-            For scale: a first-year SOC 2 runs $20,000–$60,000 once you count the audit, the
-            tooling, and your own time. That answers a different question, for a bigger company,
-            on a longer clock. This is what you run in the meantime — and what makes that audit
-            less painful when it does arrive.
+            For scale: a first-year SOC 2 runs $20,000–$60,000 across the audit, the compliance
+            tooling and your own engineering time. It answers a different question — organisational
+            control design — on a longer clock. This is the technical layer underneath it, and the
+            evidence trail it produces is the kind an auditor later asks for.
           </p>
           <div className="dxd-pricing">
             {plans.map((plan) => (
@@ -458,8 +468,9 @@ export default function LandingPage() {
             ))}
           </div>
           <p className="dxd-rescan-note">
-            A one-time scan answers &ldquo;am I OK today?&rdquo; The retainer answers &ldquo;am I
-            still OK?&rdquo; — every pull request, every hour, and in full depth every 48 hours.
+            A one-time scan characterises a single commit. A retainer characterises a moving
+            codebase: every pull request, hourly on the fast-moving checks, and in full depth every
+            48 hours.
           </p>
         </section>
 
@@ -467,14 +478,14 @@ export default function LandingPage() {
         <section className="dxd-section" id="get-started">
           <Reveal>
             <p className="dxd-eyebrow">What we won&apos;t promise</p>
-            <h2 className="dxd-h2">No one can make your app unhackable. We&apos;ll never pretend otherwise.</h2>
+            <h2 className="dxd-h2">No control set eliminates risk. Ours reduces a specific, well-understood part of it.</h2>
             <p className="dxd-lede">
-              Every tool promising &ldquo;100% protected&rdquo; is selling you something, and some
-              part of you already knows it. What&apos;s actually true is quieter and more useful:
-              almost every app that gets breached is breached through a known, ordinary, closeable
-              hole. We close those, we watch them stay closed, and we turn away the automated
-              attacks hitting your door — which moves you from the app that gets breached to the one
-              that isn&apos;t worth the effort.
+              Breaches of applications at your stage are overwhelmingly not novel: a missing
+              access-control rule, an exposed credential, an unpatched dependency, an unauthenticated
+              route. That class is enumerable, testable and closeable, and it is the class we
+              address — continuously, so a regression is caught by the next pass rather than by a
+              customer. Targeted attacks, insider access and flaws in your own business logic are
+              outside it, and we say so in each report rather than at the end.
             </p>
           </Reveal>
           <Reveal delay={80}>
@@ -495,10 +506,11 @@ export default function LandingPage() {
                 maxWidth: 720,
               }}
             >
-              And we tell you what we <em>can&apos;t</em> see. Your business logic, the auth checks
-              inside your own code — no scanner reads those. Rather than quietly leaving them off
-              the report, we hand you the exact prompts to audit them yourself. The honesty is the
-              product.
+              Where a check does not apply or could not run, the report says so explicitly. An
+              absent result is never rendered as a pass — a repository we failed to read and a
+              repository with nothing to find produce different output, because treating unknown as
+              safe is how assessments mislead. For what no scanner can evaluate — your authorisation
+              logic, your business rules — we supply the review prompts to audit it yourself.
             </p>
           </Reveal>
 

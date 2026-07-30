@@ -47,6 +47,37 @@ describe("claims we must never make", () => {
   });
 });
 
+describe("register — written for an engineer evaluating a vendor", () => {
+  // The reader is deciding whether to trust us with their company's data. The
+  // register that earns that is a named mechanism, not a reassuring adjective.
+  it("names mechanisms rather than gesturing at outcomes", () => {
+    for (const term of [
+      "row-level security",
+      "publishable key",
+      "Management API",
+      "server-side request forgery",
+      "mass assignment",
+      "stable identifier",
+    ]) {
+      expect(LANDING.toLowerCase()).toContain(term.toLowerCase());
+    }
+  });
+
+  it("avoids reassurance adjectives standing in for evidence", () => {
+    expect(LANDING).not.toMatch(/peace of mind|sleep at night|effortless|worry-free|bulletproof|unhackable/i);
+  });
+
+  // "Silence means safe" was true of our alerting and false as a claim: silence
+  // also covers a pass that could not run.
+  it("does not equate absence of alerts with absence of risk", () => {
+    expect(LANDING).not.toMatch(/silence means safe|100% (secure|protected)/i);
+  });
+
+  it("states that a check which could not run is not a pass", () => {
+    expect(LANDING).toMatch(/absent result is never rendered as a pass/i);
+  });
+});
+
 describe("the sandboxed exploitation section", () => {
   it("states that the copy holds no customer data", () => {
     expect(LANDING).toMatch(/none of your data/i);
