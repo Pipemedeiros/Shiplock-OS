@@ -12,7 +12,14 @@ export type FixMethod =
   | "draft-pr" // logic fix (injection/XSS/crypto) → draft PR the human/agent finalizes
   | "deep-link"; // can't be a PR (Supabase dashboard toggle, secret rotation)
 
-export type FindingSource = "scan" | "github" | "policy" | "advisor";
+export type FindingSource =
+  | "scan" // the 16-check Supabase config scan
+  | "github" // repo source analysis
+  | "policy" // our own RLS policy detector
+  | "advisor" // Supabase's security advisor lints
+  | "app" // the live app surface: exposed paths, bundle audit
+  | "dns" // email authentication records
+  | "auth-config"; // Supabase auth URL configuration
 
 export interface FixableFinding {
   id: string; // finding_id (deep) or a stable scan-issue key

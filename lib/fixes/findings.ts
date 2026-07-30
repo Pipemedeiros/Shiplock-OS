@@ -31,11 +31,19 @@ export async function getFixFindings(userId: string): Promise<FixableFinding[]> 
     .limit(50);
   for (const d of (deep ?? []) as Array<{ finding_id: string; title: string; severity: Severity; consequence: string }>) {
     if (d.finding_id.includes("github:dep:")) continue; // deps → GitHub panel bulk PR
+    // Only ever consumed as `!== "scan"` today, but kept accurate so a future
+    // per-source grouping doesn't file a DNS record under "GitHub".
     const src: FindingSource = d.finding_id.startsWith("policy:")
       ? "policy"
       : d.finding_id.startsWith("advisor:")
         ? "advisor"
-        : "github";
+        : d.finding_id.startsWith("email_auth:")
+          ? "dns"
+          : d.finding_id.startsWith("auth_redirect:") || d.finding_id.startsWith("auth_site_url:")
+            ? "auth-config"
+            : d.finding_id.startsWith("exposed:") || d.finding_id.startsWith("bundle:")
+              ? "app"
+              : "github";
     out.push({ id: d.finding_id, source: src, title: d.title, severity: d.severity, fix: d.consequence });
   }
 
