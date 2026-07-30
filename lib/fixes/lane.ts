@@ -19,7 +19,8 @@ export type FindingSource =
   | "advisor" // Supabase's security advisor lints
   | "app" // the live app surface: exposed paths, bundle audit
   | "dns" // email authentication records
-  | "auth-config"; // Supabase auth URL configuration
+  | "auth-config" // Supabase auth URL configuration
+  | "graph"; // a correlated attack path spanning several collectors
 
 export interface FixableFinding {
   id: string; // finding_id (deep) or a stable scan-issue key
@@ -134,6 +135,13 @@ export function fixLane(f: FixableFinding): FixLane {
   if (id.startsWith("auth_redirect:") || id.startsWith("auth_site_url:")) {
     return lane("deep-link", "Open in Supabase", false, "supabase");
   }
+
+  // ── Attack paths. A path is a CHAIN, and it breaks if any single step is
+  // fixed — so there is no one artefact to generate. The evidence already names
+  // each step and the two places to cut it; forcing this into a single PR would
+  // pick one arbitrarily and hide the choice from the person best placed to make
+  // it. Draft PR keeps the decision with them, with the reasoning attached. ──
+  if (id.startsWith("path:")) return lane("draft-pr", "Open draft fix PR", true);
 
   // ── RLS policy-logic findings → migration PR. ──
   if (id.startsWith("policy:")) return lane("migration-pr", "Open migration PR", true);

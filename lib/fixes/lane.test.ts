@@ -176,3 +176,31 @@ describe("repo namespace stripping — the rules must match REAL ids", () => {
     expect(fixLane(f("acme/app::github:dep:lodash"))).toEqual(fixLane(f("github:dep:lodash")));
   });
 });
+
+describe("attack paths", () => {
+  const f = (id: string) => ({
+    id,
+    source: "graph" as const,
+    title: "t",
+    severity: "CRITICAL" as const,
+    fix: "x",
+  });
+
+  // A path breaks if ANY step is fixed, so there is no single artefact to
+  // generate. Forcing one PR would pick a step arbitrarily and hide the choice.
+  it("routes an attack path to a draft PR, keeping the choice of step with the human", () => {
+    const l = fixLane(f("path:tenant_isolation:/api/invoices:public.invoices"));
+    expect(l.method).toBe("draft-pr");
+    expect(l.editable).toBe(true);
+  });
+
+  it("routes every path variant the same way", () => {
+    for (const id of [
+      "path:anon_read:/api/x:public.t",
+      "path:service_role_unscoped:/api/x:public.t",
+      "path:anon_sensitive_unknown:/api/x:public.t",
+    ]) {
+      expect(fixLane(f(id)).method, id).toBe("draft-pr");
+    }
+  });
+});

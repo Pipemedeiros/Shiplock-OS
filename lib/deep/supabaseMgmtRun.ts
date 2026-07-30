@@ -15,6 +15,7 @@ import {
 import { analyzePolicies, mapAdvisors, mergePolicyFindings } from "./policyScan";
 import { scanAuthConfig } from "./authConfigScan";
 import { deriveAppUrl } from "./deriveAppUrl";
+import { saveFacts } from "@/lib/graph/graphRun";
 
 export interface PolicyScanOutcome {
   ok: boolean;
@@ -78,6 +79,11 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
       // clean bill of health — a failed fetch must never look like a pass.
       ...scanAuthConfig(authConfig),
     ];
+
+    // Feed the graph's database collector with the raw facts, not our verdicts.
+    // The reasoner combines them with route facts to produce paths neither
+    // source can see alone.
+    await saveFacts(userId, "db", { policies, advisors, authConfig }, { merge: true });
 
     // Unit 5: work out the app URL instead of asking for it.
     //

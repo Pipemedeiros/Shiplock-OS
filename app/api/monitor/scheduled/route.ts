@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { runMonitoringPass } from "@/lib/monitoring";
 import { pruneOldTraffic } from "@/lib/traffic/prune";
 import { runPolicyScan } from "@/lib/deep/supabaseMgmtRun";
+import { runGraphReasoner } from "@/lib/graph/graphRun";
 import { sendWeeklyDigest } from "@/lib/monitoring/digest";
 
 const FULL_SCAN_INTERVAL_MS = 48 * 60 * 60 * 1000;
@@ -92,6 +93,27 @@ export async function GET(req: NextRequest) {
       );
     }
   }
+
+  // The reasoner runs LAST, after every collector in this pass has written its
+  // facts, so it correlates the freshest picture rather than the previous one.
+  // Runs for every paid user — not only the Supabase-connected ones above —
+  // because route facts from the per-PR source scan can produce paths on their
+  // own, and a user with GitHub connected but not Supabase should still get them.
+  const { data: paidUsers } = await admin.from("user_profiles").select("id").eq("is_paid", true);
+
+  let pathsFound = 0;
+  for (const profile of paidUsers ?? []) {
+    try {
+      const result = await runGraphReasoner(profile.id);
+      pathsFound += result.newCount;
+    } catch (err) {
+      console.error(
+        `[monitor/scheduled] graph reasoner failed for user ${profile.id}:`,
+        err instanceof Error ? err.message : err
+      );
+    }
+  }
+  if (pathsFound > 0) console.log(`[monitor/scheduled] ${pathsFound} new attack paths`);
 
   // Weekly digest (migration 038). Rides the daily cron and self-limits to once
   // a week per user, so no new schedule is needed — which matters, since the

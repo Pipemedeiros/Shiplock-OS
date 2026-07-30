@@ -4,6 +4,9 @@ import { scanSecrets, scanTokenStorage, scanLoggedSecrets, extractDependencies, 
 import { scanCodePatterns } from "./sourcePatterns";
 import { scanClientExposure } from "./clientExposure";
 import { checkRepoVisibility } from "./repoVisibility";
+import { collectRoutes } from "@/lib/graph/routeInventory";
+import { saveFacts } from "@/lib/graph/graphRun";
+import type { RouteFact } from "@/lib/graph/routeInventory";
 
 // Full source scan for a connected GitHub App installation: read-only repo
 // contents -> committed secrets, token-storage anti-pattern, dependency CVEs
@@ -33,7 +36,11 @@ export function readPriority(path: string): number {
   return 2;
 }
 
-async function scanRepo(token: string, repo: Repo): Promise<GithubFinding[]> {
+async function scanRepo(
+  token: string,
+  repo: Repo,
+  routeSink?: RouteFact[]
+): Promise<GithubFinding[]> {
   const { fullName, defaultBranch: branch } = repo;
   const tree = await listTree(token, fullName, branch);
   const candidates = tree
@@ -74,6 +81,10 @@ async function scanRepo(token: string, repo: Repo): Promise<GithubFinding[]> {
     }
   }
 
+  // Feed the graph's source collector. Routes are facts, not findings — they
+  // go to graph_facts, never to deep_findings.
+  if (routeSink) routeSink.push(...collectRoutes(files));
+
   // C22 last, because it READS the findings above: a public repo is only a
   // critical problem when we also found credentials in it. Runs before the id
   // namespacing below so its secret-class matching sees the bare ids.
@@ -96,14 +107,20 @@ export async function runGithubScan(
   // a repo that threw produced ZERO findings, and treating that as "everything in
   // it is fixed" would silently close real open issues.
   const scannedRepos: string[] = [];
+  const routes: RouteFact[] = [];
   for (const repo of repos) {
     try {
-      all.push(...(await scanRepo(token, repo)));
+      all.push(...(await scanRepo(token, repo, routes)));
       scannedRepos.push(repo.fullName);
     } catch {
       continue; // one bad repo shouldn't fail the pass
     }
   }
+
+  // Only record routes when at least one repo was actually read. Saving an
+  // empty inventory after a failed pass would tell the reasoner the customer has
+  // no API at all, silently closing every path that runs through one.
+  if (scannedRepos.length > 0) await saveFacts(userId, "source", { routes });
 
   const { data: existing } = await admin
     .from("deep_findings")
