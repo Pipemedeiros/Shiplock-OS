@@ -37,6 +37,13 @@ export interface FixLane {
   method: FixMethod;
   label: string; // button label
   editable: boolean; // show the editable preview
+  /**
+   * True when the PR will contain an edited copy of the customer's own files
+   * rather than a description of the change. Set by the caller from
+   * hasCodemod(), not decided here — the lane is about HOW a fix applies, the
+   * codemod is about whether we can write it.
+   */
+  appliesRealDiff?: boolean;
   external?: "supabase" | "provider" | "github" | "dns"; // deep-link target class
 }
 
