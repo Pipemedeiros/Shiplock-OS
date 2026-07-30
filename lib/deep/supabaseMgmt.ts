@@ -17,6 +17,7 @@ import type { PgPolicy, SupabaseAdvisor } from "./policyScan";
 import { GRANT_INVENTORY_SQL } from "./grantScan";
 import { EXTENSION_SQL, NETWORK_GRANT_SQL, CRON_JOB_SQL, FDW_SQL } from "./extensionScan";
 import { BUCKET_SQL, STORAGE_POLICY_SQL, type BucketRow, type StoragePolicyRow } from "./storageScan";
+import { REALTIME_SQL, AUTH_HOOK_SQL, type RealtimeTableRow, type AuthHookRow } from "./realtimeScan";
 
 const API = "https://api.supabase.com";
 const AUTHORIZE_URL = `${API}/v1/oauth/authorize`;
@@ -487,4 +488,23 @@ export async function fetchBackupConfig(
   } catch {
     return null;
   }
+}
+
+/** A14/A20 — Realtime publication state and auth hook definitions. */
+export async function fetchRealtimeAndHooks(
+  accessToken: string,
+  projectRef: string
+): Promise<{ realtimeTables?: RealtimeTableRow[]; authHooks?: AuthHookRow[] }> {
+  const attempt = async <T>(sql: string): Promise<T[] | undefined> => {
+    try {
+      return await runReadQuery<T>(accessToken, projectRef, sql);
+    } catch {
+      return undefined;
+    }
+  };
+  const [realtimeTables, authHooks] = await Promise.all([
+    attempt<RealtimeTableRow>(REALTIME_SQL),
+    attempt<AuthHookRow>(AUTH_HOOK_SQL),
+  ]);
+  return { realtimeTables, authHooks };
 }

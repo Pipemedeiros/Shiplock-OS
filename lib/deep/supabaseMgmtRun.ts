@@ -18,6 +18,7 @@ import {
   fetchDatabaseCapabilities,
   fetchStorageConfig,
   fetchBackupConfig,
+  fetchRealtimeAndHooks,
 } from "./supabaseMgmt";
 import { analyzePolicies, mapAdvisors, mergePolicyFindings } from "./policyScan";
 import { scanAuthConfig } from "./authConfigScan";
@@ -25,6 +26,7 @@ import { scanAuthPolicy } from "./authPolicyScan";
 import { analyzeGrants } from "./grantScan";
 import { scanExtensions } from "./extensionScan";
 import { scanStorage, checkBackups } from "./storageScan";
+import { scanRealtimeAndHooks } from "./realtimeScan";
 import { deriveAppUrl } from "./deriveAppUrl";
 import { saveFacts } from "@/lib/graph/graphRun";
 import { buildInventory } from "@/lib/exposure/model";
@@ -104,6 +106,8 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
       // A12/A13 storage, A19 recovery posture.
       ...scanStorage(await fetchStorageConfig(token.accessToken, projectRef)),
       ...checkBackups(await fetchBackupConfig(token.accessToken, projectRef)),
+      // A14 Realtime authorisation, A20 auth-hook claim integrity.
+      ...scanRealtimeAndHooks(await fetchRealtimeAndHooks(token.accessToken, projectRef)),
     ];
 
     // Feed the graph's database collector with the raw facts, not our verdicts.
