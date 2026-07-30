@@ -489,7 +489,7 @@ export default function LandingPage() {
           <span>
             <Link href="/owasp">Coverage</Link> · <Link href="/incidents">Real incidents</Link> ·{" "}
             <Link href="/terms">Terms</Link> · <Link href="/privacy">Privacy</Link> ·{" "}
-            <Link href="/dashboard-preview">Product preview →</Link> · support@shiplock.dev
+            <Link href="/dashboard-demo">Product preview →</Link> · support@shiplock.dev
           </span>
         </footer>
       </div>

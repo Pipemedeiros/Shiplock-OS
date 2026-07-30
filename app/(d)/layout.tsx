@@ -18,7 +18,7 @@ import { PostHogInit } from "@/components/PostHogInit";
 // /dashboard) — a route group, so it contributes no URL segment. Fonts are
 // self-hosted via next/font so middleware.ts's CSP (style/font 'self')
 // holds without any changes there. Scoped to this group only so /auth and
-// /dashboard-preview outside it keep the root layout's Fraunces/Inter/Plex
+// /dashboard-demo and friends keep the root layout's Fraunces/Inter/Plex
 // Mono set untouched.
 
 const hanken = Hanken_Grotesk({

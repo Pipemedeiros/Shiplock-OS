@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LockMark } from "@/components/d/Brand";
-import { CoverageBoard } from "@/components/d/CoverageBoard";
+import { FindingsBoard, PostureHeadline } from "@/components/d/CoverageBoard";
+import { DashboardTabs } from "@/components/d/DashboardTabs";
+import { TrafficPulse } from "@/components/d/TrafficPulse";
 import { WatchPanel } from "@/components/d/WatchPanel";
 import { TrafficPanel } from "@/components/d/TrafficPanel";
 import { GuardrailPanel } from "@/components/d/GuardrailPanel";
@@ -78,11 +80,44 @@ const agentBrief = buildAgentBrief(
   fixFindings.filter((f) => f.source !== "scan").map((f) => ({ title: f.title, severity: f.severity, consequence: f.fix }))
 );
 
+const DEMO_PULSE = {
+  watched: 12_480,
+  sources: 638,
+  turnedAway: 214,
+  activeBlocks: 2,
+  buckets: [180, 240, 310, 290, 420, 560, 610, 480, 390, 520, 730, 640],
+  recentPaths: [
+    { path: "/auth/v1/token", method: "POST", blocked: true },
+    { path: "/api/invoices", method: "GET", blocked: false },
+    { path: "/auth/v1/token", method: "POST", blocked: true },
+    { path: "/api/profile", method: "GET", blocked: false },
+    { path: "/.env", method: "GET", blocked: true },
+  ],
+  windowHours: 48,
+  hasData: true,
+};
+
+/**
+ * The dashboard is four surfaces now. This preview is one scrollable page, so it
+ * labels which surface each panel actually lives on — otherwise the preview
+ * teaches the wrong mental model of the product it is previewing.
+ */
+function SurfaceLabel({ name, note }: { name: string; note: string }) {
+  return (
+    <div style={{ marginTop: 56, marginBottom: 4, borderTop: "1px solid var(--d-line)", paddingTop: 20 }}>
+      <p className="dxd-mono" style={{ margin: 0, fontSize: 11, color: "var(--d-bronze)", letterSpacing: "0.08em" }}>
+        {name.toUpperCase()} TAB
+      </p>
+      <p className="dxd-lede" style={{ margin: "4px 0 0", fontSize: 13.5 }}>{note}</p>
+    </div>
+  );
+}
+
 export default function DashboardDemoPage() {
   return (
     <main className="dxd">
       <div style={{ background: "var(--d-bronze)", color: "#fff", textAlign: "center", padding: "8px 16px", fontSize: 12.5 }} className="dxd-mono">
-        Preview · mock data — this is the current dashboard UI (buttons are inert here).
+        Preview · mock data — the current dashboard, all four tabs on one page. Buttons are inert.
       </div>
 
       <div className="dxd-band">
@@ -99,11 +134,20 @@ export default function DashboardDemoPage() {
             </div>
           </nav>
 
-          <header className="dxd-dash-hero">
-            <p className="dxd-eyebrow">The coverage board</p>
-            <CoverageBoard issues={issues} totalChecks={TOTAL_CHECKS} />
-          </header>
+          <DashboardTabs findingCount={fixFindings.length} demo />
         </div>
+      </div>
+
+      <div className="dxd-shell dxd-dash-body">
+        {/* ── Overview — mirrors app/(d)/dashboard/page.tsx ── */}
+        <section className="dxd-dash-hero">
+          <p className="dxd-eyebrow">The coverage board</p>
+          <PostureHeadline issues={issues} totalChecks={TOTAL_CHECKS} />
+        </section>
+
+        <Reveal>
+          <TrafficPulse pulse={DEMO_PULSE} />
+        </Reveal>
       </div>
 
       <div className="dxd-shell dxd-dash-body">
@@ -129,6 +173,7 @@ export default function DashboardDemoPage() {
           </div>
         </section>
 
+        <SurfaceLabel name="Watch" note="the monitoring log and audit history" />
         <Reveal>
           <WatchPanel
             entries={[
@@ -160,6 +205,11 @@ export default function DashboardDemoPage() {
           />
         </Reveal>
 
+        <SurfaceLabel name="Findings" note="everything open, with its fix" />
+        <Reveal>
+          <FindingsBoard issues={issues} totalChecks={TOTAL_CHECKS} />
+        </Reveal>
+
         <Reveal>
           <GitHubPanel connected={true} findings={sourceFindings} />
         </Reveal>
@@ -168,6 +218,7 @@ export default function DashboardDemoPage() {
           <GuardrailPanel guardrails={GUARDRAILS} jwtPosture={jwtPosture} />
         </Reveal>
 
+        <SurfaceLabel name="Settings" note="connections, the Verified report, tokens and billing" />
         <Reveal>
           <VerifiedPanel initialEnabled={true} initialToken="demo_verified_token" appUrl="https://shiplock.dev" />
         </Reveal>

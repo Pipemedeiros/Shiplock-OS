@@ -15,15 +15,41 @@ const TABS = [
   { href: "/dashboard/settings", label: "Settings" },
 ] as const;
 
-export function DashboardTabs({ findingCount = 0 }: { findingCount?: number }) {
+export function DashboardTabs({
+  findingCount = 0,
+  demo = false,
+}: {
+  findingCount?: number;
+  /**
+   * Public preview: render the real tab bar, but inert. Linking would send a
+   * logged-out visitor into the auth wall, which is the opposite of what a
+   * preview is for.
+   */
+  demo?: boolean;
+}) {
   const pathname = usePathname();
 
   return (
     <nav className="dxd-tabs" aria-label="Dashboard sections">
       {TABS.map((tab) => {
         // "/dashboard" would otherwise match every child route.
-        const active =
-          tab.href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(tab.href);
+        const active = demo
+          ? tab.href === "/dashboard"
+          : tab.href === "/dashboard"
+            ? pathname === "/dashboard"
+            : pathname.startsWith(tab.href);
+
+        if (demo) {
+          return (
+            <span key={tab.href} className="dxd-tab" data-active={active} aria-disabled="true">
+              {tab.label}
+              {tab.label === "Findings" && findingCount > 0 && (
+                <span className="dxd-tab-count">{findingCount}</span>
+              )}
+            </span>
+          );
+        }
+
         return (
           <Link
             key={tab.href}
