@@ -13,12 +13,14 @@ import {
   fetchAuthConfig,
   fetchSchemaColumns,
   fetchRowCounts,
+  fetchAuthAuditLog,
 } from "./supabaseMgmt";
 import { analyzePolicies, mapAdvisors, mergePolicyFindings } from "./policyScan";
 import { scanAuthConfig } from "./authConfigScan";
 import { deriveAppUrl } from "./deriveAppUrl";
 import { saveFacts } from "@/lib/graph/graphRun";
 import { buildInventory } from "@/lib/exposure/model";
+import { runAuthLogScan } from "@/lib/runtime/authRun";
 
 export interface PolicyScanOutcome {
   ok: boolean;
@@ -106,6 +108,15 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
         "[supabaseMgmt] schema inventory failed:",
         err instanceof Error ? err.message : err
       );
+    }
+
+    // E5-E7 runtime detection from the auth audit log. Zero friction: this
+    // needs no snippet installed, only the Supabase connection they already
+    // made. Best-effort — the log endpoint is experimental.
+    try {
+      await runAuthLogScan(userId, await fetchAuthAuditLog(token.accessToken, projectRef));
+    } catch (err) {
+      console.error("[supabaseMgmt] auth log scan failed:", err instanceof Error ? err.message : err);
     }
 
     // Unit 5: work out the app URL instead of asking for it.

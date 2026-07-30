@@ -20,7 +20,8 @@ export type FindingSource =
   | "app" // the live app surface: exposed paths, bundle audit
   | "dns" // email authentication records
   | "auth-config" // Supabase auth URL configuration
-  | "graph"; // a correlated attack path spanning several collectors
+  | "graph" // a correlated attack path spanning several collectors
+  | "runtime"; // a live attack observed in the auth audit log
 
 export interface FixableFinding {
   id: string; // finding_id (deep) or a stable scan-issue key
@@ -142,6 +143,12 @@ export function fixLane(f: FixableFinding): FixLane {
   // pick one arbitrarily and hide the choice from the person best placed to make
   // it. Draft PR keeps the decision with them, with the reasoning attached. ──
   if (id.startsWith("path:")) return lane("draft-pr", "Open draft fix PR", true);
+
+  // ── A live attack is not a code defect. There is no PR that makes it stop;
+  // the actions are operational (reset a session, enable rate limiting, require
+  // a second factor), so we deep-link to the auth settings rather than pretend a
+  // diff would help. ──
+  if (id.startsWith("runtime:")) return lane("deep-link", "Open in Supabase", false, "supabase");
 
   // ── RLS policy-logic findings → migration PR. ──
   if (id.startsWith("policy:")) return lane("migration-pr", "Open migration PR", true);

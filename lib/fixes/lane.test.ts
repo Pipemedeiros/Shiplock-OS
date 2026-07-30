@@ -204,3 +204,27 @@ describe("attack paths", () => {
     }
   });
 });
+
+describe("runtime findings", () => {
+  const f = (id: string) => ({
+    id,
+    source: "runtime" as const,
+    title: "t",
+    severity: "CRITICAL" as const,
+    fix: "x",
+  });
+
+  // A live attack is not a code defect — no diff makes it stop.
+  it("routes a live attack to auth settings, not a PR", () => {
+    for (const id of [
+      "runtime:credential_stuffing:src-a",
+      "runtime:takeover_sequence:user1",
+      "runtime:brute_force:user1",
+      "runtime:signup_burst:src-a",
+    ]) {
+      const l = fixLane(f(id));
+      expect(l.method, id).toBe("deep-link");
+      expect(l.external).toBe("supabase");
+    }
+  });
+});
