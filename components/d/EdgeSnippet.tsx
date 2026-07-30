@@ -1,5 +1,12 @@
-// Presentational, server-safe (no hooks). Renders the copy-paste install
-// snippet for the customer's app. Snippet text (with their site token) is built
+// Presentational, server-safe (no hooks). Renders the OPTIONAL edge snippet.
+//
+// Framing matters here and it changed once E5-E7 shipped. Detection of
+// credential stuffing, brute force and account takeover now runs from Supabase's
+// own auth log, which needs nothing installed — so this snippet is no longer how
+// protection begins, it is an upgrade from "we tell you" to "we stop it in the
+// request". The connection budget is two, GitHub and Supabase, and a panel
+// headed "Install protection" quietly implies a third step is required for the
+// product to work. It is not, and the copy must not suggest otherwise. Snippet text (with their site token) is built
 // server-side via lib/traffic/snippet.ts and passed in — the token is a live
 // per-site credential, same sensitivity as the deploy-webhook URL, so it's only
 // ever rendered for a paid, authenticated owner viewing their own dashboard.
@@ -33,14 +40,17 @@ export function EdgeSnippet({
   return (
     <div className="dxd-surface">
       <h3 style={{ margin: "0 0 10px", fontSize: 15 }}>
-        {installed ? "Protection installed" : "Install protection"}
+        {installed ? "Blocking at the edge — installed" : "Optional: block attacks in the request"}
       </h3>
       <p style={{ margin: "0 0 12px", fontSize: 12.5, lineHeight: 1.7, color: "var(--d-muted)" }}>
-        Save this as <code className="dxd-mono">middleware.ts</code> in your project root and
-        deploy. It watches your login and API routes and blocks malicious sources — and it
-        fails open: if ShipLock is ever unreachable, your app keeps serving normally, with no
-        added latency. Safe to remove anytime. The key inside is unique to your account —
-        treat it like a password.
+        You don&apos;t need this. We already watch your sign-in activity through Supabase, so
+        credential stuffing, password attacks and account takeovers get detected and reported
+        without you installing anything. This snippet changes what happens next: instead of
+        telling you afterwards, it turns malicious requests away as they arrive. Save it as{" "}
+        <code className="dxd-mono">middleware.ts</code> in your project root and deploy. It fails
+        open — if ShipLock is ever unreachable your app keeps serving normally, with no added
+        latency — and it is safe to remove at any time. The key inside is unique to your account,
+        so treat it like a password.
       </p>
       <pre className="dxd-mono" style={preStyle}>
         {snippet}
