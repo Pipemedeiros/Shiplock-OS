@@ -7,6 +7,7 @@ import { checkRepoVisibility } from "./repoVisibility";
 import { collectRoutes } from "@/lib/graph/routeInventory";
 import { buildReachabilityIndex } from "@/lib/graph/reachability";
 import { scanRouteFacts } from "@/lib/graph/routeChecks";
+import { scanWorkflows } from "./workflowScan";
 import { saveFacts } from "@/lib/graph/graphRun";
 import type { RouteFact } from "@/lib/graph/routeInventory";
 
@@ -74,6 +75,9 @@ async function scanRepo(
     ...scanLoggedSecrets(files),
     ...scanCodePatterns(files),
     ...scanClientExposure(files),
+    // C20 — CI is a live attack path, and workflow files are already in the set
+    // we fetch (.ya?ml matches the candidate filter).
+    ...scanWorkflows(files),
   ];
 
   if (packageJson) {

@@ -17,6 +17,14 @@ on:
     - cron: "17 * * * *"
   workflow_dispatch: {} # manual trigger, for testing
 
+# Flagged by our own C20 check (lib/deep/workflowScan.ts) running against this
+# repo. This workflow only makes an outbound HTTPS call — it never needs to touch
+# the repository — so it says so explicitly rather than inheriting whatever the
+# repository default happens to be. If a future edit needs write access, this
+# line makes it fail loudly instead of silently having it.
+permissions:
+  contents: read
+
 jobs:
   trigger:
     runs-on: ubuntu-latest
