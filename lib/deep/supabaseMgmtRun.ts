@@ -21,6 +21,8 @@ import { deriveAppUrl } from "./deriveAppUrl";
 import { saveFacts } from "@/lib/graph/graphRun";
 import { buildInventory } from "@/lib/exposure/model";
 import { runAuthLogScan } from "@/lib/runtime/authRun";
+import { runProvingGround } from "@/lib/proving/run";
+import { findAttackPaths } from "@/lib/graph/attackPaths";
 
 export interface PolicyScanOutcome {
   ok: boolean;
@@ -106,6 +108,58 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
     } catch (err) {
       console.error(
         "[supabaseMgmt] schema inventory failed:",
+        err instanceof Error ? err.message : err
+      );
+    }
+
+    // The proving ground. Inert unless the customer opted in AND the kill switch
+    // is off — both default off in migration 040, so this changes nothing for
+    // anyone until they ask for it. Wired here because this is the only place
+    // holding a Management API token and the project ref together.
+    //
+    // What it probes comes from the reasoner: the graph decides WHAT to test,
+    // the proving ground decides whether it is TRUE.
+    try {
+      const { data: settingsRow } = await admin
+        .from("user_profiles")
+        .select("proving_ground_enabled, autonomy_kill_switch")
+        .eq("id", userId)
+        .maybeSingle();
+
+      const settings = {
+        provingGroundEnabled: settingsRow?.proving_ground_enabled === true,
+        killSwitchOn: settingsRow?.autonomy_kill_switch === true,
+      };
+
+      if (settings.provingGroundEnabled && !settings.killSwitchOn) {
+        const suspected = findAttackPaths({ policies, advisors })
+          .filter((p) => p.id.includes("tenant_isolation") || p.id.includes("anon_read"))
+          .map((p) => p.id.split(":").pop() ?? "")
+          .filter(Boolean);
+
+        const schema = new Map<string, string[]>();
+        for (const c of await fetchSchemaColumns(token.accessToken, projectRef)) {
+          schema.set(c.table, [...(schema.get(c.table) ?? []), c.column]);
+        }
+
+        const result = await runProvingGround(
+          userId,
+          token.accessToken,
+          projectRef,
+          settings,
+          suspected,
+          schema
+        );
+        if (result.ran) {
+          await admin
+            .from("user_profiles")
+            .update({ last_proving_run_at: new Date().toISOString() })
+            .eq("id", userId);
+        }
+      }
+    } catch (err) {
+      console.error(
+        "[supabaseMgmt] proving ground failed:",
         err instanceof Error ? err.message : err
       );
     }

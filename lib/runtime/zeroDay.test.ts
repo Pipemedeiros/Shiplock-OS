@@ -90,3 +90,26 @@ describe("runZeroDayCheck", () => {
     expect(insertMock).not.toHaveBeenCalled();
   });
 });
+
+// The bug found in verification: zero-day findings reuse the `github:dep:` id
+// shape, and findings.ts skipped ALL such ids on the assumption they appear in
+// the GitHub panel — which filters source='github'. They appeared nowhere.
+describe("visibility and de-duplication", () => {
+  beforeEach(() => {
+    factsMock.mockReset().mockResolvedValue({ data: null });
+    osvMock.mockReset().mockResolvedValue([]);
+    findingsSelectMock.mockReset().mockResolvedValue({ data: [] });
+    insertMock.mockReset().mockResolvedValue({ error: null });
+    updateInMock.mockReset().mockResolvedValue({ error: null });
+  });
+
+  it("does not re-report a CVE already open from a pull-request scan", async () => {
+    factsMock.mockResolvedValue(withDeps);
+    osvMock.mockResolvedValue([vuln]);
+    // Both the zero-day query and the source-scan query return the same id.
+    findingsSelectMock.mockResolvedValue({ data: [{ finding_id: "github:dep:left-pad:GHSA-x" }] });
+    const result = await runZeroDayCheck("u1");
+    expect(result.newCount).toBe(0);
+    expect(insertMock).not.toHaveBeenCalled();
+  });
+});

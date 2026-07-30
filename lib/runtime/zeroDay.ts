@@ -49,6 +49,17 @@ export async function runZeroDayCheck(
     .eq("source", "zero-day")
     .is("archived_at", null);
 
+  // The same CVE can already be open from a pull-request scan. Both carry the
+  // same finding_id under different sources, so without this the customer would
+  // see one problem twice — once in the GitHub panel and once in the fix list.
+  const { data: fromSourceScan } = await admin
+    .from("deep_findings")
+    .select("finding_id")
+    .eq("user_id", userId)
+    .eq("source", "github")
+    .is("archived_at", null);
+  const alreadyReported = new Set((fromSourceScan ?? []).map((r) => r.finding_id as string));
+
   const active = new Set((existing ?? []).map((r) => r.finding_id as string));
   const current = new Set(findings.map((f) => f.id));
 
@@ -65,7 +76,7 @@ export async function runZeroDayCheck(
       .in("finding_id", resolved);
   }
 
-  const fresh = findings.filter((f) => !active.has(f.id));
+  const fresh = findings.filter((f) => !active.has(f.id) && !alreadyReported.has(f.id));
   if (fresh.length > 0) {
     await admin.from("deep_findings").insert(
       fresh.map((f) => ({

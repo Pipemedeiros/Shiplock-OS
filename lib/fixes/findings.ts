@@ -26,13 +26,19 @@ export async function getFixFindings(userId: string): Promise<FixableFinding[]> 
 
   const { data: deep } = await getSupabaseAdmin()
     .from("deep_findings")
-    .select("finding_id, title, severity, consequence")
+    .select("finding_id, title, severity, consequence, source")
     .eq("user_id", userId)
     .is("archived_at", null)
     .order("detected_at", { ascending: false })
     .limit(50);
-  for (const d of (deep ?? []) as Array<{ finding_id: string; title: string; severity: Severity; consequence: string }>) {
-    if (d.finding_id.includes("github:dep:")) continue; // deps → GitHub panel bulk PR
+  for (const d of (deep ?? []) as Array<{ finding_id: string; title: string; severity: Severity; consequence: string; source: string }>) {
+    // Dependency findings from the SOURCE scan are shown in the GitHub panel's
+    // bulk PR instead. Scoped to source='github' deliberately: zero-day findings
+    // reuse the same `github:dep:` id shape (they are the same class of problem,
+    // found on a schedule rather than on a push) but the GitHub panel filters on
+    // source='github', so skipping them here made them invisible everywhere —
+    // written to the database and shown on no screen.
+    if (d.source === "github" && d.finding_id.includes("github:dep:")) continue;
     // Only ever consumed as `!== "scan"` today, but kept accurate so a future
     // per-source grouping doesn't file a DNS record under "GitHub".
     const src: FindingSource = d.finding_id.startsWith("proven:")
