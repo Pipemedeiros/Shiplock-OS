@@ -3,7 +3,7 @@ import {
   assessReplicability,
   buildControlProbeSql,
   buildReplicaPlan,
-  buildReplicaProbeSql,
+  buildLeakProbeSql,
   ident,
   isTrustworthy,
 } from "./replica";
@@ -114,7 +114,7 @@ describe("replica construction", () => {
 
 describe("probes", () => {
   it("signs in as tenant A and counts tenant B's rows", () => {
-    const sql = buildReplicaProbeSql("proving_x", "invoices", "user_id");
+    const sql = buildLeakProbeSql("proving_x", "invoices", "user_id");
     expect(sql).toContain("set local role authenticated");
     expect(sql).toContain(TENANT_A); // in the claims
     expect(sql).toContain(TENANT_B); // in the WHERE
@@ -122,11 +122,11 @@ describe("probes", () => {
   });
 
   it("sets the JWT claims so auth.uid() resolves to the synthetic tenant", () => {
-    expect(buildReplicaProbeSql("s", "t", "c")).toContain("request.jwt.claims");
+    expect(buildLeakProbeSql("s", "t", "c")).toContain("request.jwt.claims");
   });
 
   it("runs in a transaction, because set local requires one", () => {
-    const sql = buildReplicaProbeSql("s", "t", "c");
+    const sql = buildLeakProbeSql("s", "t", "c");
     expect(sql.startsWith("begin;")).toBe(true);
     expect(sql.trim().endsWith("commit;")).toBe(true);
   });

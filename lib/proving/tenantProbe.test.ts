@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildProbeSql,
   buildSeedSql,
   interpretProbe,
   pickOwnerColumn,
@@ -50,16 +49,7 @@ describe("SQL construction", () => {
     expect(plan.sql).toContain('insert into public."invoices" ("user_id")');
   });
 
-  it("probes for the OTHER tenant's rows", () => {
-    const sql = buildProbeSql("invoices", "user_id");
-    expect(sql).toContain(TENANT_B);
-    expect(sql).not.toContain(TENANT_A);
-    expect(sql).toMatch(/^select count/);
-  });
 
-  it("builds a read-only probe", () => {
-    expect(buildProbeSql("invoices", "user_id")).not.toMatch(/insert|update|delete|drop/i);
-  });
 });
 
 describe("interpreting the result", () => {

@@ -508,3 +508,39 @@ export async function fetchRealtimeAndHooks(
   ]);
   return { realtimeTables, authHooks };
 }
+
+/**
+ * Runs arbitrary SQL against SHIPLOCK'S OWN proving project.
+ *
+ * This is the only function in the codebase that sends a write to a Postgres
+ * database, so the boundary is enforced here rather than by convention: it
+ * refuses any project ref that is not the configured proving project. A caller
+ * cannot point it at a customer, even by accident, because the ref is checked
+ * against the environment rather than against an argument the caller supplies.
+ *
+ * assertReadOnly deliberately does NOT apply — rebuilding a table for testing
+ * needs CREATE, INSERT and DROP. That is exactly why the ref check above is not
+ * optional.
+ */
+export async function runManagementQuery(
+  accessToken: string,
+  projectRef: string,
+  sql: string
+): Promise<Record<string, unknown>[]> {
+  const allowed = process.env.SHIPLOCK_PROVING_PROJECT_REF;
+  if (!allowed || projectRef !== allowed) {
+    throw new Error(
+      "runManagementQuery may only target ShipLock's own proving project. Refusing."
+    );
+  }
+
+  const res = await fetch(`${API}/v1/projects/${encodeURIComponent(projectRef)}/database/query`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
+    body: JSON.stringify({ query: sql }),
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!res.ok) throw new Error(`Proving query HTTP ${res.status}`);
+  const json = await res.json();
+  return Array.isArray(json) ? (json as Record<string, unknown>[]) : [];
+}

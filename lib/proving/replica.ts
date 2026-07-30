@@ -155,7 +155,9 @@ export function buildReplicaPlan(
 }
 
 /**
- * The probe, as one transaction.
+ * The leak probe, as one transaction. Used by BOTH arenas — a branch passes
+ * `public`, a replica passes its throwaway schema — which is why it is not named
+ * for either.
  *
  * `set local` needs a transaction, and the role plus JWT claims must be in place
  * for the same statement that reads the table — that is what makes auth.uid()
@@ -165,7 +167,7 @@ export function buildReplicaPlan(
  * Signed in as A, counting B's rows: any result above zero is the policy failing
  * to isolate tenants, demonstrated rather than inferred.
  */
-export function buildReplicaProbeSql(schema: string, table: string, ownerColumn: string): string {
+export function buildLeakProbeSql(schema: string, table: string, ownerColumn: string): string {
   const s = ident(schema);
   const t = ident(table);
   const c = ident(ownerColumn);

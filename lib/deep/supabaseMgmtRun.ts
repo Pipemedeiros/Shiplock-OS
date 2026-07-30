@@ -32,6 +32,7 @@ import { saveFacts } from "@/lib/graph/graphRun";
 import { buildInventory } from "@/lib/exposure/model";
 import { runAuthLogScan } from "@/lib/runtime/authRun";
 import { runProvingGround } from "@/lib/proving/run";
+import { provingHost } from "@/lib/proving/host";
 import { findAttackPaths } from "@/lib/graph/attackPaths";
 import { loadGraphInput } from "@/lib/graph/graphRun";
 import { buildTableFacts } from "@/lib/graph/graph";
@@ -182,14 +183,24 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
           schema.set(c.table, [...(schema.get(c.table) ?? []), c.column]);
         }
 
-        const result = await runProvingGround(
+        // Policies grouped per table, so the replica path can rebuild one.
+        const policiesByTable = new Map<string, typeof policies>();
+        for (const policy of policies) {
+          const list = policiesByTable.get(policy.tablename) ?? [];
+          list.push(policy);
+          policiesByTable.set(policy.tablename, list);
+        }
+
+        const result = await runProvingGround({
           userId,
-          token.accessToken,
-          projectRef,
+          customerToken: token.accessToken,
+          customerRef: projectRef,
           settings,
-          [...suspected],
-          schema
-        );
+          suspectedTables: [...suspected],
+          schema,
+          policiesByTable,
+          host: provingHost(),
+        });
         if (result.ran) {
           await admin
             .from("user_profiles")

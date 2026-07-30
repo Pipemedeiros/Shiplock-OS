@@ -83,18 +83,6 @@ export function buildSeedSql(table: string, ownerColumn: string): SeedPlan {
   };
 }
 
-/**
- * The probe itself: as tenant A, how many rows of tenant B's are visible?
- *
- * Runs with the branch's anon/authenticated role and a JWT claiming tenant A, so
- * it exercises exactly the policies a real signed-in user would hit.
- */
-export function buildProbeSql(table: string, ownerColumn: string): string {
-  const t = quoteIdent(table);
-  const c = quoteIdent(ownerColumn);
-  return `select count(*)::int as leaked from public.${t} where ${c} = '${TENANT_B}'`;
-}
-
 export interface ProbeOutcome {
   table: string;
   ownerColumn: string;

@@ -32,6 +32,10 @@ const envSchema = z.object({
   // Optional: the GitHub App (source scanning) may not be registered yet.
   // lib/deep/github.ts throws a clear error at call time if these are unset.
   // See ROADMAP.md for how to create the App and obtain these.
+  // ShipLock's own proving project — enables the free proving path for
+  // customers whose plan does not include Supabase Branching.
+  SHIPLOCK_PROVING_TOKEN: optionalSecret,
+  SHIPLOCK_PROVING_PROJECT_REF: optionalSecret,
   GITHUB_APP_ID: optionalSecret,
   GITHUB_APP_PRIVATE_KEY: optionalSecret,
   GITHUB_APP_CLIENT_ID: optionalSecret,

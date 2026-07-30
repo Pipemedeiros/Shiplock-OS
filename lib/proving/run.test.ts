@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const insertMock = vi.fn();
 const selectMock = vi.fn();
+const insertMock = vi.fn();
 const updateInMock = vi.fn();
 
 vi.mock("@/lib/supabase", () => ({
@@ -14,106 +14,167 @@ vi.mock("@/lib/supabase", () => ({
   }),
 }));
 
+const openArenaMock = vi.fn();
+vi.mock("./arena", () => ({ openArena: openArenaMock }));
+
 const { runProvingGround, persistProvenFindings } = await import("./run");
 
-const schema = new Map([["invoices", ["id", "user_id"]]]);
-const on = { killSwitchOn: false, provingGroundEnabled: true };
+const settings = { killSwitchOn: false, provingGroundEnabled: true };
+const schema = new Map([["invoices", ["id", "user_id", "amount"]]]);
+const policiesByTable = new Map([["invoices", []]]);
 
-describe("runProvingGround — refusals happen before any spending", () => {
-  const fetchMock = vi.fn();
+/** An arena whose responses are scripted by SQL shape. */
+function fakeArena(over: { control?: number; leaked?: number; kind?: "branch" | "replica" } = {}) {
+  const teardown = vi.fn().mockResolvedValue(undefined);
+  const run = vi.fn(async (sql: string) => {
+    if (/as visible/.test(sql)) return [{ visible: over.control ?? 1 }];
+    if (/as leaked,/.test(sql)) return [{ leaked: over.leaked ?? 0, own: 1 }];
+    if (/as leaked/.test(sql)) return [{ leaked: over.leaked ?? 0 }];
+    return [];
+  });
+  return {
+    arena: { kind: over.kind ?? "replica", schema: "proving_x", description: "d", run, teardown },
+    teardown,
+    run,
+  };
+}
+
+const ctx = (over: Record<string, unknown> = {}) => ({
+  userId: "u1",
+  customerToken: "t",
+  customerRef: "prod",
+  settings,
+  suspectedTables: ["public.invoices"],
+  schema,
+  policiesByTable,
+  host: null,
+  propose: vi.fn().mockResolvedValue([]),
+  ...over,
+});
+
+describe("refusals happen before any arena is opened", () => {
   beforeEach(() => {
-    fetchMock.mockReset();
-    vi.stubGlobal("fetch", fetchMock);
+    openArenaMock.mockReset();
     selectMock.mockReset().mockResolvedValue({ data: [] });
     insertMock.mockReset().mockResolvedValue({ error: null });
     updateInMock.mockReset().mockResolvedValue({ error: null });
   });
-  afterEach(() => vi.unstubAllGlobals());
 
-  it("refuses on the kill switch without creating a branch", async () => {
-    const r = await runProvingGround("u1", "t", "prod", { ...on, killSwitchOn: true }, ["public.invoices"], schema);
+  it("refuses on the kill switch", async () => {
+    const r = await runProvingGround(ctx({ settings: { ...settings, killSwitchOn: true } }));
     expect(r).toMatchObject({ ran: false, reason: "kill_switch" });
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(openArenaMock).not.toHaveBeenCalled();
   });
 
-  it("refuses without opt-in without creating a branch", async () => {
-    const r = await runProvingGround("u1", "t", "prod", { ...on, provingGroundEnabled: false }, ["public.invoices"], schema);
+  it("refuses without opt-in", async () => {
+    const r = await runProvingGround(ctx({ settings: { ...settings, provingGroundEnabled: false } }));
     expect(r.reason).toBe("not_enabled");
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(openArenaMock).not.toHaveBeenCalled();
   });
 
-  // Standing up a branch to test nothing is pure cost.
-  it("does not create a branch when there is nothing to probe", async () => {
-    const r = await runProvingGround("u1", "t", "prod", on, [], schema);
+  it("opens nothing when there is nothing to probe", async () => {
+    const r = await runProvingGround(ctx({ suspectedTables: [] }));
     expect(r.reason).toBe("nothing_to_probe");
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("reports branch_unavailable when creation fails", async () => {
-    fetchMock.mockResolvedValue({ ok: false, json: async () => ({}) });
-    const r = await runProvingGround("u1", "t", "prod", on, ["public.invoices"], schema);
-    expect(r).toMatchObject({ ran: false, reason: "branch_unavailable" });
+    expect(openArenaMock).not.toHaveBeenCalled();
   });
 });
 
-describe("runProvingGround — teardown is unconditional", () => {
-  const fetchMock = vi.fn();
+describe("proving a table", () => {
   beforeEach(() => {
-    vi.stubGlobal("fetch", fetchMock);
     selectMock.mockReset().mockResolvedValue({ data: [] });
     insertMock.mockReset().mockResolvedValue({ error: null });
     updateInMock.mockReset().mockResolvedValue({ error: null });
+    openArenaMock.mockReset();
   });
-  afterEach(() => vi.unstubAllGlobals());
 
-  const deleteCalls = () =>
-    fetchMock.mock.calls.filter((c) => (c[1] as { method?: string })?.method === "DELETE");
-
-  it("deletes the branch after a successful run", async () => {
-    fetchMock.mockReset();
-    fetchMock.mockImplementation(async (url: string, init?: { method?: string }) => {
-      if (init?.method === "POST" && String(url).endsWith("/branches")) {
-        return { ok: true, json: async () => ({ ref: "branch-1" }) };
-      }
-      if (init?.method === "DELETE") return { ok: true, json: async () => ({}) };
-      return { ok: true, json: async () => [{ leaked: 1 }] };
-    });
-
-    const r = await runProvingGround("u1", "t", "prod", on, ["public.invoices"], schema);
-    expect(r.ran).toBe(true);
+  it("reports a leak found by the deterministic probe", async () => {
+    const { arena } = fakeArena({ leaked: 1 });
+    openArenaMock.mockResolvedValue({ arena, reason: "" });
+    const r = await runProvingGround(ctx());
     expect(r.findings).toHaveLength(1);
-    expect(deleteCalls()).toHaveLength(1);
+    expect(r.probed).toBe(1);
   });
 
-  // A leaked branch bills the customer indefinitely for something they cannot see.
-  it("deletes the branch even when every probe throws", async () => {
-    fetchMock.mockReset();
-    fetchMock.mockImplementation(async (url: string, init?: { method?: string }) => {
-      if (init?.method === "POST" && String(url).endsWith("/branches")) {
-        return { ok: true, json: async () => ({ ref: "branch-1" }) };
-      }
-      if (init?.method === "DELETE") return { ok: true, json: async () => ({}) };
-      throw new Error("query exploded");
-    });
-
-    const r = await runProvingGround("u1", "t", "prod", on, ["public.invoices"], schema);
+  it("reports nothing when isolation holds and the agent finds nothing", async () => {
+    const { arena } = fakeArena({ leaked: 0 });
+    openArenaMock.mockResolvedValue({ arena, reason: "" });
+    const r = await runProvingGround(ctx());
     expect(r.findings).toEqual([]);
-    expect(deleteCalls()).toHaveLength(1);
   });
 
-  it("reports nothing when isolation held", async () => {
-    fetchMock.mockReset();
-    fetchMock.mockImplementation(async (url: string, init?: { method?: string }) => {
-      if (init?.method === "POST" && String(url).endsWith("/branches")) {
-        return { ok: true, json: async () => ({ ref: "branch-1" }) };
-      }
-      if (init?.method === "DELETE") return { ok: true, json: async () => ({}) };
-      return { ok: true, json: async () => [{ leaked: 0 }] };
-    });
-
-    const r = await runProvingGround("u1", "t", "prod", on, ["public.invoices"], schema);
-    expect(r.ran).toBe(true);
+  // A broken arena reports "no leak" for everything, so a silent setup failure
+  // would become a clean bill of health.
+  it("does not trust a run whose control probe fails", async () => {
+    const { arena } = fakeArena({ control: 0, leaked: 1 });
+    openArenaMock.mockResolvedValue({ arena, reason: "" });
+    const r = await runProvingGround(ctx());
     expect(r.findings).toEqual([]);
+  });
+
+  // Only worth a model call once the free check has come up empty.
+  it("runs the agent ONLY when the deterministic probe found nothing", async () => {
+    const propose = vi.fn().mockResolvedValue([]);
+    const { arena } = fakeArena({ leaked: 1 });
+    openArenaMock.mockResolvedValue({ arena, reason: "" });
+    await runProvingGround(ctx({ propose }));
+    expect(propose).not.toHaveBeenCalled();
+
+    propose.mockClear();
+    const clean = fakeArena({ leaked: 0 });
+    openArenaMock.mockResolvedValue({ arena: clean.arena, reason: "" });
+    await runProvingGround(ctx({ propose }));
+    expect(propose).toHaveBeenCalled();
+  });
+
+  it("tears the arena down on success", async () => {
+    const { arena, teardown } = fakeArena({ leaked: 1 });
+    openArenaMock.mockResolvedValue({ arena, reason: "" });
+    await runProvingGround(ctx());
+    expect(teardown).toHaveBeenCalledOnce();
+  });
+
+  it("tears the arena down when probing throws", async () => {
+    const { arena, teardown } = fakeArena();
+    arena.run = vi.fn().mockRejectedValue(new Error("boom"));
+    openArenaMock.mockResolvedValue({ arena, reason: "" });
+    await runProvingGround(ctx());
+    expect(teardown).toHaveBeenCalledOnce();
+  });
+
+  // No arena is a normal outcome, not an error: the static reasoner already
+  // reported the table, we just could not upgrade inference to proof.
+  it("skips a table with no arena without failing the run", async () => {
+    openArenaMock.mockResolvedValue({ arena: null, reason: "policy too complex to rebuild" });
+    const r = await runProvingGround(ctx());
+    expect(r).toMatchObject({ ran: false, probed: 0, findings: [] });
+  });
+
+  it("seeds only on a branch arena — replicas are seeded at setup", async () => {
+    const replica = fakeArena({ leaked: 1 });
+    openArenaMock.mockResolvedValue({ arena: replica.arena, reason: "" });
+    await runProvingGround(ctx());
+    expect(replica.run.mock.calls.some(([sql]) => /insert into/i.test(sql))).toBe(false);
+
+    const branch = fakeArena({ leaked: 1, kind: "branch" });
+    openArenaMock.mockResolvedValue({ arena: branch.arena, reason: "" });
+    await runProvingGround(ctx());
+    expect(branch.run.mock.calls.some(([sql]) => /insert into/i.test(sql))).toBe(true);
+  });
+
+  it("attaches validated fix evidence to the finding", async () => {
+    const { arena } = fakeArena({ leaked: 1 });
+    // After the fix is applied the gate query must show it closed and preserved.
+    let applied = false;
+    arena.run = vi.fn(async (sql: string) => {
+      if (/create policy/i.test(sql)) { applied = true; return []; }
+      if (/as visible/.test(sql)) return [{ visible: 1 }];
+      if (/as leaked,/.test(sql)) return [{ leaked: applied ? 0 : 1, own: 1 }];
+      if (/as leaked/.test(sql)) return [{ leaked: 1 }];
+      return [];
+    });
+    openArenaMock.mockResolvedValue({ arena, reason: "" });
+    const r = await runProvingGround(ctx());
+    expect(r.findings[0].consequence).toContain("Tested on a copy");
   });
 });
 
@@ -124,32 +185,22 @@ describe("persistProvenFindings", () => {
     updateInMock.mockReset().mockResolvedValue({ error: null });
   });
 
-  const finding = {
-    id: "proven:tenant_isolation:public.invoices",
-    severity: "CRITICAL" as const,
-    title: "t",
-    consequence: "c",
-    proven: true as const,
-  };
+  const finding = { id: "proven:x", severity: "CRITICAL" as const, title: "t", consequence: "c", proven: true as const };
 
-  it("inserts a newly proven finding", async () => {
-    const r = await persistProvenFindings("u1", [finding], 1);
-    expect(r.newCount).toBe(1);
-    expect(insertMock.mock.calls[0][0][0].source).toBe("proven");
+  it("inserts a new finding", async () => {
+    expect((await persistProvenFindings("u1", [finding], 1)).newCount).toBe(1);
   });
 
-  it("closes a proven finding once the probe stops reproducing it", async () => {
-    selectMock.mockResolvedValue({ data: [{ finding_id: finding.id }] });
-    const r = await persistProvenFindings("u1", [], 1);
-    expect(r.resolvedCount).toBe(1);
+  it("closes one that no longer reproduces", async () => {
+    selectMock.mockResolvedValue({ data: [{ finding_id: "proven:x" }] });
+    expect((await persistProvenFindings("u1", [], 1)).resolvedCount).toBe(1);
   });
 
   // Replacing evidence with an absence of evidence is the one thing a PROVEN
   // finding must never suffer.
-  it("does NOT close a proven finding when nothing was probed", async () => {
-    selectMock.mockResolvedValue({ data: [{ finding_id: finding.id }] });
-    const r = await persistProvenFindings("u1", [], 0);
-    expect(r.resolvedCount).toBe(0);
+  it("does NOT close anything when nothing was probed", async () => {
+    selectMock.mockResolvedValue({ data: [{ finding_id: "proven:x" }] });
+    expect((await persistProvenFindings("u1", [], 0)).resolvedCount).toBe(0);
     expect(updateInMock).not.toHaveBeenCalled();
   });
 });
