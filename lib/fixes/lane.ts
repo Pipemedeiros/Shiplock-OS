@@ -136,6 +136,10 @@ export function fixLane(f: FixableFinding): FixLane {
 
   // ── Email authentication is DNS. Not code, not SQL, and not something we can
   // deep-link to, because we don't know who runs their DNS. Honest label. ──
+  // ── Origin exposure is a DNS or host firewall change. No PR, and no page
+  // we can link to — we do not know who fronts their app. ──
+  if (id.startsWith("origin:")) return lane("deep-link", "Show what to change", false, "dns");
+
   if (id.startsWith("email_auth:")) {
     return lane("deep-link", "Show DNS record", false, "dns");
   }

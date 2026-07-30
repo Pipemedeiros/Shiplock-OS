@@ -1,12 +1,14 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { probeExposedPaths, type ExposedFinding } from "./exposedPaths";
 import { auditShippedBundle } from "./bundleAudit";
-import { auditEmailAuth, nodeTxtResolver } from "./emailAuth";
+import { auditEmailAuth, nodeTxtResolver, domainFromUrl, isSharedHost } from "./emailAuth";
+import { analyzeOriginPosture, collectOriginPosture, fetchOriginHeaders, nodeDnsResolver } from "./originExposure";
 
 // Everything we can learn from the customer's app URL alone, in one pass:
 //  - exposed-path probes (.git, database dumps, credential files)
 //  - the shipped bundle audit (D6 source maps, D7 secrets in public JS)
 //  - email authentication on their domain (D12 SPF/DKIM/DMARC)
+//  - origin exposure: whether their edge protection can be bypassed
 // Both take the same single input and hit the same host, so they share a pass
 // and a source label. Findings persist into deep_findings (source='exposed-path')
 // and flow into the dashboard fix list, the agent brief, MCP, and the Verified
@@ -25,12 +27,22 @@ export async function runExposedPathScan(
 ): Promise<{ total: number; newCount: number; resolvedCount: number; newFindings: ExposedFinding[] }> {
   // Independent: a failure in one must not cost us the other's findings. Both
   // are already best-effort internally and resolve to [] on network trouble.
-  const [paths, bundle, email] = await Promise.all([
+  const [paths, bundle, email, origin] = await Promise.all([
     probeExposedPaths(appUrl).catch(() => []),
     auditShippedBundle(appUrl).catch(() => []),
     auditEmailAuth(appUrl, nodeTxtResolver).catch(() => []),
+    // Origin exposure. Skipped on shared platform hostnames for the same reason
+    // as email auth: the customer does not control that DNS, so a finding there
+    // is something they cannot act on.
+    (async () => {
+      const domain = domainFromUrl(appUrl);
+      if (!domain || isSharedHost(domain)) return [];
+      const headers = await fetchOriginHeaders(appUrl);
+      const posture = await collectOriginPosture(domain, nodeDnsResolver, headers);
+      return posture ? analyzeOriginPosture(posture) : [];
+    })().catch(() => []),
   ]);
-  const findings = [...paths, ...bundle, ...email];
+  const findings = [...paths, ...bundle, ...email, ...origin];
 
   const admin = getSupabaseAdmin();
   const nowIso = new Date().toISOString();
