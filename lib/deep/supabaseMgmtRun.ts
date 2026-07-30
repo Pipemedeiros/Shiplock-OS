@@ -10,8 +10,10 @@ import {
   getUsableToken,
   fetchPolicies,
   fetchAdvisors,
+  fetchAuthConfig,
 } from "./supabaseMgmt";
 import { analyzePolicies, mapAdvisors, mergePolicyFindings } from "./policyScan";
+import { scanAuthConfig } from "./authConfigScan";
 
 export interface PolicyScanOutcome {
   ok: boolean;
@@ -63,11 +65,18 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
 
   let findings;
   try {
-    const [policies, advisors] = await Promise.all([
+    const [policies, advisors, authConfig] = await Promise.all([
       fetchPolicies(token.accessToken, projectRef),
       fetchAdvisors(token.accessToken, projectRef),
+      fetchAuthConfig(token.accessToken, projectRef),
     ]);
-    findings = mergePolicyFindings(analyzePolicies(policies), mapAdvisors(advisors));
+    findings = [
+      ...mergePolicyFindings(analyzePolicies(policies), mapAdvisors(advisors)),
+      // B7 + Site URL. fetchAuthConfig returns null when the request fails, and
+      // scanAuthConfig treats null as "we learned nothing" rather than as a
+      // clean bill of health — a failed fetch must never look like a pass.
+      ...scanAuthConfig(authConfig),
+    ];
   } catch (err) {
     console.error(
       "[supabaseMgmt] policy scan failed:",

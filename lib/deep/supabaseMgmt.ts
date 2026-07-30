@@ -225,3 +225,35 @@ export async function fetchAdvisors(
     return [];
   }
 }
+
+/**
+ * The project's auth configuration (URL configuration, session and signup
+ * settings). Read-only GET — it does not go through the SQL query endpoint, so
+ * assertReadOnly does not apply and cannot: there is no SQL here to guard.
+ *
+ * Best-effort and untyped beyond the fields we read, because Supabase adds keys
+ * to this endpoint over time and a strict shape would start failing on its own.
+ */
+export interface SupabaseAuthConfig {
+  /** Default redirect target for email confirmations and password resets. */
+  site_url?: string | null;
+  /** Comma-separated additional redirect allow-list, glob patterns permitted. */
+  uri_allow_list?: string | null;
+  [key: string]: unknown;
+}
+
+export async function fetchAuthConfig(
+  accessToken: string,
+  projectRef: string
+): Promise<SupabaseAuthConfig | null> {
+  try {
+    const res = await fetch(`${API}/v1/projects/${encodeURIComponent(projectRef)}/config/auth`, {
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json && typeof json === "object" ? (json as SupabaseAuthConfig) : null;
+  } catch {
+    return null;
+  }
+}
