@@ -2,6 +2,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { getInstallationToken, listRepos, listTree, getFile, queryOsv } from "./github";
 import { scanSecrets, scanTokenStorage, scanLoggedSecrets, extractDependencies, depFindings, type RepoFile, type GithubFinding } from "./githubScan";
 import { scanCodePatterns } from "./sourcePatterns";
+import { scanClientExposure } from "./clientExposure";
 
 // Full source scan for a connected GitHub App installation: read-only repo
 // contents -> committed secrets, token-storage anti-pattern, dependency CVEs
@@ -16,10 +17,30 @@ const MAX_FILE_BYTES = 200_000; // skip large/binary blobs
 // Files worth reading for secret / token-storage detection, plus manifests.
 const CANDIDATE_RE = /(^|\/)(\.env(\.[\w-]+)?|package\.json|package-lock\.json|.*\.(ts|tsx|js|jsx|mjs|cjs|json|ya?ml|env)|.*\.pem)$/i;
 
+// Read order matters because MAX_FILES_PER_REPO truncates. The tree arrives in
+// directory-traversal order, so on a repo with a large app/ directory the cap
+// used to fall before the root manifests — silently disabling dependency
+// scanning — and before lib/, which breaks the import chains scanClientExposure
+// walks from client components. Rank by what each check needs first:
+//   0  dotenv files and manifests: tiny, and every secret/dependency check
+//      depends on them. Never let these be the files we drop.
+//   1  application source: where client components and their imports live.
+//   2  everything else the candidate filter allowed.
+export function readPriority(path: string): number {
+  if (/(^|\/)(\.env(\.[\w-]+)?|package(-lock)?\.json)$/i.test(path)) return 0;
+  if (/^(src\/|app\/|components\/|lib\/|pages\/|utils\/|server\/)/i.test(path)) return 1;
+  return 2;
+}
+
 async function scanRepo(token: string, fullName: string, branch: string): Promise<GithubFinding[]> {
   const tree = await listTree(token, fullName, branch);
   const candidates = tree
     .filter((t) => t.size <= MAX_FILE_BYTES && CANDIDATE_RE.test(t.path))
+    // Stable within a priority band, so the set we read is deterministic and a
+    // finding doesn't appear and vanish between passes.
+    .map((t, index) => ({ t, index, rank: readPriority(t.path) }))
+    .sort((a, b) => a.rank - b.rank || a.index - b.index)
+    .map((entry) => entry.t)
     .slice(0, MAX_FILES_PER_REPO);
 
   const files: RepoFile[] = [];
@@ -34,7 +55,13 @@ async function scanRepo(token: string, fullName: string, branch: string): Promis
     if (/(^|\/)package-lock\.json$/.test(c.path) && !packageLock) packageLock = content;
   }
 
-  const findings: GithubFinding[] = [...scanSecrets(files), ...scanTokenStorage(files), ...scanLoggedSecrets(files), ...scanCodePatterns(files)];
+  const findings: GithubFinding[] = [
+    ...scanSecrets(files),
+    ...scanTokenStorage(files),
+    ...scanLoggedSecrets(files),
+    ...scanCodePatterns(files),
+    ...scanClientExposure(files),
+  ];
 
   if (packageJson) {
     const deps = extractDependencies(packageJson, packageLock);
