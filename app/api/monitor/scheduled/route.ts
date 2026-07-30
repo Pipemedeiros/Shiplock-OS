@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
 
   const { data: profiles, error } = await admin
     .from("user_profiles")
-    .select("id, email, monitored_project_url, monitored_anon_key_encrypted, last_monitored_at")
+    .select("id, email, monitored_project_url, monitored_anon_key_encrypted, monitored_app_url, last_monitored_at")
     .eq("monitoring_enabled", true)
     .not("monitored_project_url", "is", null)
     .not("monitored_anon_key_encrypted", "is", null)
@@ -47,6 +47,10 @@ export async function GET(req: NextRequest) {
           email: profile.email,
           monitored_project_url: profile.monitored_project_url,
           monitored_anon_key_encrypted: profile.monitored_anon_key_encrypted,
+          // Enables the app-surface half of the pass (exposed paths, source
+          // maps, secrets in the shipped bundle). Null for customers who never
+          // gave us an app URL — the Supabase-side scan still runs.
+          monitored_app_url: profile.monitored_app_url,
         },
         "scheduled_48h"
       );
