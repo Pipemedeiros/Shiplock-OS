@@ -86,15 +86,20 @@ async function scanRepo(token: string, repo: Repo): Promise<GithubFinding[]> {
 export async function runGithubScan(
   userId: string,
   installationId: string | number
-): Promise<{ total: number; newCount: number }> {
+): Promise<{ total: number; newCount: number; resolvedCount: number }> {
   const admin = getSupabaseAdmin();
   const token = await getInstallationToken(installationId);
   const repos = (await listRepos(token)).slice(0, MAX_REPOS);
 
   const all: GithubFinding[] = [];
+  // Which repos we actually finished reading. Load-bearing for archiving below:
+  // a repo that threw produced ZERO findings, and treating that as "everything in
+  // it is fixed" would silently close real open issues.
+  const scannedRepos: string[] = [];
   for (const repo of repos) {
     try {
       all.push(...(await scanRepo(token, repo)));
+      scannedRepos.push(repo.fullName);
     } catch {
       continue; // one bad repo shouldn't fail the pass
     }
@@ -108,6 +113,30 @@ export async function runGithubScan(
     .is("archived_at", null);
   const activeIds = new Set((existing ?? []).map((r) => r.finding_id as string));
 
+  // Re-verify after merge. Without this, a customer merges the fix PR we opened
+  // and the finding stays CRITICAL forever — the dashboard and the weekly digest
+  // both keep counting work that is already done, which teaches people our
+  // findings don't track reality. The per-PR webhook already re-runs this scan on
+  // every pull request, so merging a fix is itself the re-check; all that was
+  // missing is closing what no longer reproduces.
+  //
+  // Scoped to repos we SUCCESSFULLY scanned, for the reason above. Finding ids
+  // are namespaced `owner/name::…` by scanRepo, which is what makes this
+  // scoping possible.
+  const currentIds = new Set(all.map((f) => f.id));
+  const resolved = [...activeIds].filter(
+    (id) => !currentIds.has(id) && scannedRepos.some((fullName) => id.startsWith(`${fullName}::`))
+  );
+  if (resolved.length > 0) {
+    await admin
+      .from("deep_findings")
+      .update({ archived_at: new Date().toISOString() })
+      .eq("user_id", userId)
+      .eq("source", "github")
+      .is("archived_at", null)
+      .in("finding_id", resolved);
+  }
+
   const fresh = all.filter((f) => !activeIds.has(f.id));
   if (fresh.length > 0) {
     await admin.from("deep_findings").insert(
@@ -118,5 +147,5 @@ export async function runGithubScan(
       }))
     );
   }
-  return { total: all.length, newCount: fresh.length };
+  return { total: all.length, newCount: fresh.length, resolvedCount: resolved.length };
 }

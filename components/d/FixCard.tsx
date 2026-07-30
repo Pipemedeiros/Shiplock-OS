@@ -46,6 +46,9 @@ export function FixCard({ finding, projectRef }: { finding: FixableFinding; proj
     }
   }
 
+  const deepLink =
+    lane.method === "deep-link" ? buildDeepLink(finding, projectRef, lane.external) : null;
+
   return (
     <div className="dxd-surface" style={{ padding: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
@@ -56,15 +59,21 @@ export function FixCard({ finding, projectRef }: { finding: FixableFinding; proj
       {lane.method === "deep-link" ? (
         <div style={{ marginTop: 10 }}>
           <p style={{ fontSize: 12.5, color: "var(--d-muted)", margin: "0 0 10px" }}>{finding.fix}</p>
-          <a
-            href={buildDeepLink(finding, projectRef)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="dxd-btn dxd-btn-paper"
-            style={{ fontSize: 12, padding: "6px 12px", textDecoration: "none" }}
-          >
-            {lane.label} →
-          </a>
+          {/* No button when there is nowhere honest to send them: a DNS record is
+              edited wherever their DNS lives, and a third-party key is rotated in
+              that vendor's console. A confident link to the wrong page is worse
+              than no link — it lets someone believe they've done the fix. */}
+          {deepLink ? (
+            <a
+              href={deepLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="dxd-btn dxd-btn-paper"
+              style={{ fontSize: 12, padding: "6px 12px", textDecoration: "none" }}
+            >
+              {lane.label} →
+            </a>
+          ) : null}
         </div>
       ) : (
         <div style={{ marginTop: 10 }}>
