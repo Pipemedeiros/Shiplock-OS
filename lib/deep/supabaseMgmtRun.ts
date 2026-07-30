@@ -16,12 +16,15 @@ import {
   fetchAuthAuditLog,
   fetchColumnGrants,
   fetchDatabaseCapabilities,
+  fetchStorageConfig,
+  fetchBackupConfig,
 } from "./supabaseMgmt";
 import { analyzePolicies, mapAdvisors, mergePolicyFindings } from "./policyScan";
 import { scanAuthConfig } from "./authConfigScan";
 import { scanAuthPolicy } from "./authPolicyScan";
 import { analyzeGrants } from "./grantScan";
 import { scanExtensions } from "./extensionScan";
+import { scanStorage, checkBackups } from "./storageScan";
 import { deriveAppUrl } from "./deriveAppUrl";
 import { saveFacts } from "@/lib/graph/graphRun";
 import { buildInventory } from "@/lib/exposure/model";
@@ -98,6 +101,9 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
       ...analyzeGrants(await fetchColumnGrants(token.accessToken, projectRef)),
       // A8/A15/A16/A17 — what the database itself can reach.
       ...scanExtensions(await fetchDatabaseCapabilities(token.accessToken, projectRef)),
+      // A12/A13 storage, A19 recovery posture.
+      ...scanStorage(await fetchStorageConfig(token.accessToken, projectRef)),
+      ...checkBackups(await fetchBackupConfig(token.accessToken, projectRef)),
     ];
 
     // Feed the graph's database collector with the raw facts, not our verdicts.

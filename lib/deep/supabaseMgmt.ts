@@ -16,6 +16,7 @@ import { decrypt } from "@/lib/crypto";
 import type { PgPolicy, SupabaseAdvisor } from "./policyScan";
 import { GRANT_INVENTORY_SQL } from "./grantScan";
 import { EXTENSION_SQL, NETWORK_GRANT_SQL, CRON_JOB_SQL, FDW_SQL } from "./extensionScan";
+import { BUCKET_SQL, STORAGE_POLICY_SQL, type BucketRow, type StoragePolicyRow } from "./storageScan";
 
 const API = "https://api.supabase.com";
 const AUTHORIZE_URL = `${API}/v1/oauth/authorize`;
@@ -438,4 +439,52 @@ export async function fetchDatabaseCapabilities(
   ]);
 
   return { extensions, networkGrants, cronJobs, foreignServers };
+}
+
+/** A12/A13 — storage buckets and the policies governing their objects. */
+export async function fetchStorageConfig(
+  accessToken: string,
+  projectRef: string
+): Promise<{ buckets?: BucketRow[]; policies?: StoragePolicyRow[] }> {
+  const attempt = async <T>(sql: string): Promise<T[] | undefined> => {
+    try {
+      return await runReadQuery<T>(accessToken, projectRef, sql);
+    } catch {
+      return undefined;
+    }
+  };
+  const [buckets, policies] = await Promise.all([
+    attempt<BucketRow>(BUCKET_SQL),
+    attempt<StoragePolicyRow>(STORAGE_POLICY_SQL),
+  ]);
+  return { buckets, policies };
+}
+
+/**
+ * A19 — point-in-time recovery.
+ *
+ * Read-only GET. Returns null when the endpoint is unavailable, which includes
+ * the very common case of a plan that does not offer PITR — and "not available
+ * on your plan" is not a security finding, so the analyzer treats null as
+ * "we could not look" rather than "backups are missing".
+ */
+export async function fetchBackupConfig(
+  accessToken: string,
+  projectRef: string
+): Promise<{ pitrEnabled: boolean; walgEnabled: boolean } | null> {
+  try {
+    const res = await fetch(`${API}/v1/projects/${encodeURIComponent(projectRef)}/database/backups`, {
+      headers: { authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) return null;
+    const json = (await res.json()) as { pitr_enabled?: unknown; walg_enabled?: unknown };
+    if (typeof json.pitr_enabled !== "boolean" && typeof json.walg_enabled !== "boolean") return null;
+    return {
+      pitrEnabled: json.pitr_enabled === true,
+      walgEnabled: json.walg_enabled === true,
+    };
+  } catch {
+    return null;
+  }
 }
