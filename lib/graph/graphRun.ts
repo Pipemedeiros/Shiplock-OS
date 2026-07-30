@@ -3,6 +3,7 @@ import { findAttackPaths } from "./attackPaths";
 import type { GraphInput } from "./graph";
 import type { RouteFact } from "./routeInventory";
 import type { ReachabilityIndex } from "./reachability";
+import type { TableInventory } from "@/lib/exposure/model";
 
 // Persistence and execution for the reasoner.
 //
@@ -27,6 +28,8 @@ export interface SourceFacts {
 
 export interface DbFacts {
   scanTables: { name: string; rlsEnabled: boolean }[];
+  /** A21 PII inventory — schema only, never values. */
+  inventory?: TableInventory[];
   policies: GraphInput["policies"];
   advisors: GraphInput["advisors"];
   authConfig: GraphInput["authConfig"];

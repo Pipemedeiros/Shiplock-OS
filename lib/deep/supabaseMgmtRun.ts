@@ -11,11 +11,14 @@ import {
   fetchPolicies,
   fetchAdvisors,
   fetchAuthConfig,
+  fetchSchemaColumns,
+  fetchRowCounts,
 } from "./supabaseMgmt";
 import { analyzePolicies, mapAdvisors, mergePolicyFindings } from "./policyScan";
 import { scanAuthConfig } from "./authConfigScan";
 import { deriveAppUrl } from "./deriveAppUrl";
 import { saveFacts } from "@/lib/graph/graphRun";
+import { buildInventory } from "@/lib/exposure/model";
 
 export interface PolicyScanOutcome {
   ok: boolean;
@@ -84,6 +87,26 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
     // The reasoner combines them with route facts to produce paths neither
     // source can see alone.
     await saveFacts(userId, "db", { policies, advisors, authConfig }, { merge: true });
+
+    // A21 exposure inventory. SCHEMA ONLY — column names and row counts, never
+    // a value. Best-effort: a project we cannot enumerate simply has no
+    // inventory, which the model reports as "we don't know" rather than zero.
+    try {
+      const columns = await fetchSchemaColumns(token.accessToken, projectRef);
+      const tables = [...new Set(columns.map((c) => c.table))];
+      const rowCounts = await fetchRowCounts(token.accessToken, projectRef, tables);
+      await saveFacts(
+        userId,
+        "db",
+        { inventory: buildInventory(columns, rowCounts) },
+        { merge: true }
+      );
+    } catch (err) {
+      console.error(
+        "[supabaseMgmt] schema inventory failed:",
+        err instanceof Error ? err.message : err
+      );
+    }
 
     // Unit 5: work out the app URL instead of asking for it.
     //
