@@ -144,6 +144,10 @@ export function fixLane(f: FixableFinding): FixLane {
   // it. Draft PR keeps the decision with them, with the reasoning attached. ──
   if (id.startsWith("path:")) return lane("draft-pr", "Open draft fix PR", true);
 
+  // ── A newly-published CVE in an existing dependency is still a dependency
+  // bump: same automated, non-editable lane as github:dep. ──
+  if (id.startsWith("github:dep:") || /^zero-?day:/.test(id)) return lane("dep-pr", "Open fix PR", false);
+
   // ── A live attack is not a code defect. There is no PR that makes it stop;
   // the actions are operational (reset a session, enable rate limiting, require
   // a second factor), so we deep-link to the auth settings rather than pretend a

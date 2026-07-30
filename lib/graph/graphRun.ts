@@ -24,6 +24,11 @@ export interface SourceFacts {
    */
   liveFiles?: string[];
   hasEntryPoints?: boolean;
+  /**
+   * The dependency inventory, kept so new CVEs can be checked against it on a
+   * schedule rather than only when the customer happens to push.
+   */
+  dependencies?: { name: string; version: string }[];
 }
 
 export interface DbFacts {

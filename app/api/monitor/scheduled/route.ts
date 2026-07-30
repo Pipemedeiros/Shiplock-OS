@@ -5,6 +5,7 @@ import { pruneOldTraffic } from "@/lib/traffic/prune";
 import { runPolicyScan } from "@/lib/deep/supabaseMgmtRun";
 import { runGraphReasoner, saveFacts } from "@/lib/graph/graphRun";
 import { collectTrafficFacts } from "@/lib/traffic/graphFacts";
+import { runZeroDayCheck } from "@/lib/runtime/zeroDay";
 import { sendWeeklyDigest } from "@/lib/monitoring/digest";
 
 const FULL_SCAN_INTERVAL_MS = 48 * 60 * 60 * 1000;
@@ -109,6 +110,19 @@ export async function GET(req: NextRequest) {
       // their own schedule: they are the one input that changes by the minute,
       // and a stale "under attack" signal is worse than none — it would keep a
       // path marked urgent long after the attack stopped.
+      // F1: re-check known dependencies against newly-published advisories.
+      // Runs on the schedule rather than on push, because the dangerous case is
+      // the customer who has not shipped in a month — their code did not change,
+      // the world's knowledge about it did.
+      try {
+        await runZeroDayCheck(profile.id);
+      } catch (err) {
+        console.error(
+          `[monitor/scheduled] zero-day check failed for user ${profile.id}:`,
+          err instanceof Error ? err.message : err
+        );
+      }
+
       const hotPaths = await collectTrafficFacts(profile.id);
       if (hotPaths.length > 0) await saveFacts(profile.id, "traffic", { hotPaths });
 

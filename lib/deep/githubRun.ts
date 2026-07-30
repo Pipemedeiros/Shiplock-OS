@@ -41,7 +41,8 @@ async function scanRepo(
   token: string,
   repo: Repo,
   routeSink?: RouteFact[],
-  liveFileSink?: Set<string>
+  liveFileSink?: Set<string>,
+  depSink?: Map<string, string>
 ): Promise<GithubFinding[]> {
   const { fullName, defaultBranch: branch } = repo;
   const tree = await listTree(token, fullName, branch);
@@ -76,6 +77,8 @@ async function scanRepo(
 
   if (packageJson) {
     const deps = extractDependencies(packageJson, packageLock);
+    // Kept for the scheduled CVE re-check (F1), which must work without a push.
+    if (depSink) for (const d of deps) depSink.set(d.name, d.version);
     try {
       findings.push(...depFindings(await queryOsv(deps)));
     } catch {
@@ -120,9 +123,10 @@ export async function runGithubScan(
   const scannedRepos: string[] = [];
   const routes: RouteFact[] = [];
   const liveFiles = new Set<string>();
+  const deps = new Map<string, string>();
   for (const repo of repos) {
     try {
-      all.push(...(await scanRepo(token, repo, routes, liveFiles)));
+      all.push(...(await scanRepo(token, repo, routes, liveFiles, deps)));
       scannedRepos.push(repo.fullName);
     } catch {
       continue; // one bad repo shouldn't fail the pass
@@ -139,6 +143,7 @@ export async function runGithubScan(
       // False when no repo yielded an entry point, which makes every
       // reachability verdict `unknown` rather than demoting everything at once.
       hasEntryPoints: liveFiles.size > 0,
+      dependencies: [...deps].map(([name, version]) => ({ name, version })),
     });
   }
 
