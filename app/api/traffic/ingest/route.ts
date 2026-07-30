@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { ingestTrafficEvent } from "@/lib/traffic/ingest";
+import { ingestLimiter } from "@/lib/traffic/ingestLimit";
+import { getClientIpHash } from "@/lib/rateLimit";
 
 // Public ingest endpoint for the customer's middleware snippet. Auth is the
 // per-site traffic_ingest_token (header `x-site` or `?site=`), the same
@@ -25,6 +27,15 @@ const bodySchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    // Rate limit BEFORE anything that costs money. Previously every request —
+    // including a flood of garbage tokens — bought a database lookup before we
+    // knew whether the token was real, so an abusive source ran up our Supabase
+    // bill and burned Vercel invocations at will. Bounded per instance now; see
+    // lib/traffic/ingestLimit.ts for what that does and does not cover.
+    // Silent: the response is generic either way, so a limited caller learns
+    // nothing it could use to probe us.
+    if (!ingestLimiter.allow(getClientIpHash(req))) return ok();
+
     const token = req.headers.get("x-site") ?? new URL(req.url).searchParams.get("site");
     if (!token) return ok();
 
