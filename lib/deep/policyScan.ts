@@ -128,37 +128,145 @@ export function analyzePolicies(policies: PgPolicy[]): GithubFinding[] {
 }
 
 const LEVEL_TO_SEVERITY: Record<string, Severity> = { ERROR: "CRITICAL", WARN: "WARNING", INFO: "INFO" };
-// Security lints worth surfacing to a non-technical founder (avoid noise).
-// DELIBERATELY EXCLUDES `rls_enabled_no_policy` (0008): RLS enabled + zero
-// policies = deny-all, which is the SECURE service-role-only pattern (ShipLock's
-// own internal tables use it on purpose). It's an INFO ambiguity, not an
-// exposure — surfacing it would fire a false positive on every locked-down
-// table. The lints below are genuine exposures / bypasses.
-const SECURITY_LINTS = new Set([
-  "rls_disabled_in_public", "policy_exists_rls_disabled",
-  "permissive_rls_policy", "rls_references_user_metadata", "security_definer_view",
-  "function_search_path_mutable", "auth_users_exposed", "exposed_sensitive_data",
-  "auth_leaked_password_protection",
+
+// Slugs verified against github.com/supabase/splinter/lints on 2026-07-29.
+//
+// This used to be an ALLOWLIST of nine names, which silently dropped anything it
+// didn't recognise — and two of its nine entries were wrong, so they never
+// matched at all: `permissive_rls_policy` (really `rls_policy_always_true`) and
+// `exposed_sensitive_data` (really `sensitive_columns_exposed`). The first of
+// those is the `USING (true)` case — the single most important lint Supabase
+// emits — and we were discarding it.
+//
+// Inverted to a deny-list. We call the /advisors/security endpoint, so Supabase
+// has already decided these are security lints; second-guessing that with a
+// hand-maintained allowlist buys nothing and loses every rule they add. Rule
+// 0030 will now surface on the day it ships.
+
+// Performance and operational lints. Excluded because they are not security
+// findings, and for this ICP any non-actionable alert is pure triage burden.
+const NON_SECURITY_LINTS = new Set([
+  "unindexed_foreign_keys", // 0001
+  "auth_rls_initplan", // 0003
+  "no_primary_key", // 0004
+  "unused_index", // 0005
+  "multiple_permissive_policies", // 0006 — perf, not exposure
+  "duplicate_index", // 0009
+  "unsupported_reg_types", // 0018
+  "table_bloat", // 0020
+  "fkey_to_auth_unique", // 0021
 ]);
 
+// Excluded for a DIFFERENT reason: this is a SECURE state that Supabase reports
+// as INFO. RLS enabled with zero policies is deny-all — the correct
+// service-role-only pattern, which ShipLock's own internal tables use on
+// purpose. Surfacing it would fire on every properly locked-down table.
+const SECURE_STATE_LINTS = new Set(["rls_enabled_no_policy"]); // 0008
+
+// Where Supabase's generic level understates the risk FOR THIS ICP. Their level
+// is calibrated for all Postgres users; ours is calibrated for a multi-tenant
+// SaaS holding customer data.
+const SEVERITY_OVERRIDE: Record<string, Severity> = {
+  // 0007 — Supabase says INFO. But policies written while RLS is OFF is the
+  // worst state there is: the developer believes the table is protected, the
+  // policies are inert, and the table is fully readable.
+  policy_exists_rls_disabled: "CRITICAL",
+  // 0024 — Supabase says WARN. `USING (true)` means every signed-in user reads
+  // every row in a multi-tenant app.
+  rls_policy_always_true: "CRITICAL",
+  // 0019 — an exposed queue is a write primitive, not just a read.
+  insecure_queue_exposed_in_api: "CRITICAL",
+};
+
+// Consequence in the founder's language. Supabase's remediation text is written
+// for a Postgres engineer; per the voice rules we lead with what it costs, not
+// with the mechanism. Falls back to Supabase's own text when we have nothing
+// better to say.
+const CONSEQUENCE: Record<string, string> = {
+  policy_exists_rls_disabled:
+    "This table has access policies written for it, but row-level security is switched off — so none of them apply. Anyone with your public key can read every row, and the policies give a false impression that the table is protected.",
+  rls_policy_always_true:
+    "The policy on this table allows unrestricted access, so every signed-in user can read every row — including other customers' data. Signing up is enough to see everything.",
+  rls_disabled_in_public:
+    "This table is reachable through your public API with no access rules at all. Anyone who has your publishable key — which your own frontend ships to every visitor — can read it.",
+  sensitive_columns_exposed:
+    "Columns that look like personal or sensitive data are reachable through your public API.",
+  auth_users_exposed:
+    "Your authentication user records are reachable through a view in the public API. That exposes emails and account metadata for every user you have.",
+  security_definer_view:
+    "This view runs with its creator's privileges and bypasses row-level security, so it returns rows the caller should never see.",
+  rls_references_user_metadata:
+    "This policy trusts user metadata that the user can edit themselves, so a user can change their own metadata to grant themselves access.",
+  anon_security_definer_function_executable:
+    "This function runs with elevated privileges and can be called by anyone, without signing in.",
+  authenticated_security_definer_function_executable:
+    "This function runs with elevated privileges and can be called by any signed-in user.",
+  insecure_queue_exposed_in_api:
+    "This queue is reachable through your public API without protection, so a caller can read or enqueue messages.",
+  public_bucket_allows_listing:
+    "This storage bucket lets anyone list its contents, so filenames — often revealing in themselves — are public even where the files are not.",
+  pg_graphql_anon_table_exposed:
+    "This table is queryable over GraphQL by unauthenticated callers.",
+  pg_graphql_authenticated_table_exposed:
+    "This table is queryable over GraphQL by any signed-in caller.",
+  extension_in_public:
+    "An extension is installed in the public schema, which widens what is reachable through your API surface.",
+  extension_versions_outdated:
+    "An installed extension is behind on versions, so it may carry known, already-patched vulnerabilities.",
+  materialized_view_in_api: "This materialised view is exposed through your public API.",
+  foreign_table_in_api:
+    "A foreign table is exposed through your public API. Foreign tables do not enforce row-level security.",
+  function_search_path_mutable:
+    "This function has a mutable search path, which allows a caller to influence which objects it resolves to.",
+};
+
 /**
- * Map Supabase's own security advisors into findings. These are computed by
- * Supabase (free to consume) and cover checks our external scan can't — we lean
- * on them rather than re-deriving. Non-security / unknown lints are dropped.
+ * Supabase reports lint names either bare (`rls_policy_always_true`) or with the
+ * Splinter number prefix (`0024_rls_policy_always_true`). Normalise so the
+ * lookup tables above work either way — getting this wrong is how the previous
+ * allowlist silently matched nothing.
  */
+export function normaliseLintName(name: string): string {
+  return name.trim().toLowerCase().replace(/^\d{4}_/, "");
+}
+
 export function mapAdvisors(advisors: SupabaseAdvisor[]): GithubFinding[] {
   const out: GithubFinding[] = [];
   for (const a of advisors) {
-    if (!a.name || !SECURITY_LINTS.has(a.name)) continue;
-    const severity = LEVEL_TO_SEVERITY[(a.level ?? "WARN").toUpperCase()] ?? "WARNING";
+    if (!a.name) continue;
+    const lint = normaliseLintName(a.name);
+    if (NON_SECURITY_LINTS.has(lint)) continue;
+    if (SECURE_STATE_LINTS.has(lint)) continue;
+
+    const severity =
+      SEVERITY_OVERRIDE[lint] ??
+      LEVEL_TO_SEVERITY[(a.level ?? "WARN").toUpperCase()] ??
+      "WARNING";
+
     const target = a.metadata?.name ? ` (${a.metadata.schema ?? "public"}.${a.metadata.name})` : "";
+    const consequence =
+      CONSEQUENCE[lint] ??
+      [a.detail, a.description, a.remediation].filter(Boolean).join(" ") ??
+      "";
+
     out.push({
-      id: `advisor:${a.name}:${a.cache_key ?? a.metadata?.name ?? "global"}`,
+      // Stable across passes AND parseable for dedupe: the lint plus the
+      // qualified object. Prefer schema.object over Supabase's cache_key so
+      // mergePolicyFindings can compare targets with our own policy findings
+      // (which key on schema.table). cache_key is the fallback.
+      id: `advisor:${lint}:${
+        a.metadata?.name
+          ? `${a.metadata.schema ?? "public"}.${a.metadata.name}`
+          : (a.cache_key ?? "global")
+      }`,
       severity,
-      title: (a.title ?? a.name) + target,
-      consequence: [a.detail, a.description, a.remediation].filter(Boolean).join(" ") ||
-        "Supabase's security advisor flagged this configuration.",
-      packageName: null, version: null, vulnId: null, cveId: null,
+      title: (a.title ?? lint.replace(/_/g, " ")) + target,
+      consequence:
+        consequence || "Supabase's security advisor flagged this configuration.",
+      packageName: null,
+      version: null,
+      vulnId: null,
+      cveId: null,
     });
   }
   return out;
@@ -169,18 +277,35 @@ export function mapAdvisors(advisors: SupabaseAdvisor[]): GithubFinding[] {
  * duplicate a policy finding for the same table (our policy finding is more
  * specific — it names the policy + the fix). Policy findings win.
  */
-export function mergePolicyFindings(policyFindings: GithubFinding[], advisorFindings: GithubFinding[]): GithubFinding[] {
-  const RLS_ADVISORS = new Set(["permissive_rls_policy", "rls_references_user_metadata"]);
-  const coveredTables = new Set(
-    policyFindings.map((f) => f.id.split(":")[1]) // "policy:public.table:..." -> "public.table"
-  );
+export function mergePolicyFindings(
+  policyFindings: GithubFinding[],
+  advisorFindings: GithubFinding[]
+): GithubFinding[] {
+  // Advisor lints that describe the SAME condition our own policy detector
+  // reports. When both fire we keep ours, because ours names the specific policy
+  // and carries a fix; the advisor is a duplicate the customer would have to
+  // triage.
+  //
+  // NOTE the slug: `rls_policy_always_true` (0024), not `permissive_rls_policy`.
+  // The old name here was wrong, which meant this dedupe never fired — harmless
+  // only because mapAdvisors was dropping that lint too. Both are fixed now, so
+  // this guard is live for the first time.
+  const OVERLAPS_POLICY_DETECTOR = new Set([
+    "rls_policy_always_true", // 0024
+    "rls_references_user_metadata", // 0015
+  ]);
+
+  // "policy:public.orders:policy_name:reason" -> "public.orders"
+  const coveredTargets = new Set(policyFindings.map((f) => f.id.split(":")[1]));
+
   const kept = advisorFindings.filter((f) => {
-    const lintName = f.id.split(":")[1];
-    if (!RLS_ADVISORS.has(lintName)) return true; // non-overlapping advisor, keep
-    // overlapping advisor: drop if any policy finding already covers a table.
-    // (advisor ids don't carry the schema.table, so a coarse guard: if we have
-    // ANY policy finding, prefer it for the RLS-permissive class.)
-    return coveredTables.size === 0;
+    const [, lint, target] = f.id.split(":");
+    if (!OVERLAPS_POLICY_DETECTOR.has(lint)) return true;
+    // Per-OBJECT, not global. The previous version dropped every overlapping
+    // advisor as soon as ANY policy finding existed, so a permissive policy on
+    // `invoices` was discarded because we happened to find one on `orders`.
+    return !coveredTargets.has(target);
   });
+
   return [...policyFindings, ...kept];
 }
