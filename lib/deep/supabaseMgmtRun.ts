@@ -17,6 +17,7 @@ import {
 } from "./supabaseMgmt";
 import { analyzePolicies, mapAdvisors, mergePolicyFindings } from "./policyScan";
 import { scanAuthConfig } from "./authConfigScan";
+import { scanAuthPolicy } from "./authPolicyScan";
 import { deriveAppUrl } from "./deriveAppUrl";
 import { saveFacts } from "@/lib/graph/graphRun";
 import { buildInventory } from "@/lib/exposure/model";
@@ -87,6 +88,8 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
       // scanAuthConfig treats null as "we learned nothing" rather than as a
       // clean bill of health — a failed fetch must never look like a pass.
       ...scanAuthConfig(authConfig),
+      // B1/B2/B4/B5/B11 — same config object, no extra request.
+      ...scanAuthPolicy(authConfig),
     ];
 
     // Feed the graph's database collector with the raw facts, not our verdicts.

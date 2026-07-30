@@ -6,6 +6,7 @@ import { scanClientExposure } from "./clientExposure";
 import { checkRepoVisibility } from "./repoVisibility";
 import { collectRoutes } from "@/lib/graph/routeInventory";
 import { buildReachabilityIndex } from "@/lib/graph/reachability";
+import { scanRouteFacts } from "@/lib/graph/routeChecks";
 import { saveFacts } from "@/lib/graph/graphRun";
 import type { RouteFact } from "@/lib/graph/routeInventory";
 
@@ -91,6 +92,12 @@ async function scanRepo(
   if (routeSink) {
     const routes = collectRoutes(files);
     routeSink.push(...routes);
+
+    // C12/C13 — findings the inventory already has the facts for. sourceOf
+    // returns undefined for a file we did not read, and unknown is never a
+    // finding.
+    const byPath = new Map(files.map((file) => [file.path, file.content]));
+    findings.push(...scanRouteFacts(routes, (path) => byPath.get(path)));
     // C6: which files this repo actually reaches from an entry point. Computed
     // here because this is the only point the repo contents exist in memory.
     if (liveFileSink) {
