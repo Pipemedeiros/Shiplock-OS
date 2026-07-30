@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   addSecurityHeaders,
+  addWorkflowPermissions,
+  gitignoreEnvFile,
+  removeSecretLogging,
   applyCodemod,
   codemodFor,
   disableProductionSourceMaps,
@@ -138,5 +141,99 @@ describe("applyCodemod", () => {
 
   it("returns nothing for a finding with no codemod", () => {
     expect(applyCodemod(f("acme/app::github:injection:sql:a.ts"), [{ path: "a.ts", content: "x" }]).results).toEqual([]);
+  });
+});
+
+describe("workflow permissions", () => {
+  const wf = `name: ci\non: push\njobs:\n  test:\n    runs-on: ubuntu-latest\n`;
+
+  it("inserts a least-privilege block before jobs:", () => {
+    const out = addWorkflowPermissions({ path: ".github/workflows/ci.yml", content: wf }, f("x"))!;
+    expect(out.content).toContain("permissions:\n  contents: read");
+    expect(out.content.indexOf("permissions:")).toBeLessThan(out.content.indexOf("jobs:"));
+    expect(out.content).toContain("runs-on: ubuntu-latest");
+  });
+
+  it("does nothing when permissions are already declared", () => {
+    expect(addWorkflowPermissions({ path: ".github/workflows/ci.yml", content: `permissions:\n  contents: read\n${wf}` }, f("x"))).toBeNull();
+  });
+
+  it("does nothing when a job declares its own", () => {
+    const scoped = `name: ci\non: push\njobs:\n  test:\n    permissions:\n      contents: read\n`;
+    expect(addWorkflowPermissions({ path: ".github/workflows/ci.yml", content: scoped }, f("x"))).toBeNull();
+  });
+
+  it("ignores non-workflow yaml", () => {
+    expect(addWorkflowPermissions({ path: "docker-compose.yml", content: wf }, f("x"))).toBeNull();
+  });
+});
+
+describe("gitignore a committed env file", () => {
+  const mod = gitignoreEnvFile(".env.local");
+
+  it("appends the entry", () => {
+    const out = mod({ path: ".gitignore", content: "node_modules\n" }, f("x"))!;
+    expect(out.content).toContain(".env.local");
+    expect(out.content).toContain("node_modules");
+  });
+
+  it("does nothing when already ignored", () => {
+    expect(mod({ path: ".gitignore", content: "node_modules\n.env.local\n" }, f("x"))).toBeNull();
+    expect(mod({ path: ".gitignore", content: ".env*\n" }, f("x"))).toBeNull();
+  });
+
+  it("only touches .gitignore", () => {
+    expect(mod({ path: "README.md", content: "hi" }, f("x"))).toBeNull();
+  });
+
+  // Deleting the file would LOOK like the fix and is the most dangerous outcome:
+  // the key is still in history and the developer stops worrying.
+  it("does not delete the env file itself", () => {
+    const out = mod({ path: ".gitignore", content: "" }, f("x"))!;
+    expect(out.description).toContain("stops being committed");
+  });
+});
+
+describe("remove logged secrets", () => {
+  it("deletes a line that logs a token", () => {
+    const src = `const a = 1;\nconsole.log("token", user.access_token);\nconst b = 2;\n`;
+    const out = removeSecretLogging({ path: "lib/x.ts", content: src }, f("x"))!;
+    expect(out.content).not.toContain("access_token");
+    expect(out.content).toContain("const a = 1;");
+    expect(out.content).toContain("const b = 2;");
+  });
+
+  it("leaves ordinary logging alone", () => {
+    expect(removeSecretLogging({ path: "lib/x.ts", content: `console.log("hello");\n` }, f("x"))).toBeNull();
+  });
+
+  // Half-editing an expression is worse than not running.
+  it("does not touch a log embedded in a larger expression", () => {
+    const src = `const x = (console.log(user.password), 1);\n`;
+    expect(removeSecretLogging({ path: "lib/x.ts", content: src }, f("x"))).toBeNull();
+  });
+
+  it("counts what it removed", () => {
+    const src = `console.log(a.password);\nconsole.log(b.api_key);\n`;
+    expect(removeSecretLogging({ path: "lib/x.ts", content: src }, f("x"))!.description).toContain("2 log statements");
+  });
+});
+
+describe("dispatch for the new codemods", () => {
+  it("routes each finding class", () => {
+    expect(hasCodemod(f("acme/app::github:workflow_no_permissions:.github/workflows/ci.yml"))).toBe(true);
+    expect(hasCodemod(f("acme/app::github:committed_env:.env.local"))).toBe(true);
+    expect(hasCodemod(f("acme/app::github:logged_secret:lib/x.ts"))).toBe(true);
+  });
+
+  // Still no codemod for anything needing judgement about intent.
+  it("still refuses the judgement cases", () => {
+    for (const id of [
+      "acme/app::github:workflow_script_injection:.github/workflows/ci.yml",
+      "acme/app::github:workflow_prtarget_rce:.github/workflows/ci.yml",
+      "acme/app::github:history_secret:stripe_live:abc",
+    ]) {
+      expect(hasCodemod(f(id)), id).toBe(false);
+    }
   });
 });

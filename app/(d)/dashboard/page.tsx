@@ -6,11 +6,13 @@ import { getProtectionStatus, getRecentBlocks, getRecentThreats } from "@/lib/tr
 import { getTrafficPulse, EMPTY_PULSE } from "@/lib/traffic/pulse";
 import { buildSnippet, buildWebSnippet, buildExpressSnippet } from "@/lib/traffic/snippet";
 import { getFixFindings } from "@/lib/fixes/findings";
+import { loadExposure } from "@/lib/exposure/load";
 import { fixLane } from "@/lib/fixes/lane";
 import { env } from "@/lib/env";
 import { PostureHeadline } from "@/components/d/CoverageBoard";
 import { TrafficPanel } from "@/components/d/TrafficPanel";
 import { TrafficPulse } from "@/components/d/TrafficPulse";
+import { ExposurePanel } from "@/components/d/ExposurePanel";
 import { UpgradeButton } from "@/components/d/UpgradeButton";
 import { Reveal } from "@/components/d/bits";
 import type { PreviewIssue, FullIssue } from "@/lib/types";
@@ -34,7 +36,7 @@ export default async function DashboardOverviewPage() {
   // Live traffic protection — paid only, and independent of scan findings
   // (it's about inbound traffic). The ingest token is a live credential, so
   // the install snippet is only ever built for the paid owner.
-  const [protectionStatus, trafficBlocks, trafficThreats, trafficPulse] = isPaid
+  const [protectionStatus, trafficBlocks, trafficThreats, trafficPulse, exposure] = isPaid
     ? await Promise.all([
         getProtectionStatus(userId),
         getRecentBlocks(userId),
@@ -43,8 +45,11 @@ export default async function DashboardOverviewPage() {
         // Blocks and findings are both rare by design, so without this the
         // dashboard reads as "nothing is happening" — see lib/traffic/pulse.ts.
         getTrafficPulse(userId),
+        // A21 exposure. Renders nothing at all when the inventory has not been
+        // collected — "we have not looked" must never appear as a number.
+        loadExposure(userId),
       ])
-    : [null, [], [], EMPTY_PULSE];
+    : [null, [], [], EMPTY_PULSE, null];
 
   const trafficSnippet = protectionStatus?.ingestToken
     ? buildSnippet(protectionStatus.ingestToken, env.NEXT_PUBLIC_APP_URL)
@@ -126,6 +131,12 @@ export default async function DashboardOverviewPage() {
       {isPaid && (
         <Reveal>
           <TrafficPulse pulse={trafficPulse} />
+        </Reveal>
+      )}
+
+      {isPaid && (
+        <Reveal>
+          <ExposurePanel summary={exposure} />
         </Reveal>
       )}
 

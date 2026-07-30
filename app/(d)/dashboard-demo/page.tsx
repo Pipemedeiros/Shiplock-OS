@@ -4,6 +4,8 @@ import { LockMark } from "@/components/d/Brand";
 import { FindingsBoard, PostureHeadline } from "@/components/d/CoverageBoard";
 import { DashboardTabs } from "@/components/d/DashboardTabs";
 import { TrafficPulse } from "@/components/d/TrafficPulse";
+import { ExposurePanel } from "@/components/d/ExposurePanel";
+import { summariseExposure } from "@/lib/exposure/model";
 import { WatchPanel } from "@/components/d/WatchPanel";
 import { TrafficPanel } from "@/components/d/TrafficPanel";
 import { GuardrailPanel } from "@/components/d/GuardrailPanel";
@@ -80,6 +82,32 @@ const agentBrief = buildAgentBrief(
   fixFindings.filter((f) => f.source !== "scan").map((f) => ({ title: f.title, severity: f.severity, consequence: f.fix }))
 );
 
+// Built through the real summariser rather than hand-written, so the preview
+// cannot show an arithmetic the product would never produce.
+const DEMO_EXPOSURE = summariseExposure([
+  {
+    table: "profiles",
+    categories: [
+      { category: "contact", label: "contact details", columns: ["email", "phone"] },
+      { category: "identity", label: "names and personal details", columns: ["full_name"] },
+    ],
+    unclassifiedColumns: 4,
+    rowCount: 4231,
+  },
+  {
+    table: "payments",
+    categories: [{ category: "financial", label: "financial details", columns: ["card_last4", "stripe_customer_id"] }],
+    unclassifiedColumns: 3,
+    rowCount: 890,
+  },
+  {
+    table: "messages",
+    categories: [{ category: "content", label: "private content", columns: ["body"] }],
+    unclassifiedColumns: 2,
+    rowCount: null,
+  },
+]);
+
 const DEMO_PULSE = {
   watched: 12_480,
   sources: 638,
@@ -147,6 +175,10 @@ export default function DashboardDemoPage() {
 
         <Reveal>
           <TrafficPulse pulse={DEMO_PULSE} />
+        </Reveal>
+
+        <Reveal>
+          <ExposurePanel summary={DEMO_EXPOSURE} />
         </Reveal>
       </div>
 

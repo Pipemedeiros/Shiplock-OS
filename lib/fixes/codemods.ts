@@ -133,6 +133,92 @@ export const disableProductionSourceMaps: Codemod = ({ path, content }) => {
   };
 };
 
+
+// ── Workflow permissions ───────────────────────────────────────────────────
+
+/**
+ * Adds `permissions: contents: read` to a workflow that declares none.
+ *
+ * Mechanical, and we applied this exact change to our own workflow by hand after
+ * the C20 check flagged it — which is the test of whether a fix belongs here.
+ * Inserted before `jobs:` at top level, which is where the YAML spec puts it and
+ * where a human would.
+ */
+export const addWorkflowPermissions: Codemod = ({ path, content }) => {
+  if (!/^\.github\/workflows\/[^/]+\.ya?ml$/i.test(path)) return null;
+  // Already declared, at workflow or job level — leave it alone.
+  if (/^permissions:/m.test(content) || /^\s+permissions:/m.test(content)) return null;
+
+  const jobsAt = /^jobs:\s*$/m.exec(content);
+  if (!jobsAt) return null;
+
+  const block =
+    "# Added by ShipLock: state what this workflow may do, rather than inheriting\n" +
+    "# whatever the repository default happens to be. If a step later needs write\n" +
+    "# access, this makes it fail loudly instead of silently having it.\n" +
+    "permissions:\n  contents: read\n\n";
+
+  return {
+    path,
+    content: content.slice(0, jobsAt.index) + block + content.slice(jobsAt.index),
+    description: "declare least-privilege permissions on the workflow",
+  };
+};
+
+// ── .gitignore a committed dotenv file ─────────────────────────────────────
+
+/**
+ * Adds the committed env file to .gitignore.
+ *
+ * Deliberately does NOT delete the file, and the PR body says why: removing it
+ * from the working tree does not remove it from history, so the credential still
+ * needs rotating either way. Deleting it would LOOK like the fix and would be the
+ * most dangerous possible outcome — the developer stops worrying and the key is
+ * still live and still reachable.
+ */
+export function gitignoreEnvFile(envPath: string): Codemod {
+  return ({ path, content }) => {
+    if (path !== ".gitignore") return null;
+    const entry = envPath.split("/").pop() ?? envPath;
+    const lines = content.split("\n").map((l) => l.trim());
+    if (lines.includes(entry) || lines.includes(envPath) || lines.includes(".env*")) return null;
+
+    const suffix = content.endsWith("\n") || content === "" ? "" : "\n";
+    return {
+      path,
+      content: `${content}${suffix}\n# Added by ShipLock — this file was committed.\n${envPath}\n`,
+      description: `add ${envPath} to .gitignore so it stops being committed`,
+    };
+  };
+}
+
+// ── Remove a logged secret ─────────────────────────────────────────────────
+
+const LOGS_A_SECRET =
+  /^\s*(?:console\.(?:log|error|warn|info|debug)|logger\.\w+)\s*\([^)]*\b(password|passwd|secret|token|access_?token|refresh_?token|api_?key|apiKey|authorization|cookie|private_?key|privateKey|service_?role|serviceRole)\b[^)]*\)\s*;?\s*$/i;
+
+/**
+ * Deletes a log statement that prints a credential.
+ *
+ * Mechanical because the correct output is "the line is gone" — there is no
+ * judgement about what the app should do instead. Only removes lines that are
+ * ENTIRELY a log call, so a log embedded in a larger expression is left for a
+ * human rather than half-edited.
+ */
+export const removeSecretLogging: Codemod = ({ path, content }) => {
+  if (!/\.(ts|tsx|js|jsx|mjs|cjs)$/.test(path)) return null;
+
+  const lines = content.split("\n");
+  const kept = lines.filter((line) => !LOGS_A_SECRET.test(line));
+  if (kept.length === lines.length) return null;
+
+  return {
+    path,
+    content: kept.join("\n"),
+    description: `remove ${lines.length - kept.length} log statement${lines.length - kept.length === 1 ? "" : "s"} that printed a credential`,
+  };
+};
+
 // ── Dispatch ───────────────────────────────────────────────────────────────
 
 /**
@@ -148,6 +234,11 @@ export function codemodFor(finding: FixableFinding): Codemod | null {
 
   if (id.startsWith("scan:") && /security header/i.test(finding.title)) return addSecurityHeaders;
   if (id.startsWith("bundle:source_map_exposed")) return disableProductionSourceMaps;
+  if (id.startsWith("github:workflow_no_permissions:")) return addWorkflowPermissions;
+  if (id.startsWith("github:logged_secret")) return removeSecretLogging;
+
+  const committedEnv = /^github:committed_env:(.+)$/.exec(id);
+  if (committedEnv) return gitignoreEnvFile(committedEnv[1]);
 
   const publicSecret = /^github:public_prefixed_secret(?:_value)?:([A-Z0-9_]+):/.exec(id);
   if (publicSecret) return renamePublicSecret(publicSecret[1]);
