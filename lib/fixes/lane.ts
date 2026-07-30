@@ -136,6 +136,15 @@ export function fixLane(f: FixableFinding): FixLane {
 
   // ── Email authentication is DNS. Not code, not SQL, and not something we can
   // deep-link to, because we don't know who runs their DNS. Honest label. ──
+  // ── A secret in history is a rotation and NOTHING else. The code is already
+  // correct — that is precisely why it gets missed — so a PR would be actively
+  // misleading. ──
+  if (id.startsWith("github:history_secret:")) return lane("deep-link", "Rotate secret", false, "provider");
+
+  // ── A flood in progress is not a code defect. We have already acted; what is
+  // left is operational. ──
+  if (id.startsWith("traffic:")) return lane("deep-link", "Open traffic panel", false, "supabase");
+
   // ── Origin exposure is a DNS or host firewall change. No PR, and no page
   // we can link to — we do not know who fronts their app. ──
   if (id.startsWith("origin:")) return lane("deep-link", "Show what to change", false, "dns");

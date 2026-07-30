@@ -226,3 +226,59 @@ export async function openPullRequest(
   if (!pr.html_url) throw new Error("GitHub PR missing html_url");
   return pr.html_url;
 }
+
+/**
+ * Recent commits with their diffs, for the history secret scan (C2).
+ *
+ * HARD BOUNDED, because this is the most expensive thing we ask GitHub for: one
+ * API call per commit. A repository can have a hundred thousand commits, and
+ * walking them would be both slow and rude. We look at the most recent window
+ * only — enough to catch the mistake that was made and "fixed" this month, which
+ * is the one still worth catching.
+ */
+export async function listRecentCommitPatches(
+  token: string,
+  fullName: string,
+  branch: string,
+  maxCommits: number
+): Promise<{ sha: string; message: string; patch: string; date: string }[]> {
+  const perPage = Math.min(maxCommits, 100);
+  const listRes = await fetch(
+    `${API}/repos/${fullName}/commits?sha=${encodeURIComponent(branch)}&per_page=${perPage}`,
+    { headers: { ...GH_HEADERS, Authorization: `token ${token}` }, signal: AbortSignal.timeout(TIMEOUT_MS) }
+  );
+  if (!listRes.ok) return [];
+
+  const list = (await listRes.json()) as {
+    sha?: string;
+    commit?: { message?: string; author?: { date?: string } };
+  }[];
+  if (!Array.isArray(list)) return [];
+
+  const out: { sha: string; message: string; patch: string; date: string }[] = [];
+
+  for (const entry of list.slice(0, maxCommits)) {
+    if (!entry.sha) continue;
+    try {
+      const res = await fetch(`${API}/repos/${fullName}/commits/${entry.sha}`, {
+        headers: { ...GH_HEADERS, Authorization: `token ${token}` },
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
+      if (!res.ok) continue;
+      const detail = (await res.json()) as { files?: { patch?: string }[] };
+      const patch = (detail.files ?? []).map((file) => file.patch ?? "").join("\n");
+      if (!patch) continue;
+      out.push({
+        sha: entry.sha,
+        message: entry.commit?.message?.split("\n")[0] ?? "",
+        patch,
+        date: entry.commit?.author?.date ?? "",
+      });
+    } catch {
+      // One unreadable commit must not cost us the rest of the window.
+      continue;
+    }
+  }
+
+  return out;
+}

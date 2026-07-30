@@ -41,7 +41,11 @@ export async function getFixFindings(userId: string): Promise<FixableFinding[]> 
     if (d.source === "github" && d.finding_id.includes("github:dep:")) continue;
     // Only ever consumed as `!== "scan"` today, but kept accurate so a future
     // per-source grouping doesn't file a DNS record under "GitHub".
-    const src: FindingSource = d.finding_id.startsWith("proven:")
+    const src: FindingSource = d.finding_id.startsWith("traffic:")
+      ? "runtime"
+      : d.finding_id.startsWith("origin:")
+        ? "dns"
+        : d.finding_id.startsWith("proven:")
       ? "proven"
       : d.finding_id.startsWith("runtime:")
       ? "runtime"

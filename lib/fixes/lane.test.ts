@@ -241,3 +241,18 @@ describe("proven findings", () => {
     expect(l.method).toBe("migration-pr");
   });
 });
+
+describe("rotation-only and operational findings", () => {
+  const f = (id: string) => ({ id, source: "github" as const, title: "t", severity: "CRITICAL" as const, fix: "x" });
+
+  // The code is already correct; a PR would be actively misleading.
+  it("routes a history secret to rotation, never a PR", () => {
+    const l = fixLane(f("acme/app::github:history_secret:stripe_live:abc123"));
+    expect(l.method).toBe("deep-link");
+    expect(l.label).toBe("Rotate secret");
+  });
+
+  it("routes a live flood to the traffic panel, not a diff", () => {
+    expect(fixLane(f("traffic:distributed_flood:/api/search")).method).toBe("deep-link");
+  });
+});

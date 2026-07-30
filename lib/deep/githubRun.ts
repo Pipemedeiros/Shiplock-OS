@@ -1,5 +1,5 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { getInstallationToken, listRepos, listTree, getFile, queryOsv, type Repo } from "./github";
+import { getInstallationToken, listRepos, listTree, getFile, queryOsv, listRecentCommitPatches, type Repo } from "./github";
 import { scanSecrets, scanTokenStorage, scanLoggedSecrets, extractDependencies, depFindings, type RepoFile, type GithubFinding } from "./githubScan";
 import { scanCodePatterns } from "./sourcePatterns";
 import { scanClientExposure } from "./clientExposure";
@@ -8,6 +8,7 @@ import { collectRoutes } from "@/lib/graph/routeInventory";
 import { buildReachabilityIndex } from "@/lib/graph/reachability";
 import { scanRouteFacts } from "@/lib/graph/routeChecks";
 import { scanWorkflows } from "./workflowScan";
+import { historyFindings, scanPatches, MAX_COMMITS } from "./historyScan";
 import { saveFacts } from "@/lib/graph/graphRun";
 import type { RouteFact } from "@/lib/graph/routeInventory";
 
@@ -108,6 +109,21 @@ async function scanRepo(
       const index = buildReachabilityIndex({ files, routes });
       if (index.hasEntryPoints) for (const f of index.liveFiles) liveFileSink.add(f);
     }
+  }
+
+  // C2 — secrets in history. Runs after the working-tree scan so it can skip
+  // anything still present there, which the committed-secrets check already
+  // reports. Bounded to a recent window; see listRecentCommitPatches.
+  try {
+    const stillPresent = new Set(
+      findings
+        .map((finding) => /^github:secret:([a-z_]+):/.exec(finding.id)?.[1])
+        .filter((id): id is string => id !== undefined)
+    );
+    const commits = await listRecentCommitPatches(token, fullName, branch, MAX_COMMITS);
+    findings.push(...historyFindings(scanPatches(commits), repo.isPrivate === false, stillPresent));
+  } catch {
+    // History is best-effort — never let it cost us the rest of the scan.
   }
 
   // C22 last, because it READS the findings above: a public repo is only a
