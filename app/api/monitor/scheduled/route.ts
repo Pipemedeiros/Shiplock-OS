@@ -8,6 +8,13 @@ import { collectTrafficFacts } from "@/lib/traffic/graphFacts";
 import { runZeroDayCheck } from "@/lib/runtime/zeroDay";
 import { sendWeeklyDigest } from "@/lib/monitoring/digest";
 
+// This pass iterates every paid user and makes several network calls each
+// (policy scan, schema inventory, auth log, dependency re-check, reasoner). The
+// platform default would cut it off partway through, leaving later users
+// silently unprocessed. 60s is the Hobby ceiling. Work is per-user try/catch, so
+// a timeout costs the remaining users this run, not the whole pass.
+export const maxDuration = 60;
+
 const FULL_SCAN_INTERVAL_MS = 48 * 60 * 60 * 1000;
 
 // The 48h full deep scan (item 3). Reuses vercel.json's existing daily

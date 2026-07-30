@@ -423,3 +423,47 @@ describe("scanClientExposure — aggregate", () => {
     }
   });
 });
+
+// Found by running this detector against ShipLock's own codebase, where it
+// reported TrafficPulse.tsx as leaking the service-role key through an
+// `import type` of an interface. TypeScript erases those, so nothing reaches the
+// browser — and a false positive on our highest-severity finding, telling
+// someone to rotate a key that never shipped, is worse than a missed detection.
+describe("type-only imports are erased and must not be followed", () => {
+  it("does NOT flag a client component that type-imports from a server module", () => {
+    expect(
+      scanServerSecretsInClientCode([
+        file("components/Panel.tsx", `"use client";\nimport type { Pulse } from "@/lib/pulse";\nexport const P = (p: Pulse) => null;`),
+        file("lib/pulse.ts", `import { getSupabaseAdmin } from "@/lib/supabase";\nexport interface Pulse { n: number }\nexport const get = () => getSupabaseAdmin();`),
+      ])
+    ).toEqual([]);
+  });
+
+  it("does not follow an `export type ... from` re-export either", () => {
+    expect(
+      scanServerSecretsInClientCode([
+        file("a.tsx", `"use client";\nimport type { X } from "./b";`),
+        file("b.ts", `export type { X } from "./c";`),
+        file("c.ts", `export const x = process.env.SUPABASE_SERVICE_ROLE_KEY;`),
+      ])
+    ).toEqual([]);
+  });
+
+  // A value import from the same module still ships it, and must still flag.
+  it("STILL flags a value import from the same server module", () => {
+    const out = scanServerSecretsInClientCode([
+      file("components/Panel.tsx", `"use client";\nimport { get } from "@/lib/pulse";\nexport const P = () => get();`),
+      file("lib/pulse.ts", `import { getSupabaseAdmin } from "@/lib/supabase";\nexport const get = () => getSupabaseAdmin();`),
+    ]);
+    expect(out).toHaveLength(1);
+  });
+
+  it("still flags when a file mixes a type import and a value import", () => {
+    const out = scanServerSecretsInClientCode([
+      file("components/Panel.tsx", `"use client";\nimport type { T } from "@/lib/t";\nimport { get } from "@/lib/pulse";`),
+      file("lib/t.ts", `export interface T { n: number }`),
+      file("lib/pulse.ts", `export const get = () => process.env.SUPABASE_SERVICE_ROLE_KEY;`),
+    ]);
+    expect(out).toHaveLength(1);
+  });
+});

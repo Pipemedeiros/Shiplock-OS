@@ -175,8 +175,16 @@ const OWNERSHIP_ALT_RE = /\b(user_id|owner_id|account_id|tenant_id|org_id|profil
  */
 const MAX_IMPORT_DEPTH = 2;
 
+// TYPE-ONLY IMPORTS ARE EXCLUDED. `import type { X } from "./server"` is erased
+// by TypeScript at compile time — nothing from that module reaches the browser,
+// so following it would be reasoning about code that does not exist at runtime.
+// Found by running this detector against ShipLock's own codebase: it reported
+// components/d/TrafficPulse.tsx as leaking the service-role key through a type
+// import of an interface. Telling a customer to rotate their service-role key
+// because of an erased import would be a false positive on the single
+// highest-severity finding we produce.
 const IMPORT_RE =
-  /(?:import|export)[\s\S]{0,200}?from\s*["']([^"']+)["']|require\s*\(\s*["']([^"']+)["']\s*\)/g;
+  /(?:import|export)(?!\s+type\s)[\s\S]{0,200}?from\s*["']([^"']+)["']|require\s*\(\s*["']([^"']+)["']\s*\)/g;
 
 /**
  * The route file plus the local modules it reaches. Comment-stripped once each.

@@ -23,6 +23,8 @@ import { buildInventory } from "@/lib/exposure/model";
 import { runAuthLogScan } from "@/lib/runtime/authRun";
 import { runProvingGround } from "@/lib/proving/run";
 import { findAttackPaths } from "@/lib/graph/attackPaths";
+import { loadGraphInput } from "@/lib/graph/graphRun";
+import { buildTableFacts } from "@/lib/graph/graph";
 
 export interface PolicyScanOutcome {
   ok: boolean;
@@ -132,10 +134,27 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
       };
 
       if (settings.provingGroundEnabled && !settings.killSwitchOn) {
-        const suspected = findAttackPaths({ policies, advisors })
-          .filter((p) => p.id.includes("tenant_isolation") || p.id.includes("anon_read"))
-          .map((p) => p.id.split(":").pop() ?? "")
-          .filter(Boolean);
+        // Uses the FULL graph input, not just the facts collected in this pass.
+        // Attack paths need a route -> table edge, and routes come from the
+        // source collector on a different trigger — so building paths from
+        // policies and advisors alone yields zero targets and the proving ground
+        // would silently never probe anything.
+        const graphInput = await loadGraphInput(userId);
+        const suspected = new Set(
+          findAttackPaths({ ...graphInput, policies, advisors })
+            .filter((p) => p.id.includes("tenant_isolation") || p.id.includes("anon_read"))
+            .map((p) => p.id.split(":").pop() ?? "")
+            .filter(Boolean)
+        );
+
+        // Fallback that makes this useful without GitHub connected: a policy
+        // that filters nothing is worth PROVING whether or not we can see a
+        // route reaching it, because anything holding the anon key can use it
+        // directly. Without this the proving ground would be dead for every
+        // customer who connected only Supabase.
+        for (const t of buildTableFacts({ policies, advisors }).values()) {
+          if (t.permissivePolicy || t.rlsEnabled === false) suspected.add(t.qualified);
+        }
 
         const schema = new Map<string, string[]>();
         for (const c of await fetchSchemaColumns(token.accessToken, projectRef)) {
@@ -147,7 +166,7 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
           token.accessToken,
           projectRef,
           settings,
-          suspected,
+          [...suspected],
           schema
         );
         if (result.ran) {

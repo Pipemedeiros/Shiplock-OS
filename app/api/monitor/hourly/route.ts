@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { runMonitoringPass } from "@/lib/monitoring";
 
+// This pass iterates every paid user and makes several network calls each
+// (policy scan, schema inventory, auth log, dependency re-check, reasoner). The
+// platform default would cut it off partway through, leaving later users
+// silently unprocessed. 60s is the Hobby ceiling. Work is per-user try/catch, so
+// a timeout costs the remaining users this run, not the whole pass.
+export const maxDuration = 60;
+
 // The hourly "fast" pass (item 2). Genuinely lightweight now — runs
 // lib/scanner.ts's scanCriticalChecks() (RLS presence, secrets/key
 // exposure, public storage buckets, service-role-key submission) via
