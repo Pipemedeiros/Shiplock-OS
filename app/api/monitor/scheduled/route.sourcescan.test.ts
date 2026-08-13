@@ -56,6 +56,7 @@ vi.mock("@/lib/supabase", () => ({
       chain.not = self;
       chain.lt = self;
       chain.or = self;
+      chain.order = self;
       chain.then = (resolve: (v: unknown) => unknown) => resolve({ data: rows, error: null });
       // update() chains vary in length across call sites (a plain
       // `.update().eq()` for the scan stamp, `.update().eq().not().lt().select()`

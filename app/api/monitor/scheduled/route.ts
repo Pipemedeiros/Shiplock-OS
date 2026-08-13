@@ -39,7 +39,13 @@ export async function GET(req: NextRequest) {
     .eq("monitoring_enabled", true)
     .not("monitored_project_url", "is", null)
     .not("monitored_anon_key_encrypted", "is", null)
-    .or(`last_monitored_at.is.null,last_monitored_at.lt.${cutoff}`);
+    .or(`last_monitored_at.is.null,last_monitored_at.lt.${cutoff}`)
+    // Stalest first, for the same reason as the hourly pass: this loop can be
+    // cut off by the 60s ceiling, and without an explicit order the users past
+    // the cutoff are whatever Postgres returned last — in practice the same ones
+    // every run, never scanned, silently. NULLS FIRST puts a never-scanned user
+    // ahead of one merely due for a re-scan.
+    .order("last_monitored_at", { ascending: true, nullsFirst: true });
 
   if (error) {
     console.error("[monitor/scheduled] user_profiles query error:", error.message);
