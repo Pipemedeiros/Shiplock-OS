@@ -14,6 +14,9 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Standalone MCP server — its own package/deps, published separately.
     "mcp/**",
+    // Vendored third-party Claude Code skills — not this project's source,
+    // not built/shipped, and not ours to fix lint errors in.
+    ".claude/skills/**",
   ]),
 ]);
 

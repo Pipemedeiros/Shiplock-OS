@@ -1,0 +1,30 @@
+name: CI
+
+# No test/build pipeline existed before this — the only other workflow in this
+# repo is the hourly-monitor cron trigger. Added per .claude/rules/testing.md
+# ("Before every commit: npm run build must pass, npm run lint must pass") so
+# that rule is actually enforced on every push/PR, not just something a human
+# has to remember to run locally. secmax's negative-test suite (SSRF, auth,
+# paywall, webhook-forgery, etc.) runs here as part of `npm test`.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
