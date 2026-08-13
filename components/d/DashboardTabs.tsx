@@ -8,12 +8,22 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+// "Risks" rather than "Findings": a finding is what a scanner emits, and the
+// product's claim is that layers agree about a risk. "Activity" rather than
+// "Watch": the log of what we checked is the smaller half of what belongs
+// there — as autonomous Tier 1-3 actions land, the question a customer needs
+// this tab to answer becomes "what did ShipLock do to my production app, when,
+// and how do I undo it", and two competing "what happened" surfaces is the one
+// thing this product cannot afford.
 const TABS = [
   { href: "/dashboard", label: "Overview" },
-  { href: "/dashboard/findings", label: "Findings" },
-  { href: "/dashboard/watch", label: "Watch" },
+  { href: "/dashboard/risks", label: "Risks" },
+  { href: "/dashboard/activity", label: "Activity" },
   { href: "/dashboard/settings", label: "Settings" },
 ] as const;
+
+/** The tab that carries the open-finding count. */
+const COUNT_TAB = "Risks";
 
 export function DashboardTabs({
   findingCount = 0,
@@ -43,7 +53,7 @@ export function DashboardTabs({
           return (
             <span key={tab.href} className="dxd-tab" data-active={active} aria-disabled="true">
               {tab.label}
-              {tab.label === "Findings" && findingCount > 0 && (
+              {tab.label === COUNT_TAB && findingCount > 0 && (
                 <span className="dxd-tab-count">{findingCount}</span>
               )}
             </span>
@@ -59,7 +69,7 @@ export function DashboardTabs({
             aria-current={active ? "page" : undefined}
           >
             {tab.label}
-            {tab.label === "Findings" && findingCount > 0 && (
+            {tab.label === COUNT_TAB && findingCount > 0 && (
               <span className="dxd-tab-count">{findingCount}</span>
             )}
           </Link>

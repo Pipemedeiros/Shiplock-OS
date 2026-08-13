@@ -60,7 +60,7 @@ export default async function DashboardOverviewPage() {
     ? buildSnippet(protectionStatus.ingestToken, env.NEXT_PUBLIC_APP_URL)
     : null;
 
-  // Count only — the fix content itself lives on the Findings tab. "Waiting on
+  // Count only — the fix content itself lives on the Risks tab. "Waiting on
   // you" means fixes that land as a pull request; deep-link fixes (a Supabase
   // toggle, a secret rotation) aren't merged, so they're not listed here.
   const fixFindings = isPaid ? await getFixFindings(userId) : [];
@@ -101,7 +101,7 @@ export default async function DashboardOverviewPage() {
           {watchStatus?.lastDeepScanAt
             ? `Last deep audit ${new Date(watchStatus.lastDeepScanAt).toLocaleString()}. Every pull request is re-checked as it opens.`
             : "Every pull request is re-checked as it opens, with a deep audit on schedule."}{" "}
-          <Link href="/dashboard/watch">See the watch log →</Link>
+          <Link href="/dashboard/activity">See the watch log →</Link>
         </p>
       </section>
 
@@ -134,7 +134,7 @@ export default async function DashboardOverviewPage() {
                   </li>
                 ))}
               </ul>
-              <Link href="/dashboard/findings" className="dxd-btn">
+              <Link href="/dashboard/risks" className="dxd-btn">
                 Review the fixes
               </Link>
             </div>
