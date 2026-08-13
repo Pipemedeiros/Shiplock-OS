@@ -1,5 +1,6 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { findAttackPaths } from "./attackPaths";
+import { generateNarratives } from "./narrative";
 import type { GraphInput } from "./graph";
 import type { RouteFact } from "./routeInventory";
 import type { ReachabilityIndex } from "./reachability";
@@ -165,6 +166,18 @@ export async function runGraphReasoner(
 
   const fresh = paths.filter((p) => !active.has(p.id));
   if (fresh.length > 0) {
+    // The ONE LLM call in the monitoring path, and it is gated to fire only on
+    // genuinely new correlated findings — never on a routine pass, which keeps
+    // CLAUDE.md's "monitoring never calls Claude" guarantee true for the case it
+    // was written about (a scheduled poll running thousands of times). Batched
+    // into a single call for the whole set: prompt caching does not help across
+    // 48h passes, so batching is the lever that does.
+    //
+    // Fails into silence: on any error every path keeps the deterministic
+    // wording findAttackPaths already produced, so a customer never sees a blank
+    // finding because the model was unavailable.
+    const narratives = await generateNarratives(fresh);
+
     await admin.from("deep_findings").insert(
       fresh.map((p) => ({
         user_id: userId,
@@ -172,7 +185,10 @@ export async function runGraphReasoner(
         finding_id: p.id,
         severity: p.severity,
         title: p.title,
-        consequence: p.consequence,
+        // The guard-approved narrative when there is one, the deterministic
+        // template otherwise. Never blank, and never model output that failed
+        // the guard.
+        consequence: narratives.accepted.get(p.id) ?? p.consequence,
         // Which collectors agreed. This is the one field that distinguishes a
         // correlated finding from a scanner's guess, and it used to be computed
         // and then discarded here — findAttackPaths already enforces
