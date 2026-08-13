@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { runMonitoringPass } from "@/lib/monitoring";
 import { pruneOldTraffic } from "@/lib/traffic/prune";
 import { runPolicyScan } from "@/lib/deep/supabaseMgmtRun";
+import { runGithubScan } from "@/lib/deep/githubRun";
 import { runGraphReasoner, saveFacts } from "@/lib/graph/graphRun";
 import { collectTrafficFacts } from "@/lib/traffic/graphFacts";
 import { runZeroDayCheck } from "@/lib/runtime/zeroDay";
@@ -103,6 +104,61 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // ── Source facts on a schedule, not only on pull-request activity ────────
+  // `runGithubScan` is the ONLY producer of `source` graph facts, and until now
+  // it was reachable from exactly one place: the per-PR webhook
+  // (app/api/monitor/github/route.ts). That made route facts a function of the
+  // customer's commit cadence rather than of ours, with a consequence nobody
+  // would notice from reading either file alone: a customer who connects GitHub
+  // and does not open a pull request never gets route facts at all, so
+  // `findAttackPaths` never sees two surfaces, so correlation — the thing the
+  // graph exists to do — can never fire for them.
+  //
+  // Confirmed against the live database before writing this: one paid user with
+  // github_installation_id set, zero `source` rows in graph_facts, zero findings
+  // with source='graph'. The reasoner had been running on schedule and finding
+  // nothing, correctly, because it was only ever handed one surface.
+  //
+  // Runs BEFORE the reasoner below for the same reason the policy scan does:
+  // every collector writes its facts first, then the reasoner correlates the
+  // freshest picture. Fail-soft per user — a GitHub outage must cost this pass
+  // its route facts, never the rest of the pass.
+  //
+  // Gated on the SAME `last_source_scan_at` stamp the PR webhook already
+  // maintains, so this is a safety net rather than duplicate work: a customer
+  // shipping pull requests is already being scanned per-PR and is skipped here,
+  // while a customer who has not pushed in weeks — precisely the one the per-PR
+  // trigger cannot reach, and the same case runZeroDayCheck below exists for —
+  // gets scanned on our schedule instead of never. Without this gate an active
+  // repo would be re-scanned daily on top of every PR, burning the 5,000/hr
+  // installation budget the webhook's coalescing window was written to protect.
+  let sourceScanned = 0;
+  const sourceCutoff = new Date(Date.now() - FULL_SCAN_INTERVAL_MS).toISOString();
+  const { data: githubUsers } = await admin
+    .from("user_profiles")
+    .select("id, github_installation_id")
+    .eq("is_paid", true)
+    .not("github_installation_id", "is", null)
+    .or(`last_source_scan_at.is.null,last_source_scan_at.lt.${sourceCutoff}`);
+
+  for (const profile of githubUsers ?? []) {
+    try {
+      await runGithubScan(profile.id as string, profile.github_installation_id as number);
+      // Stamp it the same way the PR webhook does, so the two triggers share one
+      // notion of "recently scanned" instead of each keeping its own.
+      await admin
+        .from("user_profiles")
+        .update({ last_source_scan_at: new Date().toISOString() })
+        .eq("id", profile.id as string);
+      sourceScanned++;
+    } catch (err) {
+      console.error(
+        `[monitor/scheduled] source scan failed for user ${profile.id}:`,
+        err instanceof Error ? err.message : err
+      );
+    }
+  }
+
   // The reasoner runs LAST, after every collector in this pass has written its
   // facts, so it correlates the freshest picture rather than the previous one.
   // Runs for every paid user — not only the Supabase-connected ones above —
@@ -186,6 +242,8 @@ export async function GET(req: NextRequest) {
     failed,
     pruned: pruned.ok,
     policyChecked,
+    sourceScanned,
+    pathsFound,
     digestsSent,
     expired,
   });
