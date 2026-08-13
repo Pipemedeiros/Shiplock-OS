@@ -31,6 +31,13 @@ export interface FixableFinding {
   severity: Severity;
   fix: string; // fix text / SQL / instructions we already generate
   filePath?: string; // repo file (source findings) or codefix.file (scan)
+  /**
+   * Which collectors independently confirmed this, for the agreement strip.
+   * Only graph-sourced findings carry it — a dependency CVE has one surface by
+   * nature, and showing an almost-empty strip there would imply weakness where
+   * there is none.
+   */
+  correlation?: { surfaces: string[]; proven?: boolean };
 }
 
 export interface FixLane {

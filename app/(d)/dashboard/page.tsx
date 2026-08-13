@@ -10,6 +10,7 @@ import { loadExposure } from "@/lib/exposure/load";
 import { fixLane } from "@/lib/fixes/lane";
 import { env } from "@/lib/env";
 import { PostureHeadline } from "@/components/d/CoverageBoard";
+import { getLayerStatus, describeLayerStatus } from "@/lib/graph/layerStatus";
 import { TrafficPanel } from "@/components/d/TrafficPanel";
 import { TrafficPulse } from "@/components/d/TrafficPulse";
 import { ExposurePanel } from "@/components/d/ExposurePanel";
@@ -32,6 +33,10 @@ export default async function DashboardOverviewPage() {
     : [];
 
   const watchStatus = latest ? await getWatchStatus(userId) : null;
+
+  // Which layers are actually feeding the correlation graph. Booleans only —
+  // getLayerStatus never returns a token, installation id, or URL.
+  const layerStatus = await getLayerStatus(userId);
 
   // Live traffic protection — paid only, and independent of scan findings
   // (it's about inbound traffic). The ingest token is a live credential, so
@@ -82,7 +87,16 @@ export default async function DashboardOverviewPage() {
     <>
       <section className="dxd-dash-hero">
         <p className="dxd-eyebrow">The coverage board</p>
-        <PostureHeadline issues={issues} totalChecks={TOTAL_CHECKS} />
+        <PostureHeadline
+          issues={issues}
+          totalChecks={TOTAL_CHECKS}
+          layerLine={describeLayerStatus(layerStatus)}
+          nextLayer={
+            layerStatus.nextUp
+              ? { label: layerStatus.nextUp.label, href: "/dashboard/settings" }
+              : null
+          }
+        />
         <p className="dxd-lede" style={{ marginTop: 18, fontSize: 14 }}>
           {watchStatus?.lastDeepScanAt
             ? `Last deep audit ${new Date(watchStatus.lastDeepScanAt).toLocaleString()}. Every pull request is re-checked as it opens.`

@@ -45,11 +45,21 @@ export function PostureHeadline({
   issues,
   totalChecks,
   onSelect,
+  layerLine,
+  nextLayer,
 }: {
   issues: (PreviewIssue | FullIssue)[];
   totalChecks: number;
   /** Optional — when absent, lock pins are inert (Overview has no board below). */
   onSelect?: (index: number) => void;
+  /**
+   * "4 of 5 layers correlated — code, database, …". Deliberately a count of
+   * what is wired up, never a percentage: a percentage would imply we know what
+   * fraction of the customer's risk we found, which nobody can know.
+   */
+  layerLine?: string;
+  /** The next layer worth connecting, when one is missing. */
+  nextLayer?: { label: string; href: string } | null;
 }) {
   const worst = [...issues].sort(
     (a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity]
@@ -73,6 +83,20 @@ export function PostureHeadline({
 
       <Lock totalChecks={totalChecks} issues={issues} onSelect={onSelect} />
 
+      {layerLine && (
+        <p className="dxd-layerline">
+          {layerLine}
+          {nextLayer && (
+            <>
+              {" "}
+              <a href={nextLayer.href} className="dxd-layerline-cta">
+                Connect {nextLayer.label} →
+              </a>
+            </>
+          )}
+        </p>
+      )}
+
       <div className="dxd-substat">
         <span>
           worst open: <b>{worst ? SEVERITY_LABEL[worst.severity].toLowerCase() : "none"}</b>
@@ -82,6 +106,44 @@ export function PostureHeadline({
         </span>
       </div>
     </>
+  );
+}
+
+/**
+ * The agreement strip — which layers independently confirmed one finding.
+ *
+ * This is the product's whole differentiator made scannable: a single-layer
+ * scanner can say "this policy looks permissive", and only a correlated one can
+ * say "and the route that serves it has no auth check". Rendered only where
+ * there is genuine agreement (2+ layers), so its presence is itself the signal
+ * and its absence never implies a finding is weak — plenty of real findings come
+ * from one layer.
+ *
+ * Deliberately not a graph: a force-directed diagram reads as enterprise
+ * tooling, does not survive a phone screen, and would take longer to interpret
+ * than the sentence underneath it.
+ */
+export function AgreementStrip({
+  layers,
+  proven,
+}: {
+  /** Layers that contributed evidence, in display order. */
+  layers: { label: string; agreed: boolean }[];
+  /** True when the finding was demonstrated on a replica, not inferred. */
+  proven?: boolean;
+}) {
+  const agreedCount = layers.filter((l) => l.agreed).length;
+  if (agreedCount < 2) return null;
+
+  return (
+    <p className="dxd-agreement" aria-label={`Confirmed by ${agreedCount} layers`}>
+      {layers.map((l) => (
+        <span key={l.label} className="dxd-agreement-layer" data-agreed={l.agreed}>
+          <span aria-hidden="true">{l.agreed ? "●" : "○"}</span> {l.label}
+        </span>
+      ))}
+      {proven && <span className="dxd-agreement-proven">proven, not inferred</span>}
+    </p>
   );
 }
 
@@ -140,6 +202,13 @@ export function FindingsBoard({
 
               {opened && (
                 <div className="dxd-row-body">
+                  {issue.correlation && (
+                    <AgreementStrip
+                      layers={issue.correlation.layers}
+                      proven={issue.correlation.proven}
+                    />
+                  )}
+
                   <p>
                     <strong>What it costs you if it stays — </strong>
                     {issue.consequence}

@@ -173,6 +173,12 @@ export async function runGraphReasoner(
         severity: p.severity,
         title: p.title,
         consequence: p.consequence,
+        // Which collectors agreed. This is the one field that distinguishes a
+        // correlated finding from a scanner's guess, and it used to be computed
+        // and then discarded here — findAttackPaths already enforces
+        // surfaces.length >= 2, so persisting it costs nothing and is what lets
+        // the dashboard say "confirmed by two layers" instead of asserting it.
+        correlation: { surfaces: p.surfaces, proven: false },
       }))
     );
   }
