@@ -1,8 +1,8 @@
 import { createHash } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { Resend } from "resend";
 import { stripe } from "@/lib/stripe";
+import { sendEmail } from "@/lib/email";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 export async function POST(req: NextRequest) {
@@ -99,15 +99,18 @@ export async function POST(req: NextRequest) {
           })
           .then(() => {}, () => {});
 
-        const resend = new Resend(process.env.RESEND_API_KEY);
-        await resend.emails
-          .send({
-            from: process.env.RESEND_FROM_EMAIL!,
+        // Best-effort: access is already granted above, so a failed welcome
+        // email must not fail the webhook (Stripe would retry a non-2xx and
+        // re-run everything). Routed through sendEmail so an API-level rejection
+        // is logged rather than swallowed by a bare .catch(() => {}).
+        await sendEmail(
+          {
             to: email,
             subject: "ShipLock Pro — access granted",
             text: "Your ShipLock Pro subscription is active. All fixes are now unlocked, and ShipLock is monitoring your app for changes.",
-          })
-          .catch(() => {});
+          },
+          "webhook"
+        );
       }
     }
   }
