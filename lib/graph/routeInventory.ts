@@ -156,8 +156,29 @@ const SERVICE_ROLE_RE =
  * not an ownership check, and treating it as one would make the reasoner declare
  * safe routes safe for the wrong reason.
  */
+// The VALUE side: an expression that resolves to the CALLER's identity.
+//
+// The previous version used `\b(user|auth|org|…)\w*`, which made every one of
+// those a PREFIX match, so the filter only had to contain the letters. Verified
+// false positives: `.eq("status","authorized")`, `.eq("category","organization")`,
+// `.eq("author_name", x)` — all marked as ownership-filtered, which suppresses
+// the tenant-isolation attack path and reports an unscoped route as safe. That
+// is the exact failure the comment above was written to prevent, so the fix is
+// to make the code do what the comment already said.
+//
+// Each alternative now requires identity STRUCTURE, not a substring:
+//   auth.uid()  ·  user.id / session.user.id / claims.sub  ·  userId / ownerId
+// "authorized" cannot match because nothing follows `auth` but letters; the
+// pattern needs a `.` or a camelCase `Id`.
 const OWNERSHIP_RE =
-  /\.(eq|match|filter)\s*\(\s*[^)]*?\b(user|session|claims|auth|owner|account|tenant|org)\w*\s*[.?\[]?\s*\w*\s*(id|uid|sub|user_id)?\b/i;
+  /\bauth\s*\??\s*\.\s*uid\s*\(|\b(?:user|session|claims|profile|account|tenant|org|owner)\s*\??\s*\.\s*(?:\w+\s*\??\s*\.\s*)?(?:id|uid|sub)\b|\b(?:user|owner|account|tenant|org|profile)Id\b/;
+
+// The COLUMN side: filtering on an ownership column at all. Weaker evidence than
+// an identity value, and kept deliberately — dropping it would swing the error
+// the other way and invent attack paths for routes that are actually scoped,
+// which this file's header calls the worst outcome. Already word-bounded on both
+// sides, so it never had the prefix problem above (`user_identity` does not
+// match `\buser_id\b`).
 const OWNERSHIP_ALT_RE = /\b(user_id|owner_id|account_id|tenant_id|org_id|profile_id)\b\s*[,)]/i;
 
 /**

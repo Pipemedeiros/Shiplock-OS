@@ -124,6 +124,52 @@ describe("checkNarrative — claims the evidence cannot license", () => {
   });
 });
 
+// Regression corpus. The first version of the unlicensed-claim list keyed on
+// past-tense auxiliaries ("has been breached"), so every present-tense phrasing
+// walked through a guard whose entire purpose was to stop those sentences. Both
+// directions are asserted here, because a guard that over-blocks is its own
+// failure: rejecting accurate wording only teaches the model to be vague.
+describe("checkNarrative — compromise claims, any tense", () => {
+  const cited = ["public.orders has no RLS policy"];
+  const check = (narrative: string) =>
+    checkNarrative({ narrative, citedFacts: cited }, path()).allowed;
+
+  it.each([
+    "Your database is breached right now.",
+    "This table is compromised.",
+    "Attackers are exfiltrating your orders table.",
+    "Your customer data is being downloaded.",
+    "Your records have been exfiltrated.",
+    "Someone has already accessed your rows.",
+    "The orders table was dumped last week.",
+    "Hackers are reading your customer records.",
+    "Your data is currently leaked.",
+    "This is a confirmed breach.",
+    "4000 users affected by this exposure.",
+  ])("blocks: %s", (narrative) => {
+    expect(check(narrative)).toBe(false);
+  });
+
+  it.each([
+    "Anyone who finds this route can read rows belonging to other tenants, because nothing checks who is asking.",
+    "Nothing between the request and the table checks who is asking.",
+    // The single most valuable sentence the product writes, and bundleAudit
+    // proves it by downloading the file. "exposed" is a state, not an event.
+    "Your service-role key is exposed in the JavaScript your site ships to every visitor.",
+    "Any caller could download every row in this table.",
+    "Records can be read by anyone with the anon key.",
+    "If someone found this endpoint they would be able to list other tenants' orders.",
+    "The policy allows every authenticated user to select rows they do not own.",
+    "This route resolves no user identity, and the table behind it has no policy.",
+    // The product's own vocabulary for what is possible must stay sayable —
+    // "exploitable" and "attack path" are not claims that anything happened.
+    "This is exploitable by any unauthenticated caller.",
+    "The attack path runs from the route straight through to the table.",
+  ])("allows: %s", (narrative) => {
+    expect(check(narrative)).toBe(true);
+  });
+});
+
 describe("checkNarrative — traffic language is licensed by traffic evidence", () => {
   it("rejects traffic language when no traffic collector contributed", () => {
     const verdict = checkNarrative(

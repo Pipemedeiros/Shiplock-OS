@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { runFixPr } from "@/lib/fixes/prRun";
-import type { FixableFinding, FindingSource } from "@/lib/fixes/lane";
+import { FINDING_SOURCES, type FixableFinding } from "@/lib/fixes/lane";
 
 // Opens a reviewable fix PR for one finding. Bearer auth + paid + GitHub
 // connected. The PR is a new branch off the default (never merged) — a
@@ -13,7 +13,10 @@ import type { FixableFinding, FindingSource } from "@/lib/fixes/lane";
 const Body = z.object({
   finding: z.object({
     id: z.string().min(1).max(400),
-    source: z.enum(["scan", "github", "policy", "advisor"]),
+    // Derived from lane.ts's single source of truth. Hand-listing a subset here
+    // is what broke the graph/proven PR buttons: both route to real PR lanes,
+    // and both 400'd on this validator.
+    source: z.enum(FINDING_SOURCES),
     title: z.string().min(1).max(300),
     severity: z.enum(["CRITICAL", "WARNING", "INFO"]),
     fix: z.string().max(20_000),
@@ -44,7 +47,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
 
-  const finding: FixableFinding = { ...parsed.finding, source: parsed.finding.source as FindingSource };
+  const finding: FixableFinding = parsed.finding;
 
   try {
     const { url } = await runFixPr(auth.user.id, finding, parsed.editedContent);

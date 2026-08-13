@@ -12,17 +12,32 @@ export type FixMethod =
   | "draft-pr" // logic fix (injection/XSS/crypto) → draft PR the human/agent finalizes
   | "deep-link"; // can't be a PR (Supabase dashboard toggle, secret rotation)
 
-export type FindingSource =
-  | "scan" // the 16-check Supabase config scan
-  | "github" // repo source analysis
-  | "policy" // our own RLS policy detector
-  | "advisor" // Supabase's security advisor lints
-  | "app" // the live app surface: exposed paths, bundle audit
-  | "dns" // email authentication records
-  | "auth-config" // Supabase auth URL configuration
-  | "graph" // a correlated attack path spanning several collectors
-  | "runtime" // a live attack observed in the auth audit log
-  | "proven"; // demonstrated in a sandboxed replica, not inferred
+/**
+ * Every finding source, as a runtime value.
+ *
+ * A const array with the type derived FROM it, rather than a hand-written union
+ * plus a hand-written validator somewhere else. /api/deep/fix used to keep its
+ * own Zod enum listing four of these, and it silently drifted: `graph` and
+ * `proven` findings route to real PR lanes (lane.ts routes `path:` to draft-pr
+ * and `proven:` to migration-pr), so clicking "Open fix PR" on a correlated
+ * attack path — the product's whole differentiator — failed validation and
+ * returned "Invalid request." Deriving one from the other makes that drift a
+ * compile error instead of a dead button.
+ */
+export const FINDING_SOURCES = [
+  "scan", // the 16-check Supabase config scan
+  "github", // repo source analysis
+  "policy", // our own RLS policy detector
+  "advisor", // Supabase's security advisor lints
+  "app", // the live app surface: exposed paths, bundle audit
+  "dns", // email authentication records
+  "auth-config", // Supabase auth URL configuration
+  "graph", // a correlated attack path spanning several collectors
+  "runtime", // a live attack observed in the auth audit log
+  "proven", // demonstrated in a sandboxed replica, not inferred
+] as const;
+
+export type FindingSource = (typeof FINDING_SOURCES)[number];
 
 export interface FixableFinding {
   id: string; // finding_id (deep) or a stable scan-issue key

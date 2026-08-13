@@ -142,6 +142,43 @@ describe("analyzeRouteFile", () => {
     expect(fact.ownershipFiltered).toBe(false);
   });
 
+  // Regression: the ownership pattern used to prefix-match, so any filter merely
+  // CONTAINING "auth"/"org"/"user" counted as an identity check — marking an
+  // unscoped route safe and suppressing the tenant-isolation attack path, which
+  // is the single most damaging finding this product exists to catch. Each of
+  // these was a verified false positive.
+  it.each([
+    ['a value containing "auth"', '.eq("status", "authorized")'],
+    ['a value containing "org"', '.eq("category", "organization")'],
+    ['a column containing "auth"', '.eq("author_name", name)'],
+    ['a value containing "account"', '.eq("plan", "account_tier")'],
+    ['an unrelated org column', '.eq("org_name", "acme")'],
+  ])("does NOT treat %s as an ownership filter", (_label, filter) => {
+    const fact = analyzeRouteFile(
+      "app/api/x/route.ts",
+      `export async function GET() { return supabase.from("invoices").select("*")${filter}; }`
+    );
+    expect(fact.ownershipFiltered).toBe(false);
+  });
+
+  // The other direction: real identity expressions must still be recognised, or
+  // the reasoner starts inventing attack paths against routes that ARE scoped —
+  // which this file's header calls the worst possible error.
+  it.each([
+    ["a direct user id", '.eq("user_id", user.id)'],
+    ["an optional-chained user id", '.eq("user_id", user?.id)'],
+    ["a Supabase auth.uid() call", '.eq("id", auth.uid())'],
+    ["a JWT claim", '.eq("tenant_id", claims.sub)'],
+    ["a camelCase identifier", '.eq("owner", userId)'],
+    ["a nested request user", '.eq("uid", req.user.id)'],
+  ])("still recognises %s as an ownership filter", (_label, filter) => {
+    const fact = analyzeRouteFile(
+      "app/api/x/route.ts",
+      `export async function GET() { return supabase.from("t").select("*")${filter}; }`
+    );
+    expect(fact.ownershipFiltered).toBe(true);
+  });
+
   it("recognises ownership via a session object", () => {
     const fact = analyzeRouteFile(
       "app/api/x/route.ts",
