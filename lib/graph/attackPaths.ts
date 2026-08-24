@@ -69,9 +69,27 @@ function isAnonymous(route: RouteFact): boolean {
  * questions have an answer on every engine we model.
  */
 function storeProtects(asset: AuthzFacts): boolean | null {
-  if (asset.enforced === null) return asset.unconditionalGrant ? false : null;
-  if (!asset.enforced) return false;
-  return !asset.unconditionalGrant;
+  // Enforcement switched OFF is conclusive on its own: nothing is filtering, and
+  // no unread rule could change that. This stays a definite `false` even when
+  // the rules were never read.
+  if (asset.enforced === false) return false;
+
+  // An unconditional grant is conclusive in the same direction, whatever the
+  // enforcement flag says.
+  if (asset.unconditionalGrant) return false;
+
+  // Everything below is an ABSENCE of bad news, and absence only means safety if
+  // we actually looked. Enforcement on with the rules unread is the case that
+  // used to return `true`: we had observed that row security was switched on and
+  // inferred, without evidence, that the policies behind it were sound. A
+  // `USING (true)` policy lives exactly there — enforcement on, filter absent —
+  // and it is the single most common critical finding this product exists to
+  // catch. Reporting it as protected was the worst reachable answer.
+  if (!asset.rulesRead) return null;
+
+  // Rules were read and none grants unconditionally. Enforcement unknown is
+  // still unknown; enforcement on with clean rules is genuinely protected.
+  return asset.enforced === true ? true : null;
 }
 
 export function findAttackPaths(input: GraphInput): AttackPath[] {

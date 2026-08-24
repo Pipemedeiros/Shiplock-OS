@@ -16,7 +16,13 @@ export async function POST() {
         ? "Connect your Supabase project first."
         : result.reason === "auth_failed"
           ? "That connection expired. Reconnect to keep policy checks running."
-          : "Couldn't read your policies just now. Try again in a moment.";
+          : result.reason === "shape_mismatch"
+            // Says plainly that this one is ours. The alternative — "try again" —
+            // would be a lie that sends the customer in a loop, since retrying
+            // cannot fix an API contract change. What matters most is that they
+            // are NOT shown a clean result.
+            ? "Your database answered in a format we don't recognise yet, so we stopped rather than show you a result we can't stand behind. This is our bug and we've been alerted."
+            : "Couldn't read your policies just now. Try again in a moment.";
     return NextResponse.json({ error: message, reason: result.reason }, { status: 400 });
   }
 

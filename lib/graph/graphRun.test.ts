@@ -192,7 +192,13 @@ describe("runGraphReasoner", () => {
     selectFactsMock.mockResolvedValue({
       data: [
         { collector: "source", facts: { routes: [routeFact] } },
-        { collector: "db", facts: { scanTables: [{ name: "invoices", rlsEnabled: true }] } },
+        {
+          collector: "db",
+          // `policies: []` is required for this to mean "clean". Without the key
+          // the rules were never read, and an RLS-on table with unread policies
+          // is unknown rather than protected — see storeProtects.
+          facts: { scanTables: [{ name: "invoices", rlsEnabled: true }], policies: [] },
+        },
       ],
     });
     const result = await runGraphReasoner("u1");

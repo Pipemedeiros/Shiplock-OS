@@ -8,6 +8,7 @@ import {
   parseConnectionString,
   PostgresConnectionError,
 } from "./postgresDirect";
+import { CollectorShapeError } from "./apiSchemas";
 import type { GithubFinding } from "./githubScan";
 
 // Running the direct-Postgres collector and persisting what it found.
@@ -27,7 +28,13 @@ import type { GithubFinding } from "./githubScan";
 export interface DirectScanOutcome {
   ok: boolean;
   findings: number;
-  reason?: "not_connected" | "auth_failed" | "blocked_host" | "not_read_only" | "scan_failed";
+  reason?:
+    | "not_connected"
+    | "auth_failed"
+    | "blocked_host"
+    | "not_read_only"
+    | "shape_mismatch"
+    | "scan_failed";
 }
 
 interface ProfileRow {
@@ -121,6 +128,16 @@ export async function runDirectPostgresScan(userId: string): Promise<DirectScanO
                 ? "not_read_only"
                 : "scan_failed",
       };
+    }
+    if (err instanceof CollectorShapeError) {
+      // Our bug, not theirs. Reported distinctly and, critically, returned
+      // BEFORE the persistence block — a broken parser must never archive a
+      // customer's real findings as resolved.
+      console.error(
+        `[postgresDirect] SHAPE MISMATCH for ${userId} — scan abandoned rather than ` +
+          `reported clean. ${err.message}`
+      );
+      return { ok: false, findings: 0, reason: "shape_mismatch" };
     }
     console.error(
       "[postgresDirect] scan failed:",

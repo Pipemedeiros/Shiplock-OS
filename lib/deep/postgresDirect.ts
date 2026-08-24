@@ -1,5 +1,13 @@
 import { Client } from "pg";
 import { isPrivateOrReservedIp, nodeHostResolver, type HostResolver } from "@/lib/security/ssrfGuard";
+import {
+  ColumnGrantRow,
+  parseRows,
+  PgPolicyRow,
+  RlsStateRow,
+  RoleFlagsRow,
+  WriteGrantCountRow,
+} from "./apiSchemas";
 import type { PgPolicy } from "./policyScan";
 import type { ColumnGrant } from "./grantScan";
 
@@ -219,24 +227,54 @@ export async function withReadOnlySession<T>(
 export async function assertReadOnlyRole(
   query: <R>(sql: string, params?: unknown[]) => Promise<R[]>
 ): Promise<void> {
-  const [role] = await query<{ rolsuper: boolean; rolbypassrls: boolean }>(
-    `SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user`
+  // Parsed rather than cast, and this is the single most important parse in the
+  // module: `role?.rolsuper` on an unvalidated row is `undefined` when the
+  // column is missing or renamed, which is falsy — so a shape change would
+  // silently APPROVE a superuser connection. The check that exists to stop us
+  // holding a too-powerful credential would have been the thing that failed
+  // open. parseRows throws instead, and connectDirectPostgres refuses to store.
+  const roles = parseRows(
+    "postgresDirect.roleFlags",
+    RoleFlagsRow,
+    await query(`SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user`)
   );
-  if (role?.rolsuper || role?.rolbypassrls) {
+  const role = roles[0];
+  if (!role) {
+    throw new PostgresConnectionError(
+      "We could not read the permissions of that role, so we will not store it.",
+      "not_read_only"
+    );
+  }
+  if (role.rolsuper || role.rolbypassrls) {
     throw new PostgresConnectionError(
       "That role is a superuser or can bypass Row Level Security. Create a read-only role for ShipLock instead — we should not be able to change or over-read your data.",
       "not_read_only"
     );
   }
 
-  const [writable] = await query<{ count: string }>(
-    `SELECT count(*)::text AS count
-       FROM information_schema.role_table_grants
-      WHERE grantee = current_user
-        AND table_schema NOT IN ('pg_catalog', 'information_schema')
-        AND privilege_type IN ('INSERT', 'UPDATE', 'DELETE', 'TRUNCATE')`
+  // Same fail-open shape as the role flags above, for the same reason:
+  // `Number(writable?.count ?? 0) > 0` evaluated to `0 > 0` — false, i.e.
+  // "no write grants" — whenever the column was absent. A missing answer must
+  // block the connection, not wave it through.
+  const writableRows = parseRows(
+    "postgresDirect.writeGrants",
+    WriteGrantCountRow,
+    await query(
+      `SELECT count(*)::text AS count
+         FROM information_schema.role_table_grants
+        WHERE grantee = current_user
+          AND table_schema NOT IN ('pg_catalog', 'information_schema')
+          AND privilege_type IN ('INSERT', 'UPDATE', 'DELETE', 'TRUNCATE')`
+    )
   );
-  if (Number(writable?.count ?? 0) > 0) {
+  const writable = writableRows[0];
+  if (!writable) {
+    throw new PostgresConnectionError(
+      "We could not confirm that role holds no write grants, so we will not store it.",
+      "not_read_only"
+    );
+  }
+  if (writable.count > 0) {
     throw new PostgresConnectionError(
       "That role can write to your tables. Create a read-only role for ShipLock instead — we should not be able to change your data.",
       "not_read_only"
@@ -277,15 +315,6 @@ export interface DirectDbFacts {
   grants: ColumnGrant[];
 }
 
-/** Normalise pg's `name[]` roles column, which some transports stringify. */
-function toRoles(roles: string[] | string | null): string[] {
-  if (Array.isArray(roles)) return roles;
-  if (typeof roles === "string") {
-    return roles.replace(/^\{|\}$/g, "").split(",").filter(Boolean);
-  }
-  return [];
-}
-
 /**
  * Everything the graph's database collector needs, in one session.
  *
@@ -303,36 +332,34 @@ export async function collectDirectFacts(
     async (query) => {
       await assertReadOnlyRole(query);
 
-      const rawPolicies = await query<{
-        schemaname: string;
-        tablename: string;
-        policyname: string;
-        cmd: string;
-        qual: string | null;
-        with_check: string | null;
-        roles: string[] | string | null;
-      }>(POLICY_SQL);
-
-      const rawTables = await query<{ name: string; rls_enabled: boolean }>(RLS_SQL);
+      // Validated, not cast — same reasoning as the Supabase transport. `pg`
+      // hands back `any` rows, so without this a renamed catalogue column would
+      // arrive as undefined and every policy would look non-permissive.
+      const policies = parseRows("postgresDirect.policies", PgPolicyRow, await query(POLICY_SQL));
+      const rawTables = parseRows("postgresDirect.rls", RlsStateRow, await query(RLS_SQL));
 
       let grants: ColumnGrant[] = [];
       try {
-        grants = await query<ColumnGrant>(GRANT_SQL);
+        grants = parseRows("postgresDirect.grants", ColumnGrantRow, await query(GRANT_SQL)).map(
+          (g) => ({
+            grantee: g.grantee,
+            table: g.table_name,
+            column: g.column_name,
+            privilege: g.privilege_type,
+          })
+        );
       } catch {
+        // Tolerated: `column_privileges` exists everywhere, but the anon /
+        // authenticated role names are a Supabase convention, so a self-hosted
+        // database legitimately has none. An empty grant list means "no such
+        // role", which is a true statement about exposure — unlike an empty
+        // POLICY list, which would be a false one.
         grants = [];
       }
 
       return {
-        policies: rawPolicies.map((r) => ({
-          schemaname: r.schemaname,
-          tablename: r.tablename,
-          policyname: r.policyname,
-          cmd: r.cmd,
-          qual: r.qual,
-          with_check: r.with_check,
-          roles: toRoles(r.roles),
-        })),
-        scanTables: rawTables.map((t) => ({ name: t.name, rlsEnabled: Boolean(t.rls_enabled) })),
+        policies,
+        scanTables: rawTables.map((t) => ({ name: t.name, rlsEnabled: t.rls_enabled })),
         grants,
       };
     },

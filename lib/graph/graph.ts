@@ -73,6 +73,22 @@ export interface AuthzFacts {
   enforced: boolean | null;
   /** A rule that grants access unconditionally (USING (true) / advisor 0024). */
   unconditionalGrant: boolean;
+  /**
+   * Whether the access RULES themselves were successfully enumerated.
+   *
+   * This is the difference between "we read every policy on this table and none
+   * of them filters nothing" and "we never got to look". Both leave
+   * `unconditionalGrant` false, and treating them the same is how a table with
+   * RLS switched on and a `USING (true)` policy on it reported as protected: the
+   * enforcement flag was observed, the rule was not, and the missing half was
+   * read as good news.
+   *
+   * A customer running only the anon-key scan is the ordinary case here — that
+   * scan can see THAT row security is on, never WHAT the policies say. So this
+   * is false far more often than it is a failure, which is exactly why it has to
+   * be modelled rather than assumed.
+   */
+  rulesRead: boolean;
   /** Principals any unconditional grant applies to, e.g. anon / authenticated. */
   grantedRoles: string[];
   /**
@@ -195,6 +211,15 @@ export function buildAuthzFacts(input: GraphInput): Map<string, AuthzFacts> {
   // ones — but only when at least one of them actually reported something, so an
   // empty input stays honestly `null` rather than claiming a provider we never saw.
   const provider = observedProvider(input);
+  // `undefined` means no rule collector ran; `[]` means one ran and found none.
+  // The distinction is the whole point of this flag, so it is read from the
+  // presence of the key rather than from its length.
+  //
+  // Advisors count as a rule witness alongside policies: an advisor run that
+  // reports no `rls_policy_always_true` is genuine evidence that no policy
+  // grants access unconditionally, arrived at independently. Either source
+  // having run is enough to say we looked.
+  const rulesRead = input.policies !== undefined || input.advisors !== undefined;
 
   const assets = new Map<string, AuthzFacts>();
 
@@ -209,6 +234,7 @@ export function buildAuthzFacts(input: GraphInput): Map<string, AuthzFacts> {
         provider,
         enforced: null,
         unconditionalGrant: false,
+        rulesRead,
         grantedRoles: [],
         provable: isProvable(provider),
         sensitive: isSensitiveTableName(name),
@@ -312,6 +338,11 @@ export function buildGraph(input: GraphInput): AssetGraph {
             provider: observedProvider(input),
             enforced: null,
             unconditionalGrant: false,
+            // No rule collector reported on this asset specifically, but the
+            // flag tracks whether the RUN happened, not whether this table
+            // appeared in it — a table absent from a successful policy read
+            // genuinely has no policies.
+            rulesRead: input.policies !== undefined || input.advisors !== undefined,
             grantedRoles: [],
             provable: isProvable(observedProvider(input)),
             sensitive: isSensitiveTableName(name),

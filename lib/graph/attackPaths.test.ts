@@ -145,8 +145,42 @@ describe("path 1 — anonymous reach into an unprotected table", () => {
 
   // Each half is unremarkable alone; that is the point of the graph.
   it("stays SILENT when the route is public but the table is protected", () => {
+    // `policies: []` is load-bearing and is NOT the same as omitting it: it says
+    // the rules were read and none of them filters nothing. Enforcement on plus
+    // rules read and clean is the only combination that means protected.
     expect(
-      findAttackPaths({ routes: anonReadsInvoices, scanTables: [{ name: "invoices", rlsEnabled: true }] })
+      findAttackPaths({
+        routes: anonReadsInvoices,
+        scanTables: [{ name: "invoices", rlsEnabled: true }],
+        policies: [],
+      })
+    ).toEqual([]);
+  });
+
+  it("does NOT call a table protected when row security is on but no policy was read", () => {
+    // The regression this guards. A `USING (true)` policy lives exactly here —
+    // enforcement on, filter absent — so calling this combination "protected"
+    // hides the most common critical finding the product exists to catch. It is
+    // reported as a WARNING that names what we could not check, never silence,
+    // and never a CRITICAL that asserts a policy we never saw.
+    const paths = findAttackPaths({
+      routes: anonReadsInvoices,
+      scanTables: [{ name: "invoices", rlsEnabled: true }],
+    });
+    expect(paths).toHaveLength(1);
+    expect(paths[0].severity).toBe("WARNING");
+    expect(paths[0].id).toContain("anon_sensitive_unknown");
+  });
+
+  it("treats an advisor run with no permissive lint as having read the rules", () => {
+    // Advisors are an independent witness to the same fact, so a clean advisor
+    // run is enough to conclude "protected" without the policy fetch.
+    expect(
+      findAttackPaths({
+        routes: anonReadsInvoices,
+        scanTables: [{ name: "invoices", rlsEnabled: true }],
+        advisors: [],
+      })
     ).toEqual([]);
   });
 

@@ -12,7 +12,26 @@
 // control — we also simply never call it with anything else — but a guard that
 // lives next to the transport is the one that survives a future refactor.
 
+import { z } from "zod";
 import { decrypt } from "@/lib/crypto";
+import {
+  ColumnGrantRow,
+  parseObject,
+  parseRows,
+  PgPolicyRow,
+  RowCountRow,
+  SchemaColumnRow,
+  SupabaseAdvisorRow,
+  SupabaseAuthConfigObject,
+  ExtensionRow,
+  NetworkGrantRow,
+  CronJobRow,
+  ForeignServerRow,
+  BucketRowSchema,
+  StoragePolicyRowSchema,
+  RealtimeTableRowSchema,
+  AuthHookRowSchema,
+} from "./apiSchemas";
 import type { PgPolicy, SupabaseAdvisor } from "./policyScan";
 import { GRANT_INVENTORY_SQL } from "./grantScan";
 import { EXTENSION_SQL, NETWORK_GRANT_SQL, CRON_JOB_SQL, FDW_SQL } from "./extensionScan";
@@ -146,7 +165,23 @@ export function assertReadOnly(sql: string): void {
   }
 }
 
-async function runReadQuery<T>(accessToken: string, projectRef: string, sql: string): Promise<T[]> {
+/**
+ * Run a read query and VALIDATE the rows it returns.
+ *
+ * The `schema` parameter is not optional, and the previous signature —
+ * `runReadQuery<T>(...)` returning `json as T[]` — is why. A cast is a promise
+ * to the compiler that evaporates at runtime, so a renamed column arrived as
+ * `undefined`, every downstream predicate read false, and the customer saw a
+ * clean scan of a leaking database. `source` names the caller so a failure says
+ * which layer stopped being trustworthy.
+ */
+async function runReadQuery<T>(
+  accessToken: string,
+  projectRef: string,
+  sql: string,
+  source: string,
+  schema: z.ZodType<T>
+): Promise<T[]> {
   assertReadOnly(sql);
 
   const res = await fetch(`${API}/v1/projects/${encodeURIComponent(projectRef)}/database/query`, {
@@ -158,8 +193,7 @@ async function runReadQuery<T>(accessToken: string, projectRef: string, sql: str
     body: JSON.stringify({ query: sql, read_only: true }),
   });
   if (!res.ok) throw new Error(`Supabase query HTTP ${res.status}`);
-  const json = await res.json();
-  return Array.isArray(json) ? (json as T[]) : [];
+  return parseRows(source, schema, await res.json());
 }
 
 export interface MgmtProject {
@@ -179,55 +213,66 @@ export async function listProjects(accessToken: string): Promise<MgmtProject[]> 
 
 /** Every RLS policy on the public schema — the input policyScan.ts wants. */
 export async function fetchPolicies(accessToken: string, projectRef: string): Promise<PgPolicy[]> {
-  const rows = await runReadQuery<{
-    schemaname: string;
-    tablename: string;
-    policyname: string;
-    cmd: string;
-    qual: string | null;
-    with_check: string | null;
-    roles: string[] | string | null;
-  }>(
+  // The schema normalises `roles` (array or "{a,b}" string) via PgRoleArray, so
+  // the hand-rolled branch that used to live here is gone — one place to be
+  // wrong instead of two, since the direct-Postgres transport reads the same
+  // column.
+  return runReadQuery(
     accessToken,
     projectRef,
     `SELECT schemaname, tablename, policyname, cmd, qual, with_check, roles
        FROM pg_policies
-      WHERE schemaname = 'public'`
+      WHERE schemaname = 'public'`,
+    "fetchPolicies",
+    PgPolicyRow
   );
-
-  return rows.map((r) => ({
-    schemaname: r.schemaname,
-    tablename: r.tablename,
-    policyname: r.policyname,
-    cmd: r.cmd,
-    qual: r.qual,
-    with_check: r.with_check,
-    // pg returns roles as a name[]; some transports stringify it as "{a,b}".
-    roles: Array.isArray(r.roles)
-      ? r.roles
-      : typeof r.roles === "string"
-        ? r.roles.replace(/^\{|\}$/g, "").split(",").filter(Boolean)
-        : [],
-  }));
 }
 
-/** Supabase's own security advisors. Best-effort — shape varies by version. */
+/**
+ * Supabase's own security advisors — a SECOND, independent source for facts the
+ * policy scan already establishes.
+ *
+ * Two different failures are separated here, because they deserve opposite
+ * treatment and the old `catch { return [] }` collapsed them:
+ *
+ *  - The endpoint is unavailable (network, 4xx/5xx, not enabled on this
+ *    project). Genuinely best-effort: advisors corroborate, they are not the
+ *    only witness, and a project without them is a normal state. Returns [].
+ *  - The endpoint answered with something that is not an advisor list. That is
+ *    a contract change, and swallowing it means quietly losing a corroborating
+ *    source without anyone noticing for months. Throws, and the caller decides
+ *    whether to degrade or fail — see runPolicyScan.
+ *
+ * The schema is permissive on purpose (every field optional), because this
+ * payload really does vary by Supabase version. A parse failure therefore means
+ * the response stopped being a list of lint-shaped objects at all, not that a
+ * cosmetic field moved.
+ */
 export async function fetchAdvisors(
   accessToken: string,
   projectRef: string
 ): Promise<SupabaseAdvisor[]> {
+  let json: unknown;
   try {
     const res = await fetch(
       `${API}/v1/projects/${encodeURIComponent(projectRef)}/advisors/security`,
       { headers: { authorization: `Bearer ${accessToken}` } }
     );
     if (!res.ok) return [];
-    const json = await res.json();
-    const list = Array.isArray(json) ? json : (json?.lints ?? json?.advisors ?? []);
-    return Array.isArray(list) ? (list as SupabaseAdvisor[]) : [];
+    json = await res.json();
   } catch {
     return [];
   }
+
+  // The list has lived under three keys across versions; all three are the
+  // documented shape, so none of them is a mismatch.
+  const list = Array.isArray(json)
+    ? json
+    : ((json as { lints?: unknown; advisors?: unknown })?.lints ??
+      (json as { advisors?: unknown })?.advisors ??
+      []);
+
+  return parseRows("fetchAdvisors", SupabaseAdvisorRow, list);
 }
 
 /**
@@ -256,7 +301,15 @@ export async function fetchAuthConfig(
     });
     if (!res.ok) return null;
     const json = await res.json();
-    return json && typeof json === "object" ? (json as SupabaseAuthConfig) : null;
+    // `typeof [] === "object"`, so the old check accepted an array and handed
+    // the auth scanners something with no keys — which reads as "every setting
+    // absent", i.e. a clean config. parseObject rejects it.
+    //
+    // Returning null on failure is correct here and is NOT the silent-failure
+    // pattern: readAuthPosture(null) yields signupsOpen/autoConfirm = null,
+    // which the reasoner treats as unknown and never as safe. Absence of this
+    // config removes an amplifier from a finding; it cannot remove a finding.
+    return parseObject("fetchAuthConfig", SupabaseAuthConfigObject, json) as SupabaseAuthConfig;
   } catch {
     return null;
   }
@@ -278,12 +331,14 @@ export async function fetchSchemaColumns(
   accessToken: string,
   projectRef: string
 ): Promise<SchemaColumn[]> {
-  const rows = await runReadQuery<{ table_name: string; column_name: string }>(
+  const rows = await runReadQuery(
     accessToken,
     projectRef,
     `select table_name, column_name from information_schema.columns
      where table_schema = 'public'
-     order by table_name, ordinal_position`
+     order by table_name, ordinal_position`,
+    "fetchSchemaColumns",
+    SchemaColumnRow
   );
   return rows.map((r) => ({ table: r.table_name, column: r.column_name }));
 }
@@ -320,16 +375,11 @@ export async function fetchRowCounts(
   const sql = buildRowCountSql(tables);
   if (!sql) return new Map();
   try {
-    const rows = await runReadQuery<{ table_name: string; n: number | string }>(
-      accessToken,
-      projectRef,
-      sql
-    );
+    const rows = await runReadQuery(accessToken, projectRef, sql, "fetchRowCounts", RowCountRow);
     const out = new Map<string, number>();
-    for (const r of rows) {
-      const n = typeof r.n === "string" ? Number.parseInt(r.n, 10) : r.n;
-      if (Number.isFinite(n)) out.set(r.table_name, n);
-    }
+    // PgCount already coerced the bigint-as-string case and dropped non-finite
+    // values, so this is a plain copy rather than a second parsing attempt.
+    for (const r of rows) out.set(r.table_name, r.n);
     return out;
   } catch {
     // Counting can fail on a large or busy database. An absent count means the
@@ -389,12 +439,13 @@ export async function fetchColumnGrants(
   projectRef: string
 ): Promise<{ grantee: string; table: string; column: string; privilege: string }[]> {
   try {
-    const rows = await runReadQuery<{
-      grantee: string;
-      table_name: string;
-      column_name: string;
-      privilege_type: string;
-    }>(accessToken, projectRef, GRANT_INVENTORY_SQL);
+    const rows = await runReadQuery(
+      accessToken,
+      projectRef,
+      GRANT_INVENTORY_SQL,
+      "fetchColumnGrants",
+      ColumnGrantRow
+    );
     return rows.map((r) => ({
       grantee: r.grantee,
       table: r.table_name,
@@ -424,19 +475,22 @@ export async function fetchDatabaseCapabilities(
   cronJobs?: { name: string | null; schedule: string; runs_as: string; command: string }[];
   foreignServers?: { server: string; wrapper: string }[];
 }> {
-  const attempt = async <T>(sql: string): Promise<T[] | undefined> => {
+  // `undefined` on failure, never `[]` — the caller distinguishes "we could not
+  // look" from "we looked and there was nothing", and collapsing them would make
+  // an unreadable capability list read as a clean one.
+  const attempt = async <T>(sql: string, source: string, schema: z.ZodType<T>) => {
     try {
-      return await runReadQuery<T>(accessToken, projectRef, sql);
+      return await runReadQuery(accessToken, projectRef, sql, source, schema);
     } catch {
       return undefined;
     }
   };
 
   const [extensions, networkGrants, cronJobs, foreignServers] = await Promise.all([
-    attempt<{ name: string; schema: string }>(EXTENSION_SQL),
-    attempt<{ schema: string; name: string; grantee: string }>(NETWORK_GRANT_SQL),
-    attempt<{ name: string | null; schedule: string; runs_as: string; command: string }>(CRON_JOB_SQL),
-    attempt<{ server: string; wrapper: string }>(FDW_SQL),
+    attempt(EXTENSION_SQL, "fetchExtensions", ExtensionRow),
+    attempt(NETWORK_GRANT_SQL, "fetchNetworkGrants", NetworkGrantRow),
+    attempt(CRON_JOB_SQL, "fetchCronJobs", CronJobRow),
+    attempt(FDW_SQL, "fetchForeignServers", ForeignServerRow),
   ]);
 
   return { extensions, networkGrants, cronJobs, foreignServers };
@@ -447,16 +501,19 @@ export async function fetchStorageConfig(
   accessToken: string,
   projectRef: string
 ): Promise<{ buckets?: BucketRow[]; policies?: StoragePolicyRow[] }> {
-  const attempt = async <T>(sql: string): Promise<T[] | undefined> => {
+  // `undefined` on failure, never `[]` — the caller distinguishes "we could not
+  // look" from "we looked and there was nothing", and collapsing them would make
+  // an unreadable capability list read as a clean one.
+  const attempt = async <T>(sql: string, source: string, schema: z.ZodType<T>) => {
     try {
-      return await runReadQuery<T>(accessToken, projectRef, sql);
+      return await runReadQuery(accessToken, projectRef, sql, source, schema);
     } catch {
       return undefined;
     }
   };
   const [buckets, policies] = await Promise.all([
-    attempt<BucketRow>(BUCKET_SQL),
-    attempt<StoragePolicyRow>(STORAGE_POLICY_SQL),
+    attempt(BUCKET_SQL, "fetchBuckets", BucketRowSchema),
+    attempt(STORAGE_POLICY_SQL, "fetchStoragePolicies", StoragePolicyRowSchema),
   ]);
   return { buckets, policies };
 }
@@ -495,16 +552,19 @@ export async function fetchRealtimeAndHooks(
   accessToken: string,
   projectRef: string
 ): Promise<{ realtimeTables?: RealtimeTableRow[]; authHooks?: AuthHookRow[] }> {
-  const attempt = async <T>(sql: string): Promise<T[] | undefined> => {
+  // `undefined` on failure, never `[]` — the caller distinguishes "we could not
+  // look" from "we looked and there was nothing", and collapsing them would make
+  // an unreadable capability list read as a clean one.
+  const attempt = async <T>(sql: string, source: string, schema: z.ZodType<T>) => {
     try {
-      return await runReadQuery<T>(accessToken, projectRef, sql);
+      return await runReadQuery(accessToken, projectRef, sql, source, schema);
     } catch {
       return undefined;
     }
   };
   const [realtimeTables, authHooks] = await Promise.all([
-    attempt<RealtimeTableRow>(REALTIME_SQL),
-    attempt<AuthHookRow>(AUTH_HOOK_SQL),
+    attempt(REALTIME_SQL, "fetchRealtimeTables", RealtimeTableRowSchema),
+    attempt(AUTH_HOOK_SQL, "fetchAuthHooks", AuthHookRowSchema),
   ]);
   return { realtimeTables, authHooks };
 }

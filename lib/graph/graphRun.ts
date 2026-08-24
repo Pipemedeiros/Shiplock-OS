@@ -116,8 +116,15 @@ export async function loadGraphInput(userId: string): Promise<GraphInput> {
     } else if (row.collector === "db") {
       const f = row.facts as unknown as DbFacts;
       input.scanTables = f.scanTables ?? [];
-      input.policies = f.policies ?? [];
-      input.advisors = f.advisors ?? [];
+      // NOT `?? []`. An absent key means no rule collector has ever run for this
+      // customer; an empty array means one ran and found nothing. Defaulting
+      // erased that difference at the last step before the reasoner, so a
+      // customer with only the anon-key scan looked identical to one whose
+      // policies had been read and come back clean — and `storeProtects` then
+      // reported RLS-on tables as protected without ever having seen a policy.
+      // Assign conditionally so `undefined` survives.
+      if (f.policies !== undefined) input.policies = f.policies;
+      if (f.advisors !== undefined) input.advisors = f.advisors;
       input.authConfig = f.authConfig ?? null;
       if (f.authzProvider) input.authzProvider = f.authzProvider;
     } else if (row.collector === "traffic") {

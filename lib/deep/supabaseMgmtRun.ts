@@ -36,6 +36,7 @@ import { provingHost } from "@/lib/proving/host";
 import { findAttackPaths } from "@/lib/graph/attackPaths";
 import { loadGraphInput } from "@/lib/graph/graphRun";
 import { buildAuthzFacts } from "@/lib/graph/graph";
+import { CollectorShapeError } from "./apiSchemas";
 
 export interface PolicyScanOutcome {
   ok: boolean;
@@ -87,11 +88,35 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
 
   let findings;
   try {
-    const [policies, advisors, authConfig] = await Promise.all([
+    // POLICIES ARE LOAD-BEARING; ADVISORS CORROBORATE. The two get different
+    // treatment on a shape failure, deliberately.
+    //
+    // If the policy fetch stops returning policy-shaped rows we must abort the
+    // whole scan: `analyzePolicies([])` finds nothing, and persisting that would
+    // ARCHIVE every real policy finding the customer already has as "resolved".
+    // A parser breaking would look exactly like the customer fixing everything.
+    //
+    // Advisors are an independent second witness to facts the policies already
+    // establish, and the payload genuinely varies by Supabase version, so a
+    // shape change there degrades to "no advisor corroboration" rather than
+    // costing the customer their scan. The graph still records that policies
+    // were read, so nothing is silently reported as protected.
+    const [policies, authConfig] = await Promise.all([
       fetchPolicies(token.accessToken, projectRef),
-      fetchAdvisors(token.accessToken, projectRef),
       fetchAuthConfig(token.accessToken, projectRef),
     ]);
+
+    let advisors: Awaited<ReturnType<typeof fetchAdvisors>> = [];
+    let advisorsOk = true;
+    try {
+      advisors = await fetchAdvisors(token.accessToken, projectRef);
+    } catch (err) {
+      advisorsOk = false;
+      console.error(
+        `[supabaseMgmt] advisor shape changed for ${userId}, continuing without corroboration:`,
+        err instanceof Error ? err.message : err
+      );
+    }
     findings = [
       ...mergePolicyFindings(analyzePolicies(policies), mapAdvisors(advisors)),
       // B7 + Site URL. fetchAuthConfig returns null when the request fails, and
@@ -114,7 +139,17 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
     // Feed the graph's database collector with the raw facts, not our verdicts.
     // The reasoner combines them with route facts to produce paths neither
     // source can see alone.
-    await saveFacts(userId, "db", { policies, advisors, authConfig }, { merge: true });
+    // `advisors` is written ONLY when the fetch succeeded. Writing `[]` after a
+    // failure would tell the graph "we ran the advisors and they flagged
+    // nothing" — the precise false statement this whole change is about. Omitted
+    // instead, so a previously-stored advisor set survives the merge and the
+    // absence is honest.
+    await saveFacts(
+      userId,
+      "db",
+      { policies, authConfig, ...(advisorsOk ? { advisors } : {}) },
+      { merge: true }
+    );
 
     // A21 exposure inventory. SCHEMA ONLY — column names and row counts, never
     // a value. Best-effort: a project we cannot enumerate simply has no
@@ -250,6 +285,22 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
       }
     }
   } catch (err) {
+    // A shape mismatch is reported distinctly from a generic failure, because it
+    // means something different and needs a different response: a transient
+    // network error resolves itself, an API contract change needs us to ship a
+    // schema update. It is OUR bug, not the customer's, and it should be
+    // findable in a log search rather than buried in "scan_failed".
+    //
+    // Either way the important property is the same — we return before the
+    // persistence block below, so nothing is written and nothing is archived. A
+    // broken parser cannot mark a customer's real findings resolved.
+    if (err instanceof CollectorShapeError) {
+      console.error(
+        `[supabaseMgmt] SHAPE MISMATCH for ${userId} — the scan was abandoned rather than ` +
+          `reported clean. ${err.message}`
+      );
+      return { ok: false, findings: 0, reason: "shape_mismatch" };
+    }
     console.error(
       "[supabaseMgmt] policy scan failed:",
       err instanceof Error ? err.message : err
