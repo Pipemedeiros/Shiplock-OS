@@ -1,6 +1,7 @@
 import type { RouteFact } from "./routeInventory";
 import type { SupabaseAuthConfig } from "@/lib/deep/supabaseMgmt";
 import { normaliseLintName, type PgPolicy, type SupabaseAdvisor } from "@/lib/deep/policyScan";
+import { isProvable, vocabulary, type AuthzProvider } from "./providers";
 
 // The asset graph (PRODUCT-DESIGN.md §5.2). Collectors produce facts; this
 // assembles them into nodes and edges so the reasoner can walk them.
@@ -39,21 +40,58 @@ export interface AssetGraph {
   edges: GraphEdge[];
 }
 
-// ── Table facts, assembled from several collectors ─────────────────────────
+// ── Authorization facts, assembled from several collectors ─────────────────
 
-export interface TableFacts {
+/**
+ * What we know about who may read a given asset.
+ *
+ * These are deliberately PROVIDER-NEUTRAL nouns. The collectors speak Postgres
+ * (`PgPolicy`, advisor lints, `rlsEnabled`) because they are reading Postgres;
+ * by the time facts reach the reasoner they have been translated into questions
+ * every authorization engine can answer. That translation happens here, in
+ * `buildAuthzFacts`, and it is the seam that decides whether supporting a second
+ * store is a collector or a rewrite.
+ *
+ * The word "table" is avoided on purpose — Firestore has collections, and a
+ * reasoner that says `table` everywhere will grow a `table ?? collection`
+ * conditional the first time that matters.
+ */
+export interface AuthzFacts {
   schema: string;
   name: string;
   qualified: string;
-  /** RLS switched on. `null` when no collector told us — unknown, not false. */
-  rlsEnabled: boolean | null;
-  /** A policy that grants access unconditionally (USING (true) / advisor 0024). */
-  permissivePolicy: boolean;
-  /** Roles any permissive policy applies to, e.g. anon / authenticated. */
-  permissiveRoles: string[];
+  /**
+   * Which engine governs this asset. `null` when no database collector ran, and
+   * distinct from `app-layer`: `null` is "we did not look", `app-layer` is "we
+   * looked and there is no declarative rule".
+   */
+  provider: AuthzProvider | null;
+  /**
+   * The authorization mechanism is switched on for this asset. `null` when no
+   * collector told us — unknown, not false.
+   */
+  enforced: boolean | null;
+  /** A rule that grants access unconditionally (USING (true) / advisor 0024). */
+  unconditionalGrant: boolean;
+  /** Principals any unconditional grant applies to, e.g. anon / authenticated. */
+  grantedRoles: string[];
+  /**
+   * Whether a leak here could be REPRODUCED in the proving ground rather than
+   * inferred. A capability, not a result — see the note in `providers.ts`.
+   */
+  provable: boolean;
   /** Looks like it holds personal or financial data (used for ranking only). */
   sensitive: boolean;
 }
+
+/**
+ * The previous name for {@link AuthzFacts}, kept so existing imports keep
+ * compiling. New code should use `AuthzFacts`; this alias will go once the last
+ * caller has moved.
+ *
+ * @deprecated Use {@link AuthzFacts}.
+ */
+export type TableFacts = AuthzFacts;
 
 /**
  * Tables whose contents would matter if they leaked. Ranking input ONLY — never
@@ -87,6 +125,13 @@ export interface GraphInput {
   scanTables?: { name: string; rlsEnabled: boolean }[];
   /** Paths currently under attack, from the traffic collector. */
   trafficHotPaths?: { path: string; suspiciousRequests: number }[];
+  /**
+   * Which authorization engine these facts describe. Optional: today every
+   * collector that fills this input reads Postgres, so it is inferred when
+   * absent. A collector for a different store sets it explicitly rather than
+   * relying on that inference.
+   */
+  authzProvider?: AuthzProvider;
 }
 
 export interface AuthPosture {
@@ -118,39 +163,73 @@ const RLS_DISABLED_LINTS = new Set(["rls_disabled_in_public", "policy_exists_rls
 /** Advisor lints that assert a policy grants unconditional access. */
 const PERMISSIVE_LINTS = new Set(["rls_policy_always_true"]);
 
-export function buildTableFacts(input: GraphInput): Map<string, TableFacts> {
-  const tables = new Map<string, TableFacts>();
+/**
+ * Which authorization engine this input describes.
+ *
+ * Explicit when a collector said so. Otherwise inferred as Postgres — but only
+ * when a database collector actually reported something, so an input with no
+ * database half stays honestly `null` instead of claiming a provider we never
+ * observed. That distinction is load-bearing downstream: `null` suppresses the
+ * paths that need a database fact, where a wrong guess would invent one.
+ */
+export function observedProvider(input: GraphInput): AuthzProvider | null {
+  if (input.authzProvider) return input.authzProvider;
+  const observed =
+    (input.scanTables?.length ?? 0) > 0 ||
+    (input.policies?.length ?? 0) > 0 ||
+    (input.advisors?.length ?? 0) > 0;
+  return observed ? "postgres-rls" : null;
+}
 
-  const ensure = (schema: string, name: string): TableFacts => {
+/**
+ * Translate collector output into provider-neutral authorization facts.
+ *
+ * Every input here is Postgres-shaped, and that is correct — these collectors
+ * read Postgres. The `provider` stamp is what lets a future Firestore collector
+ * write into the same map without any downstream code learning a second
+ * vocabulary.
+ */
+export function buildAuthzFacts(input: GraphInput): Map<string, AuthzFacts> {
+  // Which engine the facts in this input came from. Explicit when a collector
+  // said so, otherwise inferred from the fact that these collectors are Postgres
+  // ones — but only when at least one of them actually reported something, so an
+  // empty input stays honestly `null` rather than claiming a provider we never saw.
+  const provider = observedProvider(input);
+
+  const assets = new Map<string, AuthzFacts>();
+
+  const ensure = (schema: string, name: string): AuthzFacts => {
     const qualified = `${schema}.${name}`;
-    let t = tables.get(qualified);
+    let t = assets.get(qualified);
     if (!t) {
       t = {
         schema,
         name,
         qualified,
-        rlsEnabled: null,
-        permissivePolicy: false,
-        permissiveRoles: [],
+        provider,
+        enforced: null,
+        unconditionalGrant: false,
+        grantedRoles: [],
+        provable: isProvable(provider),
         sensitive: isSensitiveTableName(name),
       };
-      tables.set(qualified, t);
+      assets.set(qualified, t);
     }
     return t;
   };
 
-  // The 16-check scan is the authoritative source for RLS on/off.
+  // The 16-check scan is the authoritative source for whether RLS is on.
   for (const t of input.scanTables ?? []) {
-    ensure("public", t.name).rlsEnabled = t.rlsEnabled;
+    ensure("public", t.name).enforced = t.rlsEnabled;
   }
 
   // Our own policy detector: a policy whose USING expression filters nothing.
   for (const p of input.policies ?? []) {
     const t = ensure(p.schemaname ?? "public", p.tablename);
     if (isPermissiveExpression(p.qual)) {
-      t.permissivePolicy = true;
+      t.unconditionalGrant = true;
       for (const role of p.roles ?? []) {
-        if (!t.permissiveRoles.includes(role)) t.permissiveRoles.push(role);
+        if (!t.grantedRoles.includes(role)) t.grantedRoles.push(role);
       }
     }
   }
@@ -162,19 +241,24 @@ export function buildTableFacts(input: GraphInput): Map<string, TableFacts> {
     const name = a.metadata?.name;
     if (!name) continue;
     const t = ensure(a.metadata?.schema ?? "public", name);
-    if (RLS_DISABLED_LINTS.has(lint)) t.rlsEnabled = false;
-    if (PERMISSIVE_LINTS.has(lint)) t.permissivePolicy = true;
+    if (RLS_DISABLED_LINTS.has(lint)) t.enforced = false;
+    if (PERMISSIVE_LINTS.has(lint)) t.unconditionalGrant = true;
   }
 
-  return tables;
+  return assets;
 }
+
+/**
+ * @deprecated Use {@link buildAuthzFacts}.
+ */
+export const buildTableFacts = buildAuthzFacts;
 
 export function buildGraph(input: GraphInput): AssetGraph {
   const nodes = new Map<string, GraphNode>();
   const edges: GraphEdge[] = [];
 
-  const tableFacts = buildTableFacts(input);
-  for (const t of tableFacts.values()) {
+  const authzFacts = buildAuthzFacts(input);
+  for (const t of authzFacts.values()) {
     nodes.set(`table:${t.qualified}`, {
       id: `table:${t.qualified}`,
       kind: "table",
@@ -187,7 +271,10 @@ export function buildGraph(input: GraphInput): AssetGraph {
   nodes.set("config:auth", {
     id: "config:auth",
     kind: "config",
-    name: "Supabase Auth configuration",
+    // Named by the provider, not hardcoded: this string reaches customer-facing
+    // evidence, and a Firestore customer reading "Supabase Auth configuration"
+    // would rightly stop trusting the rest of the finding.
+    name: vocabulary(input.authzProvider).configLabel,
     attrs: { ...posture },
   });
 
@@ -219,11 +306,16 @@ export function buildGraph(input: GraphInput): AssetGraph {
             schema,
             name,
             qualified,
-            rlsEnabled: null,
-            permissivePolicy: false,
-            permissiveRoles: [],
+            // The route collector saw this asset; no database collector did. So
+            // the provider is whatever the database half reported overall, and
+            // `enforced` stays null — unknown, never assumed unprotected.
+            provider: observedProvider(input),
+            enforced: null,
+            unconditionalGrant: false,
+            grantedRoles: [],
+            provable: isProvable(observedProvider(input)),
             sensitive: isSensitiveTableName(name),
-          } satisfies TableFacts,
+          } satisfies AuthzFacts,
         });
       }
       edges.push({ from: id, to: tableId, kind: "exposes" });

@@ -3,7 +3,7 @@ import { findAttackPaths } from "./attackPaths";
 import { collectRoutes } from "./routeInventory";
 import {
   buildGraph,
-  buildTableFacts,
+  buildAuthzFacts,
   isPermissiveExpression,
   isSensitiveTableName,
   readAuthPosture,
@@ -64,17 +64,42 @@ describe("graph primitives", () => {
   });
 
   it("merges RLS facts from the scan and the advisors", () => {
-    const tables = buildTableFacts({
+    const tables = buildAuthzFacts({
       scanTables: [{ name: "orders", rlsEnabled: true }],
       advisors: [{ name: "0013_rls_disabled_in_public", level: "ERROR", metadata: { schema: "public", name: "leaky" } }],
       policies: [
         { schemaname: "public", tablename: "invoices", policyname: "p", cmd: "SELECT", qual: "true", with_check: null, roles: ["anon"] },
       ],
     });
-    expect(tables.get("public.orders")?.rlsEnabled).toBe(true);
-    expect(tables.get("public.leaky")?.rlsEnabled).toBe(false);
-    expect(tables.get("public.invoices")?.permissivePolicy).toBe(true);
-    expect(tables.get("public.invoices")?.permissiveRoles).toEqual(["anon"]);
+    expect(tables.get("public.orders")?.enforced).toBe(true);
+    expect(tables.get("public.leaky")?.enforced).toBe(false);
+    expect(tables.get("public.invoices")?.unconditionalGrant).toBe(true);
+    expect(tables.get("public.invoices")?.grantedRoles).toEqual(["anon"]);
+  });
+
+  it("stamps Postgres facts with a provider, and marks them provable", () => {
+    const tables = buildAuthzFacts({ scanTables: [{ name: "orders", rlsEnabled: false }] });
+    expect(tables.get("public.orders")?.provider).toBe("postgres-rls");
+    expect(tables.get("public.orders")?.provable).toBe(true);
+  });
+
+  it("does not claim a provider when no database collector reported", () => {
+    // Route facts alone must not imply a store we never looked at. `null` here
+    // is what keeps `enforced: null` meaning "we did not check" rather than
+    // "Postgres, unprotected".
+    const graph = buildGraph({ routes: anonReadsInvoices });
+    const node = graph.nodes.get("table:public.invoices");
+    expect((node?.attrs as { provider: unknown }).provider).toBeNull();
+    expect((node?.attrs as { provable: unknown }).provable).toBe(false);
+  });
+
+  it("honours an explicit provider, and reports it as not yet provable", () => {
+    const tables = buildAuthzFacts({
+      authzProvider: "firebase-rules",
+      scanTables: [{ name: "orders", rlsEnabled: false }],
+    });
+    expect(tables.get("public.orders")?.provider).toBe("firebase-rules");
+    expect(tables.get("public.orders")?.provable).toBe(false);
   });
 
   it("links routes to tables in both directions", () => {
@@ -210,7 +235,7 @@ describe("path 3 — service-role route with no ownership filter", () => {
     expect(paths).toHaveLength(1);
     expect(paths[0].id).toContain("service_role_unscoped");
     expect(paths[0].consequence).toContain("ignores Row Level Security completely");
-    expect(paths[0].consequence).toContain("the database will not catch a mistake here");
+    expect(paths[0].consequence).toContain("the store will not catch a mistake here");
   });
 
   it("stays silent when the service-role query is scoped", () => {

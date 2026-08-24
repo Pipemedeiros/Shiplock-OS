@@ -5,10 +5,11 @@ import {
   readAuthPosture,
   tablesForRoute,
   type AssetGraph,
+  type AuthzFacts,
   type GraphInput,
   type GraphNode,
-  type TableFacts,
 } from "./graph";
+import { SEVERITY_RANK, vocabulary } from "./providers";
 
 // The reasoner (PRODUCT-DESIGN.md §5.2). Walks the graph for paths where facts
 // from DIFFERENT surfaces combine into something none of them says alone.
@@ -42,10 +43,8 @@ export interface AttackPath {
   surfaces: string[];
 }
 
-const SEVERITY_RANK: Record<Severity, number> = { CRITICAL: 3, WARNING: 2, INFO: 1 };
-
-function facts(node: GraphNode): TableFacts {
-  return node.attrs as unknown as TableFacts;
+function facts(node: GraphNode): AuthzFacts {
+  return node.attrs as unknown as AuthzFacts;
 }
 
 function routeOf(node: GraphNode): RouteFact & { suspiciousRequests: number } {
@@ -58,17 +57,21 @@ function isAnonymous(route: RouteFact): boolean {
 }
 
 /**
- * Whether the database would stop an over-broad query on this table.
+ * Whether the data store would stop an over-broad query on this asset.
  *
- * `rlsEnabled === null` means no database collector ran (a common, legitimate
- * state — Supabase isn't connected). That is UNKNOWN, and unknown must not be
- * reported as unprotected: we would be inventing a database fact we never
- * observed. Paths that need this return no finding rather than a guess.
+ * `enforced === null` means no database collector ran (a common, legitimate
+ * state — no store is connected). That is UNKNOWN, and unknown must not be
+ * reported as unprotected: we would be inventing a fact we never observed.
+ * Paths that need this return no finding rather than a guess.
+ *
+ * Provider-neutral by construction: it asks only whether authorization is
+ * switched on and whether some rule grants access unconditionally. Both
+ * questions have an answer on every engine we model.
  */
-function databaseProtects(table: TableFacts): boolean | null {
-  if (table.rlsEnabled === null) return table.permissivePolicy ? false : null;
-  if (!table.rlsEnabled) return false;
-  return !table.permissivePolicy;
+function storeProtects(asset: AuthzFacts): boolean | null {
+  if (asset.enforced === null) return asset.unconditionalGrant ? false : null;
+  if (!asset.enforced) return false;
+  return !asset.unconditionalGrant;
 }
 
 export function findAttackPaths(input: GraphInput): AttackPath[] {
@@ -82,15 +85,14 @@ export function findAttackPaths(input: GraphInput): AttackPath[] {
 
     for (const tableNode of tablesForRoute(graph, node.id)) {
       const table = facts(tableNode);
-      const protectedByDb = databaseProtects(table);
+      const protectedByDb = storeProtects(table);
+      const words = vocabulary(table.provider);
 
       // ── Path 1: anonymous reach into an unprotected table ──────────────
       // Two surfaces: source (the route takes no credentials) + db (nothing
       // stops the read). Neither is alarming alone; together it is open data.
       if (isAnonymous(route) && protectedByDb === false) {
-        const why = !table.rlsEnabled
-          ? "Row Level Security is switched off on it"
-          : "a policy on it grants access unconditionally";
+        const why = table.enforced === false ? words.notEnforced : words.unconditional;
         paths.push({
           id: `path:anon_read:${route.path}:${table.qualified}`,
           severity: "CRITICAL",
@@ -98,7 +100,7 @@ export function findAttackPaths(input: GraphInput): AttackPath[] {
           consequence:
             `${route.path} does not identify who is calling it, and it queries ${table.qualified}, where ${why}. ` +
             `Those two facts are each unremarkable on their own — plenty of endpoints are public, and plenty of tables are meant to be readable. Together they mean the contents of ${table.qualified} are available to anyone who sends a request, with no account, no token and no clue left in your logs that it was not a normal user. ` +
-            `Fix either half and the path closes: require a session in ${route.file}, or put a policy on ${table.qualified} that scopes rows to their owner. Doing both is better, because each is a single edit away from being wrong again.`,
+            `Fix either half and the path closes: require a session in ${route.file}, or ${words.ownershipRemedy(table.qualified)}. Doing both is better, because each is a single edit away from being wrong again.`,
           evidence: [
             { collector: "source", fact: `${route.path} (${route.file}) resolves no caller identity` },
             { collector: "db", fact: `${table.qualified}: ${why}` },
@@ -122,19 +124,19 @@ export function findAttackPaths(input: GraphInput): AttackPath[] {
             ? `Anyone can sign up and read every row of ${table.qualified}`
             : `Any signed-in user can read every row of ${table.qualified}`,
           consequence:
-            `${route.path} does check that the caller is signed in, which is why this looks safe in review — but it never narrows the query to the caller, and ${table.qualified} has no policy that would narrow it either. ` +
+            `${route.path} does check that the caller is signed in, which is why this looks safe in review — but it never narrows the query to the caller, and ${table.qualified} has no rule that would narrow it either. ` +
             `So the endpoint returns every row to every user, not just their own. ` +
             (amplified
               ? `Sign-ups are open on this project, so the credential needed is a free account anyone can create${posture.autoConfirm ? " with an address they never have to confirm" : ""}. That reduces this from "a customer could" to "anyone could".`
               : `Any existing user can do this to every other user's data.`) +
-            ` Fix in ${route.file} by scoping the query to the caller (e.g. .eq("user_id", user.id)), and add a policy on ${table.qualified} using auth.uid() so the database enforces it even if the code changes.`,
+            ` Fix in ${route.file} by ${words.callerScopeRemedy}, and ${words.ownershipRemedy(table.qualified)} so the store enforces it even if the code changes.`,
           evidence: [
             { collector: "source", fact: `${route.path} authenticates but applies no ownership filter` },
             {
               collector: "db",
-              fact: table.permissivePolicy
-                ? `${table.qualified} has a policy that filters nothing`
-                : `${table.qualified} has RLS disabled`,
+              fact: table.unconditionalGrant
+                ? `${table.qualified}: ${words.unconditional}`
+                : `${table.qualified}: ${words.notEnforced}`,
             },
             ...(amplified
               ? ([{ collector: "config", fact: "Sign-ups are open to anyone" }] as const)
@@ -153,13 +155,16 @@ export function findAttackPaths(input: GraphInput): AttackPath[] {
         paths.push({
           id: `path:service_role_unscoped:${route.path}:${table.qualified}`,
           severity: "WARNING",
-          title: `${route.path} reads ${table.qualified} with RLS bypassed and no ownership check`,
+          title: `${route.path} reads ${table.qualified} with ${words.mechanism} bypassed and no ownership check`,
           consequence:
-            `${route.path} uses the service-role key, which ignores Row Level Security completely — every policy on ${table.qualified} is bypassed for this request. ` +
+            `${route.path} ${words.bypassNote.replace("the table", table.qualified)}. ` +
             `That is a legitimate thing to do, but it moves the entire burden of deciding who may see which rows into ${route.file}, and we could not find a filter there scoping the query to the caller. ` +
-            `If that filter is genuinely missing, this endpoint returns other people's data. If it is applied in a way we cannot see, this is worth confirming rather than assuming — the database will not catch a mistake here, because you have told it not to.`,
+            `If that filter is genuinely missing, this endpoint returns other people's data. If it is applied in a way we cannot see, this is worth confirming rather than assuming — the store will not catch a mistake here, because you have told it not to.`,
           evidence: [
-            { collector: "source", fact: `${route.path} uses the service-role client with no ownership filter` },
+            {
+              collector: "source",
+              fact: `${route.path} reaches the store with an authorization-bypassing credential and no ownership filter`,
+            },
             { collector: "db", fact: `${table.qualified} holds data that identifies people` },
           ],
           score: 60,
@@ -178,11 +183,11 @@ export function findAttackPaths(input: GraphInput): AttackPath[] {
           severity: "WARNING",
           title: `${route.path} is public and reads ${table.qualified}`,
           consequence:
-            `${route.path} takes no credentials and queries ${table.qualified}, which looks like it holds personal data. Whether that is safe depends entirely on the policies on that table, and we have not been able to read them — connect Supabase and we will check, and either close this or escalate it. ` +
-            `We are telling you now rather than after, because a public endpoint over personal data is worth a look even before we can confirm the database side.`,
+            `${route.path} takes no credentials and queries ${table.qualified}, which looks like it holds personal data. Whether that is safe depends entirely on the access rules on that table, and we have not been able to read them — connect your database and we will check, and either close this or escalate it. ` +
+            `We are telling you now rather than after, because a public endpoint over personal data is worth a look even before we can confirm the store side.`,
           evidence: [
             { collector: "source", fact: `${route.path} resolves no caller identity` },
-            { collector: "db", fact: `Policies on ${table.qualified} not yet readable` },
+            { collector: "db", fact: `Access rules on ${table.qualified} not yet readable` },
           ],
           score: 40,
           surfaces: ["source", "db"],

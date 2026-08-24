@@ -35,7 +35,7 @@ import { runProvingGround } from "@/lib/proving/run";
 import { provingHost } from "@/lib/proving/host";
 import { findAttackPaths } from "@/lib/graph/attackPaths";
 import { loadGraphInput } from "@/lib/graph/graphRun";
-import { buildTableFacts } from "@/lib/graph/graph";
+import { buildAuthzFacts } from "@/lib/graph/graph";
 
 export interface PolicyScanOutcome {
   ok: boolean;
@@ -174,8 +174,8 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
         // route reaching it, because anything holding the anon key can use it
         // directly. Without this the proving ground would be dead for every
         // customer who connected only Supabase.
-        for (const t of buildTableFacts({ policies, advisors }).values()) {
-          if (t.permissivePolicy || t.rlsEnabled === false) suspected.add(t.qualified);
+        for (const t of buildAuthzFacts({ policies, advisors }).values()) {
+          if (t.unconditionalGrant || t.enforced === false) suspected.add(t.qualified);
         }
 
         const schema = new Map<string, string[]>();
