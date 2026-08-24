@@ -166,7 +166,7 @@ export default function IncidentsPage() {
             <h2 className="dxd-h2">Find out if your app has the same gap.</h2>
             <p className="dxd-lede">
               The RLS pattern behind CVE-2025-48757 is check 1 of the 16 ShipLock runs against
-              your live Supabase project, on every audit and every automated pass after.
+              your live app and the database behind it, on every audit and every automated pass after.
             </p>
             <div style={{ marginTop: 20 }}>
               <Link href="/#pricing" className="dxd-btn dxd-btn-paper">

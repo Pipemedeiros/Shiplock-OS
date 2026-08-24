@@ -69,6 +69,18 @@ export default function PrivacyPage() {
                 flag it as a critical finding and don&apos;t store it.
               </p>
               <p>
+                <b>If your database is not on Supabase:</b> a read-only Postgres connection
+                string you supply, encrypted at rest (AES-256-GCM) exactly like the anon key
+                above, decrypted only in memory when a scan runs, and never logged — not in
+                full and not in part, including in error messages. Before we agree to store it
+                at all we connect once and verify the role cannot write and cannot bypass Row
+                Level Security; if it can, we refuse the connection and keep nothing. Every
+                session we open runs inside a read-only transaction. Separately from the
+                encrypted string we keep the host and database name in plain text, so your
+                dashboard can show which database is connected without decrypting anything.
+                Disconnecting deletes the stored credential.
+              </p>
+              <p>
                 <b>Scan results:</b> the findings and fixes from every audit we run, tied
                 to your account, so your dashboard can show your history.
               </p>

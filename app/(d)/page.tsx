@@ -20,9 +20,13 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   // Landing keeps the layout's default title (no template suffix doubling).
-  title: { absolute: "ShipLock — Continuous security monitoring for Supabase apps" },
+  // Named by what we secure, not by whose database it sits on. Supabase is the
+  // most common stack in the ICP and the one we prove against first, but it is
+  // the beachhead, not the identity — Postgres in some form is 80% of this
+  // market and the same checks run on Neon, Railway, RDS and self-hosted.
+  title: { absolute: "ShipLock — Continuous security monitoring for apps in production" },
   description:
-    "Continuous security monitoring for Supabase apps in production. Permissive RLS policies, exposed keys, public buckets and vulnerable dependencies — found continuously, fixed by pull request, and provable with a live report when a customer asks. $49/month, 7 days free.",
+    "Continuous security monitoring for Postgres apps in production — Supabase, Neon, Railway, RDS or your own. Permissive row-level policies, exposed keys, public buckets and vulnerable dependencies — found continuously, fixed by pull request, and provable with a live report when a customer asks. $49/month, 7 days free.",
 };
 
 const SEVERITY_STYLES: Record<string, string> = {
@@ -150,7 +154,7 @@ export default function LandingPage() {
 
           <header className="dxd-hero">
             <div>
-              <p className="dxd-eyebrow">Security on retainer · Supabase apps in production</p>
+              <p className="dxd-eyebrow">Security on retainer · apps with real users</p>
               <h1 className="dxd-display">
                 <ProximityText text="One permissive policy exposes every row." />
                 <br />
@@ -159,9 +163,10 @@ export default function LandingPage() {
                 </em>
               </h1>
               <p className="dxd-lede">
-                ShipLock audits your live Supabase project — row-level security, auth
+                ShipLock audits your live app — row-level security, auth
                 configuration, storage, grants, dependencies and the routes that reach them — on
-                every pull request rather than once a quarter. Tenant-isolation failures are
+                every pull request rather than once a quarter. Works with Supabase, or any
+                Postgres you already run. Tenant-isolation failures are
                 demonstrated against a disposable copy of your schema, not inferred from reading
                 policy text. Findings arrive as migration pull requests you review and merge.
               </p>
@@ -319,7 +324,7 @@ export default function LandingPage() {
                   A table with RLS enabled and a <code>USING (true)</code> policy refuses anonymous
                   reads, so it passes any external probe holding only a publishable key. Every
                   authenticated user still reads every row. This is the most common critical
-                  finding on Supabase, and detecting it requires evaluating the policy as a
+                  finding we see, and detecting it requires evaluating the policy as a
                   signed-in caller — which is what the sandbox exists to do.
                 </p>
               </SpotlightCard>
@@ -519,9 +524,11 @@ export default function LandingPage() {
               <p className="dxd-eyebrow">Get started</p>
               <h2 className="dxd-h2">Connect the project. Get the first findings in 90 seconds.</h2>
               <p className="dxd-lede">
-                Sign in, start the trial — 7 days free before the first charge — then paste your
-                Supabase URL and anon key. Nothing we ask for is a credential beyond the public key
-                your frontend already ships. The first audit runs immediately.
+                Sign in, start the trial — 7 days free before the first charge — then connect your
+                database. On Supabase that is your project URL and anon key, and nothing we ask for
+                is a credential beyond the public key your frontend already ships. On any other
+                Postgres it is a read-only role you create, and we refuse the connection if that
+                role turns out to be able to write. The first audit runs immediately.
               </p>
             </div>
           </Reveal>

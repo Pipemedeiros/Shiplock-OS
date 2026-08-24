@@ -23,7 +23,7 @@ const CATEGORIES = [
   {
     id: "A01",
     name: "Broken Access Control",
-    body: "Someone can see or change data they shouldn't be able to reach — a stranger reading another user's rows, or an anonymous request hitting an endpoint that should require login. In a vibe-coded app this is almost always a Supabase table with Row Level Security left off, or off-by-default.",
+    body: "Someone can see or change data they shouldn't be able to reach — a stranger reading another user's rows, or an anonymous request hitting an endpoint that should require login. In an AI-written app this is almost always a table with Row Level Security left off, or off by default.",
     coverage:
       "This is the category ShipLock is built around. Covered directly: row-level security, unauthenticated table access, IDOR on user data, auth admin endpoint exposure, and public storage buckets.",
   },
@@ -46,7 +46,7 @@ const CATEGORIES = [
     name: "Cryptographic Failures",
     body: "Sensitive data transmitted or stored without adequate encryption — plaintext traffic, weak key management, secrets that aren't actually secret.",
     coverage:
-      "Partial: our HTTPS enforcement check covers encryption in transit. We don't assess encryption at rest or key-management practices — Supabase manages that layer internally, outside what an anon-key scan can see.",
+      "Partial: our HTTPS enforcement check covers encryption in transit. We don't assess encryption at rest or key-management practices — your database host manages that layer internally, outside what we can see from a read-only connection.",
   },
   {
     id: "A05",
@@ -152,7 +152,7 @@ export default function OwaspPage() {
                 OWASP is the industry-standard list of the ten risk categories that cause the
                 most real-world application breaches. This page explains each one for people who
                 didn&apos;t write their own backend by hand — what it means, what it looks like in
-                a Lovable/Bolt/Cursor/v0 + Supabase app, and, honestly, which of our 16 checks
+                an app whose code was largely AI-written, and, honestly, which of our 16 checks
                 actually cover it today and which don&apos;t yet.
               </p>
             </div>
@@ -211,7 +211,7 @@ export default function OwaspPage() {
             <p className="dxd-eyebrow">Want the honest scan</p>
             <h2 className="dxd-h2">See exactly what these look like in your app.</h2>
             <p className="dxd-lede">
-              ShipLock runs 16 real checks against your live Supabase project, named precisely —
+              ShipLock runs 16 real checks against your live app and the database behind it —
               no invented categories, no vague grades.
             </p>
             <div style={{ marginTop: 20 }}>

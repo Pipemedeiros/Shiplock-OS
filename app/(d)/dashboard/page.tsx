@@ -73,8 +73,8 @@ export default async function DashboardOverviewPage() {
         <h1 className="dxd-statement">You haven&apos;t run an audit yet.</h1>
         <p className="dxd-lede" style={{ margin: "16px 0 24px" }}>
           {isPaid
-            ? "Connect your Supabase project to run the first audit — findings and the fix for every issue."
-            : "Put us on retainer, then connect your Supabase project to run the first audit."}
+            ? "Connect your database to run the first audit — findings and the fix for every issue."
+            : "Put us on retainer, then connect your database to run the first audit."}
         </p>
         <Link href="/onboarding" className="dxd-btn dxd-btn-paper">
           {isPaid ? "Run your first audit" : "Get started"}

@@ -123,7 +123,7 @@ export default function TermsPage() {
               <p>
                 ShipLock works by sending automated requests to infrastructure you tell us is
                 yours. By connecting a project you are giving us <b>express permission</b> to do
-                that, and you confirm that you own the Supabase project and application URL you
+                that, and you confirm that you own the database and application URL you
                 submit — or are authorised by whoever does to have them scanned. Please
                 don&apos;t submit anything you don&apos;t have that authority over.
               </p>
@@ -145,7 +145,7 @@ export default function TermsPage() {
             <div>
               <h2 className="dxd-h2" style={{ fontSize: 22 }}>What you get</h2>
               <p>
-                A 16-check audit of your connected Supabase project and — while your
+                A 16-check audit of your connected database and application and — while your
                 subscription is active — the fix for every finding, delivered as a reviewable
                 pull request or handed to your coding agent. Continuous monitoring is genuinely
                 live for the pieces we say are live: a re-scan on every pull request, an hourly
@@ -161,7 +161,8 @@ export default function TermsPage() {
               <h2 className="dxd-h2" style={{ fontSize: 22 }}>What ShipLock is — and isn&apos;t</h2>
               <p>
                 ShipLock identifies configuration issues in your project using automated checks
-                against your Supabase project&apos;s public API surface. It is not a penetration
+                against your application&apos;s public surface and, where you have connected one,
+                read-only access to your database. It is not a penetration
                 test, not a guarantee that your application is free of vulnerabilities, and not a
                 substitute for a professional security review where the stakes call for one. We
                 do not attempt to exploit anything we find. You&apos;re responsible for reviewing

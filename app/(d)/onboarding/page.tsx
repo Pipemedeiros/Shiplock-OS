@@ -102,10 +102,10 @@ export default async function OnboardingPage() {
               <div>
                 <h4>Put us on retainer to run your first audit</h4>
                 <p>
-                  Paste your Supabase URL and anon key the moment you&apos;re in, and the first
-                  audit — every finding, and a fix for each — runs immediately. The key we ask for
-                  is the same public one your app already ships to every visitor; never anything
-                  more.
+                  Connect your database the moment you&apos;re in, and the first audit — every
+                  finding, and a fix for each — runs immediately. On Supabase we ask only for the
+                  same public key your app already ships to every visitor. On any other Postgres
+                  we ask for a read-only role you create, and refuse it if it can write.
                 </p>
                 {plans.length > 1 && (
                   <p style={{ marginTop: 10, fontSize: 12.5, lineHeight: 1.7, color: "var(--d-muted)" }}>

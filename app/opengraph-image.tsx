@@ -6,7 +6,7 @@ import { ImageResponse } from "next/og";
 // owner's logo lands, swap the <svg> block only.
 
 export const runtime = "edge";
-export const alt = "ShipLock — continuous security monitoring for Supabase apps in production";
+export const alt = "ShipLock — continuous security monitoring for apps in production";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
