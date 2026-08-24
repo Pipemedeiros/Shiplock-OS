@@ -33,6 +33,13 @@ export interface SourceFacts {
 }
 
 export interface DbFacts {
+  /**
+   * Which authorization engine these facts came from. Written by the collector
+   * rather than inferred downstream, so a future non-Postgres collector cannot
+   * be silently misread as Postgres. Absent on rows written before this existed,
+   * which `observedProvider` handles by inferring.
+   */
+  authzProvider?: GraphInput["authzProvider"];
   scanTables: { name: string; rlsEnabled: boolean }[];
   /** A21 PII inventory — schema only, never values. */
   inventory?: TableInventory[];
@@ -112,6 +119,7 @@ export async function loadGraphInput(userId: string): Promise<GraphInput> {
       input.policies = f.policies ?? [];
       input.advisors = f.advisors ?? [];
       input.authConfig = f.authConfig ?? null;
+      if (f.authzProvider) input.authzProvider = f.authzProvider;
     } else if (row.collector === "traffic") {
       input.trafficHotPaths = (row.facts as unknown as TrafficFacts).hotPaths ?? [];
     }

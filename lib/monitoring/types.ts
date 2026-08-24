@@ -14,6 +14,13 @@ export interface MonitoredProfile {
    * hourly pass neither needs nor selects it.
    */
   monitored_app_url?: string | null;
+  /**
+   * Set when the customer connected their database by connection string rather
+   * than Supabase OAuth (Neon, Railway, RDS, self-hosted…). Presence is the
+   * whole signal — the credential itself is decrypted inside the collector and
+   * never travels on the profile.
+   */
+  postgres_dsn_encrypted?: string | null;
 }
 
 export type TriggerSource = "deploy" | "hourly" | "scheduled_48h";

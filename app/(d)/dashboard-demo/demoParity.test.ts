@@ -39,6 +39,12 @@ const EXEMPT: Record<string, string> = {
   UpgradeButton: "starts a real checkout",
   ConnectAndScanForm: "runs a real scan against a real project",
   SupabasePanel: "starts a real OAuth flow",
+  // Stronger reason than the others: this panel contains a field asking for a
+  // live database connection string. A public, unauthenticated preview page must
+  // never solicit a real credential — someone would eventually paste one into a
+  // demo, and a page that trains people to type production DSNs into whatever
+  // asks is the opposite of what this product sells.
+  PostgresPanel: "asks for a real database credential, which a public preview must never solicit",
   // The real Settings page mounts this ONLY behind isBetterAuthConfigured().
   // Rendering it unconditionally in the preview 500s the page, because the
   // Better Auth client is constructed at module scope and the env vars are not

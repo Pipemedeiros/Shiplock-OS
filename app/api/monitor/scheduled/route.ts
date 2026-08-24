@@ -35,7 +35,9 @@ export async function GET(req: NextRequest) {
 
   const { data: profiles, error } = await admin
     .from("user_profiles")
-    .select("id, email, monitored_project_url, monitored_anon_key_encrypted, monitored_app_url, last_monitored_at")
+    .select(
+      "id, email, monitored_project_url, monitored_anon_key_encrypted, monitored_app_url, postgres_dsn_encrypted, last_monitored_at"
+    )
     .eq("monitoring_enabled", true)
     .not("monitored_project_url", "is", null)
     .not("monitored_anon_key_encrypted", "is", null)

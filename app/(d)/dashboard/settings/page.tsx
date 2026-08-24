@@ -7,6 +7,7 @@ import { McpPanel } from "@/components/d/McpPanel";
 import { TwoFactorSetup } from "@/components/d/TwoFactorSetup";
 import { GitHubPanel } from "@/components/d/GitHubPanel";
 import { SupabasePanel } from "@/components/d/SupabasePanel";
+import { PostgresPanel } from "@/components/d/PostgresPanel";
 import { isSupabaseMgmtConfigured } from "@/lib/deep/supabaseMgmt";
 import { ManageBillingButton } from "@/components/d/ManageBillingButton";
 import { UpgradeButton } from "@/components/d/UpgradeButton";
@@ -46,7 +47,7 @@ export default async function DashboardSettingsPage() {
     admin
       .from("user_profiles")
       .select(
-        "verified_report_enabled, verified_report_token, github_installation_id, supabase_mgmt_connected_at, supabase_mgmt_project_ref"
+        "verified_report_enabled, verified_report_token, github_installation_id, supabase_mgmt_connected_at, supabase_mgmt_project_ref, postgres_connected_at, postgres_display"
       )
       .eq("id", userId)
       .maybeSingle(),
@@ -58,6 +59,9 @@ export default async function DashboardSettingsPage() {
       .order("created_at", { ascending: false }),
   ]);
 
+  const supabaseConnected = Boolean(profile?.supabase_mgmt_connected_at);
+  const postgresConnected = Boolean(profile?.postgres_connected_at);
+
   return (
     <>
       <section style={{ paddingTop: 32 }}>
@@ -67,12 +71,29 @@ export default async function DashboardSettingsPage() {
         {githubConfigured && (
           <GitHubPanel connected={Boolean(profile?.github_installation_id)} findings={[]} />
         )}
+        {/*
+          One "your database" slot, two ways to fill it. Supabase OAuth is the
+          smaller ask, so it stays the default; the direct-Postgres panel appears
+          for everyone else. Showing both at once would read as two required
+          connections and break the two-connection friction budget in the only
+          way that matters — how it looks to the customer.
+        */}
         <div style={{ marginTop: githubConfigured ? 20 : 0 }}>
-          <SupabasePanel
-            connected={Boolean(profile?.supabase_mgmt_connected_at)}
-            projectRef={(profile?.supabase_mgmt_project_ref as string | null) ?? null}
-            configured={isSupabaseMgmtConfigured()}
-          />
+          {postgresConnected || !supabaseConnected ? (
+            <PostgresPanel
+              connected={postgresConnected}
+              display={(profile?.postgres_display as string | null) ?? null}
+            />
+          ) : null}
+          {!postgresConnected && (
+            <div style={{ marginTop: supabaseConnected ? 0 : 20 }}>
+              <SupabasePanel
+                connected={supabaseConnected}
+                projectRef={(profile?.supabase_mgmt_project_ref as string | null) ?? null}
+                configured={isSupabaseMgmtConfigured()}
+              />
+            </div>
+          )}
         </div>
       </section>
 

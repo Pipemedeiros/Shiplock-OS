@@ -90,6 +90,37 @@ export const appSurfaceCollector: CollectorSpec = {
 };
 
 /**
+ * The customer's own Postgres, read directly, for everyone who is not on
+ * Supabase — Neon, Railway, Render, RDS, Fly, self-hosted.
+ *
+ * This fills the same "your database" slot as the Supabase connection rather
+ * than adding a third one, so `appliesTo` is the only thing separating them: a
+ * customer has one or the other. It contributes the same `db` graph facts, which
+ * is what lets correlation fire for a stack we do not host.
+ *
+ * Full passes only. The hourly subset exists to be cheap and frequent against an
+ * HTTP API; opening a TCP session to a customer's primary database every hour is
+ * a different cost profile, and policy text does not change hourly.
+ */
+export const directPostgresCollector: CollectorSpec = {
+  id: "postgres-direct",
+  layer: "db",
+  eligibleTriggers: ["deploy", "scheduled_48h"],
+  // A TCP connect plus four catalogue queries, against a database that may be
+  // cold-starting on a serverless plan.
+  timeoutMs: 30_000,
+  appliesTo: (ctx) => Boolean(ctx.profile.postgres_dsn_encrypted),
+  async run(ctx) {
+    // Self-diffing, like the app-surface collector: it owns rows in
+    // deep_findings with their own archive-on-resolve contract, so its findings
+    // must not also enter the snapshot and be diffed a second time.
+    const { runDirectPostgresScan } = await import("@/lib/deep/postgresDirectRun");
+    await runDirectPostgresScan(ctx.profile.id);
+    return {};
+  },
+};
+
+/**
  * Registry order is execution order, and it matters in one direction: anything
  * contributing graph facts should run before anything that reasons over them.
  * No collector here reasons — the reasoner runs in the 48h route after the whole
@@ -97,5 +128,6 @@ export const appSurfaceCollector: CollectorSpec = {
  */
 export const DEFAULT_COLLECTORS: readonly CollectorSpec[] = [
   supabaseScanCollector,
+  directPostgresCollector,
   appSurfaceCollector,
 ];
