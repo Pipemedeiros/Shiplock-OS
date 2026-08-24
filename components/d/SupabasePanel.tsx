@@ -46,7 +46,7 @@ export function SupabasePanel({
         setMessage(
           data.findings === 0
             ? "Checked your policies — nothing permissive found."
-            : `Checked your policies — ${data.findings} issue${data.findings === 1 ? "" : "s"} on your Findings tab.`
+            : `Checked your policies — ${data.findings} issue${data.findings === 1 ? "" : "s"} on your Risks tab.`
         );
       }
     } catch {

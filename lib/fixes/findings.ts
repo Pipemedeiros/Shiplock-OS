@@ -26,12 +26,12 @@ export async function getFixFindings(userId: string): Promise<FixableFinding[]> 
 
   const { data: deep } = await getSupabaseAdmin()
     .from("deep_findings")
-    .select("finding_id, title, severity, consequence, source")
+    .select("finding_id, title, severity, consequence, source, correlation")
     .eq("user_id", userId)
     .is("archived_at", null)
     .order("detected_at", { ascending: false })
     .limit(50);
-  for (const d of (deep ?? []) as Array<{ finding_id: string; title: string; severity: Severity; consequence: string; source: string }>) {
+  for (const d of (deep ?? []) as Array<{ finding_id: string; title: string; severity: Severity; consequence: string; source: string; correlation?: { surfaces: string[]; proven?: boolean } | null }>) {
     // Dependency findings from the SOURCE scan are shown in the GitHub panel's
     // bulk PR instead. Scoped to source='github' deliberately: zero-day findings
     // reuse the same `github:dep:` id shape (they are the same class of problem,
@@ -62,7 +62,14 @@ export async function getFixFindings(userId: string): Promise<FixableFinding[]> 
             : d.finding_id.startsWith("exposed:") || d.finding_id.startsWith("bundle:")
               ? "app"
               : "github";
-    out.push({ id: d.finding_id, source: src, title: d.title, severity: d.severity, fix: d.consequence });
+    out.push({
+      id: d.finding_id,
+      source: src,
+      title: d.title,
+      severity: d.severity,
+      fix: d.consequence,
+      ...(d.correlation ? { correlation: d.correlation } : {}),
+    });
   }
 
   // C6 reachability triage. Reorders by severity ADJUSTED for whether the

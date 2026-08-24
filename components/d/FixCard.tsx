@@ -8,6 +8,8 @@ import { useState } from "react";
 import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
 import { fixLane, type FixableFinding } from "@/lib/fixes/lane";
 import { buildMigrationFix, buildCodeFix, buildDeepLink } from "@/lib/fixes/content";
+import { AgreementStrip } from "@/components/d/CoverageBoard";
+import { correlationLayers } from "@/lib/graph/layerLabels";
 
 const sevColor: Record<string, string> = {
   CRITICAL: "var(--d-signal, #ef4444)", WARNING: "var(--d-bronze, #d97706)", INFO: "var(--d-muted, #64748b)",
@@ -55,6 +57,18 @@ export function FixCard({ finding, projectRef }: { finding: FixableFinding; proj
         <h4 style={{ margin: 0, fontSize: 14 }}>{finding.title}</h4>
         <span className="dxd-mono" style={{ fontSize: 10, color: sevColor[finding.severity] }}>{finding.severity}</span>
       </div>
+
+      {/* Which layers independently confirmed this. Renders only where 2+ agree
+          (AgreementStrip returns null otherwise), so its presence is the signal
+          and its absence never implies a finding is weak. */}
+      {finding.correlation && (
+        <div style={{ marginTop: 12 }}>
+          <AgreementStrip
+            layers={correlationLayers(finding.correlation.surfaces)}
+            proven={finding.correlation.proven}
+          />
+        </div>
+      )}
 
       {lane.method === "deep-link" ? (
         <div style={{ marginTop: 10 }}>

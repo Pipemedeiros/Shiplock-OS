@@ -42,3 +42,8 @@ next-env.d.ts
 
 # MCP package deps (published separately)
 mcp/node_modules/
+
+# Vendored third-party Claude Code skills (gstack, superpowers, ui-ux-pro-max,
+# ruflo). Reproducible from ~/starred-repos and ~/Skills; ~8MB of tooling that
+# is not product code and should not live in the product repo history.
+.claude/skills/

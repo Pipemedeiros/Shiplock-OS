@@ -1,10 +1,26 @@
 // ShipLock shared types
 export type Severity = 'CRITICAL' | 'WARNING' | 'INFO';
 
+/**
+ * Which layers independently confirmed a finding.
+ *
+ * Lives on PreviewIssue rather than FullIssue on purpose: this is not fix
+ * content, so it is safe for a lapsed subscriber to see. Knowing that two
+ * layers agree tells you the finding is real; it does not tell you how to fix
+ * it, which stays behind the paywall.
+ */
+export interface IssueCorrelation {
+  layers: { label: string; agreed: boolean }[];
+  /** Demonstrated on an isolated replica rather than inferred from rules. */
+  proven?: boolean;
+}
+
 export interface PreviewIssue {
   title: string;
   severity: Severity;
   consequence: string;
+  /** Present only on findings the graph reasoner produced. */
+  correlation?: IssueCorrelation;
 }
 
 export interface FullIssue extends PreviewIssue {

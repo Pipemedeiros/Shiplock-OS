@@ -1,5 +1,5 @@
-import { Resend } from "resend";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { sendEmail } from "@/lib/email";
 import type { Decision } from "@/lib/types";
 
 // Mirrors lib/monitoring/alerts.ts: dedup per (user, source) over a window so a
@@ -36,10 +36,8 @@ export async function sendThreatAlert(
   if (recent && recent.length > 0) return; // already told them about this source+action recently
 
   const blocked = decision.action === "block";
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  await resend.emails
-    .send({
-      from: process.env.RESEND_FROM_EMAIL!,
+  const sent = await sendEmail(
+    {
       to: email,
       subject: blocked
         ? "ShipLock — malicious traffic blocked"
@@ -47,10 +45,30 @@ export async function sendThreatAlert(
       text: blocked
         ? `ShipLock blocked a source on your app.\n\nReason: ${decision.reason}\nThe block lifts automatically after a cooldown. Sign in to ShipLock to review live traffic protection.`
         : `ShipLock flagged suspicious traffic on your app (not blocked).\n\nReason: ${decision.reason}\nSign in to ShipLock to review live traffic protection.`,
-    })
-    .catch((err) => {
-      console.error("[traffic] alert email failed:", err instanceof Error ? err.message : err);
-    });
+    },
+    "traffic"
+  );
+
+  // Written even when the email failed — deliberately, and unlike the monitoring
+  // alert log, which skips.
+  //
+  // This row carries TWO meanings: "we notified them" and "this source was
+  // judged". lib/traffic/graphFacts.ts reads it as the second, and only ever
+  // builds traffic facts from sources already judged here. Skipping the insert
+  // to force a retry would therefore erase a security signal the reasoner
+  // depends on, to recover a notification about an action that already
+  // completed — the block is Tier 1, act-then-report, so the customer's
+  // protection does not depend on the email arriving.
+  //
+  // The monitoring case is the opposite and skips: there, the email IS the
+  // notification of something the customer must act on, and the row's only job
+  // is suppression. Same-shaped code, opposite correct answer, so the divergence
+  // is spelled out rather than left as an inconsistency someone later "fixes".
+  if (!sent) {
+    console.error(
+      `[traffic] alert email failed for user ${userId}; recording the judgment anyway so the graph keeps the signal`
+    );
+  }
 
   await admin
     .from("traffic_alert_log")

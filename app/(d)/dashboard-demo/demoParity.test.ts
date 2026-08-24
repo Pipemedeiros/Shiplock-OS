@@ -22,8 +22,8 @@ import { readFileSync } from "node:fs";
 
 const REAL_PAGES = [
   "app/(d)/dashboard/page.tsx",
-  "app/(d)/dashboard/findings/page.tsx",
-  "app/(d)/dashboard/watch/page.tsx",
+  "app/(d)/dashboard/risks/page.tsx",
+  "app/(d)/dashboard/activity/page.tsx",
   "app/(d)/dashboard/settings/page.tsx",
 ];
 const DEMO = "app/(d)/dashboard-demo/page.tsx";
@@ -84,8 +84,8 @@ describe("the preview must resemble the product it previews", () => {
     expect(demoImports.has("PostureHeadline")).toBe(true);
   });
 
-  it("uses the same board component as the real Findings tab", () => {
-    expect(componentImports("app/(d)/dashboard/findings/page.tsx")).toContain("FindingsBoard");
+  it("uses the same board component as the real Risks tab", () => {
+    expect(componentImports("app/(d)/dashboard/risks/page.tsx")).toContain("FindingsBoard");
     expect(demoImports.has("FindingsBoard")).toBe(true);
   });
 

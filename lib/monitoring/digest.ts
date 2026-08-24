@@ -1,5 +1,5 @@
-import { Resend } from "resend";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { sendEmail } from "@/lib/email";
 import { getLatestScan } from "@/lib/scanHistory";
 import type { Severity } from "@/lib/types";
 
@@ -184,16 +184,10 @@ export async function sendWeeklyDigest(
         ? "ShipLock — your week in review"
         : "ShipLock — all quiet, and here's the proof";
 
-  try {
-    const resend = new Resend(process.env.RESEND_API_KEY);
-    await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL!,
-      to: email,
-      subject,
-      text: buildDigestText(data, appUrl),
-    });
-  } catch (err) {
-    console.error("[digest] send failed:", err instanceof Error ? err.message : err);
+  // Resend resolves (does not throw) on API errors, so the old try/catch here
+  // could not see a rejected send — and last_digest_sent_at below would still be
+  // stamped, silently skipping the customer's digest for another week.
+  if (!(await sendEmail({ to: email, subject, text: buildDigestText(data, appUrl) }, "digest"))) {
     return false;
   }
 

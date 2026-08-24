@@ -1,5 +1,6 @@
 import type { Severity } from "@/lib/types";
 import { jwtRole } from "@/lib/deep/clientExposure";
+import { guardedFetch } from "@/lib/security/ssrfGuard";
 
 // D6 + D7 from CHECK-SPEC.md §4 — audit what the customer's app ACTUALLY ships
 // to a browser, fetched from the public internet the way a visitor gets it.
@@ -272,7 +273,7 @@ export async function auditShippedBundle(appUrl: string): Promise<BundleFinding[
   let html: string;
   let pageUrl: string;
   try {
-    const res = await fetch(appUrl, { signal: AbortSignal.timeout(TIMEOUT_MS), redirect: "follow" });
+    const res = await guardedFetch(appUrl, { signal: AbortSignal.timeout(TIMEOUT_MS) });
     if (!res.ok) return [];
     pageUrl = res.url || appUrl;
     html = await readCapped(res, 1_000_000);
@@ -289,7 +290,7 @@ export async function auditShippedBundle(appUrl: string): Promise<BundleFinding[
     scripts.map(async (jsUrl) => {
       let js: string;
       try {
-        const res = await fetch(jsUrl, { signal: AbortSignal.timeout(TIMEOUT_MS), redirect: "follow" });
+        const res = await guardedFetch(jsUrl, { signal: AbortSignal.timeout(TIMEOUT_MS) });
         if (!res.ok) return;
         js = await readCapped(res, MAX_JS_BYTES);
       } catch {
@@ -301,7 +302,7 @@ export async function auditShippedBundle(appUrl: string): Promise<BundleFinding[
       const mapUrl = findSourceMapUrl(js, jsUrl);
       if (!mapUrl) return;
       try {
-        const res = await fetch(mapUrl, { signal: AbortSignal.timeout(TIMEOUT_MS), redirect: "manual" });
+        const res = await guardedFetch(mapUrl, { signal: AbortSignal.timeout(TIMEOUT_MS) });
         const body = await readCapped(res, MAX_MAP_BYTES);
         const finding = classifySourceMap(res.status, body, jsUrl);
         if (finding) add(finding);

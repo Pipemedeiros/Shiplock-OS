@@ -1,5 +1,5 @@
-import { Resend } from "resend";
 import type { Finding } from "./findings";
+import { sendEmail } from "@/lib/email";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 const DEDUP_WINDOW_MS = 7 * 24 * 60 * 60 * 1000; // 7 days, per CLAUDE.md
@@ -30,19 +30,35 @@ export async function sendNewFindingsAlert(
   const toAlert = newFindings.filter((f) => !recentIds.has(f.id));
   if (toAlert.length === 0) return;
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
   const lines = toAlert.map((f) => `- [${f.severity}] ${f.title}\n  ${f.consequence}`).join("\n\n");
 
-  await resend.emails
-    .send({
-      from: process.env.RESEND_FROM_EMAIL!,
+  const sent = await sendEmail(
+    {
       to: email,
       subject: `ShipLock — ${toAlert.length} new issue${toAlert.length !== 1 ? "s" : ""} found`,
       text: `ShipLock found ${toAlert.length} new issue${toAlert.length !== 1 ? "s" : ""} on your monitored project:\n\n${lines}\n\nSign in to ShipLock for the exact fix and code prompt for each.`,
-    })
-    .catch((err) => {
-      console.error("[monitoring] alert email send failed:", err instanceof Error ? err.message : err);
-    });
+    },
+    "monitoring"
+  );
+
+  // Only record the dedup rows when the email actually went out.
+  //
+  // This insert is what suppresses re-alerting for 7 days. Writing it after a
+  // failed send meant a customer who was never told still counted as told: the
+  // finding stays open in every later snapshot, is filtered out as
+  // "recently alerted" on every subsequent pass, and no email is sent for a
+  // week. For a leaked service-role key that is a week of silence on the most
+  // urgent thing this product detects.
+  //
+  // Failing to write it is the safe direction: the worst case is one duplicate
+  // email if the send succeeded but the insert did not, which is strictly better
+  // than silence about a CRITICAL finding.
+  if (!sent) {
+    console.error(
+      `[monitoring] not recording dedup for ${toAlert.length} finding(s) for user ${userId} — email did not send, so they stay eligible for the next pass`
+    );
+    return;
+  }
 
   await admin
     .from("monitoring_alert_log")
