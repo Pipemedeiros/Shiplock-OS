@@ -1,168 +1,83 @@
-import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getSupabaseServer } from "@/lib/supabaseServer";
 import { LockMark } from "@/components/d/Brand";
-import { ConnectAndScanForm } from "@/components/d/ConnectAndScanForm";
-import { UpgradeButton } from "@/components/d/UpgradeButton";
-import { PLANS, isPlanConfigured } from "@/lib/plans";
-import { Reveal } from "@/components/d/bits";
+import { getSupabaseServer } from "@/lib/supabaseServer";
+import { getSupabaseAdmin } from "@/lib/supabase";
+import { OnboardingFlow } from "@/components/v3/OnboardingFlow";
+import { getInstallationToken, listRepos } from "@/lib/deep/github";
 
-export const metadata: Metadata = {
+export const metadata = {
+  title: "Get started",
   robots: { index: false, follow: false },
 };
 
-
-// Post-sign-in onboarding: connect-your-stack step between OAuth and the
-// dashboard. Database is the live connection the form below drives (real,
-// unmodified POST /api/scan). The cards beneath describe the rest of the
-// retainer — all real capabilities the customer sets up from their dashboard
-// after the first scan; kept honest about what needs a one-time setup step.
-const INCLUDED = [
-  {
-    name: "Source scanning",
-    provider: "GitHub · read-only",
-    note: "connect your repo",
-    description:
-      "Committed secrets and vulnerable dependencies found in your repository — delivered as fix pull requests you review and merge. We never push to your code.",
-  },
-  {
-    name: "Live traffic protection",
-    provider: "Your edge · fails open",
-    note: "one small file",
-    description:
-      "Turns credential stuffing, vulnerability scanners, and floods away from your login. It lives in your app — no DNS change — and if ShipLock is ever down, your app just serves normally.",
-  },
-  {
-    name: "Every pull request, re-audited",
-    provider: "Continuous",
-    note: "one webhook",
-    description:
-      "A fresh scan on every pull request, deep scans on a schedule, and critical checks hourly — you only hear from us when something new appears.",
-  },
-];
-
-export default async function OnboardingPage() {
+/**
+ * One connection, and it is GitHub.
+ *
+ * There is no plan gate here any more: while the MVP is open, anyone signed in
+ * can run an audit. Signing in is still required, because the next thing that
+ * happens is that we read their private source code.
+ */
+export default async function Onboarding() {
   const supabase = await getSupabaseServer();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/auth?next=/onboarding");
 
-  if (!user) {
-    redirect("/auth");
-  }
-
-  // Scanning is paid-only — /api/scan itself enforces this server-side too,
-  // this is just so an unpaid signed-in user sees a subscribe CTA instead
-  // of a form that would 402 on submit. Same RLS-scoped query pattern as
-  // app/(d)/dashboard/page.tsx.
-  const { data: profile } = await supabase
+  const admin = getSupabaseAdmin();
+  const { data: profile } = await admin
     .from("user_profiles")
-    .select("is_paid")
+    .select("github_installation_id")
     .eq("id", user.id)
     .single();
-  const isPaid = profile?.is_paid ?? false;
 
-  // Same rule as the landing page: monthly always offered, prepaid terms only
-  // once the owner has created their Stripe prices, so no button 400s.
-  const plans = PLANS.filter((p) => p.id === "monthly" || isPlanConfigured(p));
+  const installationId = profile?.github_installation_id as number | null;
+
+  // Read the repository list here rather than from an effect: it is one round
+  // trip either way, and doing it on the server means the picker is populated
+  // on first paint instead of flashing an empty state.
+  let repositories: Awaited<ReturnType<typeof listRepos>> = [];
+  let listError: string | null = null;
+  let selected = new Set<string>();
+
+  if (installationId) {
+    const { data: stored } = await admin
+      .from("repositories")
+      .select("full_name, selected")
+      .eq("user_id", user.id)
+      .eq("selected", true);
+    selected = new Set((stored ?? []).map((r) => r.full_name as string));
+
+    try {
+      repositories = await listRepos(await getInstallationToken(installationId));
+    } catch {
+      // Never fall back to the stored list: a transport failure that renders as
+      // a short list looks exactly like an installation that lost access.
+      listError = "Could not reach GitHub just now. Reload to try again.";
+    }
+  }
 
   return (
-    <main className="dxd">
-      <div className="dxd-band">
-        <div className="dxd-shell">
-          <nav className="dxd-nav" aria-label="Main">
-            <span className="dxd-wordmark">
-              <span className="dxd-wordmark-lock">
-                <LockMark size={19} />
-              </span>
-              ShipLock
-            </span>
-            <span
-              className="dxd-mono"
-              style={{ fontSize: 12, color: "var(--d-muted-light)" }}
-            >
-              Signed in as {user.email}
-            </span>
+    <main className="v3">
+      <div className="v3-band">
+        <div className="v3-shell">
+          <nav className="v3-nav-top">
+            <Link href="/" className="v3-mark"><LockMark size={20} /> ShipLock</Link>
+            <Link href="/dashboard" className="v3-nav-links">Skip to dashboard</Link>
           </nav>
-          <div className="dxd-onb-band">
-            <p className="dxd-eyebrow">Step 1 of 2</p>
-            <h1 className="dxd-display" style={{ fontSize: "clamp(34px,5.2vw,56px)" }}>
-              Point us at the stack.
-            </h1>
-          </div>
         </div>
       </div>
 
-      <div className="dxd-shell">
-        {isPaid ? (
-          <ConnectAndScanForm />
-        ) : (
-          <Reveal>
-            <section className="dxd-connect-card" aria-label="Subscribe to run your first audit">
-              <div>
-                <h4>Put us on retainer to run your first audit</h4>
-                <p>
-                  Connect your database the moment you&apos;re in, and the first audit — every
-                  finding, and a fix for each — runs immediately. On Supabase we ask only for the
-                  same public key your app already ships to every visitor. On any other Postgres
-                  we ask for a read-only role you create, and refuse it if it can write.
-                </p>
-                {plans.length > 1 && (
-                  <p style={{ marginTop: 10, fontSize: 12.5, lineHeight: 1.7, color: "var(--d-muted)" }}>
-                    Same product on every term. Prepaid terms are a single charge — nothing
-                    auto-renews, so there is nothing to cancel and no fee if you stop.
-                  </p>
-                )}
-              </div>
-              <span className="dxd-connect-cta" style={{ display: "grid", gap: 18 }}>
-                {plans.map((plan) => (
-                  <UpgradeButton
-                    key={plan.id}
-                    plan={plan.id}
-                    variant={plan.featured ? "primary" : "ghost"}
-                    label={`${plan.cta} — ${plan.price}${plan.per === "once" ? "" : plan.per}`}
-                    note={
-                      plan.mode === "subscription"
-                        ? "7 days free — no charge today. Cancel anytime in one click. Secure checkout by Stripe; we never see your card."
-                        : `One charge for ${plan.months} months. No auto-renewal, no cancellation fee. Secure checkout by Stripe; we never see your card.`
-                    }
-                  />
-                ))}
-              </span>
-            </section>
-          </Reveal>
-        )}
-
-        <section style={{ marginTop: 56 }}>
-          <p className="dxd-panel-label" style={{ marginBottom: 14 }}>
-            The rest of the retainer — set up when you&apos;re ready
-          </p>
-          <div className="dxd-stakes">
-            {INCLUDED.map((s, i) => (
-              <Reveal key={s.name} delay={i * 80}>
-                <div className="dxd-connect-card" style={{ flexDirection: "column", height: "100%" }}>
-                  <div style={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
-                    <h4>{s.name}</h4>
-                    <span className="dxd-mono" style={{ fontSize: 10, color: "var(--d-bronze)", whiteSpace: "nowrap" }}>
-                      {s.note}
-                    </span>
-                  </div>
-                  <span className="dxd-scope" style={{ color: "var(--d-muted)" }}>
-                    {s.provider}
-                  </span>
-                  <p>{s.description}</p>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </section>
-
-        <footer className="dxd-footer">
-          <span className="dxd-serif" style={{ fontSize: 15 }}>
-            ShipLock<span style={{ color: "var(--d-bronze)" }}>.</span>
-          </span>
-        </footer>
-      </div>
+      <OnboardingFlow
+        connected={Boolean(installationId)}
+        listError={listError}
+        initialRepos={repositories.map((r) => ({
+          fullName: r.fullName,
+          defaultBranch: r.defaultBranch,
+          isPrivate: r.isPrivate,
+          selected: selected.has(r.fullName),
+          lastAuditAt: null,
+        }))}
+      />
     </main>
   );
 }

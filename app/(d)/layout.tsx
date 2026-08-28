@@ -12,6 +12,7 @@ import {
 } from "next/font/google";
 import "./design-base.css";
 import "./design-d.css";
+import "./v3.css";
 import { PostHogInit } from "@/components/PostHogInit";
 
 // Real-product layout for the D-skinned routes (/, /auth, /onboarding,
@@ -72,11 +73,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://shiplock.dev"),
   title: {
-    default: "ShipLock — Continuous security monitoring for AI-built apps",
+    default: "ShipLock — Security monitoring that opens the pull request",
     template: "%s · ShipLock",
   },
   description:
-    "The same class of checks a $50,000 enterprise audit opens with — running continuously against your live app. Built for founders who shipped with AI and found paying users. $49/month, 7 days free.",
+    "Connect GitHub. ShipLock reads your code, finds the paths that reach customer data, and opens the fix as a pull request.",
   openGraph: {
     siteName: "ShipLock",
     type: "website",
