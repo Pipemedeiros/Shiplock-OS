@@ -99,6 +99,22 @@ export function extractMethods(src: string): string[] {
 const FROM_RE = /\.from\s*\(\s*["'`]([A-Za-z_][\w.]*)["'`]/g;
 const RPC_RE = /\.rpc\s*\(\s*["'`]([A-Za-z_]\w*)["'`]/g;
 
+// Drizzle and Prisma name the table with an identifier rather than a string, so
+// FROM_RE never saw them. A route reading `db.query.invoices.findFirst(...)`
+// reported NO tables at all, which meant the graph believed an endpoint touching
+// customer billing data touched nothing -- and an entry that reaches no table
+// cannot produce an attack path. Silence again, in the direction that hides.
+//
+//   db.query.invoices.findFirst   ·   .from(invoices)   ·   prisma.invoice.findMany
+const DRIZZLE_QUERY_RE = /\bdb\s*\??\s*\.\s*query\s*\.\s*([A-Za-z_]\w*)/g;
+const DRIZZLE_FROM_IDENT_RE = /\.from\s*\(\s*([A-Za-z_]\w*)\s*[),]/g;
+const PRISMA_MODEL_RE = /\bprisma\s*\??\s*\.\s*([a-z][A-Za-z0-9_]*)\s*\.\s*(?:find|create|update|delete|upsert|count|aggregate)/g;
+
+/** Identifiers that are query-builder plumbing, not tables. */
+const NOT_A_TABLE = new Set([
+  "db", "sql", "table", "query", "select", "insert", "update", "delete", "raw", "schema", "$queryRaw",
+]);
+
 export function extractTables(src: string): string[] {
   const out = new Set<string>();
   FROM_RE.lastIndex = 0;
@@ -106,6 +122,15 @@ export function extractTables(src: string): string[] {
   while ((m = FROM_RE.exec(src)) !== null) out.add(m[1]);
   RPC_RE.lastIndex = 0;
   while ((m = RPC_RE.exec(src)) !== null) out.add(`rpc:${m[1]}`);
+
+  for (const re of [DRIZZLE_QUERY_RE, DRIZZLE_FROM_IDENT_RE, PRISMA_MODEL_RE]) {
+    re.lastIndex = 0;
+    while ((m = re.exec(src)) !== null) {
+      const name = m[1];
+      if (!NOT_A_TABLE.has(name) && name.length > 1) out.add(name);
+    }
+  }
+
   return [...out].sort();
 }
 
@@ -121,7 +146,7 @@ export function extractTables(src: string): string[] {
 //
 // So the header patterns below only match a GET/index READ of an inbound header.
 const STRONG_USER_AUTH_RE =
-  /\b(auth\.getUser\s*\(|auth\.getSession\s*\(|getUser\s*\(|getSession\s*\(|requireDashboardSession|getServerSession|currentUser\s*\(|verifyJwt|jwtVerify)/i;
+  /\b(auth\.getUser\s*\(|auth\.getSession\s*\(|getUser\s*\(|getSession\s*\(|requireDashboardSession|getServerSession|currentUser\s*\(|verifyJwt|jwtVerify|await\s+auth\s*\(|clerkClient)/i;
 
 /**
  * Reading an inbound Authorization header. WEAK evidence of a user session on
@@ -180,6 +205,42 @@ const OWNERSHIP_RE =
 // sides, so it never had the prefix problem above (`user_identity` does not
 // match `\buser_id\b`).
 const OWNERSHIP_ALT_RE = /\b(user_id|owner_id|account_id|tenant_id|org_id|profile_id)\b\s*[,)]/i;
+
+/**
+ * Statements that merely OBTAIN the caller's identity, which are not evidence
+ * that anything was filtered by it.
+ *
+ * Found by running the pipeline on a Clerk + Drizzle route with a real tenant
+ * isolation bug. `const { userId } = await auth();` contains `userId`, which
+ * OWNERSHIP_RE matches, so the unscoped route was reported as scoped and the
+ * finding never appeared. That is a fail-open on the single check class this
+ * product exists for.
+ *
+ * The fix is deliberately narrow. This file's header argues that inventing an
+ * attack path for a scoped route is the worst outcome, and that trade-off is
+ * unchanged: we remove ONLY the line that resolves identity, so an ownership
+ * token used anywhere else -- including on the very next line -- still counts.
+ */
+const IDENTITY_RESOLUTION_RE =
+  /(?:const|let|var)\s*\{[^}]*\}\s*=\s*(?:await\s+)?(?:auth|currentUser|getUser|getSession|getServerSession)\s*\([^;]*;|(?:const|let|var)\s+\w+\s*=\s*(?:await\s+)?(?:auth|currentUser)\s*\(\s*\)\s*;/g;
+
+/**
+ * The other half: refusing the request when there is no identity.
+ *
+ * `if (!userId) return new Response("Unauthorized", { status: 401 });` is an
+ * AUTHENTICATION check. It establishes that somebody is calling, and says
+ * nothing about which rows that somebody may read. Counting it as ownership
+ * filtering is precisely how a horizontal access bug hides behind a login.
+ *
+ * Only a guard whose whole body is a return or a throw is stripped, so a branch
+ * that actually does something with the identity still counts.
+ */
+const IDENTITY_GUARD_RE =
+  /if\s*\(\s*!\s*[\w.?]*\b(?:user|owner|account|tenant|org|profile)Id\b[^)]*\)\s*(?:\{\s*(?:return|throw)[^;]*;\s*\}|(?:return|throw)[^;]*;)/gi;
+
+export function withoutIdentityResolution(src: string): string {
+  return src.replace(IDENTITY_RESOLUTION_RE, " ").replace(IDENTITY_GUARD_RE, " ");
+}
 
 /**
  * How far to follow local imports out of a route file.
@@ -291,7 +352,8 @@ export function analyzeRouteFile(
     // mention a secret name does not gate the endpoint that imports it.
     if (isEntry && MACHINE_GATE_RE.test(src)) machineGated = true;
     if (SERVICE_ROLE_RE.test(src)) usesServiceRole = true;
-    if (OWNERSHIP_RE.test(src) || OWNERSHIP_ALT_RE.test(src)) {
+    const filterable = withoutIdentityResolution(src);
+    if (OWNERSHIP_RE.test(filterable) || OWNERSHIP_ALT_RE.test(filterable)) {
       if (!ownershipFiltered) contributed = true;
       ownershipFiltered = true;
     }
