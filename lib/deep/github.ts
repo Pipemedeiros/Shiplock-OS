@@ -282,3 +282,60 @@ export async function listRecentCommitPatches(
 
   return out;
 }
+
+/** Files a pull request touches, with their content AFTER the change. */
+export async function listPullRequestFiles(
+  token: string,
+  fullName: string,
+  number: number,
+  headSha: string,
+  maxFiles = 300,
+): Promise<{ path: string; content: string }[]> {
+  const res = await fetch(`${API}/repos/${fullName}/pulls/${number}/files?per_page=100`, {
+    headers: { ...GH_HEADERS, Authorization: `token ${token}` },
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+  if (!res.ok) throw new Error(`GitHub PR files HTTP ${res.status}`);
+
+  const json = (await res.json()) as Array<{ filename?: string; status?: string }>;
+
+  const paths = json
+    // A deleted file cannot introduce a vulnerability, and fetching it 404s.
+    .filter((f) => f.filename && f.status !== "removed")
+    .map((f) => f.filename as string)
+    .slice(0, maxFiles);
+
+  const files: { path: string; content: string }[] = [];
+  for (const path of paths) {
+    // At the PR's head sha, not the default branch: we must judge the code as
+    // proposed, not as it currently is on main.
+    const content = await getFile(token, fullName, path, headSha).catch(() => null);
+    if (content !== null) files.push({ path, content });
+  }
+  return files;
+}
+
+/**
+ * Posts a check run on a commit.
+ *
+ * `neutral` rather than `failure` for a warning, so a merge is never blocked by
+ * something we are not confident about. A conclusion of `failure` is reserved
+ * for a finding we would defend to the author's face.
+ */
+export async function createCheckRun(
+  token: string,
+  fullName: string,
+  headSha: string,
+  conclusion: "success" | "neutral" | "failure",
+  title: string,
+  summary: string,
+): Promise<void> {
+  await ghWrite(token, `/repos/${fullName}/check-runs`, "POST", {
+    name: "ShipLock",
+    head_sha: headSha,
+    status: "completed",
+    conclusion,
+    completed_at: new Date().toISOString(),
+    output: { title, summary: summary.slice(0, 65_000) },
+  });
+}

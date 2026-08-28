@@ -4,6 +4,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { runGithubScan } from "@/lib/deep/githubRun";
 import { hasProductAccess } from "@/lib/access";
 import { runRepositoryAudit } from "@/lib/agent/audit";
+import { runPullRequestCheck } from "@/lib/agent/prCheck";
 
 // GitHub App webhook — re-scans a repo's source on every pull request, so the
 // watch re-audits "every PR" (replacing the old deploy-webhook trigger). The
@@ -38,7 +39,13 @@ export async function POST(req: NextRequest) {
   const event = req.headers.get("x-github-event");
   if (event !== "pull_request") return NextResponse.json({ ok: true });
 
-  let payload: { action?: string; installation?: { id?: number } };
+  let payload: {
+    action?: string;
+    installation?: { id?: number };
+    number?: number;
+    pull_request?: { number?: number; head?: { sha?: string } };
+    repository?: { full_name?: string };
+  };
   try {
     payload = JSON.parse(raw);
   } catch {
@@ -61,6 +68,32 @@ export async function POST(req: NextRequest) {
 
     if (!profile || !hasProductAccess(profile)) {
       return NextResponse.json({ ok: true });
+    }
+
+    // The merge check runs BEFORE the coalescing window below, and is never
+    // skipped by it. It is the answer the developer is waiting on, it costs one
+    // diff read rather than a full audit, and every push to a pull request
+    // deserves its own verdict — coalescing the check would mean the second
+    // push to a branch silently inherits the first push's answer.
+    const prNumber = payload.pull_request?.number ?? payload.number;
+    const headSha = payload.pull_request?.head?.sha;
+    const fullName = payload.repository?.full_name;
+
+    if (prNumber && headSha && fullName) {
+      try {
+        await runPullRequestCheck({
+          userId: profile.id as string,
+          installationId,
+          fullName,
+          prNumber,
+          headSha,
+        });
+      } catch (err) {
+        console.error(
+          "[monitor/github] merge check failed:",
+          err instanceof Error ? err.message : err,
+        );
+      }
     }
 
     // ── Coalescing window ────────────────────────────────────────────────
