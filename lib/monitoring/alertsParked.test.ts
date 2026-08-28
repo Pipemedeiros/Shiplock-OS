@@ -14,12 +14,12 @@ vi.mock("@/lib/supabase", () => ({
 
 const { sendNewFindingsAlert } = await import("./alerts");
 
-const finding: Finding = {
+const finding = {
   id: "f1",
-  severity: "critical",
+  severity: "CRITICAL",
   title: "Service role key submitted",
   consequence: "Full read and write on every table.",
-} as Finding;
+} as unknown as Finding;
 
 describe("sendNewFindingsAlert while alerts are parked", () => {
   it("sends nothing and never touches the dedup log", async () => {

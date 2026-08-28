@@ -68,8 +68,11 @@ describe("POST /api/deep/fix — finding source validation", () => {
     expect(runFixPrMock).not.toHaveBeenCalled();
   });
 
-  it("still requires a paid subscription", async () => {
-    profileMock.mockResolvedValue({ data: { is_paid: false } });
+  it("still requires an account the database knows about", async () => {
+    // Billing is parked, so is_paid no longer decides this. Opening a pull
+    // request against someone's repository is not something a caller without a
+    // profile row gets to do.
+    profileMock.mockResolvedValue({ data: null });
     const res = await POST(req({ ...base, source: "graph" }));
     expect(res.status).toBe(402);
     expect(runFixPrMock).not.toHaveBeenCalled();

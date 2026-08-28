@@ -81,9 +81,12 @@ describe("POST /api/monitor/github — HMAC-forged webhook payloads must not tri
     expect(runGithubScanMock).toHaveBeenCalledWith("owner-1", 42);
   });
 
-  it("never scans on behalf of an unpaid installation, even with a validly signed payload", async () => {
+  it("never scans for an installation with no matching account, even with a validly signed payload", async () => {
+    // A valid signature proves the payload came from GitHub. It does not prove
+    // the installation belongs to anyone here — an install on a repo we have no
+    // account for must not start work. Billing being parked does not change it.
     const raw = JSON.stringify({ action: "opened", installation: { id: 42 } });
-    maybeSingleMock.mockResolvedValue({ data: { id: "owner-1", is_paid: false } });
+    maybeSingleMock.mockResolvedValue({ data: null });
 
     await POST(req(raw, sign(raw)));
     expect(runGithubScanMock).not.toHaveBeenCalled();

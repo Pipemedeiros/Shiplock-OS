@@ -76,18 +76,31 @@ describe("POST /api/scan — auth & paywall are enforced, not just labeled", () 
     expect(scanProjectMock).not.toHaveBeenCalled();
   });
 
-  it("402s for an authenticated-but-unpaid caller and never runs the scan (mass assignment: client-claimed isPaid is ignored)", async () => {
+  it("refuses a caller with no profile row, and a client-claimed paid flag grants nothing", async () => {
+    // Billing is parked (lib/access.ts), so is_paid: false no longer 402s. What
+    // must still hold is that access is decided from the database record and
+    // never from the body: a caller the database does not know is refused, and
+    // a smuggled isPaid does not conjure the record into existence.
     getUserMock.mockResolvedValue({ data: { user: { id: "u1" } } });
-    singleMock.mockResolvedValue({ data: { is_paid: false, monitored_project_url: null } });
+    singleMock.mockResolvedValue({ data: null });
 
-    // Attacker tries to smuggle a truthy paid flag in the body — the route
-    // never even destructures it, but this proves it has zero effect.
     const res = await POST(
-      req({ ...VALID_BODY, isPaid: true, is_paid: true }, { authorization: "Bearer real-but-unpaid-token" })
+      req({ ...VALID_BODY, isPaid: true, is_paid: true }, { authorization: "Bearer real-token" })
     );
 
     expect(res.status).toBe(402);
     expect(scanProjectMock).not.toHaveBeenCalled();
+  });
+
+  it("lets an authenticated account through while billing is parked", async () => {
+    getUserMock.mockResolvedValue({ data: { user: { id: "u1" } } });
+    singleMock.mockResolvedValue({ data: { is_paid: false, monitored_project_url: null } });
+
+    // The assertion is that the ACCESS GATE let it through — the scan itself is
+    // allowed to fall over on unmocked collaborators further down the route.
+    await POST(req(VALID_BODY, { authorization: "Bearer real-token" })).catch(() => undefined);
+
+    expect(scanProjectMock).toHaveBeenCalled();
   });
 
   it("IDOR: the profile lookup is keyed off the token-resolved id, never a client-supplied one", async () => {
