@@ -87,6 +87,17 @@ const SIGNATURES: Signature[] = [
   { id: "vercel", name: "Vercel", kind: "hosting", packages: ["@vercel/analytics", "@vercel/blob"] },
 ];
 
+/**
+ * Files that describe code rather than being it.
+ *
+ * Excluded from import detection because a test fixture, a mock or a detector's
+ * own signature list mentions package names it does not use. Dogfooding this
+ * against ShipLock's own repository reported Clerk, Auth0, Lucia, WorkOS,
+ * Prisma, MongoDB and Firebase -- none of which it uses -- entirely from
+ * strings inside this file and its tests.
+ */
+const NOT_APPLICATION_CODE = /(^|\/)(.*\.(test|spec)\.[cm]?[jt]sx?|__tests__|__mocks__|fixtures?|lib\/agent\/stack\.ts)($|\/)/;
+
 /** Dependency names from a package.json, both prod and dev. */
 export function readDependencies(packageJson: string | undefined): Set<string> {
   if (!packageJson) return new Set();
@@ -104,6 +115,16 @@ export function readDependencies(packageJson: string | undefined): Set<string> {
     // fall through to import-based detection rather than reporting no stack.
     return new Set();
   }
+}
+
+/** True when `content` imports or requires `pkg`, subpaths included. */
+export function importsPackage(content: string, pkg: string): boolean {
+  const escaped = pkg.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const spec = `${escaped}(?:/[\\w./-]*)?`;
+  return new RegExp(
+    `(?:from\\s*|require\\(\\s*|import\\(\\s*)["'\`]${spec}["'\`]|^\\s*import\\s+["'\`]${spec}["'\`]`,
+    "m",
+  ).test(content);
 }
 
 export interface StackReport {
@@ -127,7 +148,9 @@ export function detectStack(files: ArchiveFile[]): StackReport {
   const envFiles = files.filter((f) => /(^|\/)\.env/.test(f.path));
   const envText = envFiles.map((f) => f.content).join("\n");
 
-  const sourceFiles = files.filter((f) => /\.(ts|tsx|js|jsx|mjs|cjs)$/.test(f.path));
+  const sourceFiles = files.filter(
+    (f) => /\.(ts|tsx|js|jsx|mjs|cjs)$/.test(f.path) && !NOT_APPLICATION_CODE.test(f.path),
+  );
 
   const tools: StackTool[] = [];
 
@@ -136,8 +159,12 @@ export function detectStack(files: ArchiveFile[]): StackReport {
 
     const usedIn: string[] = [];
     for (const file of sourceFiles) {
+      // A real import, not a substring. Matching any occurrence of the package
+      // name meant every mention in a comment or a string literal counted as
+      // usage, which is how a repo that merely NAMES a library was reported as
+      // depending on it.
       const importsIt =
-        sig.packages.some((p) => file.content.includes(`"${p}`) || file.content.includes(`'${p}`)) ||
+        sig.packages.some((p) => importsPackage(file.content, p)) ||
         (sig.importPatterns?.test(file.content) ?? false);
       if (importsIt) usedIn.push(file.path);
       if (usedIn.length >= 5) break;

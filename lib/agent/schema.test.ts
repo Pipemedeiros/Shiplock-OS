@@ -41,6 +41,26 @@ describe("extractTables", () => {
     expect(tables).toEqual(["one", "three", "two"]);
   });
 
+  it("ignores test files, which are full of one-letter fixture tables", () => {
+    // The first dogfood run produced tables called a, b, t, one, two, three and
+    // AS. An inventory containing invented tables is worse than a short one:
+    // the agent cites them, and the guard cannot tell a real table it has never
+    // seen from a fake one it has.
+    const tables = extractTables([
+      { path: "lib/graph/attackPaths.test.ts", content: 'supabase.from("a").select()' },
+      { path: "test/fixtures/seed.sql", content: "create table t (id int);" },
+      { path: "lib/data.ts", content: 'supabase.from("invoices").select()' },
+    ]);
+    expect(tables).toEqual(["invoices"]);
+  });
+
+  it("rejects SQL keywords a greedy match picks up as names", () => {
+    const tables = extractTables([
+      { path: "migrations/1.sql", content: "create table if not exists public.orders (id uuid);" },
+    ]);
+    expect(tables).toEqual(["orders"]);
+  });
+
   it("returns nothing for an unrecognised schema, rather than inventing tables", () => {
     expect(extractTables([{ path: "app.rb", content: "class User < ActiveRecord::Base; end" }])).toEqual([]);
   });

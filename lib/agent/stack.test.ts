@@ -53,6 +53,36 @@ describe("detectStack", () => {
   });
 });
 
+describe("false positives found by running this against ShipLock's own repository", () => {
+  it("does not count a package name that merely appears in a string", () => {
+    // The first dogfood run reported Clerk, Auth0, Lucia, WorkOS, Prisma,
+    // MongoDB and Firebase on a codebase using none of them -- every one of
+    // them from the signature list inside stack.ts itself. Substring matching
+    // turns any repository that NAMES a library into one that depends on it.
+    const report = detectStack([
+      pkg({ next: "15.0.0" }),
+      { path: "docs/comparison.ts", content: 'const options = ["@clerk/nextjs", "next-auth", "lucia"];' },
+    ]);
+    expect(report.tools.map((t) => t.id)).toEqual(["next"]);
+  });
+
+  it("ignores test files, which mention libraries they do not use", () => {
+    const report = detectStack([
+      pkg({ next: "15.0.0" }),
+      { path: "lib/auth.test.ts", content: 'vi.mock("@clerk/nextjs", () => ({}));' },
+    ]);
+    expect(report.tools.find((t) => t.id === "clerk")).toBeUndefined();
+  });
+
+  it("still counts a real import, including a subpath", () => {
+    const report = detectStack([
+      pkg({}),
+      { path: "app/page.tsx", content: 'import { auth } from "@clerk/nextjs/server";' },
+    ]);
+    expect(report.tools.find((t) => t.id === "clerk")).toBeDefined();
+  });
+});
+
 describe("readDependencies", () => {
   it("reads dev dependencies too", () => {
     const deps = readDependencies(JSON.stringify({ dependencies: { a: "1" }, devDependencies: { b: "2" } }));
