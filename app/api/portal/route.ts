@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 // Stripe billing portal — self-serve cancel/card-update. Auth mirrors
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
 
   let session;
   try {
-    session = await stripe.billingPortal.sessions.create({
+    session = await getStripe().billingPortal.sessions.create({
       customer: profile.stripe_customer_id,
       return_url: `${appUrl}/dashboard`,
     });

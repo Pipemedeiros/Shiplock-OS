@@ -1,7 +1,7 @@
 import { createHash } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { stripe } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 import { sendEmail } from "@/lib/email";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
 
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET!);
+    event = getStripe().webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET!);
   } catch {
     const ip = req.headers.get("x-forwarded-for") ?? "unknown";
     const ipHash = createHash("sha256").update(ip).digest("hex");

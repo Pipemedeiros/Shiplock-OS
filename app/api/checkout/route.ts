@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { stripe } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { checkCheckoutRateLimit } from "@/lib/rateLimit";
 import { getPlan } from "@/lib/plans";
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
 
   let session;
   try {
-    session = await stripe.checkout.sessions.create({
+    session = await getStripe().checkout.sessions.create({
       // Prepaid terms are one-time charges, not subscriptions — nothing
       // auto-renews, so there is no cancellation to fee. See lib/plans.ts.
       mode: plan.mode,

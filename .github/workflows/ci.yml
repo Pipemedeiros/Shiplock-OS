@@ -27,4 +27,23 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm test
+      - run: npx tsc --noEmit
+      # The build evaluates every route module while collecting page data, so
+      # anything reading env at module scope needs a value here. These are
+      # deliberately fake and deliberately inline: CI must not need repository
+      # secrets to prove the code compiles, and a real key in a build log is a
+      # leaked key. Nothing in this job talks to a real service.
       - run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://ci.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: ci-service-role-key
+          STRIPE_SECRET_KEY: sk_test_ci
+          STRIPE_WEBHOOK_SECRET: whsec_ci
+          STRIPE_PRICE_ID: price_ci
+          RESEND_API_KEY: re_ci
+          RESEND_FROM_EMAIL: ci@example.com
+          NEXT_PUBLIC_APP_URL: https://ci.example.com
+          ENCRYPTION_KEY: ci-encryption-key-that-is-long-enough-32
+          CRON_SECRET: ci-cron-secret
+          ANTHROPIC_API_KEY: ci-anthropic-key
