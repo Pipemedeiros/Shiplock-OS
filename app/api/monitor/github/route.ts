@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { runGithubScan } from "@/lib/deep/githubRun";
 import { hasProductAccess } from "@/lib/access";
+import { runRepositoryAudit } from "@/lib/agent/audit";
 
 // GitHub App webhook — re-scans a repo's source on every pull request, so the
 // watch re-audits "every PR" (replacing the old deploy-webhook trigger). The
@@ -86,6 +87,40 @@ export async function POST(req: NextRequest) {
       .eq("id", profile.id as string);
 
     await runGithubScan(profile.id as string, installationId);
+
+    // Re-audit every selected repository with the repository agent as well.
+    //
+    // runGithubScan covers committed secrets and dependency advisories. The
+    // agent is what produces attack paths, and a pull request is the moment a
+    // new one is most likely to appear — a route added without the scoping its
+    // six neighbours have. Running it only on a schedule would mean the check
+    // that matters most arrives up to 48 hours after the code that broke it.
+    //
+    // Failures are logged per repository and never rethrown: one repository we
+    // cannot read must not stop the others, and the webhook must answer 200
+    // regardless or GitHub will retry the delivery.
+    const { data: repos } = await admin
+      .from("repositories")
+      .select("id, full_name")
+      .eq("user_id", profile.id as string)
+      .eq("selected", true);
+
+    for (const repo of repos ?? []) {
+      try {
+        await runRepositoryAudit({
+          userId: profile.id as string,
+          installationId,
+          repositoryId: repo.id as string,
+          fullName: repo.full_name as string,
+          trigger: "pull_request",
+        });
+      } catch (err) {
+        console.error(
+          `[monitor/github] audit failed for ${repo.full_name}:`,
+          err instanceof Error ? err.message : err,
+        );
+      }
+    }
   } catch (err) {
     console.error("[monitor/github] PR re-scan failed:", err instanceof Error ? err.message : err);
   }
