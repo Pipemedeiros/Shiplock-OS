@@ -74,3 +74,74 @@ export function extractTables(files: ArchiveFile[]): string[] {
 
   return [...tables].sort();
 }
+
+// Column names, for reading the ownership boundary rather than the table list.
+// Deliberately loose: it collects candidate identifiers from schema-ish files
+// and lets lib/agent/domain.ts decide which of them mean anything. A column
+// name is a hint about intent, never a finding.
+const COLUMN_PATTERNS = [
+  // drizzle: workspaceId: uuid("workspace_id")
+  /\b[A-Za-z_]\w*\s*:\s*\w+\(\s*["'`]([a-z][a-z0-9_]*)["'`]/g,
+  // sql: workspace_id uuid not null
+  /^\s*["`]?([a-z][a-z0-9_]*)["`]?\s+(uuid|text|varchar|int|integer|bigint|serial|boolean|timestamp|jsonb|numeric)/gim,
+  // prisma: workspaceId String
+  /^\s*([a-zA-Z][a-zA-Z0-9_]*)\s+(String|Int|BigInt|Boolean|DateTime|Json|Float|Decimal)\b/gm,
+];
+
+// Where a column DEFINITION can legitimately live. Deliberately narrow.
+//
+// The first version accepted any file whose path or content looked schema-ish,
+// and reading this repository it picked `workspace_id` out of a page of mock
+// dashboard data and out of domain.ts's own list of tenant-key candidates.
+// ShipLock is separated by user_id, so the audit was told the wrong boundary —
+// and the boundary is the single most important thing the model is told.
+//
+// A name mentioned anywhere is not a schema. A name being DEFINED is.
+const SCHEMA_FILE = /(^|\/)(migrations?|schema|models?|db|prisma)(\/|\.)|\.sql$|\.prisma$/i;
+const DEFINES_TABLE = /pgTable|mysqlTable|sqliteTable|createTable|CREATE\s+TABLE/i;
+
+// Mock data, design prototypes and fixtures describe an imaginary product.
+// Reading them tells us about the mock, not the customer.
+const NOT_REAL_SCHEMA = /(^|\/)(proto|proto-v3|proto-codex|design|__mocks__|__fixtures__|fixtures?|mocks?|examples?)(\/|$)|(^|\/)data\.[cm]?[jt]s$/i;
+
+/**
+ * Source with comments removed.
+ *
+ * A column named in a comment is not a column. This repository proved the point
+ * on itself: schema.ts's own explanation of the tenant-key problem contains the
+ * words workspace_id, and reading it back made ShipLock look like a workspace
+ * product. The same mistake reads a customer's commented-out old schema as
+ * their current one.
+ */
+function withoutComments(source: string): string {
+  return source
+    .replace(/\/\*[^]*?\*\//g, " ")
+    .replace(/(^|[^:])\/\/[^\n]*/g, "$1")
+    .replace(/^\s*(--|#)[^\n]*/gm, "");
+}
+
+/** Candidate column names across the repository's schema files. */
+export function extractColumns(files: ArchiveFile[]): string[] {
+  const columns = new Set<string>();
+
+  for (const file of files) {
+    if (NOT_APPLICATION_CODE.test(file.path)) continue;
+    if (NOT_REAL_SCHEMA.test(file.path)) continue;
+    // Either the file is in a schema location, or it actually defines a table.
+    // Naming a table is not the same as declaring one.
+    if (!SCHEMA_FILE.test(file.path) && !DEFINES_TABLE.test(file.content)) continue;
+
+    const source = withoutComments(file.content);
+
+    for (const pattern of COLUMN_PATTERNS) {
+      pattern.lastIndex = 0;
+      let match: RegExpExecArray | null;
+      while ((match = pattern.exec(source)) !== null) {
+        const name = pascalToSnake(match[1]);
+        if (name.length > 1 && name.length < 60) columns.add(name);
+      }
+    }
+  }
+
+  return [...columns].sort();
+}

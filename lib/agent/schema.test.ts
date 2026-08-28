@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractTables } from "./schema";
+import { extractTables, extractColumns } from "./schema";
 
 describe("extractTables", () => {
   it("reads Drizzle table declarations", () => {
@@ -63,5 +63,45 @@ describe("extractTables", () => {
 
   it("returns nothing for an unrecognised schema, rather than inventing tables", () => {
     expect(extractTables([{ path: "app.rb", content: "class User < ActiveRecord::Base; end" }])).toEqual([]);
+  });
+});
+
+describe("extractColumns", () => {
+  it("reads columns from a real schema definition", () => {
+    const cols = extractColumns([
+      {
+        path: "db/schema.ts",
+        content: 'export const invoices = pgTable("invoices", { workspaceId: uuid("workspace_id") });',
+      },
+    ] as never);
+    expect(cols).toContain("workspace_id");
+  });
+
+  it("ignores a column named only in a comment", () => {
+    // schema.ts's own explanation of the tenant-key problem contains the words
+    // workspace_id, and reading it back made ShipLock look like a workspace
+    // product. The same mistake reads a commented-out old schema as current.
+    const cols = extractColumns([
+      { path: "db/schema.ts", content: '// rows are separated by workspace_id\nexport const x = pgTable("x", { id: uuid("id") });' },
+    ] as never);
+    expect(cols).not.toContain("workspace_id");
+    expect(cols).toContain("id");
+  });
+
+  it("ignores mock data and design prototypes", () => {
+    // These describe an imaginary product. Reading them tells us about the
+    // mock, not the customer.
+    const cols = extractColumns([
+      { path: "app/(d)/proto/data.ts", content: 'const row = { workspaceId: uuid("workspace_id") };' },
+      { path: "components/design/data.ts", content: 'const row = { teamId: uuid("team_id") };' },
+    ] as never);
+    expect(cols).toHaveLength(0);
+  });
+
+  it("does not treat a file that merely mentions a table as a schema", () => {
+    const cols = extractColumns([
+      { path: "lib/util.ts", content: 'const q = supabase.from("invoices").select("workspace_id");' },
+    ] as never);
+    expect(cols).toHaveLength(0);
   });
 });

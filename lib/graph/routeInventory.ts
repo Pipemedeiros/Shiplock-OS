@@ -107,7 +107,20 @@ const RPC_RE = /\.rpc\s*\(\s*["'`]([A-Za-z_]\w*)["'`]/g;
 //
 //   db.query.invoices.findFirst   ·   .from(invoices)   ·   prisma.invoice.findMany
 const DRIZZLE_QUERY_RE = /\bdb\s*\??\s*\.\s*query\s*\.\s*([A-Za-z_]\w*)/g;
-const DRIZZLE_FROM_IDENT_RE = /\.from\s*\(\s*([A-Za-z_]\w*)\s*[),]/g;
+// `.from(identifier)` is Drizzle reading a table -- and also Buffer.from(bytes),
+// Array.from(iterable) and every other built-in with the same spelling. Reading
+// this repository, `Buffer.from(contentUtf8, "utf8")` was collected as a table
+// named contentUtf8, and a route credited with a table it never touches is a
+// route the graph believes reaches data. That is a false attack path waiting to
+// happen, so the receiver has to be excluded, not the name pattern loosened.
+const JS_BUILTIN_FROM =
+  "Buffer|Array|Object|String|Number|Boolean|Map|Set|WeakMap|WeakSet|Promise|JSON|Date|" +
+  "Int8Array|Uint8Array|Uint8ClampedArray|Int16Array|Uint16Array|Int32Array|Uint32Array|" +
+  "Float32Array|Float64Array|BigInt64Array|BigUint64Array";
+const DRIZZLE_FROM_IDENT_RE = new RegExp(
+  `(?<!\\b(?:${JS_BUILTIN_FROM})\\s*)\\.from\\s*\\(\\s*([A-Za-z_]\\w*)\\s*[),]`,
+  "g",
+);
 const PRISMA_MODEL_RE = /\bprisma\s*\??\s*\.\s*([a-z][A-Za-z0-9_]*)\s*\.\s*(?:find|create|update|delete|upsert|count|aggregate)/g;
 
 /** Identifiers that are query-builder plumbing, not tables. */

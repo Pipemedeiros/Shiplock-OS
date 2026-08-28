@@ -6,7 +6,10 @@ import { collectRoutes, type RouteFact } from "@/lib/graph/routeInventory";
 import { proposeAttacks } from "./attack";
 import { detectStack, type StackReport } from "./stack";
 import { buildFindings, type AgentFinding } from "./findings";
-import { extractTables } from "./schema";
+import { extractTables, extractColumns } from "./schema";
+import { inferDomain } from "./domain";
+import { openFixPullRequests } from "./autoFixPr";
+import { getOpenFindings } from "./dashboardData";
 
 /**
  * One audit of one repository, start to finish.
@@ -198,11 +201,22 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       step("No committed credentials found");
     }
 
+    // What the business IS, before asking what can go wrong with it. A model
+    // asked "find bugs in these routes" produces a linter; a model told "rows
+    // are separated by workspace_id" produces hypotheses about this customer's
+    // actual risk.
+    const domain = inferDomain(tables, routes, extractColumns(archive.files));
+    step(
+      "Business model read from the schema",
+      domain.summary,
+    );
+
     step("Reasoning about who can reach what");
     const agent = await proposeAttacks({
       routes,
       stack,
       tables,
+      domain,
       files: archive.files.map((f) => f.path),
     });
 
@@ -242,6 +256,38 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
 
     await persistFindings(userId, repositoryId, runId, findings);
 
+    // Open the pull requests ourselves. The customer's job is to approve, not
+    // to go and press a button per finding -- a queue of security homework is
+    // the thing this product exists not to be.
+    //
+    // Deliberately AFTER persistFindings and deliberately wrapped: the findings
+    // are the audit's value and they are already safely written. If GitHub is
+    // down, or the App lost access to the repository, the run still completes
+    // and the dashboard still offers the same pull request on one click.
+    let prsOpened = 0;
+    try {
+      const open = await getOpenFindings(userId);
+      const outcome = await openFixPullRequests(
+        userId,
+        open.filter((f) => f.repository === fullName),
+      );
+      prsOpened = outcome.opened.length;
+      if (prsOpened > 0) {
+        step(
+          `${prsOpened} fix pull request${prsOpened === 1 ? "" : "s"} opened for your approval`,
+          outcome.opened.map((o) => `#${o.number ?? "?"}`).join(" · "),
+        );
+      }
+      if (outcome.failed.length > 0) {
+        step(
+          `${outcome.failed.length} fix pull request${outcome.failed.length === 1 ? "" : "s"} could not be opened`,
+          outcome.failed[0].error,
+        );
+      }
+    } catch (err) {
+      step("Fix pull requests could not be opened", err instanceof Error ? err.message : "unknown error");
+    }
+
     await admin
       .from("audit_runs")
       .update({
@@ -253,6 +299,10 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
         entries_found: routes.length,
         tables_found: tables.length,
         findings_count: findings.length,
+        // Stored with the run, so the dashboard shows the stack we REASONED
+        // OVER rather than a fresh guess made at page-load time.
+        stack,
+        domain,
       })
       .eq("id", runId);
 

@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { RouteFact } from "@/lib/graph/routeInventory";
 import { guardHypotheses, type GuardResult, type ReconIndex } from "./attackGuard";
+import { domainPromptLines, type DomainModel } from "./domain";
 import type { StackReport } from "./stack";
 
 /**
@@ -47,6 +48,12 @@ export interface AgentInput {
   stack: StackReport;
   tables: string[];
   files: string[];
+  /**
+   * What this business is, read from its own schema. Optional so every existing
+   * caller and test keeps working; when present it changes what the model looks
+   * FOR rather than merely what it knows.
+   */
+  domain?: DomainModel;
 }
 
 export interface AgentOutcome extends GuardResult {
@@ -78,6 +85,9 @@ export function buildPrompt(input: AgentInput): string {
 
   return [
     stackLine ? `stack ${stackLine}` : "stack unidentified",
+    // The business lines come FIRST: they are the frame the routes are read
+    // through, and a model that reads them last has already formed an opinion.
+    ...(input.domain ? domainPromptLines(input.domain) : []),
     `tables ${input.tables.slice(0, 40).join(",")}`,
     "routes",
     ...routeLines,

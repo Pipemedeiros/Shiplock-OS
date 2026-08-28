@@ -1,6 +1,8 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { Claim, Confidence, FixKind } from "./findings";
 import type { CoverageNote, TraceStep } from "./audit";
+import type { StackReport } from "./stack";
+import type { DomainModel } from "./domain";
 import type { Severity } from "@/lib/types";
 
 /**
@@ -45,6 +47,14 @@ export interface DashboardRun {
   trace: TraceStep[];
   coverage: CoverageNote[];
   error: string | null;
+  /**
+   * The stack as observed during THIS run. Null means the run predates the
+   * column -- "we did not record it", which is not the same claim as "we found
+   * nothing", and the stack page renders the two differently.
+   */
+  stack: StackReport | null;
+  /** What the business is, as read during this run. Null on older runs. */
+  domain: DomainModel | null;
 }
 
 export interface DashboardRepo {
@@ -123,6 +133,8 @@ export async function getRuns(userId: string, limit = 20): Promise<DashboardRun[
     trace: Array.isArray(row.trace) ? (row.trace as TraceStep[]) : [],
     coverage: Array.isArray(row.coverage) ? (row.coverage as CoverageNote[]) : [],
     error: (row.error as string) ?? null,
+    stack: (row.stack as StackReport | null) ?? null,
+    domain: (row.domain as DomainModel | null) ?? null,
   }));
 }
 

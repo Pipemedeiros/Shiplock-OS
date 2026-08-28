@@ -96,3 +96,27 @@ describe("withoutIdentityResolution", () => {
     expect(stripped).toContain("audit(userId)");
   });
 });
+
+describe("built-in .from() is not a table read", () => {
+  it("does not credit a route with a table named after a Buffer argument", () => {
+    // Reading ShipLock's own repository, `Buffer.from(contentUtf8, "utf8")`
+    // was collected as a table called contentUtf8. A route credited with a
+    // table it never touches is a route the graph believes reaches data —
+    // a false attack path waiting to happen.
+    const fact = collectRoutes([{ path: "app/api/upload/route.ts", content: `export async function POST(req) {
+         const body = await req.text();
+         const encoded = Buffer.from(body, "utf8").toString("base64");
+         const rows = Array.from(new Set([encoded]));
+         return Response.json(rows);
+       }` }])[0];
+    expect(fact.tables).toEqual([]);
+  });
+
+  it("still reads a real Drizzle from(table)", () => {
+    const fact = collectRoutes([{ path: "app/api/invoices/route.ts", content: `import { db } from "@/db";
+       export async function GET() {
+         return Response.json(await db.select().from(invoices));
+       }` }])[0];
+    expect(fact.tables).toContain("invoices");
+  });
+});

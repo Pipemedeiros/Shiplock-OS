@@ -56,6 +56,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
             items={[
               { href: "/dashboard", label: "Overview", icon: "overview" },
               { href: "/dashboard/risks", label: "Risks", icon: "risks", count: findings.length },
+              {
+                href: "/dashboard/prs",
+                label: "Pull requests",
+                icon: "prs",
+                count: findings.filter((f) => f.fixPrUrl).length,
+              },
+              { href: "/dashboard/stack", label: "Stack", icon: "stack" },
               { href: "/dashboard/activity", label: "Activity", icon: "activity" },
               { href: "/dashboard/coverage", label: "Coverage", icon: "coverage" },
               { href: "/dashboard/settings", label: "Settings", icon: "settings" },

@@ -102,6 +102,11 @@ function hasAlphabeticRun(text: string): boolean {
   return false;
 }
 
+/** Whether the match sits on a comment line. */
+function isCommentLine(line: string): boolean {
+  return /^\s*(\/\/|\*|\/\*|#|--)/.test(line);
+}
+
 /** The line a match sits on, for judging it in context. */
 function lineOf(content: string, index: number): string {
   const start = content.lastIndexOf("\n", index) + 1;
@@ -145,7 +150,17 @@ export function scanSecrets(files: RepoFile[]): GithubFinding[] {
       // "SECRET" — inside test scaffolding that is a fixture by construction,
       // and reporting it is how a detector's own suite becomes a finding.
       if (inTest && pat.id === "generic_secret_assignment") continue;
-      if (inTest && looksSynthetic(match[0], lineOf(file.content, match.index))) continue;
+
+      const line = lineOf(file.content, match.index);
+
+      // A placeholder written INTO a comment is documentation, not a
+      // credential. This file proved it on itself: the comment explaining that
+      // AKIAIOSFODNN7EXAMPLE is Amazon's published example contains the string,
+      // and the scanner reported its own explanation as a leaked AWS key.
+      // A real-looking key in a comment still reports — people do paste those.
+      if (isCommentLine(line) && looksSynthetic(match[0], line)) continue;
+
+      if (inTest && looksSynthetic(match[0], line)) continue;
 
       const id = `github:secret:${pat.id}:${file.path}`;
       if (seen.has(id)) continue;

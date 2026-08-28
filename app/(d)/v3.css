@@ -379,3 +379,67 @@
 
 .v3-spin { animation: v3-rotate 900ms linear infinite; }
 @keyframes v3-rotate { to { transform: rotate(360deg); } }
+
+/* ── dashboard: navy sidebar ────────────────────────────────────────────────
+   The shell was white on white, which read as a settings screen rather than a
+   place where something is being watched. The navy is the same one the landing
+   band and the report header already use, so the product has one dark surface
+   used consistently rather than a new accent invented per page. It sits on the
+   chrome — the sidebar — and never on the content: findings are what the eye
+   should land on, and a coloured panel behind them competes with the severity
+   dots that carry real meaning.                                              */
+.v3-side {
+  background: var(--navy);
+  border-right: 1px solid var(--navy-2);
+  color: #dbe3ee;
+}
+.v3-side-brand { color: #f2f5f9; }
+.v3-side-brand svg { color: var(--bronze-l); }
+.v3-repo { background: rgba(255,255,255,0.04); border-color: var(--line-navy); }
+.v3-repo:hover { border-color: var(--muted-navy); }
+.v3-repo b { color: #eef2f7; }
+.v3-repo small { color: var(--muted-navy); }
+.v3-nav a { color: var(--muted-navy); }
+.v3-nav a:hover { background: rgba(255,255,255,0.05); color: #eef2f7; }
+.v3-nav a.on { background: rgba(255,255,255,0.09); color: #ffffff; }
+.v3-nav a.on svg { color: var(--bronze-l); }
+.v3-nav-count { color: var(--muted-navy); }
+.v3-side-foot { color: var(--muted-navy); border-top-color: var(--line-navy); }
+.v3-side-foot a:hover { color: #eef2f7; }
+
+/* ── stack tiles ─────────────────────────────────────────────────────────── */
+.v3-tile {
+  border: 1px solid var(--line); border-radius: var(--r);
+  padding: 14px 16px; background: var(--paper);
+}
+.v3-tile:hover { border-color: var(--muted-2); }
+
+.v3-tag-ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 30%, var(--line)); }
+.v3-tag-mute { color: var(--muted-2); }
+
+/* ── pull request rows ───────────────────────────────────────────────────── */
+.v3-list { display: flex; flex-direction: column; }
+.v3-row-pad { padding: 9px 0; border-bottom: 1px solid var(--line-2); }
+.v3-row-pad:last-child { border-bottom: 0; }
+.v3-pr-row {
+  display: flex; align-items: flex-start; gap: 11px;
+  padding: 12px 2px; border-bottom: 1px solid var(--line-2);
+  transition: background 120ms ease;
+}
+.v3-pr-row:last-child { border-bottom: 0; }
+.v3-pr-row:hover { background: var(--porcelain); }
+.v3-pr-icon { color: var(--ok); margin-top: 2px; flex-shrink: 0; }
+.v3-pr-go { color: var(--muted-2); margin-top: 2px; flex-shrink: 0; }
+.v3-pr-row:hover .v3-pr-go { color: var(--ink); }
+
+/* A card that is carrying a caveat rather than a finding. */
+.v3-card-warn { border-left: 2px solid var(--warn); }
+
+/* ── landing: sourced evidence cards ─────────────────────────────────────── */
+.v3-evidence {
+  display: block; border: 1px solid var(--line); border-radius: var(--r);
+  padding: 18px 19px; background: var(--paper);
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.v3-evidence:hover { border-color: var(--muted-2); background: var(--sand); }
+.v3-evidence-go { display: block; margin-top: 12px; color: var(--bronze); }

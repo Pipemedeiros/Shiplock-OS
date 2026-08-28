@@ -212,6 +212,22 @@ describe("fixtures are not leaks", () => {
     expect(findings).toHaveLength(2);
   });
 
+  it("does not report a placeholder written into a comment", () => {
+    // githubScan.ts reported its own explanatory comment as a leaked AWS key.
+    const findings = scanSecrets([
+      { path: "lib/deep/githubScan.ts", content: "// AKIAIOSFODNN7EXAMPLE is Amazon's own published example\nconst x = 1;" },
+    ]);
+    expect(findings).toHaveLength(0);
+  });
+
+  it("still reports a real-looking key in a comment — people paste those", () => {
+    const findings = scanSecrets([
+      { path: "lib/a.ts", content: "// old key: sb_secret_9f3Kq7Lm2Xz8Rt4Bn6Vc1Wd5\nconst x = 1;" },
+    ]);
+    expect(findings).toHaveLength(1);
+    expect(findings[0].severity).toBe("CRITICAL");
+  });
+
   it("does not report a logged secret inside a test", () => {
     const findings = scanLoggedSecrets([
       { path: "lib/redact.test.ts", content: "console.log(user.password);" },

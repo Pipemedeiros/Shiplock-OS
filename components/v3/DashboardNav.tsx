@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Layers, LayoutDashboard, Route, Settings } from "lucide-react";
+import { Activity, GitPullRequest, Layers, LayoutDashboard, Boxes, Route, Settings } from "lucide-react";
 
 const ICONS = {
   overview: LayoutDashboard,
   risks: Route,
   activity: Activity,
   coverage: Layers,
+  stack: Boxes,
+  prs: GitPullRequest,
   settings: Settings,
 } as const;
 
