@@ -1,0 +1,342 @@
+import { getSupabaseAdmin } from "@/lib/supabase";
+import { getInstallationToken } from "@/lib/deep/github";
+import { fetchRepoArchive, type ArchiveFile } from "@/lib/deep/repoArchive";
+import { scanSecrets, scanLoggedSecrets, scanTokenStorage } from "@/lib/deep/githubScan";
+import { collectRoutes, type RouteFact } from "@/lib/graph/routeInventory";
+import { proposeAttacks } from "./attack";
+import { detectStack, type StackReport } from "./stack";
+import { buildFindings, type AgentFinding } from "./findings";
+import { extractTables } from "./schema";
+
+/**
+ * One audit of one repository, start to finish.
+ *
+ * The order is Strix's: reconnaissance, then hypothesis, then validation, then
+ * a report. What differs is where the attack lands. Strix runs the target and
+ * exploits it; the target here belongs to a customer and is serving their
+ * users, so the agent reasons against a read-only copy of the source and
+ * anything reproducible is reproduced on a disposable replica instead.
+ *
+ * Every step appends to a trace that is stored with the run. That is not
+ * logging: the trace is the product's trust device -- a customer who can read
+ * what we did, line by line, can disagree with it, and a customer who cannot is
+ * being asked to take a security claim on faith.
+ */
+
+export interface TraceStep {
+  time: string;
+  label: string;
+  note?: string;
+  found?: boolean;
+}
+
+export interface CoverageNote {
+  name: string;
+  why: string;
+  effect: string;
+  upgrade?: string;
+}
+
+export interface AuditResult {
+  runId: string;
+  findings: AgentFinding[];
+  trace: TraceStep[];
+  coverage: CoverageNote[];
+  filesRead: number;
+  entriesFound: number;
+  tablesFound: number;
+}
+
+function clock(startedAt: number): string {
+  const seconds = Math.floor((Date.now() - startedAt) / 1000);
+  return `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+/**
+ * What this audit could NOT see. Built from what actually happened in the run,
+ * never from a static list -- a coverage note that does not change when the run
+ * changes is decoration.
+ */
+function buildCoverage(
+  stack: StackReport,
+  truncated: boolean,
+  skipped: number,
+  hasDatabase: boolean,
+): CoverageNote[] {
+  const notes: CoverageNote[] = [];
+
+  if (!hasDatabase) {
+    notes.push({
+      name: "Row-level policies on your database",
+      why: "We read your schema from the repository, not the policies that live inside the database.",
+      effect: "Findings that depend on them stay inferred. We cannot reproduce one to prove it.",
+      upgrade: "Connect a read-only database role",
+    });
+  }
+
+  notes.push({
+    name: "What your users actually do",
+    why: "We can see which code paths exist, not which ones anyone uses.",
+    effect: "We will not close anything on the assumption that nothing reads it.",
+  });
+
+  notes.push({
+    name: "Values of your environment variables",
+    why: "We read the names your code expects. We never read their values.",
+    effect: "We can say a secret is missing or in the wrong place, never that it is weak.",
+  });
+
+  if (stack.authUnknown) {
+    notes.push({
+      name: "Your authentication provider",
+      why: "We did not recognise an auth library in this repository.",
+      effect: "Route identity is read from the code alone, so an unrecognised guard may read as no guard.",
+    });
+  }
+
+  if (truncated || skipped > 0) {
+    notes.push({
+      name: `${skipped} file${skipped === 1 ? "" : "s"} we did not read`,
+      why: truncated
+        ? "The repository is larger than one audit's read budget."
+        : "Some files were larger than we read in a single pass.",
+      effect: "Anything defined only in those files is not in this report.",
+    });
+  }
+
+  return notes;
+}
+
+/** Table names referenced by any route, unioned with what the schema declares. */
+function tablesFrom(routes: RouteFact[], files: ArchiveFile[]): string[] {
+  const fromSchema = extractTables(files);
+  const fromRoutes = routes.flatMap((r) => r.tables);
+  return [...new Set([...fromSchema, ...fromRoutes])].sort();
+}
+
+export interface RunAuditOptions {
+  userId: string;
+  installationId: number;
+  repositoryId: string;
+  fullName: string;
+  trigger?: string;
+  /** True when this account also has a database connected. Changes coverage. */
+  hasDatabase?: boolean;
+}
+
+/**
+ * Runs an audit and records it.
+ *
+ * A failure is written to the run with its trace intact rather than thrown
+ * away: a failed audit the customer can read is worth more than a silent one,
+ * and it is the only way "the audit did not finish" stays distinguishable from
+ * "the audit found nothing".
+ */
+export async function runRepositoryAudit(options: RunAuditOptions): Promise<AuditResult> {
+  const { userId, installationId, repositoryId, fullName } = options;
+  const admin = getSupabaseAdmin();
+  const startedAt = Date.now();
+  const trace: TraceStep[] = [];
+  const step = (label: string, note?: string, found?: boolean) => {
+    trace.push({ time: clock(startedAt), label, ...(note ? { note } : {}), ...(found ? { found } : {}) });
+  };
+
+  const { data: run } = await admin
+    .from("audit_runs")
+    .insert({
+      user_id: userId,
+      repository_id: repositoryId,
+      full_name: fullName,
+      status: "running",
+      trigger: options.trigger ?? "manual",
+    })
+    .select("id")
+    .single();
+
+  const runId = (run?.id as string) ?? "";
+
+  try {
+    step(`Read-only checkout of ${fullName}`);
+
+    const token = await getInstallationToken(installationId);
+    const archive = await fetchRepoArchive(token, fullName);
+    step(
+      `${archive.files.length} files read`,
+      `${Math.round(archive.bytesRead / 1024)} KB of source${archive.skipped ? `, ${archive.skipped} skipped` : ""}`,
+    );
+
+    const stack = detectStack(archive.files);
+    step(
+      "Stack read from the code",
+      stack.tools.length
+        ? stack.tools.map((t) => t.name).join(" · ")
+        : "no known framework, auth provider or database identified",
+    );
+
+    const routes = collectRoutes(archive.files);
+    const withData = routes.filter((r) => r.tables.length > 0);
+    step(
+      `${routes.length} application entries mapped`,
+      `${routes.filter((r) => r.authenticated).length} require a user · ${routes.filter((r) => r.machineGated).length} machine-gated · ${routes.filter((r) => !r.authenticated && !r.machineGated).length} anonymous`,
+    );
+
+    const tables = tablesFrom(routes, archive.files);
+    step(`${tables.length} tables found`, `${withData.length} entries reach one`);
+
+    // Deterministic detectors first. These do not need a model, they do not
+    // fail open, and their findings are the ones the agent's hypotheses are
+    // judged against.
+    const repoFiles = archive.files.map((f) => ({ path: f.path, content: f.content }));
+    const deterministic = [
+      ...scanSecrets(repoFiles),
+      ...scanLoggedSecrets(repoFiles),
+      ...scanTokenStorage(repoFiles),
+    ];
+    if (deterministic.length > 0) {
+      step(`${deterministic.length} committed credential or logging issues`, undefined, true);
+    } else {
+      step("No committed credentials found");
+    }
+
+    step("Reasoning about who can reach what");
+    const agent = await proposeAttacks({
+      routes,
+      stack,
+      tables,
+      files: archive.files.map((f) => f.path),
+    });
+
+    if (agent.skipped) {
+      step("Attack reasoning did not run", agent.skipReason);
+    } else {
+      step(
+        `${agent.admitted.length} attack ${agent.admitted.length === 1 ? "path" : "paths"} proposed and checked`,
+        agent.rejected.length
+          ? `${agent.rejected.length} discarded for citing something we did not observe`
+          : undefined,
+        agent.admitted.length > 0,
+      );
+    }
+
+    const findings = buildFindings({
+      admitted: agent.admitted,
+      deterministic,
+      routes,
+      stack,
+      repositoryId,
+      hasDatabase: options.hasDatabase ?? false,
+    });
+
+    for (const finding of findings.filter((f) => f.severity === "CRITICAL")) {
+      step(finding.title, finding.consequence, true);
+    }
+
+    const coverage = buildCoverage(
+      stack,
+      archive.truncated,
+      archive.skipped,
+      options.hasDatabase ?? false,
+    );
+
+    step("Audit complete", `${findings.length} open ${findings.length === 1 ? "path" : "paths"}`);
+
+    await persistFindings(userId, repositoryId, runId, findings);
+
+    await admin
+      .from("audit_runs")
+      .update({
+        status: "complete",
+        finished_at: new Date().toISOString(),
+        trace,
+        coverage,
+        files_read: archive.files.length,
+        entries_found: routes.length,
+        tables_found: tables.length,
+        findings_count: findings.length,
+      })
+      .eq("id", runId);
+
+    await admin
+      .from("repositories")
+      .update({ last_audit_at: new Date().toISOString() })
+      .eq("id", repositoryId);
+
+    return {
+      runId,
+      findings,
+      trace,
+      coverage,
+      filesRead: archive.files.length,
+      entriesFound: routes.length,
+      tablesFound: tables.length,
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "unknown error";
+    step("Audit failed", message);
+
+    // The run is marked failed and KEPT. Nothing is archived and no findings are
+    // written, so a broken run can never resolve a real finding by omission.
+    await admin
+      .from("audit_runs")
+      .update({ status: "failed", finished_at: new Date().toISOString(), trace, error: message })
+      .eq("id", runId);
+
+    throw err;
+  }
+}
+
+/**
+ * Writes findings, archiving anything from a previous run on this repository
+ * that no longer reproduces.
+ *
+ * Archiving happens only after a SUCCESSFUL run reaches this point -- the
+ * caller's catch never gets here -- so a failed audit cannot mark a customer's
+ * real problems as resolved.
+ */
+async function persistFindings(
+  userId: string,
+  repositoryId: string,
+  runId: string,
+  findings: AgentFinding[],
+): Promise<void> {
+  const admin = getSupabaseAdmin();
+  const activeIds = new Set(findings.map((f) => f.id));
+
+  const { data: existing } = await admin
+    .from("deep_findings")
+    .select("id, finding_id")
+    .eq("repository_id", repositoryId)
+    .is("archived_at", null);
+
+  const gone = (existing ?? []).filter((row) => !activeIds.has(row.finding_id as string));
+  if (gone.length > 0) {
+    await admin
+      .from("deep_findings")
+      .update({ archived_at: new Date().toISOString() })
+      .in("id", gone.map((row) => row.id as string));
+  }
+
+  const known = new Set((existing ?? []).map((row) => row.finding_id as string));
+  const fresh = findings.filter((f) => !known.has(f.id));
+  if (fresh.length === 0) return;
+
+  await admin.from("deep_findings").insert(
+    fresh.map((f) => ({
+      user_id: userId,
+      repository_id: repositoryId,
+      run_id: runId || null,
+      source: "agent",
+      finding_id: f.id,
+      severity: f.severity,
+      title: f.title,
+      consequence: f.consequence,
+      attack_class: f.attackClass,
+      entry: f.entry,
+      file: f.file,
+      confidence: f.confidence,
+      fix_kind: f.fixKind,
+      claims: f.claims,
+      blast_radius: f.blastRadius,
+    })),
+  );
+}
