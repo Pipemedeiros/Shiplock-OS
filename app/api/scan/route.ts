@@ -8,6 +8,7 @@ import { getClientIpHash } from "@/lib/rateLimit";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { encrypt } from "@/lib/crypto";
 import { extractFindings } from "@/lib/monitoring/findings";
+import { hasProductAccess } from "@/lib/access";
 
 export async function POST(req: NextRequest) {
   let body: unknown;
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
     .select("is_paid, monitored_project_url")
     .eq("id", userId)
     .single();
-  if (!profile?.is_paid) {
+  if (!profile || !hasProductAccess(profile)) {
     return NextResponse.json({ error: "Subscribe to run a scan." }, { status: 402 });
   }
 

@@ -1,6 +1,7 @@
 import type { Finding } from "./findings";
 import { sendEmail } from "@/lib/email";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { EMAIL_ALERTS_ENABLED } from "@/lib/access";
 
 const DEDUP_WINDOW_MS = 7 * 24 * 60 * 60 * 1000; // 7 days, per CLAUDE.md
 
@@ -16,6 +17,12 @@ export async function sendNewFindingsAlert(
   newFindings: Finding[]
 ): Promise<void> {
   if (newFindings.length === 0) return;
+
+  // Parked for the MVP alongside billing (lib/access.ts). The dedup log, the
+  // 7-day window and the copy all stay exactly as they are — we simply do not
+  // send, because an MVP tester does not want mail from a tool they are still
+  // deciding about. Findings still surface in the dashboard on every pass.
+  if (!EMAIL_ALERTS_ENABLED) return;
 
   const admin = getSupabaseAdmin();
   const cutoff = new Date(Date.now() - DEDUP_WINDOW_MS).toISOString();

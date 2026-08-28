@@ -8,6 +8,7 @@ import { runGraphReasoner, saveFacts } from "@/lib/graph/graphRun";
 import { collectTrafficFacts } from "@/lib/traffic/graphFacts";
 import { runZeroDayCheck } from "@/lib/runtime/zeroDay";
 import { sendWeeklyDigest } from "@/lib/monitoring/digest";
+import { withPaidFilter } from "@/lib/access";
 
 // This pass iterates every paid user and makes several network calls each
 // (policy scan, schema inventory, auth log, dependency re-check, reasoner). The
@@ -94,10 +95,7 @@ export async function GET(req: NextRequest) {
   // this is the check that catches `USING (true)`, which an external scan
   // structurally cannot see. Fail-soft per user.
   let policyChecked = 0;
-  const { data: connected } = await admin
-    .from("user_profiles")
-    .select("id")
-    .eq("is_paid", true)
+  const { data: connected } = await withPaidFilter(admin.from("user_profiles").select("id"))
     .not("supabase_mgmt_token_encrypted", "is", null);
 
   for (const profile of connected ?? []) {
@@ -142,10 +140,7 @@ export async function GET(req: NextRequest) {
   // installation budget the webhook's coalescing window was written to protect.
   let sourceScanned = 0;
   const sourceCutoff = new Date(Date.now() - FULL_SCAN_INTERVAL_MS).toISOString();
-  const { data: githubUsers } = await admin
-    .from("user_profiles")
-    .select("id, github_installation_id")
-    .eq("is_paid", true)
+  const { data: githubUsers } = await withPaidFilter(admin.from("user_profiles").select("id, github_installation_id"))
     .not("github_installation_id", "is", null)
     .or(`last_source_scan_at.is.null,last_source_scan_at.lt.${sourceCutoff}`);
 
@@ -172,7 +167,7 @@ export async function GET(req: NextRequest) {
   // Runs for every paid user — not only the Supabase-connected ones above —
   // because route facts from the per-PR source scan can produce paths on their
   // own, and a user with GitHub connected but not Supabase should still get them.
-  const { data: paidUsers } = await admin.from("user_profiles").select("id").eq("is_paid", true);
+  const { data: paidUsers } = await withPaidFilter(admin.from("user_profiles").select("id"));
 
   let pathsFound = 0;
   for (const profile of paidUsers ?? []) {
@@ -214,10 +209,7 @@ export async function GET(req: NextRequest) {
   // countermeasure: alerts only fire on NEW findings, so a healthy customer
   // hears nothing for months and cannot tell "working" from "dead".
   let digestsSent = 0;
-  const { data: digestCandidates } = await admin
-    .from("user_profiles")
-    .select("id, email, last_digest_sent_at")
-    .eq("is_paid", true)
+  const { data: digestCandidates } = await withPaidFilter(admin.from("user_profiles").select("id, email, last_digest_sent_at"))
     .eq("monitoring_enabled", true);
 
   for (const profile of digestCandidates ?? []) {

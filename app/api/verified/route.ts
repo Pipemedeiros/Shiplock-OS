@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { checkBadgeInstalled } from "@/lib/verified/badgeCheck";
+import { hasProductAccess } from "@/lib/access";
 
 // Owner control for the public "ShipLock Verified" report. Bearer auth (mirrors
 // /api/portal), paid-only. Actions: enable (mint token + turn on), disable (turn
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
     .eq("id", auth.user.id)
     .maybeSingle();
 
-  if (!profile?.is_paid) {
+  if (!profile || !hasProductAccess(profile)) {
     return NextResponse.json({ error: "A subscription is required." }, { status: 402 });
   }
 

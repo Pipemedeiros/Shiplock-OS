@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { runFixPr } from "@/lib/fixes/prRun";
 import { FINDING_SOURCES, type FixableFinding } from "@/lib/fixes/lane";
+import { hasProductAccess } from "@/lib/access";
 
 // Opens a reviewable fix PR for one finding. Bearer auth + paid + GitHub
 // connected. The PR is a new branch off the default (never merged) — a
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
     .select("is_paid")
     .eq("id", auth.user.id)
     .maybeSingle();
-  if (!profile?.is_paid) return NextResponse.json({ error: "A subscription is required." }, { status: 402 });
+  if (!profile || !hasProductAccess(profile)) return NextResponse.json({ error: "A subscription is required." }, { status: 402 });
 
   let parsed;
   try {

@@ -14,6 +14,11 @@ const insertMock = vi.fn();
 const selectResult = vi.fn();
 
 vi.mock("@/lib/email", () => ({ sendEmail: sendEmailMock }));
+// Alerts are parked for the MVP (lib/access.ts). The dedup contract below is
+// still the thing worth guarding — it is the reason a failed send does not cost
+// a customer a week of silence — so these tests run with alerts forced ON. The
+// separate "parked" test below covers the flag itself.
+vi.mock("@/lib/access", () => ({ EMAIL_ALERTS_ENABLED: true }));
 vi.mock("@/lib/supabase", () => ({
   getSupabaseAdmin: () => ({
     from: () => ({

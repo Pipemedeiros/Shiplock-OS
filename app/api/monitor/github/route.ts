@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { runGithubScan } from "@/lib/deep/githubRun";
+import { hasProductAccess } from "@/lib/access";
 
 // GitHub App webhook — re-scans a repo's source on every pull request, so the
 // watch re-audits "every PR" (replacing the old deploy-webhook trigger). The
@@ -57,7 +58,7 @@ export async function POST(req: NextRequest) {
       .eq("github_installation_id", installationId)
       .maybeSingle();
 
-    if (!profile?.is_paid) {
+    if (!profile || !hasProductAccess(profile)) {
       return NextResponse.json({ ok: true });
     }
 
