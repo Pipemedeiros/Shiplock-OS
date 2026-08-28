@@ -1,135 +1,110 @@
+import Link from "next/link";
 import { requireDashboardSession } from "@/lib/dashboard";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { isBetterAuthConfigured } from "@/lib/betterAuth";
-import { env } from "@/lib/env";
-import { VerifiedPanel } from "@/components/d/VerifiedPanel";
-import { McpPanel } from "@/components/d/McpPanel";
-import { TwoFactorSetup } from "@/components/d/TwoFactorSetup";
-import { GitHubPanel } from "@/components/d/GitHubPanel";
+import { getRepositories } from "@/lib/agent/dashboardData";
+import { isSupabaseMgmtConfigured } from "@/lib/deep/supabaseMgmt";
 import { SupabasePanel } from "@/components/d/SupabasePanel";
 import { PostgresPanel } from "@/components/d/PostgresPanel";
-import { isSupabaseMgmtConfigured } from "@/lib/deep/supabaseMgmt";
-import { ManageBillingButton } from "@/components/d/ManageBillingButton";
-import { UpgradeButton } from "@/components/d/UpgradeButton";
-import { Reveal } from "@/components/d/bits";
+import { BILLING_ENABLED } from "@/lib/access";
 
-// Settings — connections, sharing, tokens, billing. Everything here is setup
-// rather than security state, which is why it's off the Overview page.
-export default async function DashboardSettingsPage() {
-  const { userId, isPaid } = await requireDashboardSession();
-
-  if (!isPaid) {
-    return (
-      <section style={{ paddingTop: 40 }}>
-        <p className="dxd-panel-label" style={{ margin: "0 0 12px" }}>
-          Terms of engagement
-        </p>
-        <div className="dxd-connect-card">
-          <div>
-            <h4>Your retainer isn&apos;t active</h4>
-            <p>
-              Connections, the Verified report, and coding-agent access all resume with the
-              subscription.
-            </p>
-          </div>
-          <span className="dxd-connect-cta">
-            <UpgradeButton />
-          </span>
-        </div>
-      </section>
-    );
-  }
-
+/**
+ * Connections and account. Everything here is setup rather than security state,
+ * which is why it is off the Overview page.
+ *
+ * Billing is absent by design while the MVP is open (lib/access.ts). Showing a
+ * disabled plan panel would raise a question the product cannot answer yet.
+ */
+export default async function SettingsPage() {
+  const { userId, email } = await requireDashboardSession();
   const admin = getSupabaseAdmin();
-  const githubConfigured = Boolean(env.GITHUB_APP_SLUG);
 
-  const [{ data: profile }, { data: mcpTokens }] = await Promise.all([
+  const [{ data: profile }, repos] = await Promise.all([
     admin
       .from("user_profiles")
-      .select(
-        "verified_report_enabled, verified_report_token, github_installation_id, supabase_mgmt_connected_at, supabase_mgmt_project_ref, postgres_connected_at, postgres_display"
-      )
+      .select("github_installation_id, supabase_mgmt_token_encrypted, postgres_dsn_encrypted, postgres_display")
       .eq("id", userId)
-      .maybeSingle(),
-    admin
-      .from("api_tokens")
-      .select("id, name, created_at, last_used_at")
-      .eq("user_id", userId)
-      .is("revoked_at", null)
-      .order("created_at", { ascending: false }),
+      .single(),
+    getRepositories(userId),
   ]);
 
-  const supabaseConnected = Boolean(profile?.supabase_mgmt_connected_at);
-  const postgresConnected = Boolean(profile?.postgres_connected_at);
+  const githubConnected = Boolean(profile?.github_installation_id);
+  const supabaseConnected = Boolean(profile?.supabase_mgmt_token_encrypted);
+  const postgresConnected = Boolean(profile?.postgres_dsn_encrypted);
+  const databaseConnected = supabaseConnected || postgresConnected;
 
   return (
     <>
-      <section style={{ paddingTop: 32 }}>
-        <p className="dxd-panel-label" style={{ margin: "0 0 12px" }}>
-          Connections
-        </p>
-        {githubConfigured && (
-          <GitHubPanel connected={Boolean(profile?.github_installation_id)} findings={[]} />
-        )}
-        {/*
-          One "your database" slot, two ways to fill it. Supabase OAuth is the
-          smaller ask, so it stays the default; the direct-Postgres panel appears
-          for everyone else. Showing both at once would read as two required
-          connections and break the two-connection friction budget in the only
-          way that matters — how it looks to the customer.
-        */}
-        <div style={{ marginTop: githubConfigured ? 20 : 0 }}>
-          {postgresConnected || !supabaseConnected ? (
-            <PostgresPanel
-              connected={postgresConnected}
-              display={(profile?.postgres_display as string | null) ?? null}
-            />
-          ) : null}
-          {!postgresConnected && (
-            <div style={{ marginTop: supabaseConnected ? 0 : 20 }}>
-              <SupabasePanel
-                connected={supabaseConnected}
-                projectRef={(profile?.supabase_mgmt_project_ref as string | null) ?? null}
-                configured={isSupabaseMgmtConfigured()}
-              />
+      <div className="v3-page-hd">
+        <div>
+          <p className="v3-eyebrow">Connections and account</p>
+          <h1 className="v3-serif">Settings</h1>
+        </div>
+      </div>
+
+      <div className="v3-stack">
+        <div className="v3-card">
+          <div className="v3-hd">
+            <h2 className="v3-eyebrow">GitHub</h2>
+            <span className={`v3-tag ${githubConnected ? "ok" : ""}`}>
+              {githubConnected ? "connected" : "not connected"}
+            </span>
+          </div>
+          <div className="v3-card-p">
+            <div className="v3-setting">
+              <div>
+                <b>{githubConnected ? "The app is installed" : "Connect GitHub"}</b>
+                <small>
+                  {repos.length > 0
+                    ? repos.map((r) => r.fullName).join(" · ")
+                    : "No repositories selected yet."}
+                </small>
+              </div>
+              {githubConnected ? (
+                <Link href="/onboarding" className="v3-btn v3-btn-sm v3-ghost">Change repositories</Link>
+              ) : (
+                <a href="/api/deep/github/connect" className="v3-btn v3-btn-sm v3-primary">Install</a>
+              )}
             </div>
-          )}
+          </div>
         </div>
-      </section>
 
-      <Reveal>
-        <VerifiedPanel
-          initialEnabled={Boolean(profile?.verified_report_enabled)}
-          initialToken={(profile?.verified_report_token as string | null) ?? null}
-          appUrl={env.NEXT_PUBLIC_APP_URL}
-        />
-      </Reveal>
-
-      <Reveal>
-        <McpPanel initialTokens={mcpTokens ?? []} />
-      </Reveal>
-
-      {/* 2FA appears only once Better Auth is configured (env vars set) —
-          enrollment is opt-in, so a gated mount can never lock anyone out. */}
-      {isBetterAuthConfigured() && (
-        <Reveal>
-          <TwoFactorSetup />
-        </Reveal>
-      )}
-
-      <section style={{ marginTop: 40 }} aria-label="Billing">
-        <p className="dxd-panel-label" style={{ margin: "0 0 12px" }}>
-          Billing
-        </p>
-        <div className="dxd-surface">
-          <p style={{ margin: "0 0 14px", fontSize: 13.5, lineHeight: 1.7, color: "var(--d-muted)" }}>
-            Update your card, download invoices, or cancel — all self-serve through Stripe.
-            Cancelling stops the watch at the end of the period you&apos;ve paid for; nothing is
-            deleted.
-          </p>
-          <ManageBillingButton />
+        <div className="v3-card">
+          <div className="v3-hd">
+            <h2 className="v3-eyebrow">Database — optional</h2>
+            <span className={`v3-tag ${databaseConnected ? "ok" : ""}`}>
+              {databaseConnected ? "connected" : "not connected"}
+            </span>
+          </div>
+          <div className="v3-card-p">
+            <p className="v3-sub" style={{ fontSize: 14, marginBottom: 16, maxWidth: 700 }}>
+              A read-only connection lets us reproduce a finding on a disposable copy of your schema
+              instead of reading it from code alone, which is the difference between an inferred
+              finding and a proven one. It is not required, and nothing is withheld without it.
+            </p>
+            {isSupabaseMgmtConfigured() && !postgresConnected ? (
+              <SupabasePanel connected={supabaseConnected} projectRef={null} configured={isSupabaseMgmtConfigured()} />
+            ) : (
+              <PostgresPanel connected={postgresConnected} display={profile?.postgres_display ?? null} />
+            )}
+          </div>
         </div>
-      </section>
+
+        <div className="v3-card">
+          <div className="v3-hd"><h2 className="v3-eyebrow">Account</h2></div>
+          <div className="v3-card-p">
+            <div className="v3-setting">
+              <div>
+                <b>{email}</b>
+                <small>
+                  {BILLING_ENABLED
+                    ? "Billing is active."
+                    : "ShipLock is free while it is in preview. There is nothing to pay and no card on file."}
+                </small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </>
   );
 }

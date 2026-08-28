@@ -1,67 +1,55 @@
-import Link from "next/link";
-import { requireDashboardSession, getMonitoredProject } from "@/lib/dashboard";
-import { getLatestScan, getScanTimeline } from "@/lib/scanHistory";
-import { getWatchLog, getWatchStatus } from "@/lib/monitoring/watchLog";
-import { auditJwtSigning, type JwtSigningPosture } from "@/lib/security/sessionAudit";
-import { GUARDRAILS } from "@/lib/guardrails";
-import { WatchPanel } from "@/components/d/WatchPanel";
-import { GuardrailPanel } from "@/components/d/GuardrailPanel";
-import { Reveal } from "@/components/d/bits";
+import { requireDashboardSession } from "@/lib/dashboard";
+import { getRecentlyClosed, getRuns } from "@/lib/agent/dashboardData";
+import { RunList } from "@/components/v3/RunList";
 
-// Watch — the history tab. Every monitoring pass, what changed, and the
-// standing guardrails. Counts and metadata only; no fix content reaches here.
-export default async function DashboardWatchPage() {
-  const { userId, isPaid } = await requireDashboardSession();
-  const latest = await getLatestScan(userId);
-
-  const [watchLog, watchStatus, timeline] = latest
-    ? await Promise.all([getWatchLog(userId), getWatchStatus(userId), getScanTimeline(userId)])
-    : [[], null, []];
-
-  // Live JWT-signing posture — externally checkable from the stored project
-  // URL, no extra credential. Best-effort: any failure returns "unknown"
-  // rather than throwing.
-  let jwtPosture: JwtSigningPosture | null = null;
-  if (isPaid) {
-    const { projectUrl } = await getMonitoredProject(userId);
-    if (projectUrl) {
-      jwtPosture = await auditJwtSigning(projectUrl);
-    }
-  }
-
-  if (!latest) {
-    return (
-      <section style={{ paddingTop: 40 }}>
-        <h1 className="dxd-statement">The watch starts with your first audit.</h1>
-        <p className="dxd-lede" style={{ margin: "16px 0 24px" }}>
-          Once you&apos;ve run one, every re-check lands here — what ran, when, and what changed
-          since the pass before it.
-        </p>
-        <Link href="/onboarding" className="dxd-btn dxd-btn-paper">
-          Run your first audit
-        </Link>
-      </section>
-    );
-  }
+export default async function ActivityPage() {
+  const { userId } = await requireDashboardSession();
+  const [runs, closed] = await Promise.all([getRuns(userId), getRecentlyClosed(userId)]);
 
   return (
     <>
-      <section style={{ paddingTop: 32 }}>
-        <p className="dxd-panel-label" style={{ margin: "0 0 12px" }}>
-          The watch · every pass on the record
-        </p>
-        <p className="dxd-lede" style={{ marginBottom: 20, fontSize: 14 }}>
-          Silence is the default. A pass that finds nothing new says nothing — that&apos;s the
-          product working, not a gap in it.
-        </p>
-        {watchStatus && <WatchPanel entries={watchLog} status={watchStatus} timeline={timeline} />}
-      </section>
+      <div className="v3-page-hd">
+        <div>
+          <p className="v3-eyebrow">Everything we did, and when</p>
+          <h1 className="v3-serif">Activity</h1>
+        </div>
+      </div>
 
-      {isPaid && (
-        <Reveal>
-          <GuardrailPanel guardrails={GUARDRAILS} jwtPosture={jwtPosture} />
-        </Reveal>
-      )}
+      <div className="v3-stack">
+        <div className="v3-card">
+          <div className="v3-hd">
+            <h2 className="v3-eyebrow">Audit runs</h2>
+            <span className="v3-small">Open one to read it line by line</span>
+          </div>
+          <div className="v3-card-p">
+            {runs.length === 0 ? (
+              <p className="v3-small">No audits yet.</p>
+            ) : (
+              <RunList runs={runs} />
+            )}
+          </div>
+        </div>
+
+        {closed.length > 0 ? (
+          <div className="v3-card">
+            <div className="v3-hd">
+              <h2 className="v3-eyebrow">Closed</h2>
+              <span className="v3-small">Last 30 days</span>
+            </div>
+            <div className="v3-card-p" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {closed.map((c) => (
+                <div key={`${c.title}-${c.when}`} className="v3-between">
+                  <div className="v3-row" style={{ gap: 10 }}>
+                    <span className="v3-tag ok">closed</span>
+                    <span style={{ fontSize: 14 }}>{c.title}</span>
+                  </div>
+                  <span className="v3-small">{new Date(c.when).toLocaleDateString()}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
     </>
   );
 }

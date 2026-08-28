@@ -1,75 +1,65 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireDashboardSession } from "@/lib/dashboard";
-import { getLatestScan } from "@/lib/scanHistory";
-import { getFixFindings } from "@/lib/fixes/findings";
-import { SignOutButton } from "@/components/sign-out-button";
-import { ManageBillingButton } from "@/components/d/ManageBillingButton";
+import { getOpenFindings, getRepositories } from "@/lib/agent/dashboardData";
 import { LockMark } from "@/components/d/Brand";
-import { DashboardTabs } from "@/components/d/DashboardTabs";
+import { SignOutButton } from "@/components/sign-out-button";
+import { DashboardNav } from "@/components/v3/DashboardNav";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-// Shell shared by all four dashboard surfaces: the account bar, the section
-// tabs, and the footer. Each page underneath loads only its own data.
+/**
+ * The shell every dashboard page sits in.
+ *
+ * Six sections, named the way the product talks about them rather than the way
+ * the code is organised. Coverage is a first-class page, not a footnote: a
+ * clean report is only worth what it covered, and a customer who cannot see the
+ * boundary of an audit cannot judge it.
+ */
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { email, provider, isPaid, userId } = await requireDashboardSession();
-  const latest = await getLatestScan(userId);
-
-  // Tab badge only — a count, never fix content.
-  const openCount = isPaid ? (await getFixFindings(userId)).length : 0;
+  const { userId, email } = await requireDashboardSession();
+  const [findings, repos] = await Promise.all([getOpenFindings(userId), getRepositories(userId)]);
 
   return (
-    <main className="dxd">
-      <div className="dxd-band">
-        <div className="dxd-shell">
-          <nav className="dxd-nav" aria-label="Main">
-            <Link href="/" className="dxd-wordmark">
-              <span className="dxd-wordmark-lock">
-                <LockMark size={19} />
-              </span>
-              ShipLock
-            </Link>
-            <div className="dxd-nav-links">
-              {latest?.project_url_hash && (
-                <span className="dxd-mono" style={{ fontSize: 12, color: "var(--d-muted-light)" }}>
-                  project ...{latest.project_url_hash.slice(-6)}
-                </span>
-              )}
-              <span style={{ fontSize: 13 }}>{email}</span>
-              <span
-                className="dxd-mono"
-                style={{ fontSize: 11, color: "var(--d-muted-light)", textTransform: "capitalize" }}
-              >
-                {provider}
-              </span>
-              <span className="dxd-mono" style={{ fontSize: 11 }}>
-                {isPaid ? "Pro" : latest ? "Lapsed" : "Not subscribed"}
-              </span>
-              {(isPaid || latest) && <ManageBillingButton />}
-              <SignOutButton />
+    <div className="v3">
+      <div className="v3-app">
+        <aside className="v3-side">
+          <Link href="/" className="v3-side-brand"><LockMark size={19} /> <span>ShipLock</span></Link>
+
+          <div className="v3-repo">
+            <div style={{ minWidth: 0 }}>
+              <b>{repos[0]?.fullName ?? "No repository"}</b>
+              <small>
+                {repos.length === 0
+                  ? "none selected"
+                  : `${repos.length} ${repos.length === 1 ? "repository" : "repositories"}`}
+              </small>
             </div>
-          </nav>
+          </div>
 
-          <DashboardTabs findingCount={openCount} />
-        </div>
+          <DashboardNav
+            items={[
+              { href: "/dashboard", label: "Overview", icon: "overview" },
+              { href: "/dashboard/risks", label: "Risks", icon: "risks", count: findings.length },
+              { href: "/dashboard/activity", label: "Activity", icon: "activity" },
+              { href: "/dashboard/coverage", label: "Coverage", icon: "coverage" },
+              { href: "/dashboard/settings", label: "Settings", icon: "settings" },
+            ]}
+          />
+
+          <div className="v3-side-foot">
+            <span className="v3-row" style={{ gap: 7 }}>
+              <i className="v3-dot live" /> Watching
+            </span>
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{email}</span>
+            <SignOutButton />
+          </div>
+        </aside>
+
+        <main className="v3-main">{children}</main>
       </div>
-
-      <div className="dxd-shell dxd-dash-body">
-        {children}
-
-        <footer className="dxd-footer">
-          <span className="dxd-serif" style={{ fontSize: 15 }}>
-            ShipLock<span style={{ color: "var(--d-bronze)" }}>.</span>
-          </span>
-          <span>
-            last scanned{" "}
-            {latest?.created_at ? new Date(latest.created_at).toLocaleString() : "—"}
-          </span>
-        </footer>
-      </div>
-    </main>
+    </div>
   );
 }
