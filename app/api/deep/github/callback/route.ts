@@ -7,6 +7,12 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 // free/signed-out caller can't land a connection with a crafted URL. We store
 // only the installation_id (not itself a secret — the App private key, held in
 // env, is what matters); repo reads mint short-lived tokens on demand.
+//
+// Success returns to /onboarding, not /dashboard. Installing the App is step
+// one of a three-step journey and picking repositories is step two; landing on
+// an empty dashboard drops the customer between them, with nothing selected and
+// no audit ever started. A failure still goes to the dashboard, which is where
+// a signed-in customer with no working connection belongs.
 export async function GET(req: NextRequest) {
   const base = process.env.NEXT_PUBLIC_APP_URL ?? "";
   const pro = await requireProUser();
@@ -33,5 +39,5 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${base}/dashboard?github=error`, { status: 303 });
   }
 
-  return NextResponse.redirect(`${base}/dashboard?github=connected`, { status: 303 });
+  return NextResponse.redirect(`${base}/onboarding?github=connected`, { status: 303 });
 }
