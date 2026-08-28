@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { requireDashboardSession } from "@/lib/dashboard";
+import { getSupabaseAdmin } from "@/lib/supabase";
 import { getOpenFindings, getRepositories } from "@/lib/agent/dashboardData";
 import { LockMark } from "@/components/d/Brand";
 import { SignOutButton } from "@/components/sign-out-button";
@@ -20,6 +22,17 @@ export const metadata: Metadata = {
  */
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { userId, email } = await requireDashboardSession();
+
+  // A brand new account has nothing to show. Sending them to the dashboard's
+  // empty state and asking them to find the link is a dead end; onboarding is
+  // where the product actually starts.
+  const { data: profile } = await getSupabaseAdmin()
+    .from("user_profiles")
+    .select("github_installation_id")
+    .eq("id", userId)
+    .single();
+  if (!profile?.github_installation_id) redirect("/onboarding");
+
   const [findings, repos] = await Promise.all([getOpenFindings(userId), getRepositories(userId)]);
 
   return (

@@ -26,7 +26,7 @@ export default function Landing() {
             <span className="v3-mark"><LockMark size={20} /> ShipLock</span>
             <div className="v3-nav-links">
               <a href="#how">How it works</a>
-              <Link href="/owasp">Coverage</Link>
+              <Link href="/coverage">What it covers</Link>
               <Link href="/auth">Sign in</Link>
               <Link href="/onboarding" className="v3-btn v3-btn-sm v3-ondark">Get started</Link>
             </div>
@@ -147,7 +147,8 @@ export default function Landing() {
           <div className="v3-between">
             <span className="v3-row" style={{ gap: 8 }}><LockMark size={15} /> ShipLock</span>
             <span className="v3-row" style={{ gap: 20 }}>
-              <Link href="/owasp">Coverage</Link>
+              <Link href="/coverage">Coverage</Link>
+              <Link href="/owasp">OWASP</Link>
               <Link href="/incidents">Incidents</Link>
               <Link href="/privacy">Privacy</Link>
               <Link href="/terms">Terms</Link>
