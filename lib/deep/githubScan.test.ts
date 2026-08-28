@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   scanSecrets,
+  isTestPath,
   scanTokenStorage,
   scanLoggedSecrets,
   extractDependencies,
@@ -123,5 +124,98 @@ describe("depFindings", () => {
     expect(f[0].id).toBe("github:dep:left-pad:GHSA-xxxx");
     expect(f[0].packageName).toBe("left-pad");
     expect(f[0].cveId).toBe("CVE-2025-0001");
+  });
+});
+
+describe("fixtures are not leaks", () => {
+  const REAL_LOOKING = "sb_secret_9f3Kq7Lm2Xz8Rt4Bn6Vc1Wd5";
+
+  it("does not report a synthetic key in a test file", () => {
+    // The failure this exists to stop: auditing our own repository produced
+    // fifteen criticals, every one a fake credential inside a detector's own
+    // fixtures. One wrong critical costs more trust than five right ones earn.
+    const findings = scanSecrets([
+      { path: "lib/deep/githubScan.test.ts", content: 'const key = "AKIAIOSFODNN7EXAMPLE";' },
+      { path: "lib/security/x.test.ts", content: 'const k = "sb_secret_example_not_a_real_key";' },
+    ]);
+    expect(findings).toHaveLength(0);
+  });
+
+  it("still reports a real-looking key in a test file, one step quieter", () => {
+    // A suite that authenticates against a live sandbox needs a real key, and
+    // that key is in source control. Quieter, not silent.
+    const findings = scanSecrets([
+      { path: "lib/deep/thing.test.ts", content: `const key = "${REAL_LOOKING}";` },
+    ]);
+    expect(findings).toHaveLength(1);
+    expect(findings[0].severity).toBe("WARNING");
+    expect(findings[0].title).toContain("test file");
+  });
+
+  it("never downgrades a key in shipped code, however it is spelled", () => {
+    const findings = scanSecrets([
+      { path: "lib/deep/thing.ts", content: `const key = "${REAL_LOOKING}";` },
+    ]);
+    expect(findings[0].severity).toBe("CRITICAL");
+  });
+
+  it("reports a synthetic-looking value in shipped code — it is real code either way", () => {
+    const findings = scanSecrets([
+      { path: "app/api/x/route.ts", content: 'const k = "AKIAIOSFODNN7EXAMPLE";' },
+    ]);
+    expect(findings).toHaveLength(1);
+    expect(findings[0].severity).toBe("CRITICAL");
+  });
+
+  it("recognises the shapes of test scaffolding", () => {
+    for (const p of [
+      "lib/x.test.ts", "lib/x.spec.tsx", "__tests__/x.ts", "test/helpers.ts",
+      "tests/x.ts", "src/__mocks__/db.ts", "fixtures/repo.ts", "vitest.config.ts",
+    ]) expect(isTestPath(p)).toBe(true);
+    for (const p of [
+      "lib/scanner.ts", "app/api/scan/route.ts", "lib/latest.ts", "components/Contest.tsx",
+    ]) expect(isTestPath(p)).toBe(false);
+  });
+
+  it("treats a placeholder that spells the alphabet as the placeholder it is", () => {
+    const findings = scanSecrets([
+      { path: "lib/deep/x.test.ts", content: 'const k = "sb_secret_abcdefghijklmno";' },
+      { path: "lib/deep/y.test.ts", content: 'const k = "sb_secret_AbCdEfGhIjKlMnOp";' },
+      { path: "vitest.config.ts", content: 'SUPABASE_SERVICE_ROLE_KEY: "test-service-role-key",' },
+    ]);
+    expect(findings).toHaveLength(0);
+  });
+
+  it("does not treat a generic assignment in test scaffolding as a credential", () => {
+    // The generic pattern proves only that something was assigned to a name
+    // containing SECRET. The vendor-shaped patterns still apply here.
+    const findings = scanSecrets([
+      { path: "lib/deep/vercel.test.ts", content: 'VERCEL_CLIENT_SECRET: "client-secret-456",' },
+    ]);
+    expect(findings).toHaveLength(0);
+  });
+
+  it("does not mistake a token COUNT for a token", () => {
+    // Our own [TOKENS] efficiency log line was reported as a leaked secret.
+    const findings = scanLoggedSecrets([
+      { path: "lib/graph/narrative.ts", content: "console.log(`[TOKENS] input=${tokensIn} output=${tokensOut}`);" },
+      { path: "lib/a.ts", content: "console.log(`used ${tokens} of ${maxTokens}`);" },
+    ]);
+    expect(findings).toHaveLength(0);
+  });
+
+  it("still reports an actual token being logged", () => {
+    const findings = scanLoggedSecrets([
+      { path: "lib/b.ts", content: "console.log(`session ${accessToken}`);" },
+      { path: "lib/c.ts", content: "console.log(`refresh ${refreshToken}`);" },
+    ]);
+    expect(findings).toHaveLength(2);
+  });
+
+  it("does not report a logged secret inside a test", () => {
+    const findings = scanLoggedSecrets([
+      { path: "lib/redact.test.ts", content: "console.log(user.password);" },
+    ]);
+    expect(findings).toHaveLength(0);
   });
 });
