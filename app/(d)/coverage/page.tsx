@@ -28,20 +28,20 @@ const AREAS = [
     lead: "Your Postgres configuration, application source and live surface, re-examined on every pull request and on a fixed schedule.",
     detail: [
       "Row-level security posture per table, policy expressions that resolve to unconditional access, column-level grants held by browser-reachable roles, and the full set of Supabase advisor lints ingested rather than duplicated.",
-      "Source analysis for committed and historical credentials, dependency advisories matched against your lockfile, injection and XSS sinks, and the stack-specific failure of a service-role client reachable from a client component.",
-      "The deployed artefact itself: what your bundle ships, whether source maps are public, DNS authentication records, and whether your edge protection can be reached around.",
+      "Source analysis for committed and historical credentials, dependency advisories matched against your lockfile, injection, XSS and mass assignment sinks, server-side request forgery in outbound fetches, and the stack-specific failure of a service-role client reachable from a client component. A publishable key in the bundle is not reported — that is where it belongs; a secret one is.",
+      "The deployed artefact itself: what your bundle ships, whether source maps are public, DNS authentication records, and whether your edge protection can be reached around. Where you connect a database, configuration is read through the provider's Management API or a verified read-only role, over a transport that cannot issue a write.",
     ],
     limit:
-      "Static analysis reasons about code as written. Where a filter is applied somewhere our import graph cannot follow, we say the finding is inference and label it as such.",
+      "Static analysis reasons about code as written. Where a filter is applied somewhere our import graph cannot follow, we say the finding is inference and label it as such. Each finding carries a stable identifier across runs, so a check that flaps is not re-reported as new — and a check that could not run is recorded as not run: an absent result is never rendered as a pass.",
   },
   {
     id: "02",
     name: "Sandboxed exploitation",
     lead: "We reconstruct the component under test in an isolated environment and attack it — never your production system.",
     detail: [
-      "A throwaway arena is provisioned: either an ephemeral branch of your project carrying schema and policies but no data, or the specific table and its policies rebuilt on our own infrastructure. Two synthetic tenants are seeded into it.",
+      "A throwaway arena is provisioned: either an ephemeral branch of your project carrying schema and policies but no customer data, or the specific table and its policies rebuilt on our own infrastructure. Two synthetic tenants are seeded into it. None of your data is copied, read or moved at any point.",
       "Authenticated as the first tenant, we attempt to read the second's rows. A control query runs first — if the arena cannot return the caller's own row, the run is discarded rather than reported as clean.",
-      "Where the deterministic probe finds nothing, a reasoning agent proposes further queries. Its action space is constrained by a deterministic guard to read-only statements inside the disposable schema; every proposal, including refused ones, is recorded.",
+      "Where the deterministic probe finds nothing, a reasoning agent proposes further queries. Its action space is constrained by a deterministic guard to read-only statements inside the disposable schema; every proposal, including refused ones, is recorded. The model contributes ideas, never authority — nothing it emits is read as a permission.",
     ],
     limit:
       "We do not attack your production application, and we do not run an adversarial agent against anything you operate. Policies that depend on other tables or custom functions cannot be reconstructed faithfully, and we decline to test those rather than report an unreliable result.",

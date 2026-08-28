@@ -36,10 +36,14 @@ describe("requireProUser", () => {
     expect(singleMock).not.toHaveBeenCalled();
   });
 
-  it("returns null when the session exists but is_paid is false", async () => {
+  it("admits an unpaid account while billing is parked", async () => {
+    // The gate answers "may this account use the product", and with billing
+    // parked (lib/access.ts) that is yes for anyone signed in. The half that
+    // still matters is below: the answer comes from the database, never the
+    // session object.
     getUserMock.mockResolvedValue({ data: { user: { id: "user-1", email: "a@b.com" } } });
     singleMock.mockResolvedValue({ data: { is_paid: false } });
-    expect(await requireProUser()).toBeNull();
+    expect(await requireProUser()).toEqual({ userId: "user-1", email: "a@b.com" });
   });
 
   it("returns null when the profile row is missing entirely", async () => {
@@ -55,12 +59,13 @@ describe("requireProUser", () => {
   });
 
   it("never trusts a client-supplied paid flag — always reads DB via service role", async () => {
-    // Even if the "session" user object somehow carried an is_paid-looking
-    // field, requireProUser must ignore it and only trust the admin-client read.
+    // Even if the "session" user object carried an is_paid-looking field, the
+    // gate must ignore it. With the profile row absent the answer is no, and a
+    // truthy flag on the session cannot conjure the row into existence.
     getUserMock.mockResolvedValue({
       data: { user: { id: "user-1", email: "a@b.com", is_paid: true } },
     });
-    singleMock.mockResolvedValue({ data: { is_paid: false } });
+    singleMock.mockResolvedValue({ data: null });
     expect(await requireProUser()).toBeNull();
   });
 });

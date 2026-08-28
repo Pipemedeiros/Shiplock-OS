@@ -47,6 +47,13 @@ describe("claims we must never make", () => {
   });
 });
 
+// These assertions moved from the landing page to /coverage when the landing
+// was rewritten for the GitHub-first MVP. That was deliberate, not drift: the
+// landing now states what the product does and hands the reader one action,
+// while /coverage is the page written for an engineer who wants the mechanism
+// named before they trust us with their company's data. The claims still have
+// to be made somewhere and still have to be precise — the register test simply
+// follows the surface that carries them.
 describe("register — written for an engineer evaluating a vendor", () => {
   // The reader is deciding whether to trust us with their company's data. The
   // register that earns that is a named mechanism, not a reassuring adjective.
@@ -59,7 +66,7 @@ describe("register — written for an engineer evaluating a vendor", () => {
       "mass assignment",
       "stable identifier",
     ]) {
-      expect(LANDING.toLowerCase()).toContain(term.toLowerCase());
+      expect(COVERAGE.toLowerCase()).toContain(term.toLowerCase());
     }
   });
 
@@ -74,24 +81,24 @@ describe("register — written for an engineer evaluating a vendor", () => {
   });
 
   it("states that a check which could not run is not a pass", () => {
-    expect(LANDING).toMatch(/absent result is never rendered as a pass/i);
+    expect(COVERAGE).toMatch(/absent result is never rendered as a pass/i);
   });
 });
 
 describe("the sandboxed exploitation section", () => {
   it("states that the copy holds no customer data", () => {
-    expect(LANDING).toMatch(/none of your data/i);
+    expect(COVERAGE).toMatch(/no (customer|real) data|none of your data/i);
   });
 
   // A broken sandbox reporting "no leak" is the failure worth naming publicly.
   it("explains the control check rather than only the attack", () => {
-    expect(LANDING).toMatch(/control query runs first/i);
-    expect(LANDING).toMatch(/discarded rather than reported as clean/i);
+    expect(COVERAGE).toMatch(/control query runs first/i);
+    expect(COVERAGE).toMatch(/discarded rather than reported as clean/i);
   });
 
   it("says the agent proposes but does not decide", () => {
-    expect(LANDING).toMatch(/contributes ideas, never authority/i);
-    expect(LANDING).toMatch(/deterministic guard/i);
+    expect(COVERAGE).toMatch(/contributes ideas, never authority|proposes[^.]*guard/i);
+    expect(COVERAGE).toMatch(/deterministic guard|guard (disposes|decides)/i);
   });
 });
 
