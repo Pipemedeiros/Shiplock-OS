@@ -38,6 +38,8 @@ const { POST } = await import("./route");
 const sign = (raw: string) =>
   `sha256=${crypto.createHmac("sha256", SECRET).update(raw).digest("hex")}`;
 
+import type { NextRequest } from "next/server";
+
 function req(raw: string) {
   return new Request("https://x/api/monitor/github", {
     method: "POST",
@@ -47,7 +49,7 @@ function req(raw: string) {
       "content-type": "application/json",
     },
     body: raw,
-  });
+  }) as unknown as NextRequest;
 }
 
 const payload = JSON.stringify({
