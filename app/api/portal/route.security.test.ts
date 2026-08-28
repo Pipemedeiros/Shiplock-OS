@@ -6,7 +6,9 @@ const profileSingleMock = vi.fn();
 const profileEqMock = vi.fn();
 const createPortalMock = vi.fn();
 
-vi.mock("@/lib/stripe", () => ({ stripe: { billingPortal: { sessions: { create: createPortalMock } } } }));
+vi.mock("@/lib/stripe", () => ({
+  getStripe: () => ({ billingPortal: { sessions: { create: createPortalMock } } }),
+}));
 vi.mock("@/lib/supabase", () => ({
   getSupabaseAdmin: () => ({
     auth: { getUser: getUserMock },

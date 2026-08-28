@@ -6,7 +6,9 @@ const insertEventMock = vi.fn();
 const profileUpdateEqMock = vi.fn();
 const emailSendMock = vi.fn();
 
-vi.mock("@/lib/stripe", () => ({ stripe: { webhooks: { constructEvent: constructEventMock } } }));
+vi.mock("@/lib/stripe", () => ({
+  getStripe: () => ({ webhooks: { constructEvent: constructEventMock } }),
+}));
 vi.mock("resend", () => ({ Resend: class { emails = { send: emailSendMock }; } }));
 vi.mock("@/lib/supabase", () => ({
   getSupabaseAdmin: () => ({

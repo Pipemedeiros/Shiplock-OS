@@ -5,7 +5,9 @@ const getUserMock = vi.fn();
 const createSessionMock = vi.fn();
 const checkCheckoutRateLimitMock = vi.fn();
 
-vi.mock("@/lib/stripe", () => ({ stripe: { checkout: { sessions: { create: createSessionMock } } } }));
+vi.mock("@/lib/stripe", () => ({
+  getStripe: () => ({ checkout: { sessions: { create: createSessionMock } } }),
+}));
 vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ auth: { getUser: getUserMock } }) }));
 vi.mock("@/lib/rateLimit", () => ({ checkCheckoutRateLimit: checkCheckoutRateLimitMock }));
 
