@@ -69,10 +69,56 @@ export interface AgentOutcome extends GuardResult {
  * Only routes that touch data are described: an endpoint reaching no table
  * cannot leak one, and spending prompt on it crowds out the routes that can.
  */
+/** How many routes fit in the prompt before the token budget bites. */
+export const MAX_PROMPT_ROUTES = 60;
+
+/**
+ * Risk order, for deciding what survives truncation.
+ *
+ * The prompt holds sixty routes. A repository with more than sixty
+ * data-touching routes therefore has some that the agent never sees, and which
+ * ones were decided by the order the tar file happened to be in -- so an
+ * anonymous, unscoped route over a sensitive table could be invisible because
+ * its filename sorted late. That is silence in the direction that hides, and
+ * this repository has shipped that bug three times already.
+ *
+ * Lower score = looked at first. The ordering is the product's own threat
+ * model, in one function:
+ *   no identity at all, reading data, nothing narrowing it   — the open door
+ *   an identity, but nothing narrowing it                    — the tenant gap
+ *   everything else                                          — context
+ */
+export function routeRisk(route: RouteFact, sensitive: Set<string>): number {
+  const anonymous = !route.authenticated && !route.machineGated;
+  const unscoped = !route.ownershipFiltered;
+  const touchesSensitive = route.tables.some((t) => sensitive.has(t));
+
+  if (anonymous && unscoped && touchesSensitive) return 0;
+  if (anonymous && unscoped) return 1;
+  if (route.authenticated && unscoped && touchesSensitive) return 2;
+  if (route.authenticated && unscoped) return 3;
+  if (anonymous) return 4;
+  if (route.machineGated && unscoped) return 5;
+  return 6;
+}
+
+export function rankRoutes(routes: RouteFact[], sensitive: Set<string> = new Set()): RouteFact[] {
+  return [...routes].sort((a, b) => {
+    const byRisk = routeRisk(a, sensitive) - routeRisk(b, sensitive);
+    // Path as the tiebreak, so the same repository produces the same prompt
+    // twice. A prompt that reorders between runs makes a finding appear and
+    // disappear for no reason the customer can see.
+    return byRisk !== 0 ? byRisk : a.path.localeCompare(b.path);
+  });
+}
+
 export function buildPrompt(input: AgentInput): string {
   const interesting = input.routes.filter((r) => r.tables.length > 0);
+  const sensitive = new Set(input.domain?.sensitive ?? []);
+  const ranked = rankRoutes(interesting, sensitive);
+  const shown = ranked.slice(0, MAX_PROMPT_ROUTES);
 
-  const routeLines = interesting.slice(0, 60).map((r) => {
+  const routeLines = shown.map((r) => {
     const identity = r.machineGated ? "machine" : r.authenticated ? "user" : "anonymous";
     const scoped = r.ownershipFiltered ? "scoped" : "unscoped";
     return `${r.path} [${r.methods.join(",") || "GET"}] id=${identity} ${scoped} tables=${r.tables.join(",")} file=${r.file}`;
@@ -92,6 +138,12 @@ export function buildPrompt(input: AgentInput): string {
     "routes",
     ...routeLines,
   ].join("\n");
+}
+
+/** Routes that did not fit in the prompt, so coverage can say so out loud. */
+export function routesOmitted(input: AgentInput): number {
+  const interesting = input.routes.filter((r) => r.tables.length > 0);
+  return Math.max(0, interesting.length - MAX_PROMPT_ROUTES);
 }
 
 /** Pulls the JSON array out of a model response that may be fenced or padded. */

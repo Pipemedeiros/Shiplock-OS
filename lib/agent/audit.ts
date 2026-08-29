@@ -3,7 +3,7 @@ import { getInstallationToken } from "@/lib/deep/github";
 import { fetchRepoArchive, type ArchiveFile } from "@/lib/deep/repoArchive";
 import { scanSecrets, scanLoggedSecrets, scanTokenStorage } from "@/lib/deep/githubScan";
 import { collectRoutes, type RouteFact } from "@/lib/graph/routeInventory";
-import { proposeAttacks } from "./attack";
+import { proposeAttacks, routesOmitted } from "./attack";
 import { detectStack, type StackReport } from "./stack";
 import { buildFindings, type AgentFinding } from "./findings";
 import { extractTables, extractColumns } from "./schema";
@@ -65,6 +65,7 @@ function buildCoverage(
   truncated: boolean,
   skipped: number,
   hasDatabase: boolean,
+  routesOmittedCount = 0,
 ): CoverageNote[] {
   const notes: CoverageNote[] = [];
 
@@ -94,6 +95,17 @@ function buildCoverage(
       name: "Your authentication provider",
       why: "We did not recognise an auth library in this repository.",
       effect: "Route identity is read from the code alone, so an unrecognised guard may read as no guard.",
+    });
+  }
+
+  if (routesOmittedCount > 0) {
+    // The reasoning prompt holds a bounded number of routes. Saying so is not
+    // optional: an audit that silently reasoned over two thirds of a codebase
+    // and reported nothing looks exactly like an audit that found nothing.
+    notes.push({
+      name: `${routesOmittedCount} route${routesOmittedCount === 1 ? "" : "s"} not reasoned over`,
+      why: "More routes reach data than fit in one reasoning pass. We ranked them by exposure — no identity and nothing narrowing the query first — and reasoned over that end.",
+      effect: "The routes left out are the ones already scoped or already guarded. They are still read, and still checked for credentials and known vulnerabilities.",
     });
   }
 
@@ -250,6 +262,7 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       archive.truncated,
       archive.skipped,
       options.hasDatabase ?? false,
+      routesOmitted({ routes, stack, tables, domain, files: [] }),
     );
 
     step("Audit complete", `${findings.length} open ${findings.length === 1 ? "path" : "paths"}`);

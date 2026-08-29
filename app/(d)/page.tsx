@@ -2,6 +2,8 @@ import Link from "next/link";
 import { ArrowRight, Check } from "lucide-react";
 import { LockMark } from "@/components/d/Brand";
 import { ReasoningAnimation } from "@/components/v3/ReasoningAnimation";
+import { LayersAnimation } from "@/components/v3/LayersAnimation";
+import { AttackAnimation } from "@/components/v3/AttackAnimation";
 
 export const metadata = {
   title: "ShipLock — Security monitoring that opens the pull request",
@@ -129,6 +131,43 @@ export default function Landing() {
         </div>
       </div>
 
+
+
+      {/* ── what it actually does ────────────────────────────────────────── */}
+      <div style={{ background: "var(--sand)", borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)" }}>
+        <div className="v3-shell v3-section">
+          <div className="v3-section-hd">
+            <p className="v3-eyebrow">What it actually does</p>
+            <h2 className="v3-serif">Two halves: read everything, then prove one thing.</h2>
+            <p className="v3-sub" style={{ marginTop: 10, maxWidth: 640 }}>
+              The first half runs on your repository alone. The second is what separates a finding
+              you have to believe from one you can watch happen.
+            </p>
+          </div>
+
+          <div className="v3-grid-2" style={{ gap: 40, alignItems: "start" }}>
+            <div>
+              <h3 style={{ fontSize: 16, fontWeight: 500, marginBottom: 4 }}>
+                1 · It reads every layer, and joins them
+              </h3>
+              <p className="v3-sub" style={{ fontSize: 14, marginBottom: 18 }}>
+                One connection. None of these layers is a finding on its own — the join is.
+              </p>
+              <LayersAnimation />
+            </div>
+
+            <div>
+              <h3 style={{ fontSize: 16, fontWeight: 500, marginBottom: 4 }}>
+                2 · It attacks a copy, never your app
+              </h3>
+              <p className="v3-sub" style={{ fontSize: 14, marginBottom: 18 }}>
+                A disposable replica with synthetic tenants and none of your data.
+              </p>
+              <AttackAnimation />
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* ── evidence ─────────────────────────────────────────────────────── */}
       <div className="v3-shell v3-section" id="evidence">
