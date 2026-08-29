@@ -21,10 +21,11 @@ const SURFACE_LABEL: Record<string, string> = {
   db: "database",
   config: "database",
   traffic: "traffic",
+  runtime: "live config",
 };
 
 /** Display order, so the strip reads the same way on every finding. */
-const STRIP_ORDER: string[] = ["code", "database", "traffic", "email/DNS"];
+const STRIP_ORDER: string[] = ["code", "database", "live config", "traffic", "email/DNS"];
 
 /**
  * Build the agreement strip's layer list from a finding's stored surfaces.

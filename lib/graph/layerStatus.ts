@@ -15,7 +15,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 // never ran is the exact mistake migration 042 exists to stop us making in the
 // snapshot history.
 
-export type LayerId = "code" | "database" | "traffic" | "email-dns";
+export type LayerId = "code" | "database" | "runtime" | "traffic" | "email-dns";
 
 export interface LayerState {
   id: LayerId;
@@ -48,7 +48,7 @@ export async function getLayerStatus(userId: string): Promise<LayerStatus> {
   const { data: profile } = await admin
     .from("user_profiles")
     .select(
-      "github_installation_id, supabase_mgmt_token_encrypted, monitored_project_url, monitored_app_url"
+      "github_installation_id, supabase_mgmt_token_encrypted, monitored_project_url, monitored_app_url, vercel_access_token_encrypted"
     )
     .eq("id", userId)
     .maybeSingle();
@@ -80,6 +80,16 @@ export async function getLayerStatus(userId: string): Promise<LayerStatus> {
       // (policy text, advisors, auth config) but is not what makes it exist.
       connected: Boolean(profile?.monitored_project_url),
       unlocks: "Connect Supabase so we can read your policies, not just probe around them.",
+    },
+    {
+      id: "runtime",
+      label: "live config",
+      // A provider connection, not a snippet. Connected means we can read what
+      // the host says about itself right now, which the repository cannot show:
+      // which environment variables exist and where they are scoped.
+      connected: Boolean(profile?.vercel_access_token_encrypted),
+      unlocks:
+        "Connect your host and we can see which environment variables actually exist in production, not only the ones your code expects.",
     },
     {
       id: "traffic",

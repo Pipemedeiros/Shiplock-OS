@@ -20,7 +20,7 @@ import type { MonitoredProfile, TriggerSource } from "./types";
 export type Layer = "code" | "db" | "app-surface" | "traffic" | "runtime";
 
 /** Graph collector namespaces — constrained by migration 039's CHECK. */
-export type GraphCollector = "source" | "db" | "traffic";
+export type GraphCollector = "source" | "db" | "traffic" | "runtime";
 
 export interface CollectorContext {
   profile: MonitoredProfile;

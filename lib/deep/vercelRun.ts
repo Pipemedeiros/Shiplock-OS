@@ -1,5 +1,6 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { decrypt } from "@/lib/crypto";
+import { saveFacts } from "@/lib/graph/graphRun";
 import { listProjects, listProjectEnv } from "./vercel";
 import { auditEnv, type EnvFinding } from "./envaudit";
 
@@ -20,6 +21,9 @@ export async function runVercelEnvAudit(
 
   const projects = (await listProjects(accessToken, teamId)).slice(0, MAX_PROJECTS);
   const all: EnvFinding[] = [];
+  const graphEnvVars: { key: string; target: string[]; provider: string }[] = [];
+  let reachedAnyProject = false;
+
   for (const project of projects) {
     let envs;
     try {
@@ -27,7 +31,34 @@ export async function runVercelEnvAudit(
     } catch {
       continue; // a single unreadable project shouldn't fail the whole pass
     }
+    reachedAnyProject = true;
     all.push(...auditEnv(project.name, envs));
+
+    // Names and scopes only. A value never enters the graph, and never enters
+    // a log: "ShipLock never reads your users' data" covers their secrets too.
+    for (const env of envs) {
+      graphEnvVars.push({
+        key: env.key,
+        target: Array.isArray(env.target) ? env.target : [],
+        provider: "vercel",
+      });
+    }
+  }
+
+  // The graph half. Findings above are what Vercel alone can say; these facts
+  // are what the reasoner combines with the code half, so a variable the host
+  // reports in production can corroborate a path found in the repository.
+  //
+  // providersRead is written only when we actually reached a project. An empty
+  // list after a failed read would tell the reasoner we looked and found
+  // nothing, which is the `rulesRead` mistake on a new surface.
+  if (reachedAnyProject) {
+    await saveFacts(
+      userId,
+      "runtime",
+      { providersRead: ["vercel"], envVars: graphEnvVars },
+      { merge: true },
+    );
   }
 
   const { data: existing } = await admin

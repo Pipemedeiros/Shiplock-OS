@@ -148,6 +148,17 @@ export interface GraphInput {
    * relying on that inference.
    */
   authzProvider?: AuthzProvider;
+  /**
+   * Providers whose live configuration we actually read this pass.
+   *
+   * Absent means no runtime collector ran. Empty means one ran and reached
+   * nothing. The reasoner must never treat the first as the second: that is the
+   * same shape as `rulesRead`, and getting it wrong reads a connection we never
+   * made as a provider that reported clean.
+   */
+  runtimeProvidersRead?: string[];
+  /** Environment variables the host reports, by name and scope. Never values. */
+  runtimeEnvVars?: { key: string; target: string[]; provider: string }[];
 }
 
 export interface AuthPosture {

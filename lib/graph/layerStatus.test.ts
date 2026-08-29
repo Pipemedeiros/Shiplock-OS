@@ -68,8 +68,17 @@ describe("correlationLayers", () => {
 
   it("returns unlit layers too, because 'traffic had nothing to say' is information", () => {
     const layers = correlationLayers(["source", "db"]);
-    expect(layers).toHaveLength(4);
+    expect(layers).toHaveLength(5);
     expect(layers.find((l) => l.label === "traffic")?.agreed).toBe(false);
+    expect(layers.find((l) => l.label === "live config")?.agreed).toBe(false);
+  });
+
+  it("lights the live config layer when a runtime fact took part", () => {
+    // An unknown surface is silently filtered out of this strip, so a runtime
+    // surface with no SURFACE_LABEL entry would vanish from the display while
+    // still counting toward the two-surface rule in the reasoner.
+    const layers = correlationLayers(["source", "runtime"]);
+    expect(layers.find((l) => l.label === "live config")?.agreed).toBe(true);
   });
 
   it("keeps a stable display order across findings", () => {

@@ -130,3 +130,50 @@ describe("what survives truncation", () => {
     expect(routesOmitted({ routes: many, stack: emptyStack, tables: [], files: [] })).toBe(7);
   });
 });
+
+describe("a verified machine gate is stated, not implied", () => {
+  const stack: StackReport = { tools: [], authUnknown: false, databaseUnknown: false };
+
+  it("labels a machine-gated route as verified in the prompt", () => {
+    // Rendering this as a bare "machine" tag let the model read it as "no user
+    // session" and speculate that no signature check existed. Auditing our own
+    // repository then reported the Stripe webhook, which verifies through
+    // constructEvent, as accepting unsigned events. MACHINE_GATE_RE matched a
+    // real check in that route's code, so the prompt says so.
+    const prompt = buildPrompt({
+      routes: [
+        {
+          path: "/api/webhook", file: "app/api/webhook/route.ts", methods: ["POST"],
+          authenticated: false, machineGated: true, ownershipFiltered: false,
+          tables: ["subscribers"],
+        } as RouteFact,
+      ],
+      stack, tables: ["subscribers"], files: [],
+    });
+    expect(prompt).toContain("machine-verified");
+    expect(prompt).not.toMatch(/id=machine\s/);
+  });
+
+  it("tells the model that absence of a detail is not evidence", () => {
+    const prompt = buildPrompt({ routes: [], stack, tables: [], files: [] });
+    expect(prompt).toBeDefined();
+  });
+});
+
+describe("live facts in the prompt", () => {
+  const stack: StackReport = { tools: [], authUnknown: false, databaseUnknown: false };
+
+  it("lists each live fact with the id the model must cite", () => {
+    const prompt = buildPrompt({
+      routes: [], stack, tables: [], files: [],
+      liveFacts: [{ id: "vercel:env:STRIPE_SECRET_KEY", statement: "vercel reports it set in production" }],
+    });
+    expect(prompt).toContain("vercel:env:STRIPE_SECRET_KEY");
+    expect(prompt).toContain("live");
+  });
+
+  it("says nothing about live facts when none were collected", () => {
+    const prompt = buildPrompt({ routes: [], stack, tables: [], files: [] });
+    expect(prompt).not.toContain("live");
+  });
+});

@@ -8,6 +8,7 @@ import { detectStack, type StackReport } from "./stack";
 import { buildFindings, type AgentFinding } from "./findings";
 import { extractTables, extractColumns } from "./schema";
 import { inferDomain } from "./domain";
+import { loadLiveFacts } from "./liveFacts";
 import { openFixPullRequests } from "./autoFixPr";
 import { getOpenFindings } from "./dashboardData";
 
@@ -66,6 +67,7 @@ function buildCoverage(
   skipped: number,
   hasDatabase: boolean,
   routesOmittedCount = 0,
+  liveProvidersRead: string[] = [],
 ): CoverageNote[] {
   const notes: CoverageNote[] = [];
 
@@ -83,6 +85,16 @@ function buildCoverage(
     why: "We can see which code paths exist, not which ones anyone uses.",
     effect: "We will not close anything on the assumption that nothing reads it.",
   });
+
+  if (liveProvidersRead.length === 0) {
+    notes.push({
+      name: "Live configuration on your other services",
+      why: "No provider is connected, so we read what your code expects rather than what your host, auth provider or payment processor actually has set.",
+      effect:
+        "A setting that exists only in a provider's dashboard is outside this audit. We can say a variable is expected, not that it is scoped correctly.",
+      upgrade: "Connect a service from the Stack page",
+    });
+  }
 
   notes.push({
     name: "Values of your environment variables",
@@ -217,6 +229,20 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
     // asked "find bugs in these routes" produces a linter; a model told "rows
     // are separated by workspace_id" produces hypotheses about this customer's
     // actual risk.
+    // The live half. Facts a provider reported about itself, which the
+    // repository cannot show. Absent when nothing is connected, and absent is
+    // the honest state: the audit runs on the code alone and says so.
+    const liveFacts = await loadLiveFacts(userId);
+    if (liveFacts.length > 0) {
+      step(
+        `${liveFacts.length} live configuration fact${liveFacts.length === 1 ? "" : "s"} from your connected services`,
+        liveFacts
+          .slice(0, 3)
+          .map((f) => f.statement)
+          .join(" · "),
+      );
+    }
+
     const domain = inferDomain(tables, routes, extractColumns(archive.files));
     step(
       "Business model read from the schema",
@@ -229,6 +255,7 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       stack,
       tables,
       domain,
+      liveFacts,
       files: archive.files.map((f) => f.path),
     });
 
@@ -251,6 +278,7 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       stack,
       repositoryId,
       hasDatabase: options.hasDatabase ?? false,
+      liveFacts,
     });
 
     for (const finding of findings.filter((f) => f.severity === "CRITICAL")) {
@@ -263,6 +291,7 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       archive.skipped,
       options.hasDatabase ?? false,
       routesOmitted({ routes, stack, tables, domain, files: [] }),
+      liveFacts.length > 0 ? ["connected"] : [],
     );
 
     step("Audit complete", `${findings.length} open ${findings.length === 1 ? "path" : "paths"}`);

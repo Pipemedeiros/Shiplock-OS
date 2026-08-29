@@ -41,7 +41,7 @@ describe("judgeHypothesis", () => {
   });
 
   it("refuses a claim with no location at all", () => {
-    expect(judgeHypothesis({ ...valid, citedFiles: [] }, recon)).toEqual({ allowed: false, reason: "no file cited" });
+    expect(judgeHypothesis({ ...valid, citedFiles: [] }, recon)).toEqual({ allowed: false, reason: "no file or live fact cited" });
   });
 
   it("refuses a vulnerability class outside the taxonomy", () => {
@@ -78,5 +78,103 @@ describe("guardHypotheses", () => {
     const result = guardHypotheses("I could not find anything", recon);
     expect(result.admitted).toEqual([]);
     expect(result.rejected[0].reason).toBe("model did not return an array");
+  });
+});
+
+describe("live provider facts as a location", () => {
+  // A fact read from a provider's API has no file to cite. Before this, the
+  // guard refused every such hypothesis twice over: rule 3 demanded a file, and
+  // rule 2 demanded a route. Widening rule 3 is what lets the reasoning layer
+  // use the half of the system that is not in the repository, and it changes
+  // nothing about the invariant: every citation is still checked against what
+  // WE observed.
+  const recon = {
+    entries: new Set(["/api/invoices/[id]"]),
+    files: new Set(["app/api/invoices/[id]/route.ts"]),
+    tables: new Set(["invoices"]),
+    facts: new Set(["vercel:env:STRIPE_SECRET_KEY"]),
+  };
+
+  const base = {
+    entry: "/api/invoices/[id]",
+    attackClass: "missing_authorization",
+    title: "Unscoped invoice read",
+    consequence: "Any signed-in user can read another workspace's invoices.",
+  };
+
+  it("admits a hypothesis whose only location is a fact we collected", () => {
+    const verdict = judgeHypothesis(
+      { ...base, citedFiles: [], citedFacts: ["vercel:env:STRIPE_SECRET_KEY"] },
+      recon,
+    );
+    expect(verdict.allowed).toBe(true);
+  });
+
+  it("refuses a fact id we never observed, exactly as it refuses an invented file", () => {
+    const verdict = judgeHypothesis(
+      { ...base, citedFiles: [], citedFacts: ["clerk:signups_open"] },
+      recon,
+    );
+    expect(verdict).toEqual({
+      allowed: false,
+      reason: 'cited fact "clerk:signups_open" was not observed in this run',
+    });
+  });
+
+  it("refuses a fact citation when no facts were collected at all", () => {
+    // recon.facts absent must mean "cite nothing", never "cite anything".
+    const verdict = judgeHypothesis(
+      { ...base, citedFiles: [], citedFacts: ["vercel:env:STRIPE_SECRET_KEY"] },
+      { entries: recon.entries, files: recon.files, tables: recon.tables },
+    );
+    expect(verdict.allowed).toBe(false);
+  });
+
+  it("accepts a live fact as the entry, for a finding that has no route", () => {
+    // A credential the host ships to the browser has no route to point at.
+    // Before this, the agent could read the fact and then had nowhere to hang
+    // the finding, so a correct observation was thrown away.
+    const verdict = judgeHypothesis(
+      {
+        entry: "vercel:env:STRIPE_SECRET_KEY",
+        attackClass: "secret_exposure",
+        title: "Stripe secret key present in the browser build",
+        consequence: "Anyone loading the site can read the key and call the Stripe API as you.",
+        citedFiles: [],
+        citedFacts: ["vercel:env:STRIPE_SECRET_KEY"],
+      },
+      recon,
+    );
+    expect(verdict.allowed).toBe(true);
+  });
+
+  it("still refuses an entry that is neither a known route nor an observed fact", () => {
+    const verdict = judgeHypothesis(
+      { ...base, entry: "vercel:env:INVENTED", citedFiles: [], citedFacts: ["vercel:env:STRIPE_SECRET_KEY"] },
+      recon,
+    );
+    expect(verdict.allowed).toBe(false);
+    if (!verdict.allowed) expect(verdict.reason).toMatch(/route inventory/);
+  });
+
+  it("still refuses a hypothesis with neither a file nor a fact", () => {
+    const verdict = judgeHypothesis({ ...base, citedFiles: [], citedFacts: [] }, recon);
+    expect(verdict).toEqual({ allowed: false, reason: "no file or live fact cited" });
+  });
+
+  it("still checks files when both are cited", () => {
+    const verdict = judgeHypothesis(
+      { ...base, citedFiles: ["app/api/invented.ts"], citedFacts: ["vercel:env:STRIPE_SECRET_KEY"] },
+      recon,
+    );
+    expect(verdict.allowed).toBe(false);
+  });
+
+  it("does not accept a non-string fact id", () => {
+    const verdict = judgeHypothesis(
+      { ...base, citedFiles: [], citedFacts: [{ toString: () => "vercel:env:STRIPE_SECRET_KEY" }] as never },
+      recon,
+    );
+    expect(verdict.allowed).toBe(false);
   });
 });

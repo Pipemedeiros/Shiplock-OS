@@ -203,5 +203,20 @@ export function checkNarrative(
     };
   }
 
+  // The same rule for live provider configuration, and for the same reason. A
+  // path reasoned from code and schema alone cannot say what someone's host,
+  // auth provider or payment processor currently has configured. Without this
+  // gate the traffic-claim bug simply reappears on a newer surface, which is
+  // the failure mode this file exists to make impossible rather than unlikely.
+  const hasRuntimeEvidence = path.evidence.some((e) => e.collector === "runtime");
+  const CLAIMS_LIVE_CONFIG =
+    /\byour\s+(host|hosting|provider|dashboard|vercel|netlify|clerk|auth0|stripe)\b[^.]{0,60}\b(is|has|allows|reports|exposes|permits|set|configured)\b|\b(currently|actually)\s+(configured|set|scoped|enabled)\b|\bin\s+production\s+(it|this|that)\s+(is|has)\b/i;
+  if (!hasRuntimeEvidence && CLAIMS_LIVE_CONFIG.test(narrative)) {
+    return {
+      allowed: false,
+      reason: "claims live provider configuration, but no runtime collector contributed to this path",
+    };
+  }
+
   return { allowed: true };
 }

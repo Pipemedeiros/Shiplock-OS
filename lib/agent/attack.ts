@@ -32,11 +32,20 @@ const SONNET_ENTRY_THRESHOLD = 25;
 const SYSTEM = [
   "You are a security engineer reading an inventory of a web application.",
   "Propose where an attacker would find a way to reach data they should not.",
-  "Rules: cite only routes, files and tables present in the input. Never invent one.",
+  "Rules: cite only routes, files, tables and live fact ids present in the input. Never invent one.",
   "Prefer authorization gaps between tenants over generic advice.",
-  "Ignore anything already gated by a machine secret or signature.",
+  "id=machine means we FOUND a verified shared secret or signature check in that",
+  "route's own code, such as a Stripe constructEvent or an HMAC comparison. Never",
+  "report a machine route as missing signature or authentication verification: we",
+  "read the check. Absence of a detail in this inventory is not evidence of a",
+  "missing control, and a finding that speculates past what is listed is discarded.",
+  "entry is the route path exactly as listed under 'routes', never a file path.",
+  "Lines under 'live' are facts read from the customer's providers, each starting",
+  "with its id. To use one, put the id verbatim in citedFacts. Only a finding with",
+  "no route at all, such as a leaked credential, uses that id as its entry instead.",
+  "Copy routes and ids exactly; a shortened or reworded one is discarded.",
   "Return JSON only: an array of",
-  '{entry, attackClass, title, consequence, citedFiles[], citedTables[]}.',
+  '{entry, attackClass, title, consequence, citedFiles[], citedTables[], citedFacts[]}.',
   "attackClass is one of: missing_authorization, missing_authentication,",
   "unsigned_webhook, secret_exposure, server_boundary_crossed, injection,",
   "unsafe_redirect, mass_assignment.",
@@ -54,6 +63,15 @@ export interface AgentInput {
    * FOR rather than merely what it knows.
    */
   domain?: DomainModel;
+  /**
+   * Live provider facts observed this run, as `{ id, statement }`.
+   *
+   * These are the half of the system that is not in the repository. They enter
+   * the prompt as citable evidence and the guard checks every id the model
+   * returns against this list, so a provider fact is a location in exactly the
+   * way a file is.
+   */
+  liveFacts?: { id: string; statement: string }[];
 }
 
 export interface AgentOutcome extends GuardResult {
@@ -119,7 +137,17 @@ export function buildPrompt(input: AgentInput): string {
   const shown = ranked.slice(0, MAX_PROMPT_ROUTES);
 
   const routeLines = shown.map((r) => {
-    const identity = r.machineGated ? "machine" : r.authenticated ? "user" : "anonymous";
+    // "machine" is stated as a verified observation rather than a bare label:
+    // MACHINE_GATE_RE matched a real signature or shared-secret check in this
+    // route's code. Rendering it as a plain tag let the model read it as "no
+    // user session" and then speculate that no signature check existed, which
+    // reported our own Stripe webhook, which verifies via constructEvent, as
+    // unsigned.
+    const identity = r.machineGated
+      ? "machine-verified"
+      : r.authenticated
+        ? "user"
+        : "anonymous";
     const scoped = r.ownershipFiltered ? "scoped" : "unscoped";
     return `${r.path} [${r.methods.join(",") || "GET"}] id=${identity} ${scoped} tables=${r.tables.join(",")} file=${r.file}`;
   });
@@ -135,6 +163,12 @@ export function buildPrompt(input: AgentInput): string {
     // through, and a model that reads them last has already formed an opinion.
     ...(input.domain ? domainPromptLines(input.domain) : []),
     `tables ${input.tables.slice(0, 40).join(",")}`,
+    // Live provider facts, with the ids the model must cite to use one. Capped
+    // for the same reason routes are: prompt spent here is prompt not spent on
+    // the routes that can actually leak something.
+    ...(input.liveFacts?.length
+      ? ["live", ...input.liveFacts.slice(0, 20).map((f) => `${f.id} ${f.statement}`)]
+      : []),
     "routes",
     ...routeLines,
   ].join("\n");
@@ -171,6 +205,7 @@ export async function proposeAttacks(input: AgentInput): Promise<AgentOutcome> {
     entries: new Set(input.routes.map((r) => r.path)),
     files: new Set(input.files),
     tables: new Set(input.tables),
+    facts: new Set((input.liveFacts ?? []).map((f) => f.id)),
   };
 
   const interesting = input.routes.filter((r) => r.tables.length > 0);

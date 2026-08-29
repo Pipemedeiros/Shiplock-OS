@@ -11,6 +11,12 @@ import {
 } from "./graph";
 import { SEVERITY_RANK, vocabulary } from "./providers";
 
+// Variable names that carry a credential, and the prefixes that declare one
+// public on purpose. A NEXT_PUBLIC_ variable in the browser build is where it
+// belongs, so it is never evidence of anything.
+const PUBLIC_PREFIX = /^(NEXT_PUBLIC_|VITE_|PUBLIC_|REACT_APP_)/;
+const SECRETISH = /(SECRET|PRIVATE_KEY|SERVICE_ROLE|_TOKEN|API_KEY|PASSWORD|CREDENTIAL)/i;
+
 // The reasoner (PRODUCT-DESIGN.md §5.2). Walks the graph for paths where facts
 // from DIFFERENT surfaces combine into something none of them says alone.
 //
@@ -36,7 +42,7 @@ export interface AttackPath {
   title: string;
   consequence: string;
   /** Ordered facts that justify the conclusion, each naming its collector. */
-  evidence: { collector: "db" | "source" | "config" | "traffic"; fact: string }[];
+  evidence: { collector: "db" | "source" | "config" | "traffic" | "runtime"; fact: string }[];
   /** Higher = more exploitable. Ordering only; never shown as a score. */
   score: number;
   /** Collectors involved. Length >= 2 is enforced. */
@@ -233,6 +239,34 @@ export function findAttackPaths(input: GraphInput): AttackPath[] {
       });
       path.consequence +=
         ` We are also seeing ${busiest.suspiciousRequests} suspicious requests to ${busiest.path} in the last 48 hours. That does not mean this specific path has been used, and we are not claiming a breach — but it does mean the account-creation and login surface is under active automated attention, so this is worth doing today rather than this month.`;
+    }
+  }
+
+  // ── Runtime corroboration ────────────────────────────────────────────────
+  // A server secret that the host also exposes to the browser build. The code
+  // half cannot see this: a repository names the variable it expects, and only
+  // the host knows which environments it was scoped to. The runtime half cannot
+  // see it either, because "this variable is public" is unremarkable until you
+  // know a route reads it as a server credential.
+  //
+  // Like traffic, this raises an existing path rather than inventing one. The
+  // difference from traffic is that it is a configuration fact rather than an
+  // observation, so it raises the finding's standing as evidence rather than
+  // only its urgency.
+  const exposedServerVars = (input.runtimeEnvVars ?? []).filter(
+    (v) => !PUBLIC_PREFIX.test(v.key) && SECRETISH.test(v.key) && v.target.includes("production"),
+  );
+
+  if (exposedServerVars.length > 0 && paths.length > 0) {
+    const worst = exposedServerVars[0];
+    for (const path of paths) {
+      if (path.severity !== "CRITICAL") continue;
+      path.score += 20;
+      path.surfaces = [...new Set([...path.surfaces, "runtime"])];
+      path.evidence.push({
+        collector: "runtime",
+        fact: `${worst.provider} reports ${worst.key} present in the production environment`,
+      });
     }
   }
 

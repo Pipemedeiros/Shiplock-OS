@@ -220,3 +220,51 @@ describe("checkNarrative — traffic language is licensed by traffic evidence", 
     expect(verdict.allowed).toBe(true);
   });
 });
+
+describe("checkNarrative: live config language is licensed by runtime evidence", () => {
+  // The same rule as traffic, on the newer surface. Without it the
+  // traffic-claim bug simply reappears: a path reasoned from code and schema
+  // alone cannot say what someone's host currently has configured.
+  it("rejects a claim about the host's configuration with no runtime evidence", () => {
+    const verdict = checkNarrative(
+      {
+        narrative: "Your host is currently configured to expose this variable to the browser.",
+        citedFacts: ["public.orders has no RLS policy"],
+      },
+      path()
+    );
+    expect(verdict.allowed).toBe(false);
+    if (!verdict.allowed) expect(verdict.reason).toMatch(/runtime|live provider/);
+  });
+
+  it("allows it when a runtime collector actually contributed", () => {
+    const withRuntime = path({
+      evidence: [
+        { collector: "source", fact: "/api/orders resolves no user identity" },
+        { collector: "runtime", fact: "vercel reports STRIPE_SECRET_KEY present in production" },
+      ],
+      surfaces: ["source", "runtime"],
+    });
+    const verdict = checkNarrative(
+      {
+        narrative: "Your host reports this variable set in production, and the route reads it directly.",
+        // Cite a fact this path actually carries: the guard separately refuses
+        // a narrative citing evidence the path never collected.
+        citedFacts: ["vercel reports STRIPE_SECRET_KEY present in production"],
+      },
+      withRuntime
+    );
+    expect(verdict.allowed).toBe(true);
+  });
+
+  it("does not block ordinary prose that happens to mention production", () => {
+    const verdict = checkNarrative(
+      {
+        narrative: "This route runs in production and reads every tenant's rows.",
+        citedFacts: ["public.orders has no RLS policy"],
+      },
+      path()
+    );
+    expect(verdict.allowed).toBe(true);
+  });
+});

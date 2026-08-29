@@ -14,7 +14,7 @@ import type { TableInventory } from "@/lib/exposure/model";
 // trigger happened to fire last, and paths would appear and vanish for reasons
 // that have nothing to do with the customer's security.
 
-export type Collector = "source" | "db" | "traffic";
+export type Collector = "source" | "db" | "traffic" | "runtime";
 
 export interface SourceFacts {
   routes: RouteFact[];
@@ -53,6 +53,26 @@ export interface TrafficFacts {
 }
 
 /**
+ * Live provider configuration, read through an API rather than from the repo.
+ *
+ * `providersRead` is the load-bearing field and the reason this is not just a
+ * list. It names the providers we actually reached this pass. Without it,
+ * "we called Vercel and it reported nothing wrong" and "we never called Vercel"
+ * both arrive as an empty array, and the reasoner reads absence as good news.
+ * That is precisely the `rulesRead` bug this repository already shipped once,
+ * where a table with RLS on and policies unread reported as protected.
+ */
+export interface RuntimeFacts {
+  /** Provider ids we successfully read this pass. Presence, not emptiness. */
+  providersRead: string[];
+  /**
+   * Environment variables the host reports, by NAME and scope only. Never a
+   * value: "ShipLock never reads your users' data" covers their secrets too.
+   */
+  envVars?: { key: string; target: string[]; provider: string }[];
+}
+
+/**
  * Upsert one collector's facts. Fail-soft: never break the pass that calls it.
  *
  * `merge` exists because the `db` collector has TWO independent producers on
@@ -65,7 +85,7 @@ export interface TrafficFacts {
 export async function saveFacts(
   userId: string,
   collector: Collector,
-  facts: Partial<SourceFacts & DbFacts & TrafficFacts>,
+  facts: Partial<SourceFacts & DbFacts & TrafficFacts & RuntimeFacts>,
   options: { merge?: boolean } = {}
 ): Promise<void> {
   try {
@@ -129,6 +149,13 @@ export async function loadGraphInput(userId: string): Promise<GraphInput> {
       if (f.authzProvider) input.authzProvider = f.authzProvider;
     } else if (row.collector === "traffic") {
       input.trafficHotPaths = (row.facts as unknown as TrafficFacts).hotPaths ?? [];
+    } else if (row.collector === "runtime") {
+      const f = row.facts as unknown as RuntimeFacts;
+      // Same `!== undefined` discipline as policies above, for the same reason:
+      // an absent key means no runtime collector has ever run, an empty array
+      // means one ran and found nothing. Defaulting would erase the difference.
+      if (f.providersRead !== undefined) input.runtimeProvidersRead = f.providersRead;
+      if (f.envVars !== undefined) input.runtimeEnvVars = f.envVars;
     }
   }
   return input;

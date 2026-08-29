@@ -25,7 +25,21 @@ import type { StackReport } from "./stack";
 export type Confidence = "proven" | "corroborated" | "inferred";
 export type FixKind = "pr" | "one_click" | "manual";
 
-export type ClaimOrigin = "routes" | "imports" | "schema" | "stack" | "secrets" | "agent";
+export type ClaimOrigin =
+  | "routes"
+  | "imports"
+  | "schema"
+  | "stack"
+  | "secrets"
+  /**
+   * A provider's live configuration, read through its API rather than from the
+   * repository. This is a verified origin, so it counts toward `confidenceFrom`
+   * and can legitimately lift a finding to `corroborated`: a fact observed in
+   * the running system is stronger evidence than the same fact inferred from
+   * code, which is the entire reason for connecting a service.
+   */
+  | "live"
+  | "agent";
 
 export interface Claim {
   claim: string;
@@ -140,6 +154,12 @@ export interface BuildFindingsInput {
   stack: StackReport;
   repositoryId: string;
   hasDatabase: boolean;
+  /**
+   * Live provider facts observed this run, keyed by the id the guard checked.
+   * A hypothesis that cited one gets it back as a VERIFIED claim, because we
+   * read it from the provider rather than taking the model's word for it.
+   */
+  liveFacts?: { id: string; statement: string }[];
 }
 
 export function buildFindings(input: BuildFindingsInput): AgentFinding[] {
@@ -148,8 +168,19 @@ export function buildFindings(input: BuildFindingsInput): AgentFinding[] {
 
   for (const h of input.admitted) {
     const route = byPath.get(h.entry);
+    // A cited fact becomes a claim of its own, marked verified: we read it from
+    // the provider, so it is evidence rather than the model's assertion. This
+    // is what lets a live connection raise a finding from inferred to
+    // corroborated, which is the whole return on connecting a service.
+    const byFactId = new Map((input.liveFacts ?? []).map((f) => [f.id, f]));
+    const liveClaims: Claim[] = (h.citedFacts ?? [])
+      .map((id) => byFactId.get(id))
+      .filter((f): f is { id: string; statement: string } => Boolean(f))
+      .map((f) => ({ claim: f.statement, origin: "live" as const, verified: true }));
+
     const claims: Claim[] = [
       ...routeClaims(route, input.stack),
+      ...liveClaims,
       { claim: h.consequence, origin: "agent", verified: false },
     ];
 

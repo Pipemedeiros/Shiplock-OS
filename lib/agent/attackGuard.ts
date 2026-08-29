@@ -41,6 +41,15 @@ export interface Hypothesis {
   citedFiles: string[];
   /** Tables the model says are reachable. Every one must be in the inventory. */
   citedTables?: string[];
+  /**
+   * Live provider facts the model says support this, by stable id.
+   *
+   * A fact read from a provider's API has no file to cite: "sign-up is open" or
+   * "this variable exists in production" lives in someone else's system. This
+   * field is how such a claim gets a location, and every id is checked against
+   * the facts WE collected this run, exactly as files and tables are.
+   */
+  citedFacts?: string[];
 }
 
 /** What the agent is allowed to reason about -- collected by us, not the model. */
@@ -48,6 +57,13 @@ export interface ReconIndex {
   entries: Set<string>;
   files: Set<string>;
   tables: Set<string>;
+  /**
+   * Stable ids of live provider facts observed THIS RUN.
+   *
+   * Optional so every existing caller keeps working, and absent means the model
+   * may cite no facts at all rather than that it may cite any.
+   */
+  facts?: Set<string>;
 }
 
 export type GuardVerdict =
@@ -74,19 +90,46 @@ export function judgeHypothesis(h: Hypothesis, recon: ReconIndex): GuardVerdict 
     return { allowed: false, reason: `unknown attack class "${h.attackClass}"` };
   }
 
-  // 2 -- the entry point must be one WE inventoried. A model that invents a
-  //      route produces a finding pointing at code that does not exist.
-  if (!h.entry || !recon.entries.has(h.entry)) {
+  // 2 -- the entry point must be something WE inventoried. A model that invents
+  //      a route produces a finding pointing at code that does not exist.
+  //
+  //      A live provider fact is also a valid entry, because a whole class of
+  //      real finding has no route at all: a credential the host ships to the
+  //      browser, a bucket left public, a webhook endpoint that verifies no
+  //      signature. Refusing those meant the agent could read live facts and
+  //      then had nowhere to hang the finding, which is how a correct
+  //      observation was thrown away in testing.
+  //
+  //      The invariant is untouched: the entry is still required to be
+  //      something we observed this run, never something the model supplied.
+  const knownEntry =
+    Boolean(h.entry) && (recon.entries.has(h.entry) || (recon.facts?.has(h.entry) ?? false));
+  if (!knownEntry) {
     return { allowed: false, reason: `entry "${h.entry}" is not in the route inventory` };
   }
 
-  // 3 -- a claim with no location is an opinion. At least one real file.
-  if (!Array.isArray(h.citedFiles) || h.citedFiles.length === 0) {
-    return { allowed: false, reason: "no file cited" };
+  // 3 -- a claim with no location is an opinion. A location is a file we read
+  //      or a live fact we collected: a provider's configuration has no file,
+  //      and refusing it outright would mean the reasoning layer can never use
+  //      the half of the system that does not live in the repository.
+  //
+  //      The invariant is unchanged. Every citation is still checked against
+  //      what WE observed, and nothing the model emits becomes a fact, a
+  //      location, or a permission on its own.
+  const citedFiles = Array.isArray(h.citedFiles) ? h.citedFiles : [];
+  const citedFacts = Array.isArray(h.citedFacts) ? h.citedFacts : [];
+
+  if (citedFiles.length === 0 && citedFacts.length === 0) {
+    return { allowed: false, reason: "no file or live fact cited" };
   }
-  for (const file of h.citedFiles) {
+  for (const file of citedFiles) {
     if (typeof file !== "string" || !recon.files.has(file)) {
       return { allowed: false, reason: `cited file "${file}" was not read in this run` };
+    }
+  }
+  for (const fact of citedFacts) {
+    if (typeof fact !== "string" || !(recon.facts?.has(fact) ?? false)) {
+      return { allowed: false, reason: `cited fact "${fact}" was not observed in this run` };
     }
   }
 
