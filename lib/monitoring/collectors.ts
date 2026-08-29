@@ -102,6 +102,36 @@ export const appSurfaceCollector: CollectorSpec = {
  * HTTP API; opening a TCP session to a customer's primary database every hour is
  * a different cost profile, and policy text does not change hourly.
  */
+/**
+ * The environment variable audit, on a schedule.
+ *
+ * This collector is the reason `collectors.registration.test.ts` exists.
+ * `lib/deep/vercel.ts` and `vercelRun.ts` were written, tested and reachable
+ * only from a settings button that no page rendered, which is the fifth
+ * recorded instance in this repository of a collector that existed and was
+ * never called. Registering it is the fix; leaving it importable is not.
+ */
+export const vercelEnvCollector: CollectorSpec = {
+  id: "vercel-env",
+  layer: "runtime",
+  // Not hourly. Environment variables change when someone deploys or edits
+  // them, not minute to minute, and the hourly pass is the one with a budget.
+  eligibleTriggers: ["deploy", "scheduled_48h"],
+  timeoutMs: 30_000,
+  appliesTo: (ctx) => Boolean(ctx.profile.vercel_access_token_encrypted),
+  async run(ctx) {
+    // Self-diffing: runVercelEnvAudit owns its rows in deep_findings, so its
+    // findings must not also enter the snapshot and be diffed a second time.
+    const { runVercelEnvAudit } = await import("@/lib/deep/vercelRun");
+    await runVercelEnvAudit(
+      ctx.profile.id,
+      ctx.profile.vercel_access_token_encrypted as string,
+      ctx.profile.vercel_team_id ?? null,
+    );
+    return {};
+  },
+};
+
 export const directPostgresCollector: CollectorSpec = {
   id: "postgres-direct",
   layer: "db",
@@ -129,5 +159,6 @@ export const directPostgresCollector: CollectorSpec = {
 export const DEFAULT_COLLECTORS: readonly CollectorSpec[] = [
   supabaseScanCollector,
   directPostgresCollector,
+  vercelEnvCollector,
   appSurfaceCollector,
 ];

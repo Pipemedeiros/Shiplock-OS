@@ -1,17 +1,23 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { CONNECTION_CATEGORIES } from "@/lib/connections/categories";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Check, GitPullRequest, LockKeyhole, ShieldCheck } from "lucide-react";
 
 /**
- * Onboarding, which is one connection long.
+ * Onboarding: connect GitHub, choose repositories, see the stack we read, run
+ * the first audit.
  *
- * GitHub and nothing else. The database connection exists and is worth having
- * -- it is what makes a finding reproducible rather than inferred -- but it is
- * offered afterwards, from Settings, and never blocks a first audit. Asking for
- * a database password before showing anyone a single finding is how a security
- * tool gets abandoned in the first two minutes.
+ * GitHub is the only required connection and the audit produces real findings
+ * with nothing else. The stack step exists because reading a repository tells
+ * us what a customer runs, and showing that back is both the proof we read
+ * their code and the specific, non-generic place to offer a deeper connection.
+ *
+ * Every offer on the stack step is skippable, and a category with no connector
+ * behind it says so rather than rendering a button that opens nothing. Asking
+ * for six credentials before showing a single finding is how a security tool
+ * gets abandoned in the first two minutes.
  */
 
 interface Repo {
@@ -29,16 +35,29 @@ interface TraceStep {
   found?: boolean;
 }
 
-type Step = "connect" | "repos" | "audit";
+export interface DetectedTool {
+  id: string;
+  name: string;
+  kind: string;
+  evidence: string;
+}
+
+type Step = "connect" | "repos" | "stack" | "audit";
+
+export interface ConnectionState {
+  database: boolean;
+}
 
 export function OnboardingFlow({
   connected,
   initialRepos,
   listError,
+  connections,
 }: {
   connected: boolean;
   initialRepos: Repo[];
   listError: string | null;
+  connections: ConnectionState;
 }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>(connected ? "repos" : "connect");
@@ -95,13 +114,21 @@ export function OnboardingFlow({
                 body: JSON.stringify({ repositories: picked }),
               });
               if (!res.ok) throw new Error("Could not save your selection.");
-              setStep("audit");
+              setStep("stack");
             } catch (err) {
               setError(err instanceof Error ? err.message : "Something went wrong.");
             } finally {
               setLoading(false);
             }
           }}
+        />
+      ) : null}
+
+      {step === "stack" ? (
+        <StackStep
+          repository={picked[0]}
+          connections={connections}
+          onContinue={() => setStep("audit")}
         />
       ) : null}
 
@@ -116,6 +143,7 @@ function Stepper({ step }: { step: Step }) {
   const labels: [Step, string][] = [
     ["connect", "Connect GitHub"],
     ["repos", "Choose repositories"],
+    ["stack", "Your stack"],
     ["audit", "First audit"],
   ];
   const index = labels.findIndex(([s]) => s === step);
@@ -140,7 +168,7 @@ function Connect() {
         <h1 className="v3-serif" style={{ fontSize: 32, margin: "12px 0 10px" }}>Connect GitHub.</h1>
         <p className="v3-sub" style={{ maxWidth: 560 }}>
           Read-only on the repositories you pick. We do not ask for your database password, your auth
-          keys or your payment account — your code names what it talks to.
+          keys or your payment account. Your code names what it talks to.
         </p>
       </div>
 
@@ -261,6 +289,144 @@ function RepoPicker({
  * can disagree with it; one who cannot is being asked to take a security claim
  * on faith.
  */
+
+/**
+ * What we read out of the repository, grouped by category, with an offer to
+ * connect each one.
+ *
+ * The argument this screen has to make, in the order it makes it: we read your
+ * code, here is what it runs, and here is the part of each service that your
+ * code cannot tell us. The offer is specific because it names what we found,
+ * not a wall of tiles asking the customer to describe their own stack.
+ *
+ * Skipping is a first-class path. The audit runs on the repository alone.
+ */
+function StackStep({
+  repository,
+  connections,
+  onContinue,
+}: {
+  repository: string;
+  connections: ConnectionState;
+  onContinue: () => void;
+}) {
+  const [tools, setTools] = useState<DetectedTool[] | null>(null);
+  const [authUnknown, setAuthUnknown] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const started = useRef(false);
+
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/stack/detect", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ repository }),
+        });
+        const json = (await res.json()) as {
+          tools?: DetectedTool[];
+          authUnknown?: boolean;
+          error?: string;
+        };
+        if (!res.ok) throw new Error(json.error ?? "Could not read the repository.");
+        setTools(json.tools ?? []);
+        setAuthUnknown(Boolean(json.authUnknown));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Something went wrong.");
+      }
+    })();
+  }, [repository]);
+
+  const groups = CONNECTION_CATEGORIES.map((category) => ({
+    category,
+    found: (tools ?? []).filter((t) => category.kinds.includes(t.kind as never)),
+  })).filter((g) => g.found.length > 0);
+
+  return (
+    <div className="v3-stack">
+      <div>
+        <p className="v3-eyebrow">Your stack</p>
+        <h1 className="v3-serif" style={{ fontSize: 32, margin: "12px 0 10px" }}>
+          {tools === null ? "Reading your repository" : "This is what your code runs"}
+        </h1>
+        <p className="v3-sub" style={{ maxWidth: 580 }}>
+          The audit runs on your repository alone. Connecting a service adds its live
+          configuration, which is the part your code cannot show. Every one of these is
+          optional and you can add them later.
+        </p>
+      </div>
+
+      {error ? (
+        <div className="v3-card v3-card-p" style={{ borderColor: "var(--crit)" }}>
+          <p>{error}</p>
+          <p className="v3-small" style={{ marginTop: 6 }}>
+            The audit does not depend on this step. You can continue.
+          </p>
+        </div>
+      ) : null}
+
+      {tools === null && !error ? (
+        <div className="v3-empty">Reading the repository...</div>
+      ) : null}
+
+      {tools !== null && groups.length === 0 && !error ? (
+        <div className="v3-empty">
+          We did not recognise a database, auth provider or host in this repository. The
+          audit still runs on your code.
+        </div>
+      ) : null}
+
+      {groups.map(({ category, found }) => (
+        <div key={category.id} className="v3-tile">
+          <div className="v3-between" style={{ alignItems: "flex-start" }}>
+            <div style={{ minWidth: 0 }}>
+              <strong style={{ fontWeight: 500, fontSize: 14.5 }}>{category.label}</strong>
+              <p className="v3-small" style={{ marginTop: 3 }}>
+                {found.map((t) => t.name).join(", ")}
+              </p>
+            </div>
+            {category.id === "database" && connections.database ? (
+              <span className="v3-tag ok">Connected</span>
+            ) : category.connect ? (
+              <a href={category.connect} className="v3-btn v3-btn-sm v3-ghost">
+                Connect
+              </a>
+            ) : (
+              <span className="v3-tag">Reading code only</span>
+            )}
+          </div>
+          <p className="v3-sub" style={{ fontSize: 13, marginTop: 10 }}>
+            {category.connect || (category.id === "database" && connections.database)
+              ? category.adds
+              : `Live checks for this are not available yet. ${category.adds}`}
+          </p>
+          <p className="v3-file" style={{ marginTop: 8 }}>{found[0].evidence}</p>
+        </div>
+      ))}
+
+      {authUnknown && tools !== null ? (
+        <div className="v3-card v3-card-warn v3-card-p">
+          <p style={{ fontWeight: 500, fontSize: 14 }}>No auth provider recognised</p>
+          <p className="v3-sub" style={{ fontSize: 13.5, marginTop: 6 }}>
+            Your code may handle sign-in itself, which is common. Findings that depend on
+            who is calling stay inferred, because we cannot tell an unguarded route from
+            one protected by something we do not recognise.
+          </p>
+        </div>
+      ) : null}
+
+      <div className="v3-row">
+        <button className="v3-btn v3-primary" onClick={onContinue}>
+          Run the first audit <ArrowRight size={15} />
+        </button>
+        <span className="v3-small">Connections are optional. You can add them from Settings.</span>
+      </div>
+    </div>
+  );
+}
+
 function FirstAudit({ repository, onDone }: { repository: string | undefined; onDone: () => void }) {
   const [trace, setTrace] = useState<TraceStep[]>([]);
   const [status, setStatus] = useState<"running" | "done" | "failed">("running");

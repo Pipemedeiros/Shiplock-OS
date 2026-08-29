@@ -10,7 +10,7 @@ import { LockMark } from "@/components/d/Brand";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Security posture report — ShipLock Verified",
+  title: "Security posture report, ShipLock Verified",
   description: "A continuously-monitored security posture attestation by ShipLock.",
   robots: { index: false }, // per-customer report, not for search indexes
 };
@@ -34,7 +34,7 @@ function Stat({ label, value, good }: { label: string; value: string; good?: boo
 function ReportBody({ report }: { report: VerifiedReport }) {
   const verified = report.status === "verified";
   const fmt = (d: string | null) =>
-    d ? new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "—";
+    d ? new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "Not recorded";
 
   return (
     <div className="dxd-shell" style={{ maxWidth: 760, margin: "0 auto", padding: "48px 20px 64px" }}>
@@ -78,10 +78,10 @@ function ReportBody({ report }: { report: VerifiedReport }) {
         <Stat label="Checks passing" value={`${report.checksPassing} / ${report.totalChecks}`} good={report.checksPassing === report.totalChecks} />
         <Stat label="Open critical issues" value={String(report.openCriticalCount)} good={report.openCriticalCount === 0} />
         <Stat label="Issues resolved" value={String(report.issuesResolved)} />
-        <Stat label="Traffic protection" value={report.trafficProtection ? "Active" : "—"} good={report.trafficProtection} />
+        <Stat label="Traffic protection" value={report.trafficProtection ? "Active" : "Not active"} good={report.trafficProtection} />
         <Stat
           label="Session signing"
-          value={report.sessionSigning === "asymmetric" ? "Asymmetric" : report.sessionSigning === "legacy" ? "Legacy" : "—"}
+          value={report.sessionSigning === "asymmetric" ? "Asymmetric" : report.sessionSigning === "legacy" ? "Legacy" : "Not checked"}
           good={report.sessionSigning === "asymmetric"}
         />
         <Stat label="Monitoring" value={report.monitored ? "Live" : "Off"} good={report.monitored} />
@@ -118,7 +118,7 @@ function ReportBody({ report }: { report: VerifiedReport }) {
 
       {/* Scope of what this page asserts, stated to the READER rather than to
           the customer. A disclaimer living in our terms binds the customer who
-          agreed to them, not the investor or buyer relying on this page — and
+          agreed to them, not the investor or buyer relying on this page, and
           reliance by a non-expert on a specialist's public assertion is
           precisely the negligent-misrepresentation fact pattern. So it says so
           here, where the relying party actually sees it. See LEGAL-MEMO.md §2. */}
@@ -140,7 +140,7 @@ function ReportBody({ report }: { report: VerifiedReport }) {
           This page reports that a project is connected to ShipLock, which automated checks we
           run, and when they last ran. It is <strong>not</strong> a security certification, an
           audit opinion, a penetration test, or a compliance attestation, and it does not state
-          that this application is secure or free of vulnerabilities — no automated tool can
+          that this application is secure or free of vulnerabilities. No automated tool can
           establish that. It is published by the project&apos;s owner for information only.
           ShipLock accepts no liability to any reader for decisions taken in reliance on it.
         </p>

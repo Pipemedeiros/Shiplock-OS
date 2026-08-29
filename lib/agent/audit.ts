@@ -104,7 +104,7 @@ function buildCoverage(
     // and reported nothing looks exactly like an audit that found nothing.
     notes.push({
       name: `${routesOmittedCount} route${routesOmittedCount === 1 ? "" : "s"} not reasoned over`,
-      why: "More routes reach data than fit in one reasoning pass. We ranked them by exposure — no identity and nothing narrowing the query first — and reasoned over that end.",
+      why: "More routes reach data than fit in one reasoning pass. We ranked them by exposure, putting routes with no identity and nothing narrowing the query first, and reasoned over that end.",
       effect: "The routes left out are the ones already scoped or already guarded. They are still read, and still checked for credentials and known vulnerabilities.",
     });
   }

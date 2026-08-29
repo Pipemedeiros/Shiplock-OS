@@ -33,7 +33,7 @@ interface Beat {
 const BEATS: Beat[] = [
   { kind: "setup", label: "Disposable copy built", detail: "your table and its rules, none of your data" },
   { kind: "setup", label: "Two synthetic tenants seeded", detail: "rows we invented, so nothing real is at risk" },
-  { kind: "control", label: "Signed in as tenant A, read A", detail: "1 row — the copy is trustworthy" },
+  { kind: "control", label: "Signed in as tenant A, read A", detail: "1 row returned, so the copy is trustworthy" },
   { kind: "attack", label: "Signed in as tenant A, read B", detail: "the query a real attacker would send" },
 ];
 
@@ -86,7 +86,7 @@ export function AttackAnimation() {
 
       <div className={`v3-attack-out${proven ? " on" : ""}`} aria-live="polite">
         <p>
-          <b>1 row returned that should not exist.</b> The leak is reproduced, not inferred — and the
+          <b>1 row returned that should not exist.</b> The leak is reproduced rather than inferred, and the
           fix is re-run against the same copy before it reaches you.
         </p>
         <span className="v3-small">Reproduction needs your database connected. Reading the code does not.</span>

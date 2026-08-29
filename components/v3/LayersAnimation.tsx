@@ -12,9 +12,10 @@ import { useEffect, useRef, useState } from "react";
  * breach, and that is why the product reads four layers out of one repository
  * instead of running four scanners that each report separately.
  *
- * Every layer here is collected from GitHub alone. Nothing on this diagram
- * requires a second connection, because the claim it is making is precisely
- * that a second connection is not required.
+ * Every layer here is collected from GitHub alone, which is the point: the
+ * audit runs and finds real paths on one connection. Connecting a service adds
+ * its live configuration on top, and that is what turns an inferred finding
+ * into a verified one. One connection to start, not one connection forever.
  */
 
 interface Layer {

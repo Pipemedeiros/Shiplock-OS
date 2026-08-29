@@ -168,3 +168,52 @@ describe("the exploitation animation", () => {
     expect(ANIM).not.toMatch(/"use client"|useState|useEffect/);
   });
 });
+
+describe("the owner's voice rules", () => {
+  // Owner instruction, 2026-08-29: no dashes anywhere a customer reads, and
+  // nothing that reads as generated text. Enforced here rather than fixed once,
+  // because copy drifts back under editing and a dash is the single most
+  // reliable tell in this codebase.
+  //
+  // Comment lines are excluded: they are written for whoever maintains this,
+  // not for a customer.
+  const customerLines = (src: string) =>
+    src
+      .split("\n")
+      .filter((line) => {
+        const t = line.trimStart();
+        return !t.startsWith("//") && !t.startsWith("*") && !t.startsWith("/*");
+      });
+
+  const SURFACES: [string, string][] = [
+    ["landing", LANDING],
+    ["coverage", COVERAGE],
+    ["onboarding", read("components/v3/OnboardingFlow.tsx")],
+    ["stack", read("app/(d)/dashboard/stack/page.tsx")],
+    ["pull requests", read("app/(d)/dashboard/prs/page.tsx")],
+    ["overview", read("app/(d)/dashboard/page.tsx")],
+    ["categories", read("lib/connections/categories.ts")],
+  ];
+
+  it("uses no em dash or en dash in anything a customer reads", () => {
+    for (const [name, src] of SURFACES) {
+      const offending = customerLines(src).filter((line) => /[\u2014\u2013]/.test(line));
+      expect(offending, `${name} has a dash: ${offending[0] ?? ""}`).toEqual([]);
+    }
+  });
+
+  it("uses no dash as a pause", () => {
+    for (const [name, src] of SURFACES) {
+      const offending = customerLines(src).filter((line) => / - [a-z]/.test(line));
+      expect(offending, `${name} uses a spaced hyphen: ${offending[0] ?? ""}`).toEqual([]);
+    }
+  });
+
+  it("avoids the vocabulary that reads as generated", () => {
+    const tells =
+      /\b(seamless(ly)?|effortless(ly)?|empower|elevate|cutting.edge|game.chang\w*|delve|robust solution|comprehensive suite|in today's|ever.evolving)\b/i;
+    for (const [name, src] of SURFACES) {
+      expect(src, name).not.toMatch(tells);
+    }
+  });
+});

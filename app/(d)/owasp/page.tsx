@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "OWASP Top 10 for AI-built apps",
   description:
-    "The OWASP Top 10:2025, mapped honestly to what an external scanner can and cannot check — including the categories no tool can automate and what to ask instead.",
+    "The OWASP Top 10:2025, mapped honestly to what an external scanner can and cannot check, including the categories no tool can automate and what to ask instead.",
 };
 
 
@@ -23,44 +23,44 @@ const CATEGORIES = [
   {
     id: "A01",
     name: "Broken Access Control",
-    body: "Someone can see or change data they shouldn't be able to reach — a stranger reading another user's rows, or an anonymous request hitting an endpoint that should require login. In an AI-written app this is almost always a table with Row Level Security left off, or off by default.",
+    body: "Someone can see or change data they shouldn't be able to reach, a stranger reading another user's rows, or an anonymous request hitting an endpoint that should require login. In an AI-written app this is almost always a table with Row Level Security left off, or off by default.",
     coverage:
       "This is the category ShipLock is built around. Covered directly: row-level security, unauthenticated table access, IDOR on user data, auth admin endpoint exposure, and public storage buckets.",
   },
   {
     id: "A02",
     name: "Security Misconfiguration",
-    body: "Settings shipped at their insecure defaults and never revisited — wildcard CORS, no HTTPS redirect, verbose error pages, missing security headers. Nothing was \"hacked\"; nobody ever changed the setting.",
+    body: "Settings shipped at their insecure defaults and never revisited, wildcard CORS, no HTTPS redirect, verbose error pages, missing security headers. Nothing was \"hacked\"; nobody ever changed the setting.",
     coverage:
       "Covered directly: CORS wildcard policy, HTTPS enforcement, bot-protection headers, secrets & .env exposure, service-role key exposure.",
   },
   {
     id: "A03",
     name: "Software Supply Chain Failures",
-    body: "A dependency you pulled in — sometimes one an AI coding tool invented or mis-typed — turns out to be malicious, compromised, or simply doesn't exist and is sitting there waiting for someone to register it. See our incidents page for a real 2025 npm worm that spread exactly this way.",
+    body: "A dependency you pulled in, sometimes one an AI coding tool invented or mis-typed, turns out to be malicious, compromised, or simply doesn't exist and is sitting there waiting for someone to register it. See our incidents page for a real 2025 npm worm that spread exactly this way.",
     coverage:
-      "Partial: we flag invented or suspiciously new dependencies — the failure mode behind AI-hallucinated package names — but this needs your app's live URL, which is optional on the scan form. Known-CVE matching against your installed versions requires source access; connect GitHub and that comes with it.",
+      "Partial: we flag invented or suspiciously new dependencies, the failure mode behind AI-hallucinated package names, but this needs your app's live URL, which is optional on the scan form. Known-CVE matching against your installed versions requires source access; connect GitHub and that comes with it.",
   },
   {
     id: "A04",
     name: "Cryptographic Failures",
-    body: "Sensitive data transmitted or stored without adequate encryption — plaintext traffic, weak key management, secrets that aren't actually secret.",
+    body: "Sensitive data transmitted or stored without adequate encryption, plaintext traffic, weak key management, secrets that aren't actually secret.",
     coverage:
-      "Partial: our HTTPS enforcement check covers encryption in transit. We don't assess encryption at rest or key-management practices — your database host manages that layer internally, outside what we can see from a read-only connection.",
+      "Partial: our HTTPS enforcement check covers encryption in transit. We don't assess encryption at rest or key-management practices, your database host manages that layer internally, outside what we can see from a read-only connection.",
   },
   {
     id: "A05",
     name: "Injection",
-    body: "Crafted input reaches a query or command in a way the developer didn't intend — the classic SQL injection, plus its modern variants.",
+    body: "Crafted input reaches a query or command in a way the developer didn't intend, the classic SQL injection, plus its modern variants.",
     coverage:
       "Partial: we test your endpoints for the signals that indicate injection is reachable, and our source scan covers SQL, command, path, and redirect injection in your own code. It's strong coverage of the common shapes, not exhaustive fuzzing of every endpoint and parameter.",
   },
   {
     id: "A06",
     name: "Insecure Design",
-    body: "The vulnerability isn't a bug — it's the architecture. Missing threat modeling, a business-logic flow that was never designed with abuse in mind.",
+    body: "The vulnerability isn't a bug, it's the architecture. Missing threat modeling, a business-logic flow that was never designed with abuse in mind.",
     coverage:
-      "Not covered. This is exactly the kind of thing a real audit's methodology catches and an automated external scan structurally can't — no check here today, and we're not going to pretend otherwise.",
+      "Not covered. This is exactly the kind of thing a real audit's methodology catches and an automated external scan structurally can't, no check here today, and we're not going to pretend otherwise.",
   },
   {
     id: "A07",
@@ -74,12 +74,12 @@ const CATEGORIES = [
     name: "Software or Data Integrity Failures",
     body: "Unsigned or unverified updates, a compromised build pipeline, deserializing data from a source you shouldn't trust.",
     coverage:
-      "Partially covered once you connect GitHub: our source scan flags vulnerable and outdated dependencies — the software-supply-chain slice of this category. Deeper build-pipeline integrity (unsigned updates, insecure deserialization) is beyond the current scan.",
+      "Partially covered once you connect GitHub: our source scan flags vulnerable and outdated dependencies, the software-supply-chain slice of this category. Deeper build-pipeline integrity (unsigned updates, insecure deserialization) is beyond the current scan.",
   },
   {
     id: "A09",
     name: "Security Logging and Alerting Failures",
-    body: "An incident happens and nobody finds out — no logs, no alerting, no one watching.",
+    body: "An incident happens and nobody finds out, no logs, no alerting, no one watching.",
     coverage:
       "We don't scan whether your own app logs correctly. But this is the category our continuous-monitoring product exists to backstop for you specifically: every pull request re-audited, an hourly critical-check pass, a deep audit every 48 hours, and alerts the moment something new appears.",
   },
@@ -102,16 +102,16 @@ const NOT_SCANNABLE = [
   {
     surface: "Business logic (A06 · Insecure Design)",
     intro:
-      "No scanner can read your intent — only a human, or an AI agent walked through your actual flows, can. For every flow that touches money, auth, or another user's data, paste this to your coding agent:",
+      "No scanner can read your intent, only a human, or an AI agent walked through your actual flows, can. For every flow that touches money, auth, or another user's data, paste this to your coding agent:",
     prompt:
       "Walk through [flow name] end to end. For each step: what happens if this request arrives twice? Out of order? From a user who shouldn't be able to reach this step yet? Does the server ever trust a price, role, quantity, or user ID that the client sent, instead of computing or verifying it server-side?",
   },
   {
     surface: "Build & deploy integrity (A08)",
     intro:
-      "This is about whether what ships is what you reviewed — not a database question, a pipeline one:",
+      "This is about whether what ships is what you reviewed, not a database question, a pipeline one:",
     prompt:
-      "Review my deploy setup: is there a lockfile committed and enforced (not just present)? Does main auto-deploy without any review step? For every webhook receiver in this codebase (Stripe, GitHub, etc.), confirm the signature is actually verified before the payload is trusted — list any that aren't.",
+      "Review my deploy setup: is there a lockfile committed and enforced (not just present)? Does main auto-deploy without any review step? For every webhook receiver in this codebase (Stripe, GitHub, etc.), confirm the signature is actually verified before the payload is trusted, list any that aren't.",
   },
   {
     surface: "Logging & alerting (A09)",
@@ -151,7 +151,7 @@ export default function OwaspPage() {
               <p className="dxd-lede">
                 OWASP is the industry-standard list of the ten risk categories that cause the
                 most real-world application breaches. This page explains each one for people who
-                didn&apos;t write their own backend by hand — what it means, what it looks like in
+                didn&apos;t write their own backend by hand, what it means, what it looks like in
                 an app whose code was largely AI-written, and, honestly, which of our 16 checks
                 actually cover it today and which don&apos;t yet.
               </p>
@@ -171,7 +171,7 @@ export default function OwaspPage() {
                     <h3>{c.name}</h3>
                     <p>{c.body}</p>
                     <p className="dxd-keynote" style={{ marginTop: 8 }}>
-                      ShipLock coverage — {c.coverage}
+                      ShipLock coverage, {c.coverage}
                     </p>
                   </div>
                 </div>
@@ -183,10 +183,10 @@ export default function OwaspPage() {
         <section className="dxd-section" id="not-scannable">
           <Reveal>
             <p className="dxd-eyebrow">Honest about the gap</p>
-            <h2 className="dxd-h2">What we can&apos;t scan — and what to ask instead.</h2>
+            <h2 className="dxd-h2">What we can&apos;t scan, and what to ask instead.</h2>
             <p className="dxd-lede" style={{ marginBottom: 8 }}>
               A handful of the categories above have no real automated check behind them, by
-              nature — business logic, deploy integrity, and whether anyone would notice if
+              nature, business logic, deploy integrity, and whether anyone would notice if
               something went wrong are judgment calls, not configuration flags. We&apos;d rather
               hand you the questions than pretend we already ask them for you.
             </p>
@@ -211,8 +211,8 @@ export default function OwaspPage() {
             <p className="dxd-eyebrow">Want the honest scan</p>
             <h2 className="dxd-h2">See exactly what these look like in your app.</h2>
             <p className="dxd-lede">
-              ShipLock runs 16 real checks against your live app and the database behind it —
-              no invented categories, no vague grades.
+              ShipLock runs 16 real checks against your live app and the database behind it.
+              No invented categories, no vague grades.
             </p>
             <div style={{ marginTop: 20 }}>
               <Link href="/#pricing" className="dxd-btn dxd-btn-paper">

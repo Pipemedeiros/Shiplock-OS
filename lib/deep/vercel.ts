@@ -14,6 +14,26 @@ function teamQs(teamId: string | null | undefined, extra = ""): string {
   return parts.length ? `?${parts.join("&")}` : "";
 }
 
+/**
+ * Whether the Vercel connector can be offered at all.
+ *
+ * A connect button that links to a marketplace page which does not exist is the
+ * fake affordance this product refuses to ship, so the UI hides the offer
+ * entirely when these are unset rather than rendering a dead link.
+ */
+export function isVercelConfigured(): boolean {
+  return Boolean(
+    process.env.VERCEL_CLIENT_ID &&
+      process.env.VERCEL_CLIENT_SECRET &&
+      process.env.VERCEL_INTEGRATION_SLUG,
+  );
+}
+
+/** Where a customer installs the integration. Vercel owns this flow. */
+export function vercelInstallUrl(): string {
+  return `https://vercel.com/integrations/${process.env.VERCEL_INTEGRATION_SLUG}/new`;
+}
+
 export interface VercelToken {
   accessToken: string;
   teamId: string | null;

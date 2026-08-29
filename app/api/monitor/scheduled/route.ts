@@ -37,7 +37,10 @@ export async function GET(req: NextRequest) {
   const { data: profiles, error } = await admin
     .from("user_profiles")
     .select(
-      "id, email, monitored_project_url, monitored_anon_key_encrypted, monitored_app_url, postgres_dsn_encrypted, last_monitored_at"
+      // vercel_* is selected because vercelEnvCollector.appliesTo reads it. A
+      // collector gated on a column this query does not select never runs, and
+      // never says why.
+      "id, email, monitored_project_url, monitored_anon_key_encrypted, monitored_app_url, postgres_dsn_encrypted, vercel_access_token_encrypted, vercel_team_id, last_monitored_at"
     )
     .eq("monitoring_enabled", true)
     .not("monitored_project_url", "is", null)

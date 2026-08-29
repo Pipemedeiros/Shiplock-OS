@@ -23,6 +23,9 @@ const envSchema = z.object({
   // they must stay optional here so app startup isn't blocked on them.
   VERCEL_CLIENT_ID: optionalSecret,
   VERCEL_CLIENT_SECRET: optionalSecret,
+  // The marketplace slug, used to build the install URL. Without it the
+  // connector hides itself rather than linking somewhere that 404s.
+  VERCEL_INTEGRATION_SLUG: optionalSecret,
   // Optional: the Supabase OAuth app (read-only Management API access, which
   // powers the RLS policy detector) may not be registered yet. The UI hides
   // the connection entirely until both are set — see

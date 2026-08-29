@@ -19,7 +19,15 @@ import type { ArchiveFile } from "@/lib/deep/repoArchive";
  * an empty result that reads as "there is nothing here".
  */
 
-export type StackKind = "auth" | "database" | "payments" | "storage" | "email" | "hosting" | "framework";
+export type StackKind =
+  | "auth"
+  | "database"
+  | "payments"
+  | "storage"
+  | "email"
+  | "hosting"
+  | "ai"
+  | "framework";
 
 export interface StackTool {
   id: string;
@@ -41,6 +49,16 @@ interface Signature {
   importPatterns?: RegExp;
   /** Environment variable names that give the tool away in .env.example. */
   envPatterns?: RegExp;
+  /**
+   * Config files whose mere presence names the tool.
+   *
+   * Hosting is the category that needs this. A repository deployed on Vercel
+   * usually imports no Vercel package and sets no VERCEL_ variable of its own,
+   * because the platform injects them at build time. `vercel.json` is often the
+   * only thing in the repository that says so, and without this signal hosting
+   * reads as unknown on an app that plainly has a host.
+   */
+  configFiles?: string[];
 }
 
 const SIGNATURES: Signature[] = [
@@ -52,6 +70,12 @@ const SIGNATURES: Signature[] = [
   { id: "auth0", name: "Auth0", kind: "auth", packages: ["@auth0/nextjs-auth0", "auth0"], envPatterns: /AUTH0_[A-Z_]+/ },
   { id: "lucia", name: "Lucia", kind: "auth", packages: ["lucia"] },
   { id: "workos", name: "WorkOS", kind: "auth", packages: ["@workos-inc/node"] },
+  { id: "firebase-auth", name: "Firebase Auth", kind: "auth", packages: ["firebase/auth"], importPatterns: /firebase\/auth|getAuth\(/ },
+  { id: "cognito", name: "AWS Cognito", kind: "auth", packages: ["@aws-sdk/client-cognito-identity-provider", "amazon-cognito-identity-js"], envPatterns: /COGNITO_[A-Z_]+/ },
+  { id: "okta", name: "Okta", kind: "auth", packages: ["@okta/okta-auth-js", "@okta/okta-sdk-nodejs"], envPatterns: /OKTA_[A-Z_]+/ },
+  { id: "keycloak", name: "Keycloak", kind: "auth", packages: ["keycloak-js", "keycloak-connect"], envPatterns: /KEYCLOAK_[A-Z_]+/ },
+  { id: "stytch", name: "Stytch", kind: "auth", packages: ["stytch", "@stytch/nextjs"], envPatterns: /STYTCH_[A-Z_]+/ },
+  { id: "kinde", name: "Kinde", kind: "auth", packages: ["@kinde-oss/kinde-auth-nextjs"], envPatterns: /KINDE_[A-Z_]+/ },
 
   // ── database ────────────────────────────────────────────────────────────
   { id: "supabase", name: "Supabase", kind: "database", packages: ["@supabase/supabase-js"], envPatterns: /SUPABASE_[A-Z_]+/ },
@@ -61,22 +85,36 @@ const SIGNATURES: Signature[] = [
   { id: "mongo", name: "MongoDB", kind: "database", packages: ["mongodb", "mongoose"], envPatterns: /MONGO(DB)?_(URI|URL)/ },
   { id: "planetscale", name: "PlanetScale", kind: "database", packages: ["@planetscale/database"] },
   { id: "firebase", name: "Firebase", kind: "database", packages: ["firebase", "firebase-admin"] },
+  { id: "redis", name: "Redis", kind: "database", packages: ["redis", "ioredis", "@upstash/redis"], envPatterns: /REDIS_(URL|HOST|PASSWORD)|UPSTASH_REDIS_[A-Z_]+/ },
+  { id: "mysql", name: "MySQL", kind: "database", packages: ["mysql", "mysql2"], envPatterns: /MYSQL_[A-Z_]+/ },
+  { id: "sqlite", name: "SQLite", kind: "database", packages: ["better-sqlite3", "sqlite3", "@libsql/client"], envPatterns: /(TURSO|LIBSQL)_[A-Z_]+/ },
+  { id: "convex", name: "Convex", kind: "database", packages: ["convex"], envPatterns: /CONVEX_[A-Z_]+/ },
+  { id: "dynamodb", name: "DynamoDB", kind: "database", packages: ["@aws-sdk/client-dynamodb", "@aws-sdk/lib-dynamodb"] },
 
   // ── payments ────────────────────────────────────────────────────────────
   { id: "stripe", name: "Stripe", kind: "payments", packages: ["stripe", "@stripe/stripe-js"], envPatterns: /STRIPE_[A-Z_]+/ },
   { id: "paddle", name: "Paddle", kind: "payments", packages: ["@paddle/paddle-node-sdk"] },
   { id: "lemonsqueezy", name: "Lemon Squeezy", kind: "payments", packages: ["@lemonsqueezy/lemonsqueezy.js"] },
+  { id: "polar", name: "Polar", kind: "payments", packages: ["@polar-sh/sdk"], envPatterns: /POLAR_[A-Z_]+/ },
+  { id: "paypal", name: "PayPal", kind: "payments", packages: ["@paypal/checkout-server-sdk", "@paypal/react-paypal-js"], envPatterns: /PAYPAL_[A-Z_]+/ },
+  { id: "razorpay", name: "Razorpay", kind: "payments", packages: ["razorpay"], envPatterns: /RAZORPAY_[A-Z_]+/ },
 
   // ── storage ─────────────────────────────────────────────────────────────
   { id: "s3", name: "Amazon S3", kind: "storage", packages: ["@aws-sdk/client-s3", "aws-sdk"], envPatterns: /AWS_(ACCESS|SECRET|S3)_[A-Z_]+/ },
   { id: "uploadthing", name: "UploadThing", kind: "storage", packages: ["uploadthing", "@uploadthing/react"] },
   { id: "cloudinary", name: "Cloudinary", kind: "storage", packages: ["cloudinary"] },
   { id: "r2", name: "Cloudflare R2", kind: "storage", packages: [], envPatterns: /R2_(ACCOUNT|ACCESS|SECRET)_[A-Z_]+/ },
+  { id: "gcs", name: "Google Cloud Storage", kind: "storage", packages: ["@google-cloud/storage"] },
+  { id: "azure-blob", name: "Azure Blob Storage", kind: "storage", packages: ["@azure/storage-blob"] },
 
   // ── email ───────────────────────────────────────────────────────────────
   { id: "resend", name: "Resend", kind: "email", packages: ["resend"], envPatterns: /RESEND_[A-Z_]+/ },
   { id: "sendgrid", name: "SendGrid", kind: "email", packages: ["@sendgrid/mail"] },
   { id: "postmark", name: "Postmark", kind: "email", packages: ["postmark"] },
+  { id: "ses", name: "Amazon SES", kind: "email", packages: ["@aws-sdk/client-ses", "@aws-sdk/client-sesv2"] },
+  { id: "mailgun", name: "Mailgun", kind: "email", packages: ["mailgun.js", "mailgun-js"], envPatterns: /MAILGUN_[A-Z_]+/ },
+  { id: "loops", name: "Loops", kind: "email", packages: ["loops"], envPatterns: /LOOPS_[A-Z_]+/ },
+  { id: "nodemailer", name: "Nodemailer", kind: "email", packages: ["nodemailer"], envPatterns: /SMTP_[A-Z_]+/ },
 
   // ── framework and hosting ───────────────────────────────────────────────
   { id: "next", name: "Next.js", kind: "framework", packages: ["next"] },
@@ -84,7 +122,26 @@ const SIGNATURES: Signature[] = [
   { id: "express", name: "Express", kind: "framework", packages: ["express"] },
   { id: "fastify", name: "Fastify", kind: "framework", packages: ["fastify"] },
   { id: "nest", name: "NestJS", kind: "framework", packages: ["@nestjs/core"] },
-  { id: "vercel", name: "Vercel", kind: "hosting", packages: ["@vercel/analytics", "@vercel/blob"] },
+  { id: "vercel", name: "Vercel", kind: "hosting", packages: ["@vercel/analytics", "@vercel/blob", "@vercel/kv", "@vercel/postgres"], envPatterns: /VERCEL_[A-Z_]+/, configFiles: ["vercel.json", ".vercel/project.json"] },
+  { id: "cloudflare", name: "Cloudflare", kind: "hosting", packages: ["wrangler", "@cloudflare/workers-types", "@cloudflare/next-on-pages"], envPatterns: /CLOUDFLARE_[A-Z_]+|CF_(API|ACCOUNT)_[A-Z_]+/, configFiles: ["wrangler.toml", "wrangler.jsonc", "wrangler.json"] },
+  { id: "aws", name: "AWS", kind: "hosting", packages: ["aws-cdk-lib", "@aws-sdk/client-lambda", "serverless"], envPatterns: /AWS_(REGION|LAMBDA|EXECUTION)_[A-Z_]*/, configFiles: ["serverless.yml", "template.yaml", "samconfig.toml"] },
+  { id: "gcp", name: "Google Cloud", kind: "hosting", packages: ["@google-cloud/functions-framework", "@google-cloud/run"], envPatterns: /(GCLOUD|GOOGLE_CLOUD)_[A-Z_]+/, configFiles: ["app.yaml", "cloudbuild.yaml"] },
+  { id: "netlify", name: "Netlify", kind: "hosting", packages: ["@netlify/functions", "netlify-cli"], envPatterns: /NETLIFY_[A-Z_]+/, configFiles: ["netlify.toml"] },
+  { id: "railway", name: "Railway", kind: "hosting", packages: [], envPatterns: /RAILWAY_[A-Z_]+/, configFiles: ["railway.json", "railway.toml"] },
+  { id: "render", name: "Render", kind: "hosting", packages: [], envPatterns: /RENDER_[A-Z_]+/, configFiles: ["render.yaml"] },
+  { id: "fly", name: "Fly.io", kind: "hosting", packages: [], envPatterns: /FLY_(APP_NAME|REGION|ALLOC_ID)/, configFiles: ["fly.toml"] },
+  { id: "azure", name: "Azure", kind: "hosting", packages: ["@azure/functions", "@azure/identity"], envPatterns: /AZURE_[A-Z_]+/ },
+
+  // AI providers. A category the ICP is defined by (Anthropic 64%, OpenAI 52%,
+  // Gemini 44% in the 2026 survey) and that we did not name at all until now.
+  // The security surface is direct: a committed provider key is billing theft,
+  // and these keys are among the most commonly leaked.
+  { id: "anthropic", name: "Anthropic", kind: "ai", packages: ["@anthropic-ai/sdk"], envPatterns: /ANTHROPIC_[A-Z_]+/ },
+  { id: "openai", name: "OpenAI", kind: "ai", packages: ["openai"], envPatterns: /OPENAI_[A-Z_]+/ },
+  { id: "gemini", name: "Google Gemini", kind: "ai", packages: ["@google/generative-ai", "@google/genai"], envPatterns: /GEMINI_[A-Z_]+|GOOGLE_(GENAI|API)_KEY/ },
+  { id: "vercel-ai", name: "Vercel AI SDK", kind: "ai", packages: ["ai", "@ai-sdk/openai", "@ai-sdk/anthropic"] },
+  { id: "replicate", name: "Replicate", kind: "ai", packages: ["replicate"], envPatterns: /REPLICATE_[A-Z_]+/ },
+  { id: "langchain", name: "LangChain", kind: "ai", packages: ["langchain", "@langchain/core"] },
 ];
 
 /**
@@ -171,8 +228,9 @@ export function detectStack(files: ArchiveFile[]): StackReport {
     }
 
     const envHit = sig.envPatterns?.test(envText) ?? false;
+    const configFile = sig.configFiles?.find((name) => byPath.has(name)) ?? null;
 
-    if (!matchedPackage && usedIn.length === 0 && !envHit) continue;
+    if (!matchedPackage && usedIn.length === 0 && !envHit && !configFile) continue;
 
     // Order matters: the manifest is the strongest evidence, then real imports,
     // then a declared environment variable. Each is said plainly enough that a
@@ -181,7 +239,9 @@ export function detectStack(files: ArchiveFile[]): StackReport {
       ? `"${matchedPackage}" in package.json${usedIn.length ? `, imported in ${usedIn.length === 5 ? "5+" : usedIn.length} file${usedIn.length === 1 ? "" : "s"}` : ", not imported anywhere we read"}`
       : usedIn.length
         ? `imported in ${usedIn.length === 5 ? "5+" : usedIn.length} file${usedIn.length === 1 ? "" : "s"}`
-        : "named in an environment file";
+        : configFile
+          ? `${configFile} in the repository`
+          : "named in an environment file";
 
     tools.push({ id: sig.id, name: sig.name, kind: sig.kind, evidence, usedIn });
   }

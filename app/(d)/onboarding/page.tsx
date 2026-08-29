@@ -12,11 +12,16 @@ export const metadata = {
 };
 
 /**
- * One connection, and it is GitHub.
+ * GitHub is the only required connection.
  *
- * There is no plan gate here any more: while the MVP is open, anyone signed in
- * can run an audit. Signing in is still required, because the next thing that
- * happens is that we read their private source code.
+ * The stack step that follows repository selection offers the rest, one per
+ * service we found in their code. Those are optional and the audit runs without
+ * them, so this page loads their current connection state rather than gating on
+ * it.
+ *
+ * There is no plan gate here: while the MVP is open, anyone signed in can run
+ * an audit. Signing in is still required, because the next thing that happens
+ * is that we read their private source code.
  */
 export default async function Onboarding() {
   const supabase = await getSupabaseServer();
@@ -26,11 +31,19 @@ export default async function Onboarding() {
   const admin = getSupabaseAdmin();
   const { data: profile } = await admin
     .from("user_profiles")
-    .select("github_installation_id")
+    .select("github_installation_id, supabase_mgmt_token_encrypted, postgres_dsn_encrypted")
     .eq("id", user.id)
     .single();
 
   const installationId = profile?.github_installation_id as number | null;
+
+  // The database slot is filled by either connector, never both. The stack step
+  // only needs to know whether it is filled.
+  const connections = {
+    database: Boolean(
+      profile?.supabase_mgmt_token_encrypted || profile?.postgres_dsn_encrypted,
+    ),
+  };
 
   // Read the repository list here rather than from an effect: it is one round
   // trip either way, and doing it on the server means the picker is populated
@@ -70,6 +83,7 @@ export default async function Onboarding() {
       <OnboardingFlow
         connected={Boolean(installationId)}
         listError={listError}
+        connections={connections}
         initialRepos={repositories.map((r) => ({
           fullName: r.fullName,
           defaultBranch: r.defaultBranch,

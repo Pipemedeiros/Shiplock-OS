@@ -53,7 +53,7 @@ export function Lock({
       className="dxdl"
       data-locked={locked}
       role="group"
-      aria-label={`The lock: ${secured} of ${totalChecks} checks secured${locked ? " — locked" : ""}`}
+      aria-label={`The lock: ${secured} of ${totalChecks} checks secured${locked ? ", locked" : ""}`}
     >
       <svg className="dxdl-svg" viewBox={`0 0 ${W} 360`} aria-hidden="true">
         <defs>

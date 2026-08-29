@@ -37,7 +37,7 @@ export default async function PullRequests() {
           <h1 className="v3-serif">Pull requests</h1>
           <p className="v3-sub" style={{ marginTop: 8, maxWidth: 620 }}>
             Each one is a branch of its own, off your default branch. We never merge, and we never
-            push to your default branch — approving is yours.
+            push to your default branch. Approving is yours.
           </p>
         </div>
       </div>
@@ -91,7 +91,7 @@ export default async function PullRequests() {
             </div>
             <div className="v3-card-p">
               <p className="v3-small" style={{ marginBottom: 12 }}>
-                These have a mechanical fix and no pull request yet — either the last audit hit its
+                These have a mechanical fix and no pull request yet. Either the last audit hit its
                 per-run limit, or GitHub was unreachable when it finished. The next audit opens them.
               </p>
               <div className="v3-list">

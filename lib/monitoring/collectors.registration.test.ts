@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_COLLECTORS, directPostgresCollector } from "./collectors";
+import { DEFAULT_COLLECTORS, directPostgresCollector, vercelEnvCollector } from "./collectors";
 import type { CollectorContext } from "./registry";
 import type { MonitoredProfile } from "./types";
 
@@ -72,5 +72,35 @@ describe("direct-Postgres collector gating", () => {
 
   it("reports the db layer, so it lands in the same slot as the Supabase scan", () => {
     expect(directPostgresCollector.layer).toBe("db");
+  });
+});
+
+describe("the Vercel environment audit is on the schedule", () => {
+  // lib/deep/vercel.ts and vercelRun.ts were written, tested, and reachable
+  // only from a settings button no page rendered. That is the fifth recorded
+  // instance in this repository of a collector that existed and was never
+  // called, which is what this file exists to stop.
+  it("is registered", () => {
+    expect(DEFAULT_COLLECTORS).toContain(vercelEnvCollector);
+  });
+
+  it("only runs for an account that connected Vercel", () => {
+    const profile = (over: Record<string, unknown>) =>
+      ({
+        profile: {
+          id: "u", email: null, monitored_project_url: "https://x.supabase.co",
+          monitored_anon_key_encrypted: "enc", ...over,
+        },
+      }) as never;
+
+    expect(vercelEnvCollector.appliesTo?.(profile({ vercel_access_token_encrypted: "enc" }))).toBe(true);
+    expect(vercelEnvCollector.appliesTo?.(profile({}))).toBe(false);
+  });
+
+  it("stays off the hourly pass", () => {
+    // Environment variables change on deploy, not minute to minute, and the
+    // hourly pass is the one with a wall-clock budget.
+    expect(vercelEnvCollector.eligibleTriggers).not.toContain("hourly");
+    expect(vercelEnvCollector.eligibleTriggers).toContain("scheduled_48h");
   });
 });

@@ -79,8 +79,8 @@ export function PostgresPanel({
 
       setMessage(
         data.findings === 0
-          ? "Read your policies — nothing permissive found."
-          : `Read your policies — ${data.findings} issue${data.findings === 1 ? "" : "s"} on your Risks tab.`
+          ? "Read your policies. Nothing permissive found."
+          : `Read your policies. ${data.findings} issue${data.findings === 1 ? "" : "s"} on your Risks tab.`
       );
     } catch {
       setError(true);
@@ -92,16 +92,16 @@ export function PostgresPanel({
 
   return (
     <div className="dxd-surface">
-      <h3 style={{ margin: "0 0 10px", fontSize: 15 }}>Your database — policy access</h3>
+      <h3 style={{ margin: "0 0 10px", fontSize: 15 }}>Your database, policy access</h3>
       <p style={{ margin: "0 0 12px", fontSize: 12.5, lineHeight: 1.7, color: "var(--d-muted)" }}>
-        Any Postgres works — Neon, Railway, Render, RDS, Fly, your own hardware. We read your Row
+        Any Postgres works: Neon, Railway, Render, RDS, Fly, your own hardware. We read your Row
         Level Security policies so we can tell you whether the protection is <em>correct</em>, not
         just whether it exists. A policy that lets every signed-in user read every row looks
         identical from outside.
       </p>
       <p style={{ margin: "0 0 12px", fontSize: 12.5, lineHeight: 1.7, color: "var(--d-muted)" }}>
         <b>Give us a read-only role, and we&apos;ll check that you did.</b> We refuse the
-        connection if the role can write, or if it can bypass Row Level Security — so
+        connection if the role can write, or if it can bypass Row Level Security, so
         &ldquo;ShipLock cannot change your database&rdquo; is something your grants enforce, not
         something you have to take our word for.
       </p>

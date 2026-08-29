@@ -70,7 +70,7 @@ export default async function SettingsPage() {
 
         <div className="v3-card">
           <div className="v3-hd">
-            <h2 className="v3-eyebrow">Database — optional</h2>
+            <h2 className="v3-eyebrow">Database, optional</h2>
             <span className={`v3-tag ${databaseConnected ? "ok" : ""}`}>
               {databaseConnected ? "connected" : "not connected"}
             </span>

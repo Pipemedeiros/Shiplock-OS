@@ -45,8 +45,8 @@ export function SupabasePanel({
       } else {
         setMessage(
           data.findings === 0
-            ? "Checked your policies — nothing permissive found."
-            : `Checked your policies — ${data.findings} issue${data.findings === 1 ? "" : "s"} on your Risks tab.`
+            ? "Checked your policies. Nothing permissive found."
+            : `Checked your policies. ${data.findings} issue${data.findings === 1 ? "" : "s"} on your Risks tab.`
         );
       }
     } catch {
@@ -58,22 +58,22 @@ export function SupabasePanel({
 
   return (
     <div className="dxd-surface">
-      <h3 style={{ margin: "0 0 10px", fontSize: 15 }}>Supabase — policy access</h3>
+      <h3 style={{ margin: "0 0 10px", fontSize: 15 }}>Supabase, policy access</h3>
       <p style={{ margin: "0 0 12px", fontSize: 12.5, lineHeight: 1.7, color: "var(--d-muted)" }}>
         Your anon key shows us whether a table is protected. It can&apos;t show us whether the
-        protection is <em>correct</em> — a policy that lets every signed-in user read every row
+        protection is <em>correct</em>. A policy that lets every signed-in user read every row
         looks identical from outside. Connecting read-only access lets us check the policies
         themselves.
       </p>
       <p style={{ margin: "0 0 14px", fontSize: 12.5, lineHeight: 1.7, color: "var(--d-muted)" }}>
-        <b>We only ever read.</b> ShipLock never writes to your production database — database
+        <b>We only ever read.</b> ShipLock never writes to your production database. Database
         and access-control fixes always arrive as a migration pull request you review and merge.
         You can disconnect at any time, which deletes the token.
       </p>
 
       {!configured ? (
         <p className="dxd-mono" style={{ fontSize: 11.5, color: "var(--d-muted-light)" }}>
-          Not available yet — this connection is being finished.
+          Not available yet. This connection is being finished.
         </p>
       ) : (
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>

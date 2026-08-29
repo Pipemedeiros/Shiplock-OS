@@ -45,7 +45,7 @@ export default function IncidentsPage() {
                 <ProximityText text="Real incidents, not hypotheticals." />
               </h1>
               <p className="dxd-lede">
-                Every claim on this page is sourced and linked — NVD, CISA, or the vendor&apos;s
+                Every claim on this page is sourced and linked, NVD, CISA, or the vendor&apos;s
                 own security writeup. No invented statistics.
               </p>
             </div>
@@ -57,14 +57,14 @@ export default function IncidentsPage() {
         <section className="dxd-section">
           <Reveal>
             <p className="dxd-eyebrow">The anchor case</p>
-            <h2 className="dxd-h2">CVE-2025-48757 — 170+ real apps, exactly this pattern.</h2>
+            <h2 className="dxd-h2">CVE-2025-48757, 170+ real apps, exactly this pattern.</h2>
           </Reveal>
           <Reveal>
             <div style={{ maxWidth: 720 }}>
             <SpotlightCard className="dxd-surface">
               <p style={{ fontSize: 15, lineHeight: 1.7 }}>
                 In May 2025, security researcher Matt Palmer disclosed that 303 endpoints across
-                170 real apps built with Lovable — 10.3% of the projects he analyzed — could be
+                170 real apps built with Lovable, 10.3% of the projects he analyzed, could be
                 read or written by anyone, unauthenticated, because Row Level Security was left
                 off. NVD rated it CVSS 9.3, critical, CWE-863 (incorrect authorization). NVD&apos;s
                 own description: &ldquo;An insufficient database Row-Level Security policy in
@@ -73,13 +73,13 @@ export default function IncidentsPage() {
               </p>
               <p style={{ fontSize: 15, lineHeight: 1.7, marginTop: 12 }}>
                 One detail worth sitting with: the vendor&apos;s own response disputed that this
-                was a Lovable bug at all — their position was that customers are responsible for
+                was a Lovable bug at all, their position was that customers are responsible for
                 protecting their own application data. Whether or not you think that&apos;s fair,
                 it&apos;s the reality every builder on every AI coding tool ships into. RLS is off
                 by default on new Supabase tables, and nobody except you is going to turn it on.
               </p>
               <p className="dxd-keynote" style={{ marginTop: 12 }}>
-                This is exactly check 1 of our 16 — RLS per table — on every scan, every hour,
+                This is exactly check 1 of our 16, RLS per table, on every scan, every hour,
                 every 48 hours, for as long as you&apos;re on retainer.
               </p>
               <p style={{ marginTop: 16, fontSize: 12.5 }}>
@@ -95,7 +95,7 @@ export default function IncidentsPage() {
         <section className="dxd-section">
           <Reveal>
             <p className="dxd-eyebrow">Supply chain</p>
-            <h2 className="dxd-h2">Shai-Hulud — a self-replicating npm worm.</h2>
+            <h2 className="dxd-h2">Shai-Hulud, a self-replicating npm worm.</h2>
           </Reveal>
           <Reveal>
             <div style={{ maxWidth: 720 }}>
@@ -104,7 +104,7 @@ export default function IncidentsPage() {
                 Starting September 2025, a worm nicknamed Shai-Hulud spread through the npm
                 registry: attackers compromised a maintainer&apos;s account via phishing, published
                 malicious versions of their packages, then used the stolen credentials to infect
-                every other package that maintainer owned — self-replicating without further
+                every other package that maintainer owned, self-replicating without further
                 human involvement. CISA issued an alert. A second, more aggressive wave
                 (&ldquo;Shai-Hulud 2.0&rdquo;) hit in November 2025, compromising hundreds more
                 packages and, in some cases, attempting to destroy the infected machine&apos;s home
@@ -112,7 +112,7 @@ export default function IncidentsPage() {
               </p>
               <p className="dxd-keynote" style={{ marginTop: 12 }}>
                 Partial coverage: our dependency slop-squatting check flags packages that look
-                invented or suspiciously new in your package.json — a related but narrower
+                invented or suspiciously new in your package.json, a related but narrower
                 problem than a worm compromising an already-trusted package after installation.
                 Full dependency-vulnerability scanning needs source access, which is a roadmap
                 item, not live today.
@@ -130,7 +130,7 @@ export default function IncidentsPage() {
         <section className="dxd-section">
           <Reveal>
             <p className="dxd-eyebrow">Awareness, not a claim of coverage</p>
-            <h2 className="dxd-h2">CVE-2025-29927 — Next.js middleware bypass.</h2>
+            <h2 className="dxd-h2">CVE-2025-29927, Next.js middleware bypass.</h2>
           </Reveal>
           <Reveal>
             <div style={{ maxWidth: 720 }}>
@@ -138,16 +138,16 @@ export default function IncidentsPage() {
               <p style={{ fontSize: 15, lineHeight: 1.7 }}>
                 A CVSS 9.1 vulnerability disclosed in March 2025: a crafted request header
                 (<code>x-middleware-subrequest</code>) could trick vulnerable Next.js versions
-                into skipping middleware entirely — including whatever auth checks your
+                into skipping middleware entirely, including whatever auth checks your
                 middleware was supposed to enforce.
               </p>
               <p style={{ fontSize: 15, lineHeight: 1.7, marginTop: 12 }}>
                 Included here for awareness, with two honest caveats. First: Vercel confirmed
-                apps hosted on Vercel were never affected by this one — the platform&apos;s own
+                apps hosted on Vercel were never affected by this one, the platform&apos;s own
                 request handling doesn&apos;t expose the vulnerable path. Second, and more
                 important: this is a hosting/source-layer issue, not something our anon-key,
                 external, database-focused scan can detect at all. Catching this class of bug
-                would need source access — the not-yet-built GitHub App integration on our
+                would need source access, the not-yet-built GitHub App integration on our
                 roadmap, not a claim we make today.
               </p>
               <p style={{ marginTop: 16, fontSize: 12.5 }}>

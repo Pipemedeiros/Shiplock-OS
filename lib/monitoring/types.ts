@@ -21,6 +21,13 @@ export interface MonitoredProfile {
    * never travels on the profile.
    */
   postgres_dsn_encrypted?: string | null;
+  /**
+   * Set when the customer installed the Vercel integration. Presence is the
+   * whole signal, same as the Postgres DSN: the token is decrypted inside the
+   * collector and never travels on the profile.
+   */
+  vercel_access_token_encrypted?: string | null;
+  vercel_team_id?: string | null;
 }
 
 export type TriggerSource = "deploy" | "hourly" | "scheduled_48h";

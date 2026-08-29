@@ -7,11 +7,14 @@ import { StackDepth, depthOf } from "@/components/v3/StackDepth";
  * What we read out of the repository, and how deeply we reasoned about each of
  * it.
  *
- * This page is the argument for connecting only GitHub, made concrete. The
- * customer typed one thing — an installation — and this is everything the
- * product worked out from it. Every row names its evidence, because a claim
- * about someone's own architecture that they cannot check is a claim they have
- * to take on faith, and this product does not ask for faith.
+ * This page is the argument for starting with GitHub, made concrete. The
+ * customer typed one thing, an installation, and this is everything the product
+ * worked out from it. Every row names its evidence, because a claim about
+ * someone's own architecture that they cannot check is a claim they have to
+ * take on faith, and this product does not ask for faith.
+ *
+ * Each service they go on to connect adds the live configuration this page can
+ * only infer. That is the offer, and it is always optional.
  *
  * The depth column is the honest half. "Detected" and "reasoned about" are
  * different claims, and a page that showed a flat list of logos would let the
@@ -33,7 +36,7 @@ export default async function Stack() {
           <p className="v3-eyebrow">Read out of your code</p>
           <h1 className="v3-serif">Your stack</h1>
           <p className="v3-sub" style={{ marginTop: 8, maxWidth: 620 }}>
-            Your repository already declares what your system talks to — the manifest, the imports,
+            Your repository already declares what your system talks to: the manifest, the imports,
             the environment variable names, the schema. Nothing here was typed in.
           </p>
         </div>
@@ -77,7 +80,7 @@ export default async function Stack() {
                   </p>
                 )}
                 <p className="v3-small" style={{ marginTop: 12 }}>
-                  Read from your schema and routes — it shapes what the audit looks for, and is never
+                  Read from your schema and routes. It shapes what the audit looks for, and is never
                   a finding on its own.
                 </p>
               </div>
@@ -109,7 +112,7 @@ export default async function Stack() {
                     {tool.usedIn.length > 0 ? (
                       <p className="v3-small" style={{ marginTop: 6 }}>
                         Imported in {tool.usedIn.length} file{tool.usedIn.length === 1 ? "" : "s"}
-                        {tool.usedIn[0] ? ` — ${tool.usedIn[0]}` : ""}
+                        {tool.usedIn[0] ? `, ${tool.usedIn[0]}` : ""}
                         {tool.usedIn.length > 1 ? ` +${tool.usedIn.length - 1} more` : ""}
                       </p>
                     ) : null}
@@ -128,7 +131,7 @@ export default async function Stack() {
                 {stack.authUnknown ? (
                   <p style={{ marginBottom: 8 }}>
                     <strong style={{ fontWeight: 500 }}>No auth provider recognised.</strong>{" "}
-                    Findings that turn on who a caller is stay inferred — we cannot tell an
+                    Findings that turn on who a caller is stay inferred. We cannot tell an
                     unauthenticated route from one guarded by something we do not know the shape of.
                   </p>
                 ) : null}
@@ -152,7 +155,7 @@ export default async function Stack() {
                 A row policy, a bucket permission and a production environment variable do not live
                 in your repository. Findings that depend on them are labelled{" "}
                 <strong style={{ fontWeight: 500 }}>inferred</strong> and stay that way. Connecting
-                your database read-only turns some of them into findings we can reproduce — an
+                your database read-only turns some of them into findings we can reproduce. That is an
                 upgrade, never a requirement.
               </p>
               <Link

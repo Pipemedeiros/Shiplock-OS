@@ -73,7 +73,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://shiplock.dev"),
   title: {
-    default: "ShipLock — Security monitoring that opens the pull request",
+    default: "ShipLock: security monitoring that opens the pull request",
     template: "%s · ShipLock",
   },
   description:

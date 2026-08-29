@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Scope of engagement",
   description:
-    "The four areas ShipLock covers — continuous configuration and code review, sandboxed exploitation, traffic defence, and verified remediation — with the boundaries of each stated plainly.",
+    "The four areas ShipLock covers: continuous configuration and code review, sandboxed exploitation, traffic defence, and verified remediation. The boundaries of each are stated plainly.",
 };
 
 const AREAS = [
@@ -28,20 +28,20 @@ const AREAS = [
     lead: "Your Postgres configuration, application source and live surface, re-examined on every pull request and on a fixed schedule.",
     detail: [
       "Row-level security posture per table, policy expressions that resolve to unconditional access, column-level grants held by browser-reachable roles, and the full set of Supabase advisor lints ingested rather than duplicated.",
-      "Source analysis for committed and historical credentials, dependency advisories matched against your lockfile, injection, XSS and mass assignment sinks, server-side request forgery in outbound fetches, and the stack-specific failure of a service-role client reachable from a client component. A publishable key in the bundle is not reported — that is where it belongs; a secret one is.",
+      "Source analysis for committed and historical credentials, dependency advisories matched against your lockfile, injection, XSS and mass assignment sinks, server-side request forgery in outbound fetches, and the stack-specific failure of a service-role client reachable from a client component. A publishable key in the bundle is not reported, because that is where it belongs. A secret one is.",
       "The deployed artefact itself: what your bundle ships, whether source maps are public, DNS authentication records, and whether your edge protection can be reached around. Where you connect a database, configuration is read through the provider's Management API or a verified read-only role, over a transport that cannot issue a write.",
     ],
     limit:
-      "Static analysis reasons about code as written. Where a filter is applied somewhere our import graph cannot follow, we say the finding is inference and label it as such. Each finding carries a stable identifier across runs, so a check that flaps is not re-reported as new — and a check that could not run is recorded as not run: an absent result is never rendered as a pass.",
+      "Static analysis reasons about code as written. Where a filter is applied somewhere our import graph cannot follow, we say the finding is inference and label it as such. Each finding carries a stable identifier across runs, so a check that flaps is not re-reported as new. A check that could not run is recorded as not run: an absent result is never rendered as a pass.",
   },
   {
     id: "02",
     name: "Sandboxed exploitation",
-    lead: "We reconstruct the component under test in an isolated environment and attack it — never your production system.",
+    lead: "We reconstruct the component under test in an isolated environment and attack it there, never your production system.",
     detail: [
       "A throwaway arena is provisioned: either an ephemeral branch of your project carrying schema and policies but no customer data, or the specific table and its policies rebuilt on our own infrastructure. Two synthetic tenants are seeded into it. None of your data is copied, read or moved at any point.",
-      "Authenticated as the first tenant, we attempt to read the second's rows. A control query runs first — if the arena cannot return the caller's own row, the run is discarded rather than reported as clean.",
-      "Where the deterministic probe finds nothing, a reasoning agent proposes further queries. Its action space is constrained by a deterministic guard to read-only statements inside the disposable schema; every proposal, including refused ones, is recorded. The model contributes ideas, never authority — nothing it emits is read as a permission.",
+      "Authenticated as the first tenant, we attempt to read the second's rows. A control query runs first. If the arena cannot return the caller's own row, the run is discarded rather than reported as clean.",
+      "Where the deterministic probe finds nothing, a reasoning agent proposes further queries. Its action space is constrained by a deterministic guard to read-only statements inside the disposable schema; every proposal, including refused ones, is recorded. The model contributes ideas, never authority. Nothing it emits is read as a permission.",
     ],
     limit:
       "We do not attack your production application, and we do not run an adversarial agent against anything you operate. Policies that depend on other tables or custom functions cannot be reconstructed faithfully, and we decline to test those rather than report an unreliable result.",
@@ -53,7 +53,7 @@ const AREAS = [
     detail: [
       "Credential stuffing distinguished by spread across accounts, brute force by concentration, and account takeover by the sequence of failures, success and password change from one source.",
       "Distributed floods assessed against your own traffic baseline rather than a fixed rate, and separated from legitimate growth by whether the surge is concentrated on one endpoint.",
-      "Detection requires no installation — it reads the authentication log your database already writes. An optional edge module upgrades detection to enforcement, turning requests away before they reach your application.",
+      "Detection requires no installation. It reads the authentication log your database already writes. An optional edge module upgrades detection to enforcement, turning requests away before they reach your application.",
     ],
     limit:
       "Volumetric network-layer attacks are absorbed by your hosting provider's network, not by us; that is a function of capacity and position, and we do not claim it. Automatic response is limited to rate-limiting a single endpoint, is reversible, and lifts itself.",
@@ -63,7 +63,7 @@ const AREAS = [
     name: "Verified remediation",
     lead: "Mechanical fixes are applied as a diff against your code. Everything requiring judgement is prepared, not performed.",
     detail: [
-      "Where the correct output is determined entirely by the input — response headers, a build flag, a variable that should not carry a public prefix, workflow permissions — we open a pull request containing the edited file.",
+      "Where the correct output is determined entirely by the input, meaning response headers, a build flag, a variable that should not carry a public prefix, or workflow permissions, we open a pull request containing the edited file.",
       "Database changes are demonstrated before they are offered: the fix is applied in the arena, the attack re-run to confirm it now fails, and legitimate access re-run to confirm it still succeeds. A change that closes the attack by denying everyone is rejected.",
       "Findings close on evidence. When a subsequent pass no longer reproduces the condition, the finding is archived automatically rather than waiting for anyone to mark it done.",
     ],
@@ -134,7 +134,7 @@ export default function CoveragePage() {
             <h2 className="dxd-serif" style={{ fontSize: 20, marginBottom: 10 }}>Terms of the engagement</h2>
             <p style={{ fontSize: 14.5, lineHeight: 1.8, color: "var(--d-muted)", maxWidth: "70ch" }}>
               $49 per month, billed monthly, with the first seven days free. Cancellation is
-              self-serve from your dashboard and takes effect at the end of the current period —
+              self-serve from your dashboard and takes effect at the end of the current period.
               there is no cancellation fee, no notice period, and no requirement to contact us.
               Prepaid six- and twelve-month terms are one-time charges rather than auto-renewing
               subscriptions, and carry no early-termination fee.

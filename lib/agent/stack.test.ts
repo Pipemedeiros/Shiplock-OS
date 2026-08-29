@@ -93,3 +93,74 @@ describe("readDependencies", () => {
     expect(readDependencies(undefined).size).toBe(0);
   });
 });
+
+describe("the categories the ICP actually runs", () => {
+  // Weighted by the Supabase State of Startups 2026 survey rather than by
+  // familiarity. Clerk is 4% of this market; Supabase Auth is 72%.
+
+  it("names the AI provider, a category that did not exist before", () => {
+    // 64% of this ICP uses Anthropic, 52% OpenAI. A committed provider key is
+    // billing theft, and we could not previously even name the vendor.
+    const report = detectStack([
+      pkg({ "@anthropic-ai/sdk": "^0.30.0", openai: "^4.0.0" }),
+      { path: "lib/analyzer.ts", content: 'import Anthropic from "@anthropic-ai/sdk";' },
+    ]);
+    expect(report.tools.find((t) => t.id === "anthropic")?.kind).toBe("ai");
+    expect(report.tools.find((t) => t.id === "openai")?.kind).toBe("ai");
+  });
+
+  it("identifies the host from a config file when nothing else names it", () => {
+    // A repository deployed on Vercel usually imports no Vercel package and
+    // sets no VERCEL_ variable, because the platform injects them at build
+    // time. Without this signal, hosting reads as unknown on an app that
+    // plainly has a host.
+    const report = detectStack([
+      pkg({ next: "15.0.0" }),
+      { path: "vercel.json", content: '{"framework":"nextjs"}' },
+    ]);
+    const vercel = report.tools.find((t) => t.id === "vercel");
+    expect(vercel?.kind).toBe("hosting");
+    expect(vercel?.evidence).toContain("vercel.json");
+  });
+
+  it("identifies each host by its own config file", () => {
+    for (const [file, id] of [
+      ["netlify.toml", "netlify"],
+      ["fly.toml", "fly"],
+      ["render.yaml", "render"],
+      ["wrangler.toml", "cloudflare"],
+      ["railway.json", "railway"],
+    ] as const) {
+      const report = detectStack([pkg({ next: "15.0.0" }), { path: file, content: "" }]);
+      expect(report.tools.find((t) => t.id === id), `${file} should identify ${id}`).toBeTruthy();
+    }
+  });
+
+  it("covers the auth providers this market actually uses", () => {
+    const report = detectStack([
+      pkg({ "@supabase/ssr": "^0.5.0" }),
+      { path: "lib/auth.ts", content: 'import { createServerClient } from "@supabase/ssr";' },
+    ]);
+    // 72% of the ICP. It must never be missed in favour of a 4% vendor.
+    expect(report.tools.find((t) => t.id === "supabase-auth")).toBeTruthy();
+    expect(report.authUnknown).toBe(false);
+  });
+
+  it("reports auth as unknown rather than absent when nothing matches", () => {
+    // 11% of this ICP hand-rolls auth. An empty category must not render as
+    // "this app has no authentication".
+    const report = detectStack([pkg({ next: "15.0.0" })]);
+    expect(report.authUnknown).toBe(true);
+    expect(report.tools.some((t) => t.kind === "auth")).toBe(false);
+  });
+
+  it("does not invent a host from a mention of one", () => {
+    // The substring bug that reported seven auth providers, in a new category.
+    const report = detectStack([
+      pkg({ next: "15.0.0" }),
+      { path: "README.md", content: "Deploy to Netlify or Fly.io or Render" },
+      { path: "lib/notes.ts", content: '// we used to run on railway.json before' },
+    ]);
+    expect(report.tools.filter((t) => t.kind === "hosting")).toHaveLength(0);
+  });
+});

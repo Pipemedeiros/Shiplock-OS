@@ -82,7 +82,7 @@ export default async function Overview() {
           <div className="v3-empty">
             <p>Nothing we found is still open.</p>
             <p className="v3-small" style={{ marginTop: 6 }}>
-              That is not the same as nothing being wrong — see Coverage for what this audit did not reach.
+              That is not the same as nothing being wrong. See Coverage for what this audit did not reach.
             </p>
           </div>
         ) : null}

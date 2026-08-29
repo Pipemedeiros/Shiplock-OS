@@ -159,7 +159,7 @@ export function FindingsBoard({
 
   return (
     <div className="dxd-dashgrid" style={{ gridTemplateColumns: "1fr" }}>
-      <section className="dxd-board" aria-label={`Coverage board — ${totalChecks} checks`}>
+      <section className="dxd-board" aria-label={`Coverage board, ${totalChecks} checks`}>
         <div className="dxd-board-head">
           <span>Finding</span>
           <span>Severity &amp; consequence</span>
@@ -210,7 +210,7 @@ export function FindingsBoard({
                   )}
 
                   <p>
-                    <strong>What it costs you if it stays — </strong>
+                    <strong>What it costs you if it stays: </strong>
                     {issue.consequence}
                   </p>
 
@@ -222,7 +222,7 @@ export function FindingsBoard({
                         <>
                           <pre className="dxd-code">{issue.codefix.prompt}</pre>
                           <p className="dxd-keynote" style={{ margin: "8px 0 0" }}>
-                            {issue.codefix.description} — {issue.codefix.file}
+                            {issue.codefix.description}, {issue.codefix.file}
                           </p>
                         </>
                       )}

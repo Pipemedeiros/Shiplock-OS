@@ -68,7 +68,7 @@ const POSTGRES_RLS: ProviderVocabulary = {
     `add a Row Level Security policy on ${qualified} that scopes rows to their owner`,
   callerScopeRemedy: 'scope the query to the caller (e.g. .eq("user_id", user.id))',
   bypassNote:
-    "uses a service-role credential, which ignores Row Level Security completely — every policy on the table is bypassed for this request",
+    "uses a service-role credential, which ignores Row Level Security completely, so every policy on the table is bypassed for this request",
   configLabel: "Authentication configuration",
   provable: true,
 };
@@ -83,7 +83,7 @@ const FIREBASE_RULES: ProviderVocabulary = {
     `add a security rule on ${qualified} that matches the requesting user against the document owner`,
   callerScopeRemedy: "scope the query to the caller's uid before it reaches the client",
   bypassNote:
-    "uses an admin credential, which bypasses security rules entirely — every rule on the collection is ignored for this request",
+    "uses an admin credential, which bypasses security rules entirely, so every rule on the collection is ignored for this request",
   configLabel: "Authentication configuration",
   provable: false,
 };

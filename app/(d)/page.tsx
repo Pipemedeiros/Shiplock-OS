@@ -6,7 +6,7 @@ import { LayersAnimation } from "@/components/v3/LayersAnimation";
 import { AttackAnimation } from "@/components/v3/AttackAnimation";
 
 export const metadata = {
-  title: "ShipLock — Security monitoring that opens the pull request",
+  title: "ShipLock: security monitoring that opens the pull request",
   description:
     "Connect GitHub. ShipLock reads your code, finds the paths that reach customer data, and opens the fix as a pull request for you to approve.",
 };
@@ -151,7 +151,7 @@ export default function Landing() {
                 1 · It reads every layer, and joins them
               </h3>
               <p className="v3-sub" style={{ fontSize: 14, marginBottom: 18 }}>
-                One connection. None of these layers is a finding on its own — the join is.
+                One connection. None of these layers is a finding on its own. The join is.
               </p>
               <LayersAnimation />
             </div>
@@ -176,7 +176,7 @@ export default function Landing() {
           <h2 className="v3-serif">The failures we look for have already happened.</h2>
           <p className="v3-sub" style={{ marginTop: 10, maxWidth: 640 }}>
             Every one of these is documented and linked. We are not describing a threat model we
-            invented — we are describing what has repeatedly gone wrong in applications built the
+            invented. We are describing what has repeatedly gone wrong in applications built the
             way yours was.
           </p>
         </div>

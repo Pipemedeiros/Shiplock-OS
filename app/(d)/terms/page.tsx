@@ -79,22 +79,22 @@ export default function TermsPage() {
               <h2 className="dxd-h2" style={{ fontSize: 22 }}>The subscription</h2>
               <p>
                 One product, three ways to pay for it, all billed by Stripe. Nothing is held back
-                on the cheaper terms — a longer term is simply less money.
+                on the cheaper terms, a longer term is simply less money.
               </p>
               <ul style={{ paddingLeft: 20, display: "grid", gap: 6, margin: "12px 0" }}>
                 <li>
-                  <b>$49/month</b> — a recurring subscription. New subscriptions include 7 days
+                  <b>$49/month</b>, a recurring subscription. New subscriptions include 7 days
                   free; you aren&apos;t charged until the trial ends, and cancelling during the
                   trial costs nothing. After the trial it renews monthly until you cancel.
                 </li>
                 <li>
-                  <b>$265 for six months</b> and <b>$470 for twelve months</b> — a single charge
+                  <b>$265 for six months</b> and <b>$470 for twelve months</b>, a single charge
                   that buys a fixed window of access. <b>These do not auto-renew.</b> When the
                   window ends, access simply stops until you choose to buy another.
                 </li>
               </ul>
               <p>
-                <b>Cancelling the monthly plan:</b> self-serve, any time — open <b>Billing</b>{" "}
+                <b>Cancelling the monthly plan:</b> self-serve, any time, open <b>Billing</b>{" "}
                 from your dashboard to manage or cancel through Stripe&apos;s billing portal (or
                 email <a href="mailto:support@shiplock.dev">support@shiplock.dev</a> and
                 we&apos;ll do it for you). You keep access through the end of the period
@@ -102,7 +102,7 @@ export default function TermsPage() {
               </p>
               <p>
                 <b>Prepaid terms carry no cancellation fee</b>, because there is nothing to
-                cancel — you bought a window, not a commitment. We don&apos;t charge an early
+                cancel, you bought a window, not a commitment. We don&apos;t charge an early
                 termination fee under any plan, ever.
               </p>
               <p>
@@ -110,7 +110,7 @@ export default function TermsPage() {
                 another jurisdiction with a statutory cooling-off period, you keep that right and
                 nothing here waives it: you may withdraw within 14 days of purchase, and
                 we&apos;ll refund what you paid, less a proportionate amount for the period you
-                actually had access. Outside that, prepaid terms are non-refundable — but if a
+                actually had access. Outside that, prepaid terms are non-refundable, but if a
                 prepaid term isn&apos;t working out for you, email us. We&apos;d rather refund
                 you than keep money you feel you shouldn&apos;t have spent.
               </p>
@@ -124,7 +124,7 @@ export default function TermsPage() {
                 ShipLock works by sending automated requests to infrastructure you tell us is
                 yours. By connecting a project you are giving us <b>express permission</b> to do
                 that, and you confirm that you own the database and application URL you
-                submit — or are authorised by whoever does to have them scanned. Please
+                submit, or are authorised by whoever does to have them scanned. Please
                 don&apos;t submit anything you don&apos;t have that authority over.
               </p>
               <p>
@@ -145,8 +145,8 @@ export default function TermsPage() {
             <div>
               <h2 className="dxd-h2" style={{ fontSize: 22 }}>What you get</h2>
               <p>
-                A 16-check audit of your connected database and application and — while your
-                subscription is active — the fix for every finding, delivered as a reviewable
+                A 16-check audit of your connected database and application and, while your
+                subscription is active, the fix for every finding, delivered as a reviewable
                 pull request or handed to your coding agent. Continuous monitoring is genuinely
                 live for the pieces we say are live: a re-scan on every pull request, an hourly
                 lightweight critical-check pass, and a full deep scan every 48 hours. GitHub
@@ -158,7 +158,7 @@ export default function TermsPage() {
             </div>
 
             <div>
-              <h2 className="dxd-h2" style={{ fontSize: 22 }}>What ShipLock is — and isn&apos;t</h2>
+              <h2 className="dxd-h2" style={{ fontSize: 22 }}>What ShipLock is, and isn&apos;t</h2>
               <p>
                 ShipLock identifies configuration issues in your project using automated checks
                 against your application&apos;s public surface and, where you have connected one,
@@ -172,7 +172,7 @@ export default function TermsPage() {
                 No security tool finds everything, and we say so throughout the product rather
                 than in the fine print. Business logic, chained flaws, runtime-only issues, and
                 anything requiring human judgement are outside what automated checking can reach.
-                A clean ShipLock result means the checks we run found nothing — it does not mean
+                A clean ShipLock result means the checks we run found nothing, it does not mean
                 your application is secure.
               </p>
             </div>
@@ -193,7 +193,7 @@ export default function TermsPage() {
                 <b>Our total liability</b> to you for any claim connected to ShipLock is limited
                 to the amount you paid us in the twelve months before the claim arose. We
                 aren&apos;t liable for indirect, incidental, special, or consequential damages,
-                or for lost profits, revenue, data, or goodwill — including damages arising from
+                or for lost profits, revenue, data, or goodwill, including damages arising from
                 a vulnerability we didn&apos;t catch, a fix applied incorrectly, or downtime
                 caused by a change you made on our recommendation.
               </p>
@@ -225,7 +225,7 @@ export default function TermsPage() {
                 any third party who reads it for decisions taken in reliance on it, and you
                 agree not to present it as a security certification, audit opinion, or
                 compliance attestation. Please don&apos;t display it for a project we&apos;re not
-                actually monitoring — if monitoring stops, the report says so, and you should
+                actually monitoring, if monitoring stops, the report says so, and you should
                 take the badge down.
               </p>
             </div>
@@ -238,7 +238,7 @@ export default function TermsPage() {
                 What we collect and why is set out in our{" "}
                 <Link href="/privacy">Privacy Policy</Link>, including the third parties that
                 process data on our behalf. In the ordinary course we don&apos;t process your end
-                users&apos; personal data — our checks look at configuration and at whether
+                users&apos; personal data, our checks look at configuration and at whether
                 endpoints answer, not at the contents of your tables.
               </p>
               <p>
