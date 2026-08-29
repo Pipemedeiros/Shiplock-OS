@@ -37,15 +37,16 @@ export default function Landing() {
           <div className="v3-grid-2" style={{ gap: 48, alignItems: "center", padding: "68px 0 78px" }}>
             <div>
               <p className="v3-eyebrow" style={{ color: "var(--muted-navy)" }}>
-                Application security · one connection
+                Application security · starts with GitHub
               </p>
               <h1 className="v3-serif" style={{ fontSize: 44, lineHeight: 1.12, margin: "16px 0 20px" }}>
                 Security monitoring that opens the pull request.
               </h1>
               <p style={{ fontSize: 17.5, color: "var(--muted-navy)", maxWidth: 560 }}>
-                Connect GitHub and nothing else. ShipLock reads your code, follows each entry point
-                through to the data it can reach, and opens a fix for you to approve. No checklist to
-                work through, and nothing to copy and paste.
+                Connect GitHub. ShipLock reads your code, follows each entry point through to the
+                data it can reach, and opens a fix for you to approve. Connect the rest of your
+                stack when you want its live configuration checked too. No checklist to work
+                through, and nothing to copy and paste.
               </p>
               <div className="v3-row" style={{ marginTop: 30 }}>
                 <Link href="/onboarding" className="v3-btn v3-primary">
@@ -73,7 +74,7 @@ export default function Landing() {
             {
               n: "01",
               h: "It reads the repository",
-              b: "Every route handler, the schema, the imports. Your code already names your auth provider, your database and your payment webhooks, so there is no second dashboard to connect.",
+              b: "Every route handler, the schema, the imports. Your code already names your auth provider, your database and your payment webhooks, so we know what to check without asking you to describe it.",
             },
             {
               n: "02",
