@@ -77,3 +77,22 @@ describe("fixDocument", () => {
     expect(doc).toContain("Rotate the credential first");
   });
 });
+
+describe("the document a reviewer actually reads", () => {
+  it("keeps the blank lines markdown needs", () => {
+    // The first real pull request we opened rendered as one wall of text: the
+    // conditional-line filter removed every deliberate blank line too, so each
+    // heading ran into its own paragraph. This body is the entire product
+    // surface a reviewer sees.
+    const doc = fixDocument(finding);
+    expect(doc).toContain("\n\n## Where\n\n");
+    expect(doc).toContain("\n\n## What to change\n\n");
+    expect(doc).toMatch(/^# .+\n\n/);
+  });
+
+  it("drops a line with nothing to say, and leaves no sentinel behind", () => {
+    const doc = fixDocument({ ...finding, blastRadius: null });
+    expect(doc).not.toContain("Reaches:");
+    expect(doc).not.toContain(String.fromCharCode(0));
+  });
+});

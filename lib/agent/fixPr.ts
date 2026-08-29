@@ -58,6 +58,14 @@ export function fixDocument(finding: DashboardFinding): string {
     INSTRUCTION[finding.attackClass] ??
     "Review the finding above and decide what the correct behaviour is here.";
 
+  // OMIT drops a conditional line; "" is a deliberate blank line and must
+  // survive. Filtering on "" removed both, which collapsed every blank line in
+  // the document -- headings ran into their paragraphs and the whole pull
+  // request read as one wall of text in the first real one we opened. Markdown
+  // is whitespace-sensitive, and this body is the entire product surface a
+  // reviewer sees.
+  const OMIT = "\u0000";
+
   return [
     `# ${finding.title}`,
     "",
@@ -67,7 +75,7 @@ export function fixDocument(finding: DashboardFinding): string {
     "",
     `- Entry point: \`${finding.entry ?? "not recorded"}\``,
     `- File: \`${finding.file ?? "not recorded"}\``,
-    finding.blastRadius ? `- Reaches: ${finding.blastRadius}` : "",
+    finding.blastRadius ? `- Reaches: ${finding.blastRadius}` : OMIT,
     "",
     "## Why we believe this",
     "",
@@ -87,6 +95,6 @@ export function fixDocument(finding: DashboardFinding): string {
     "Opened by ShipLock on its own branch. Nothing was merged, and the default",
     "branch was not touched. Close this pull request to dismiss the finding.",
   ]
-    .filter((line) => line !== "")
+    .filter((line) => line !== OMIT)
     .join("\n");
 }
