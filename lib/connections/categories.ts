@@ -9,10 +9,19 @@ import type { StackKind } from "@/lib/agent/stack";
  * because a category invented for a screen and reshuffled later when a
  * connector lands is a migration every time.
  *
- * `connect` is the honest field. A category whose connector does not exist yet
- * carries null, and the UI says live checks for it are not available. An offer
- * to connect a service that opens nothing is worse than no offer: it spends the
- * customer's trust on a button that does not work.
+ * `connect` is the honest field, and for the MVP every category carries null.
+ *
+ * Owner decision 2026-08-31: the MVP reads code and infers. Live provider
+ * connections moved to the roadmap. The reasoning layer that consumes them is
+ * built and tested (runtime graph facts, the widened attack guard, the live
+ * claim origin), so turning a category on later is a connector plus a route,
+ * not a redesign. What is NOT shipped is an offer we cannot honour: an offer to
+ * connect a service that opens nothing spends the customer's trust on a button
+ * that does not work.
+ *
+ * `adds` stays populated because it is still true and still worth saying. It
+ * tells the customer exactly what this audit could not see, which is the
+ * Coverage argument, not a sales pitch.
  *
  * Order is by what the connection buys us, weighted by what this market
  * actually runs (Supabase State of Startups 2026: database and auth are where
@@ -45,7 +54,7 @@ export const CONNECTION_CATEGORIES: ConnectionCategory[] = [
     label: "Database",
     kinds: ["database"],
     adds: "Reads the row policies themselves, so a permissive one is reproduced on a disposable copy instead of inferred from your schema.",
-    connect: "/dashboard/settings",
+    connect: null,
   },
   {
     id: "auth",

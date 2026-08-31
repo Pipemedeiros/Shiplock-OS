@@ -44,20 +44,14 @@ export interface DetectedTool {
 
 type Step = "connect" | "repos" | "stack" | "audit";
 
-export interface ConnectionState {
-  database: boolean;
-}
-
 export function OnboardingFlow({
   connected,
   initialRepos,
   listError,
-  connections,
 }: {
   connected: boolean;
   initialRepos: Repo[];
   listError: string | null;
-  connections: ConnectionState;
 }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>(connected ? "repos" : "connect");
@@ -125,11 +119,7 @@ export function OnboardingFlow({
       ) : null}
 
       {step === "stack" ? (
-        <StackStep
-          repository={picked[0]}
-          connections={connections}
-          onContinue={() => setStep("audit")}
-        />
+        <StackStep repository={picked[0]} onContinue={() => setStep("audit")} />
       ) : null}
 
       {step === "audit" ? (
@@ -295,19 +285,25 @@ function RepoPicker({
  * connect each one.
  *
  * The argument this screen has to make, in the order it makes it: we read your
- * code, here is what it runs, and here is the part of each service that your
- * code cannot tell us. The offer is specific because it names what we found,
- * not a wall of tiles asking the customer to describe their own stack.
+ * code, here is what it runs, and here is the part of each service the code
+ * cannot tell us.
  *
- * Skipping is a first-class path. The audit runs on the repository alone.
+ * There is no connect action. The MVP reads code and infers (owner decision
+ * 2026-08-31, connectors on the roadmap), so this screen states the boundary
+ * instead of offering to cross it. Naming what we could not see is the same
+ * argument the Coverage page makes, and it is worth more than a button we
+ * cannot honour yet.
  */
+/** Lowercases the first letter so a sentence can be embedded mid-clause. */
+function lowerFirst(text: string): string {
+  return text.charAt(0).toLowerCase() + text.slice(1);
+}
+
 function StackStep({
   repository,
-  connections,
   onContinue,
 }: {
   repository: string;
-  connections: ConnectionState;
   onContinue: () => void;
 }) {
   const [tools, setTools] = useState<DetectedTool[] | null>(null);
@@ -352,9 +348,9 @@ function StackStep({
           {tools === null ? "Reading your repository" : "This is what your code runs"}
         </h1>
         <p className="v3-sub" style={{ maxWidth: 580 }}>
-          The audit runs on your repository alone. Connecting a service adds its live
-          configuration, which is the part your code cannot show. Every one of these is
-          optional and you can add them later.
+          Read from your manifest, your imports and your schema. Nothing here was typed in.
+          The audit runs on your repository, so what a provider has configured in its own
+          dashboard stays outside it, and each card says what that leaves out.
         </p>
       </div>
 
@@ -387,20 +383,10 @@ function StackStep({
                 {found.map((t) => t.name).join(", ")}
               </p>
             </div>
-            {category.id === "database" && connections.database ? (
-              <span className="v3-tag ok">Connected</span>
-            ) : category.connect ? (
-              <a href={category.connect} className="v3-btn v3-btn-sm v3-ghost">
-                Connect
-              </a>
-            ) : (
-              <span className="v3-tag">Reading code only</span>
-            )}
+            <span className="v3-tag">Read from code</span>
           </div>
           <p className="v3-sub" style={{ fontSize: 13, marginTop: 10 }}>
-            {category.connect || (category.id === "database" && connections.database)
-              ? category.adds
-              : `Live checks for this are not available yet. ${category.adds}`}
+            Not covered by this audit: {lowerFirst(category.adds)}
           </p>
           <p className="v3-file" style={{ marginTop: 8 }}>{found[0].evidence}</p>
         </div>
@@ -421,7 +407,7 @@ function StackStep({
         <button className="v3-btn v3-primary" onClick={onContinue}>
           Run the first audit <ArrowRight size={15} />
         </button>
-        <span className="v3-small">Connections are optional. You can add them from Settings.</span>
+        <span className="v3-small">Coverage keeps this list after the audit runs.</span>
       </div>
     </div>
   );
