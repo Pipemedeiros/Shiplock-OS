@@ -41,8 +41,6 @@ const envSchema = z.object({
   SHIPLOCK_PROVING_PROJECT_REF: optionalSecret,
   GITHUB_APP_ID: optionalSecret,
   GITHUB_APP_PRIVATE_KEY: optionalSecret,
-  GITHUB_APP_CLIENT_ID: optionalSecret,
-  GITHUB_APP_CLIENT_SECRET: optionalSecret,
   GITHUB_APP_SLUG: optionalSecret,
   GITHUB_WEBHOOK_SECRET: optionalSecret,
   // Optional: Better Auth 2FA (layered on Supabase Auth). lib/betterAuth.ts is

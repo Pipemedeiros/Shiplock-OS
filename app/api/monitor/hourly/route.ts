@@ -20,7 +20,14 @@ const MAX_DURATION_MS = maxDuration * 1_000;
 // scanProject() the 48h pass uses. See lib/monitoring/run.ts for exactly
 // how that split works and why last_monitored_at is deliberately not
 // touched here.
-// Scheduled via .github/workflows/hourly-monitor.yml (GitHub Actions, not
+// NO TRIGGER TODAY. The GitHub Actions workflow that called this was removed on
+// 2026-08-31: it needed a CRON_SECRET repository secret that was never in sync,
+// it was not firing, and it serves the superseded scan-a-Supabase-project flow
+// (it selects users with monitored_project_url set, which a GitHub-first
+// customer never has). The route and scanCriticalChecks are kept and tested, so
+// re-adding a trigger is a workflow file and nothing more.
+//
+// Previously scheduled via .github/workflows/hourly-monitor.yml (GitHub Actions, not
 // Vercel Cron — the Vercel project is on the Hobby plan, which only
 // allows daily-frequency Cron Jobs).
 export async function GET(req: NextRequest) {
