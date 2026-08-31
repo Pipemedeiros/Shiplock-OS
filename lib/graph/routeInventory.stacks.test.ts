@@ -161,3 +161,71 @@ describe("monorepo layouts, because startup codebases are monorepos", () => {
     expect(facts.map((f) => f.path).sort()).toEqual(["/api/other", "/api/scan"]);
   });
 });
+
+describe("an identity the caller supplied is not an identity", () => {
+  // Found on a real repository: a route destructured userId from the request
+  // body and updated that row. OWNERSHIP_RE saw the NAME and marked it
+  // owner-filtered, and once the prompt began telling the model to trust that
+  // label, the genuine vulnerability vanished from the report. A fail-open on
+  // the one check class this product exists for.
+  const route = (content: string) =>
+    collectRoutes([{ path: "app/api/x/route.ts", content }])[0];
+
+  it("does not count a body-supplied user id as an ownership filter", () => {
+    const fact = route(`export async function POST(request) {
+      const { userId, avatarUrl } = await request.json();
+      await supabase.from('users').update({ avatar_url: avatarUrl }).eq('id', userId);
+      return Response.json({});
+    }`);
+    expect(fact.ownershipFiltered).toBe(false);
+  });
+
+  it("does not count a query-parameter user id either", () => {
+    const fact = route(`export async function GET(request) {
+      const userId = request.nextUrl.searchParams.get('userId');
+      await supabase.from('orders').select('*').eq('user_id', userId);
+      return Response.json({});
+    }`);
+    expect(fact.ownershipFiltered).toBe(false);
+  });
+
+  it("sees through a rename in the destructure", () => {
+    const fact = route(`export async function POST(request) {
+      const { userId: ownerId } = await request.json();
+      await supabase.from('users').update({ x: 1 }).eq('id', ownerId);
+      return Response.json({});
+    }`);
+    expect(fact.ownershipFiltered).toBe(false);
+  });
+
+  it("sees through a TypeScript annotation on the destructure", () => {
+    // The repository that exposed this fail-open writes it exactly this way,
+    // and the pattern expected `}` followed directly by `=`.
+    const fact = route(`export async function POST(request: Request) {
+      const { userId, avatarUrl }: { userId: string; avatarUrl: string } = await request.json();
+      await supabase.from('users').update({ avatar_url: avatarUrl }).eq('id', userId);
+      return Response.json({});
+    }`);
+    expect(fact.ownershipFiltered).toBe(false);
+  });
+
+  it("still counts a session identity, however it is obtained", () => {
+    // The other direction matters just as much. Inventing an attack path for a
+    // correctly scoped route is what this file's header calls the worst outcome.
+    expect(
+      route(`export async function GET() {
+        const { userId } = await auth();
+        await supabase.from('users').select('*').eq('id', userId);
+        return Response.json({});
+      }`).ownershipFiltered,
+    ).toBe(true);
+
+    expect(
+      route(`export async function GET() {
+        const user = await requireProUser();
+        await admin.from('audit_runs').select('*').eq('user_id', user.userId);
+        return Response.json({});
+      }`).ownershipFiltered,
+    ).toBe(true);
+  });
+});

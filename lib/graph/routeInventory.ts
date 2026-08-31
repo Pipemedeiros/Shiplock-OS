@@ -261,8 +261,77 @@ const IDENTITY_RESOLUTION_RE =
 const IDENTITY_GUARD_RE =
   /if\s*\(\s*!\s*[\w.?]*\b(?:user|owner|account|tenant|org|profile)Id\b[^)]*\)\s*(?:\{\s*(?:return|throw)[^;]*;\s*\}|(?:return|throw)[^;]*;)/gi;
 
+/**
+ * Identity-shaped names that came from the REQUEST, which are not identities.
+ *
+ * `const { userId } = await request.json()` reads as ownership to OWNERSHIP_RE,
+ * because the NAME is all that pattern can see. But a value the caller supplied
+ * is the opposite of a value that identifies the caller: filtering by it is
+ * exactly the bug, not the fix.
+ *
+ * Removing the declaration alone does not help, because the USE still carries
+ * the name: `.eq('id', userId)` matches on its own. So the name itself is
+ * collected and then neutralised everywhere in the route.
+ *
+ * Found on a real repository, where a route destructured userId from the body
+ * and updated that row. We marked it owner-filtered, and once the prompt began
+ * telling the model to trust that label the genuine vulnerability vanished from
+ * the report: a fail-open on the one check class this product exists for.
+ */
+// The `(?::\s*\{[^}]*\})?` is a TypeScript annotation on the destructure, and
+// leaving it out cost a real finding: the repository that exposed this fail-open
+// writes `const { userId, avatarUrl }: { userId: string; avatarUrl: string } =
+// await request.json()`, and the pattern expected `}` followed directly by `=`.
+const REQUEST_DESTRUCTURE_RE =
+  /(?:const|let|var)\s*\{([^}]*)\}\s*(?::\s*\{[^}]*\})?\s*=\s*(?:await\s+)?(?:req|request)\s*\.\s*(?:json|body|formData)\s*\(/g;
+const REQUEST_DESTRUCTURE_STATEMENT_RE =
+  /(?:const|let|var)\s*\{[^}]*\}\s*(?::\s*\{[^}]*\})?\s*=\s*(?:await\s+)?(?:req|request)\s*\.\s*(?:json|body|formData)\s*\([^;]*;/g;
+const REQUEST_ASSIGN_RE =
+  /(?:const|let|var)\s+(\w+)\s*=\s*[^;=]*?(?:(?:req|request)\s*\.\s*(?:json|body|formData|nextUrl)|searchParams|params)\b[^;]*;/g;
+
+const IDENTITY_NAME_RE = /^(?:user|owner|account|tenant|org|profile)Id$|^(?:user|owner|account|tenant|org|profile)_id$/i;
+
+/** Identity-looking names this route reads out of the request. */
+export function requestSuppliedIdentities(src: string): string[] {
+  const names = new Set<string>();
+
+  REQUEST_DESTRUCTURE_RE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = REQUEST_DESTRUCTURE_RE.exec(src)) !== null) {
+    for (const raw of m[1].split(",")) {
+      // `{ userId: caller }` renames it; the local name is what appears later.
+      const name = raw.includes(":") ? raw.split(":")[1] : raw;
+      const clean = name.trim().replace(/\s*=.*$/, "");
+      if (IDENTITY_NAME_RE.test(clean)) names.add(clean);
+    }
+  }
+
+  REQUEST_ASSIGN_RE.lastIndex = 0;
+  while ((m = REQUEST_ASSIGN_RE.exec(src)) !== null) {
+    if (IDENTITY_NAME_RE.test(m[1])) names.add(m[1]);
+  }
+
+  return [...names];
+}
+
 export function withoutIdentityResolution(src: string): string {
-  return src.replace(IDENTITY_RESOLUTION_RE, " ").replace(IDENTITY_GUARD_RE, " ");
+  let out = src.replace(IDENTITY_RESOLUTION_RE, " ").replace(IDENTITY_GUARD_RE, " ");
+
+  // Drop the request-reading statement itself. Neutralising the local name is
+  // not enough when the destructure renames: `const { userId: ownerId } =
+  // await request.json()` still leaves the KEY `userId` on the line, and that
+  // matches the ownership pattern on its own.
+  out = out
+    .replace(REQUEST_DESTRUCTURE_STATEMENT_RE, " ")
+    .replace(REQUEST_ASSIGN_RE, " ");
+
+  // Neutralise every mention of a name the caller supplied, so filtering by it
+  // stops counting as filtering by the caller.
+  for (const name of requestSuppliedIdentities(src)) {
+    out = out.replace(new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "g"), "attackerSupplied");
+  }
+
+  return out;
 }
 
 /**

@@ -18,7 +18,13 @@ const valid: Hypothesis = {
 
 describe("judgeHypothesis", () => {
   it("admits a hypothesis whose every concrete claim checks out", () => {
-    expect(judgeHypothesis(valid, recon)).toEqual({ allowed: true, attackClass: "missing_authorization" });
+    expect(judgeHypothesis(valid, recon)).toEqual({
+      allowed: true,
+      attackClass: "missing_authorization",
+      // Only citations we verified survive, so nothing downstream can turn an
+      // unrecognised one into a claim.
+      citedFacts: [],
+    });
   });
 
   it("refuses a route the model invented", () => {
@@ -175,6 +181,37 @@ describe("live provider facts as a location", () => {
       { ...base, citedFiles: [], citedFacts: [{ toString: () => "vercel:env:STRIPE_SECRET_KEY" }] as never },
       recon,
     );
+    expect(verdict.allowed).toBe(false);
+  });
+});
+
+describe("a junk citation does not discard a grounded finding", () => {
+  const recon = {
+    entries: new Set(["/api/update-avatar"]),
+    files: new Set(["app/api/update-avatar/route.ts"]),
+    tables: new Set(["users"]),
+  };
+
+  const base = {
+    entry: "/api/update-avatar",
+    attackClass: "missing_authorization",
+    title: "Body-supplied user id",
+    consequence: "Anyone can update any user's row by sending a different id.",
+    citedFiles: ["app/api/update-avatar/route.ts"],
+  };
+
+  it("keeps the finding and drops the unrecognised citation", () => {
+    // A real repository lost a real vulnerability to this. The model returned
+    // citedFacts: ["anonymous"], copied off the route line, and the whole
+    // finding was discarded even though it cited the correct file.
+    const verdict = judgeHypothesis({ ...base, citedFacts: ["anonymous"] }, recon);
+    expect(verdict.allowed).toBe(true);
+    // The junk citation must not survive into the finding as evidence.
+    if (verdict.allowed) expect(verdict.citedFacts).toEqual([]);
+  });
+
+  it("still refuses when the junk citation was the only grounding", () => {
+    const verdict = judgeHypothesis({ ...base, citedFiles: [], citedFacts: ["anonymous"] }, recon);
     expect(verdict.allowed).toBe(false);
   });
 });

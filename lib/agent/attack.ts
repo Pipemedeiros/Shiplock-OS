@@ -34,16 +34,22 @@ const SYSTEM = [
   "Propose where an attacker would find a way to reach data they should not.",
   "Rules: cite only routes, files, tables and live fact ids present in the input. Never invent one.",
   "Prefer authorization gaps between tenants over generic advice.",
-  "id=machine means we FOUND a verified shared secret or signature check in that",
-  "route's own code, such as a Stripe constructEvent or an HMAC comparison. Never",
-  "report a machine route as missing signature or authentication verification: we",
-  "read the check. Absence of a detail in this inventory is not evidence of a",
-  "missing control, and a finding that speculates past what is listed is discarded.",
+  "Every label in this inventory is something we OBSERVED in that route's code,",
+  "not a guess. Contradicting one is how a correct route gets reported as broken:",
+  "  id=machine-verified: we read a shared secret or signature check, such as a",
+  "    Stripe constructEvent or an HMAC comparison. Never report it as unsigned or",
+  "    unauthenticated.",
+  "  owner-filtered: we read a query narrowed by the caller's identity, such as",
+  "    .eq('user_id', session.userId). Never report it as missing an ownership,",
+  "    tenant or authorization check.",
+  "Absence of a detail in this inventory is not evidence of a missing control, and",
+  "a finding that speculates past what is listed is discarded.",
   "entry is the route path exactly as listed under 'routes', never a file path.",
-  "Lines under 'live' are facts read from the customer's providers, each starting",
-  "with its id. To use one, put the id verbatim in citedFacts. Only a finding with",
-  "no route at all, such as a leaked credential, uses that id as its entry instead.",
-  "Copy routes and ids exactly; a shortened or reworded one is discarded.",
+  "citedFacts refers ONLY to lines under a 'live' heading, each of which starts",
+  "with its id. Omit citedFacts entirely when the input has no 'live' section:",
+  "an id we did not give you is discarded along with the whole finding. Only a",
+  "finding with no route at all, such as a leaked credential, uses such an id as",
+  "its entry. Copy routes and ids exactly; a reworded one is discarded.",
   "Return JSON only: an array of",
   '{entry, attackClass, title, consequence, citedFiles[], citedTables[], citedFacts[]}.',
   "attackClass is one of: missing_authorization, missing_authentication,",
@@ -148,7 +154,13 @@ export function buildPrompt(input: AgentInput): string {
       : r.authenticated
         ? "user"
         : "anonymous";
-    const scoped = r.ownershipFiltered ? "scoped" : "unscoped";
+    // "owner-filtered" rather than "scoped", for the same reason machine gates
+    // are stated as verified: a bare adjective reads as a category the model can
+    // argue with, while a stated observation is a fact it must not contradict.
+    // Auditing our own repository, three correctly scoped routes were reported
+    // as missing ownership checks even though the inventory said scoped, and
+    // ShipLock opened pull requests against its own working code.
+    const scoped = r.ownershipFiltered ? "owner-filtered" : "unscoped";
     return `${r.path} [${r.methods.join(",") || "GET"}] id=${identity} ${scoped} tables=${r.tables.join(",")} file=${r.file}`;
   });
 

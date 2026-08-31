@@ -67,7 +67,7 @@ export interface ReconIndex {
 }
 
 export type GuardVerdict =
-  | { allowed: true; attackClass: AttackClass }
+  | { allowed: true; attackClass: AttackClass; citedFacts: string[] }
   | { allowed: false; reason: string };
 
 const MAX_TITLE = 160;
@@ -127,10 +127,28 @@ export function judgeHypothesis(h: Hypothesis, recon: ReconIndex): GuardVerdict 
       return { allowed: false, reason: `cited file "${file}" was not read in this run` };
     }
   }
-  for (const fact of citedFacts) {
-    if (typeof fact !== "string" || !(recon.facts?.has(fact) ?? false)) {
-      return { allowed: false, reason: `cited fact "${fact}" was not observed in this run` };
-    }
+  // An unrecognised fact citation is DROPPED, not fatal, as long as the
+  // hypothesis is still grounded by a file we read. The invariant is unchanged:
+  // an unverified citation never becomes evidence, because only the surviving
+  // ids reach buildFindings and become claims. What changes is that one junk
+  // field no longer discards an otherwise well-grounded finding.
+  //
+  // This cost a real vulnerability on a real repository. The model returned
+  // citedFacts: ["anonymous"], copying a label off the route line, and the whole
+  // finding went in the bin even though it cited the correct file. Two rounds of
+  // prompt wording did not stop it, and a guard that throws away true findings
+  // over a field the model misunderstands is the wrong shape.
+  const verifiedFacts = citedFacts.filter(
+    (fact) => typeof fact === "string" && (recon.facts?.has(fact) ?? false),
+  );
+
+  // Unless the facts WERE the grounding. A hypothesis with no file must cite at
+  // least one fact we actually observed.
+  if (citedFiles.length === 0 && verifiedFacts.length === 0) {
+    return {
+      allowed: false,
+      reason: `cited fact "${citedFacts[0]}" was not observed in this run`,
+    };
   }
 
   // 4 -- tables must come from the schema we read, not from the model's guess at
@@ -154,7 +172,7 @@ export function judgeHypothesis(h: Hypothesis, recon: ReconIndex): GuardVerdict 
     return { allowed: false, reason: "control characters or markup in prose" };
   }
 
-  return { allowed: true, attackClass: h.attackClass as AttackClass };
+  return { allowed: true, attackClass: h.attackClass as AttackClass, citedFacts: verifiedFacts };
 }
 
 export interface GuardResult {
@@ -176,7 +194,13 @@ export function guardHypotheses(raw: unknown, recon: ReconIndex): GuardResult {
   for (const item of raw) {
     const verdict = judgeHypothesis(item as Hypothesis, recon);
     if (verdict.allowed) {
-      result.admitted.push({ ...(item as Hypothesis), attackClass: verdict.attackClass });
+      // citedFacts is replaced with only the ids we verified, so nothing
+      // downstream can turn an unrecognised citation into a claim.
+      result.admitted.push({
+        ...(item as Hypothesis),
+        attackClass: verdict.attackClass,
+        citedFacts: verdict.citedFacts,
+      });
     } else {
       result.rejected.push({ hypothesis: item, reason: verdict.reason });
     }
