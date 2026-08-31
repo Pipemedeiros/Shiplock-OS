@@ -137,3 +137,63 @@ describe("checkSummary", () => {
     expect(summary).toContain("app/api/x/route.ts");
   });
 });
+
+describe("a diff does not contain the auth helper", () => {
+  // The first real pull request this check ran on posted "anyone on the
+  // internet can call this endpoint" about a route whose first line is
+  // requireProUser(), and BLOCKED the merge on it. Route facts follow imports
+  // two hops to find the auth helper, and a pull request does not contain
+  // lib/deep/proGate.ts, so every authenticated route in a diff read as
+  // anonymous. A blocking verdict with a wrong reason is worse than no check.
+  const helper = {
+    path: "lib/deep/proGate.ts",
+    content: `import { getSupabaseServer } from "@/lib/supabaseServer";
+      export async function requireProUser() {
+        const supabase = await getSupabaseServer();
+        const { data: { user } } = await supabase.auth.getUser();
+        return user ? { userId: user.id } : null;
+      }`,
+  };
+
+  const changedRoute = {
+    path: "app/api/scan-history/[id]/route.ts",
+    content: `import { requireProUser } from "@/lib/deep/proGate";
+      import { getSupabaseAdmin } from "@/lib/supabase";
+      export async function GET(_req, context) {
+        const user = await requireProUser();
+        if (!user) return Response.json({ error: "Not signed in." }, { status: 401 });
+        const { id } = await context.params;
+        const { data } = await getSupabaseAdmin().from("scan_history").select("*").eq("id", id).single();
+        return Response.json({ scan: data });
+      }`,
+  };
+
+  it("does not call an authenticated route anonymous", () => {
+    const result = scanDiff({
+      changed: [changedRoute],
+      baseline: [helper],
+      stack: { tools: [], authUnknown: false, databaseUnknown: false },
+    });
+
+    const anon = result.findings.filter((f) => f.id.startsWith("diff:anon:"));
+    expect(anon, anon[0]?.title).toHaveLength(0);
+  });
+
+  it("still reports a genuinely anonymous route", () => {
+    const result = scanDiff({
+      changed: [
+        {
+          path: "app/api/open/route.ts",
+          content: `import { getSupabaseAdmin } from "@/lib/supabase";
+            export async function GET() {
+              const { data } = await getSupabaseAdmin().from("scan_history").select("*");
+              return Response.json(data);
+            }`,
+        },
+      ],
+      baseline: [helper],
+      stack: { tools: [], authUnknown: false, databaseUnknown: false },
+    });
+    expect(result.findings.some((f) => f.id.startsWith("diff:anon:"))).toBe(true);
+  });
+});

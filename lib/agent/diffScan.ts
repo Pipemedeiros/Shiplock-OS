@@ -99,8 +99,21 @@ export function scanDiff(input: DiffScanInput): DiffScanResult {
 
   // 2 — routes the pull request introduces or edits, compared with the rest of
   //     the repository.
-  const changedRoutes = collectRoutes(changed);
+  //
+  // Both sets are collected from the WHOLE repository, then narrowed to the
+  // files this pull request touched. Collecting from the diff alone looked
+  // equivalent and was not: route facts follow imports two hops to find the
+  // auth helper, and a pull request does not contain lib/deep/proGate.ts, so
+  // every authenticated route in a diff read as anonymous.
+  //
+  // The first real pull request this check ran on proved it. A route calling
+  // requireProUser() and returning 401 was posted as "anyone on the internet
+  // can call this endpoint", and the check BLOCKED the merge on it. A blocking
+  // verdict with a wrong reason is worse than no check: it is the thing that
+  // gets a security tool switched off in its first week.
+  const changedPaths = new Set(changed.map((f) => f.path));
   const allRoutes = collectRoutes([...input.baseline, ...changed]);
+  const changedRoutes = allRoutes.filter((r) => changedPaths.has(r.file));
 
   for (const route of changedRoutes) {
     if (route.machineGated) continue; // a shared secret is the gate; ownership is not the question

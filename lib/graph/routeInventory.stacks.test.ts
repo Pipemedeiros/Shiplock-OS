@@ -229,3 +229,82 @@ describe("an identity the caller supplied is not an identity", () => {
     ).toBe(true);
   });
 });
+
+describe("an auth helper does not scope the route that imports it", () => {
+  // requireProUser does `.eq("id", user.id)` to fetch the profile of whoever is
+  // signed in. That is identity construction, not row scoping, and counting it
+  // made EVERY route importing it read as owner-filtered whether it filtered or
+  // not. Found when the merge check passed a route reading a table by an id
+  // taken straight from the URL.
+  const authHelper = {
+    path: "lib/deep/proGate.ts",
+    content: `import { getSupabaseServer } from "@/lib/supabaseServer";
+      export async function requireProUser() {
+        const supabase = await getSupabaseServer();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return null;
+        const { data } = await admin.from("user_profiles").select("is_paid").eq("id", user.id).single();
+        return { userId: user.id, email: user.email };
+      }`,
+  };
+
+  const collect = (route: { path: string; content: string }) =>
+    collectRoutes([authHelper, route]).find((r) => r.file === route.path)!;
+
+  it("reads an unscoped route as unscoped even when it authenticates", () => {
+    const fact = collect({
+      path: "app/api/scan-history/[id]/route.ts",
+      content: `import { requireProUser } from "@/lib/deep/proGate";
+        export async function GET(_req, context) {
+          const user = await requireProUser();
+          if (!user) return Response.json({ error: "no" }, { status: 401 });
+          const { id } = await context.params;
+          const { data } = await admin.from("scan_history").select("*").eq("id", id).single();
+          return Response.json(data);
+        }`,
+    });
+    expect(fact.authenticated).toBe(true);
+    expect(fact.ownershipFiltered).toBe(false);
+  });
+
+  it("still reads a genuinely scoped route as scoped", () => {
+    // The other direction is the one that matters more: inventing a path for a
+    // correctly scoped route is the worst outcome this file has.
+    const fact = collect({
+      path: "app/api/tokens/route.ts",
+      content: `import { requireProUser } from "@/lib/deep/proGate";
+        export async function GET() {
+          const ctx = await requireProUser();
+          const { data } = await admin.from("api_tokens").select("*").eq("user_id", ctx.userId);
+          return Response.json(data);
+        }`,
+    });
+    expect(fact.authenticated).toBe(true);
+    expect(fact.ownershipFiltered).toBe(true);
+  });
+
+  it("still credits a DATA helper that scopes on the route's behalf", () => {
+    // A helper that does not resolve identity is doing the route's filtering,
+    // so its ownership evidence still counts.
+    const dataHelper = {
+      path: "lib/scanHistory.ts",
+      content: `export async function historyFor(userId) {
+        return admin.from("scan_history").select("*").eq("user_id", userId);
+      }`,
+    };
+    const fact = collectRoutes([
+      authHelper,
+      dataHelper,
+      {
+        path: "app/api/history/route.ts",
+        content: `import { requireProUser } from "@/lib/deep/proGate";
+          import { historyFor } from "@/lib/scanHistory";
+          export async function GET() {
+            const ctx = await requireProUser();
+            return Response.json(await historyFor(ctx.userId));
+          }`,
+      },
+    ]).find((r) => r.file === "app/api/history/route.ts")!;
+    expect(fact.ownershipFiltered).toBe(true);
+  });
+});

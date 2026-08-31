@@ -432,6 +432,7 @@ export function analyzeRouteFile(
       if (!tables.has(table)) contributed = true;
       tables.add(table);
     }
+    const resolvesIdentity = STRONG_USER_AUTH_RE.test(src) || HEADER_READ_RE.test(src);
     if (STRONG_USER_AUTH_RE.test(src)) {
       if (!authenticated) contributed = true;
       authenticated = true;
@@ -444,8 +445,22 @@ export function analyzeRouteFile(
     // mention a secret name does not gate the endpoint that imports it.
     if (isEntry && MACHINE_GATE_RE.test(src)) machineGated = true;
     if (SERVICE_ROLE_RE.test(src)) usesServiceRole = true;
+    // Ownership from an IMPORTED source counts only when that source is a data
+    // helper, not an auth helper. An auth helper filters by the caller to fetch
+    // the caller: this repository's own requireProUser does
+    // `.eq("id", user.id)` to read the profile of whoever is signed in. That is
+    // identity construction, not row scoping, and counting it made EVERY route
+    // calling requireProUser read as owner-filtered whether it filtered or not.
+    //
+    // Found when the merge check passed a route that reads scan_history by an
+    // id straight from the URL. Same reasoning as the machine gate above: a
+    // helper that mentions the shape does not apply it to the importer.
+    //
+    // A data helper that genuinely scopes on the route's behalf still counts,
+    // because it does not resolve identity itself.
+    const ownershipCounts = isEntry || !resolvesIdentity;
     const filterable = withoutIdentityResolution(src);
-    if (OWNERSHIP_RE.test(filterable) || OWNERSHIP_ALT_RE.test(filterable)) {
+    if (ownershipCounts && (OWNERSHIP_RE.test(filterable) || OWNERSHIP_ALT_RE.test(filterable))) {
       if (!ownershipFiltered) contributed = true;
       ownershipFiltered = true;
     }
