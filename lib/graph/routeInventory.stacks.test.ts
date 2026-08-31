@@ -308,3 +308,55 @@ describe("an auth helper does not scope the route that imports it", () => {
     expect(fact.ownershipFiltered).toBe(true);
   });
 });
+
+describe("an auth helper's own query is not the route's data access", () => {
+  // requireProUser selects from user_profiles to check the gate. Crediting that
+  // to the importer made /api/deep/github/connect, whose entire body is a
+  // redirect and which queries nothing, report CRITICAL for reading
+  // user_profiles without narrowing it to the caller.
+  const authHelper = {
+    path: "lib/deep/proGate.ts",
+    content: `export async function requireProUser() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+      const { data } = await admin.from("user_profiles").select("is_paid").eq("id", user.id).single();
+      return data?.is_paid ? { userId: user.id } : null;
+    }`,
+  };
+
+  it("credits no table to a route that only redirects", () => {
+    const fact = collectRoutes([
+      authHelper,
+      {
+        path: "app/api/deep/github/connect/route.ts",
+        content: `import { requireProUser } from "@/lib/deep/proGate";
+          export async function GET() {
+            const pro = await requireProUser();
+            if (!pro) return Response.redirect("/dashboard?github=forbidden", 303);
+            return Response.redirect("https://github.com/apps/x/installations/new", 303);
+          }`,
+      },
+    ]).find((r) => r.path === "/api/deep/github/connect")!;
+
+    expect(fact.authenticated).toBe(true);
+    expect(fact.tables).toEqual([]);
+  });
+
+  it("still credits the tables the route queries itself", () => {
+    const fact = collectRoutes([
+      authHelper,
+      {
+        path: "app/api/tokens/route.ts",
+        content: `import { requireProUser } from "@/lib/deep/proGate";
+          export async function GET() {
+            const ctx = await requireProUser();
+            const { data } = await admin.from("api_tokens").select("*").eq("user_id", ctx.userId);
+            return Response.json(data);
+          }`,
+      },
+    ]).find((r) => r.path === "/api/tokens")!;
+
+    expect(fact.tables).toContain("api_tokens");
+    expect(fact.ownershipFiltered).toBe(true);
+  });
+});

@@ -428,11 +428,25 @@ export function analyzeRouteFile(
     const isEntry = path === file;
     let contributed = false;
 
-    for (const table of extractTables(src)) {
-      if (!tables.has(table)) contributed = true;
-      tables.add(table);
-    }
     const resolvesIdentity = STRONG_USER_AUTH_RE.test(src) || HEADER_READ_RE.test(src);
+
+    // Tables from an IMPORTED auth helper are the helper's own scoped read of
+    // whoever is signed in, not data the route exposes. requireProUser selects
+    // from user_profiles to check the gate, and crediting that made
+    // /api/deep/github/connect -- a route whose entire body is a redirect and
+    // which queries nothing -- report as CRITICAL for reading user_profiles
+    // without narrowing it to the caller.
+    //
+    // Same rule as the ownership evidence below and for the same reason: a
+    // helper that establishes WHO is calling is infrastructure, and its own
+    // queries belong to it. The entry file's queries always count, and a data
+    // helper that does not resolve identity still counts.
+    if (isEntry || !resolvesIdentity) {
+      for (const table of extractTables(src)) {
+        if (!tables.has(table)) contributed = true;
+        tables.add(table);
+      }
+    }
     if (STRONG_USER_AUTH_RE.test(src)) {
       if (!authenticated) contributed = true;
       authenticated = true;
