@@ -166,7 +166,12 @@
 .v3-file { font-family: var(--dx-font-geist-mono), monospace; font-size: 12px; color: var(--muted); }
 
 /* ── app shell ─────────────────────────────────────────────────────────── */
-.v3-app { display: grid; grid-template-columns: 232px 1fr; min-height: 100vh; }
+/* minmax(0, 1fr), not 1fr. A grid track sized `1fr` refuses to shrink below its
+   content's min-content width, so on a window between the sidebar-collapse
+   breakpoint and about 850px the main column held itself at 620px, the shell
+   measured 852px against a 792px viewport, and the whole dashboard scrolled
+   sideways. Same defect as the coverage rows, one level up. */
+.v3-app { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 100vh; }
 .v3-side { border-right: 1px solid var(--line); background: var(--paper); padding: 20px 14px;
   display: flex; flex-direction: column; gap: 22px; position: sticky; top: 0; height: 100vh; }
 .v3-side-brand { display: flex; align-items: center; gap: 9px; font-family: var(--dx-font-newsreader), serif;
@@ -343,11 +348,20 @@
   .v3-cov > div > :last-child { justify-self: start; max-width: none; }
 }
 
-@media (max-width: 780px) {
+/* The sidebar is 232px and the content needs room to breathe beside it. Below
+   this the shell stacks, rather than at 780px, which left a band of window
+   widths where the dashboard was technically responsive and actually broken. */
+@media (max-width: 900px) {
   .v3-app { grid-template-columns: 1fr; }
   .v3-side { position: static; height: auto; flex-direction: row; align-items: center; overflow-x: auto; gap: 14px; }
   .v3-nav { flex-direction: row; }
   .v3-side-foot, .v3-repo small, .v3-side-brand span { display: none; }
+  /* In the horizontal bar the repo chip must not wrap. A long full_name broke
+     into one word per line and made the nav several times taller than the
+     links beside it. */
+  .v3-repo { flex: 0 0 auto; max-width: 190px; }
+  .v3-repo b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .v3-nav a { white-space: nowrap; }
   .v3-main { padding: 24px 20px 60px; }
   .v3-plans, .v3-argument, .v3-included, .v3-grid-3 { grid-template-columns: 1fr; }
   .v3-hero h1 { font-size: 34px; }
