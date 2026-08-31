@@ -138,17 +138,55 @@ const NOT_A_TABLE = new Set([
   "db", "sql", "table", "query", "select", "insert", "update", "delete", "raw", "schema", "$queryRaw",
 ]);
 
+/**
+ * Which byte offsets sit inside a string literal.
+ *
+ * A query written inside a string is not a query. `const sample =
+ * "admin.from('orders').select('*')"` is documentation, a code sample, or a
+ * generator template, and reading it as data access reported an endpoint that
+ * returns a constant as CRITICAL for exposing a table.
+ *
+ * Comments are already stripped upstream; this is the other half. The scan is a
+ * single pass tracking quote state and escapes, which is enough to tell a
+ * `.from(` that is CODE from one that is text. The table name inside a real
+ * `.from("orders")` is itself a string, so its argument still resolves: what
+ * matters is whether the `.from(` token was reached while already inside one.
+ */
+function stringSpans(src: string): (index: number) => boolean {
+  const inside = new Uint8Array(src.length);
+  let quote: string | null = null;
+
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
+    if (quote) {
+      inside[i] = 1;
+      if (ch === "\\") { if (i + 1 < src.length) inside[i + 1] = 1; i++; continue; }
+      if (ch === quote) quote = null;
+      continue;
+    }
+    if (ch === '"' || ch === "'" || ch === "`") quote = ch;
+  }
+
+  return (index: number) => index < inside.length && inside[index] === 1;
+}
+
 export function extractTables(src: string): string[] {
   const out = new Set<string>();
+  const inString = stringSpans(src);
   FROM_RE.lastIndex = 0;
   let m: RegExpExecArray | null;
-  while ((m = FROM_RE.exec(src)) !== null) out.add(m[1]);
+  while ((m = FROM_RE.exec(src)) !== null) {
+    if (!inString(m.index)) out.add(m[1]);
+  }
   RPC_RE.lastIndex = 0;
-  while ((m = RPC_RE.exec(src)) !== null) out.add(`rpc:${m[1]}`);
+  while ((m = RPC_RE.exec(src)) !== null) {
+    if (!inString(m.index)) out.add(`rpc:${m[1]}`);
+  }
 
   for (const re of [DRIZZLE_QUERY_RE, DRIZZLE_FROM_IDENT_RE, PRISMA_MODEL_RE]) {
     re.lastIndex = 0;
     while ((m = re.exec(src)) !== null) {
+      if (inString(m.index)) continue;
       const name = m[1];
       if (!NOT_A_TABLE.has(name) && name.length > 1) out.add(name);
     }

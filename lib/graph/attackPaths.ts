@@ -57,9 +57,18 @@ function routeOf(node: GraphNode): RouteFact & { suspiciousRequests: number } {
   return node.attrs as unknown as RouteFact & { suspiciousRequests: number };
 }
 
-/** A route reachable by someone with no credentials at all. */
+/**
+ * A route reachable by someone with no credentials at all.
+ *
+ * A route that narrows its query to the caller HAS a caller, whatever the auth
+ * detector saw: the helper may sit outside what we read, or behind more
+ * indirection than the import walk follows. Treating that contradiction as
+ * "anyone can reach this" invents the most severe finding this product has out
+ * of a gap in our own reading, so the safer half wins and the route is judged
+ * by the ownership paths instead.
+ */
 function isAnonymous(route: RouteFact): boolean {
-  return !route.authenticated && !route.machineGated;
+  return !route.authenticated && !route.machineGated && !route.ownershipFiltered;
 }
 
 /**

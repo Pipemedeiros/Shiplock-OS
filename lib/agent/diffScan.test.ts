@@ -197,3 +197,98 @@ describe("a diff does not contain the auth helper", () => {
     expect(result.findings.some((f) => f.id.startsWith("diff:anon:"))).toBe(true);
   });
 });
+
+describe("edge cases found by adversarial testing", () => {
+  const proGate = {
+    path: "lib/deep/proGate.ts",
+    content: `export async function requireProUser() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+      const { data } = await admin.from("user_profiles").select("is_paid").eq("id", user.id).single();
+      return { userId: user.id }; }`,
+  };
+  const stack = { tools: [], authUnknown: false, databaseUnknown: false };
+  const run = (changed: { path: string; content: string }[], baseline = [proGate]) =>
+    scanDiff({ changed, baseline, stack });
+
+  it("does not read a query written inside a string literal as data access", () => {
+    // `const sample = "admin.from('orders').select('*')"` is documentation, a
+    // code sample or a generator template. Reading it as a query reported an
+    // endpoint that returns a constant as CRITICAL for exposing a table.
+    const r = run([
+      {
+        path: "app/api/sample/route.ts",
+        content: `const sample = "admin.from('orders').select('*')";
+          export async function GET() { return Response.json({ sample }); }`,
+      },
+    ]);
+    expect(r.findings).toEqual([]);
+  });
+
+  it("still reads a real query whose table name is a string", () => {
+    // The obvious way to break the fix above: the table name in a genuine
+    // `.from("orders")` is itself a string literal.
+    const r = run([
+      {
+        path: "app/api/leak/route.ts",
+        content: `export async function GET() { return Response.json(await admin.from("orders").select("*")); }`,
+      },
+    ]);
+    expect(r.findings.some((f) => f.id.startsWith("diff:anon:"))).toBe(true);
+  });
+
+  it("never calls a route anonymous when it filters by the caller", () => {
+    // The two cannot both be true. When they are, we failed to see the auth,
+    // and reporting the contradiction as a blocking critical is the worst
+    // outcome available.
+    const r = run([
+      {
+        path: "app/api/deep/route.ts",
+        content: `import { guard } from "@/lib/guard";
+          export async function GET() { const c = await guard();
+            return Response.json(await admin.from("orders").select("*").eq("user_id", c.userId)); }`,
+      },
+    ]);
+    expect(r.findings.filter((f) => f.id.startsWith("diff:anon:"))).toEqual([]);
+  });
+
+  it("survives a file with a syntax error", () => {
+    expect(() =>
+      run([{ path: "app/api/broken/route.ts", content: `export async function GET( { return admin.from("orders")` }]),
+    ).not.toThrow();
+  });
+
+  it("survives a very large file", () => {
+    const big = "// filler\n".repeat(20000);
+    const r = run([
+      {
+        path: "app/api/big/route.ts",
+        content: big + `export async function GET() { return Response.json(await admin.from("orders").select("*")); }`,
+      },
+    ]);
+    expect(r.findings.some((f) => f.id.startsWith("diff:anon:"))).toBe(true);
+  });
+
+  it("ignores a vulnerable route that exists only in a comment", () => {
+    const r = run([
+      {
+        path: "app/api/commented/route.ts",
+        content: `// export async function GET() { return Response.json(await admin.from("orders").select("*")); }
+          export async function GET() { return Response.json({ ok: true }); }`,
+      },
+    ]);
+    expect(r.findings).toEqual([]);
+  });
+
+  it("does not treat a hardcoded uuid as the caller", () => {
+    const r = run([
+      {
+        path: "app/api/const/route.ts",
+        content: `import { requireProUser } from "@/lib/deep/proGate";
+          export async function GET() { await requireProUser();
+            return Response.json(await admin.from("orders").select("*").eq("user_id", "11111111-2222-3333-4444-555555555555")); }`,
+      },
+    ]);
+    expect(r.findings.some((f) => f.id.startsWith("diff:unscoped:"))).toBe(true);
+  });
+});

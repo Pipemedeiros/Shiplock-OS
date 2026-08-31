@@ -119,7 +119,13 @@ export function scanDiff(input: DiffScanInput): DiffScanResult {
     if (route.machineGated) continue; // a shared secret is the gate; ownership is not the question
     if (route.tables.length === 0) continue; // reaches no data, cannot leak it
 
-    if (!route.authenticated) {
+    // "No caller is resolved" and "the query is narrowed to the caller" cannot
+    // both be true. When they are, we did not see the auth rather than there
+    // being none: the helper may sit outside what we read, or behind more
+    // indirection than the import walk follows. Reporting the contradiction as
+    // a blocking critical is the worst outcome available, so the safer half of
+    // it wins and the route falls through to the ownership checks below.
+    if (!route.authenticated && !route.ownershipFiltered) {
       findings.push({
         id: `diff:anon:${route.path}`,
         severity: "CRITICAL",
