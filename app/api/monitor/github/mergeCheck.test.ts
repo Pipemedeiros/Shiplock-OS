@@ -13,6 +13,24 @@ const runGithubScanMock = vi.fn();
 const runRepositoryAuditMock = vi.fn();
 const maybeSingleMock = vi.fn();
 
+// `after()` defers work until the response is sent, which is the whole point:
+// GitHub allows a webhook ten seconds and a real scan takes longer. Nothing
+// runs it in a test, so it is executed inline here. What is being asserted is
+// still the same thing, that the work is dispatched and with what.
+const afterWork: Promise<unknown>[] = [];
+/** Wait for work `after()` deferred, which a test environment never runs. */
+const flushAfter = () => Promise.allSettled(afterWork.splice(0));
+
+vi.mock("next/server", async () => {
+  const actual = await vi.importActual<typeof import("next/server")>("next/server");
+  return {
+    ...actual,
+    after: (fn: () => unknown) => {
+      afterWork.push(Promise.resolve().then(fn));
+    },
+  };
+});
+
 vi.mock("@/lib/agent/prCheck", () => ({ runPullRequestCheck: runPullRequestCheckMock }));
 vi.mock("@/lib/deep/githubRun", () => ({ runGithubScan: runGithubScanMock }));
 vi.mock("@/lib/agent/audit", () => ({ runRepositoryAudit: runRepositoryAuditMock }));
@@ -70,6 +88,7 @@ describe("the merge check and the coalescing window", () => {
 
   it("still posts the check when the full re-scan is coalesced away", async () => {
     await POST(req(payload));
+    await flushAfter();
 
     expect(runPullRequestCheckMock).toHaveBeenCalledWith(
       expect.objectContaining({ fullName: "acme/app", prNumber: 7, headSha: "abc123" }),
@@ -83,6 +102,8 @@ describe("the merge check and the coalescing window", () => {
     runPullRequestCheckMock.mockRejectedValue(new Error("GitHub 503"));
 
     const res = await POST(req(payload));
+    await flushAfter();
+    await flushAfter();
 
     // 200 regardless, or GitHub retries the delivery and we do the work twice.
     expect(res.status).toBe(200);

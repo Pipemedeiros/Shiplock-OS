@@ -6,6 +6,24 @@ const runGithubScanMock = vi.fn();
 const maybeSingleMock = vi.fn();
 const updateEqMock = vi.fn();
 
+// `after()` defers work until the response is sent, which is the whole point:
+// GitHub allows a webhook ten seconds and a real scan takes longer. Nothing
+// runs it in a test, so it is executed inline here. What is being asserted is
+// still the same thing, that the work is dispatched and with what.
+const afterWork: Promise<unknown>[] = [];
+/** Wait for work `after()` deferred, which a test environment never runs. */
+const flushAfter = () => Promise.allSettled(afterWork.splice(0));
+
+vi.mock("next/server", async () => {
+  const actual = await vi.importActual<typeof import("next/server")>("next/server");
+  return {
+    ...actual,
+    after: (fn: () => unknown) => {
+      afterWork.push(Promise.resolve().then(fn));
+    },
+  };
+});
+
 vi.mock("@/lib/deep/githubRun", () => ({ runGithubScan: runGithubScanMock }));
 vi.mock("@/lib/supabase", () => ({
   getSupabaseAdmin: () => ({
@@ -77,6 +95,7 @@ describe("POST /api/monitor/github — HMAC-forged webhook payloads must not tri
     runGithubScanMock.mockResolvedValue(undefined);
 
     const res = await POST(req(raw, sign(raw)));
+    await flushAfter();
     expect(res.status).toBe(200);
     expect(runGithubScanMock).toHaveBeenCalledWith("owner-1", 42);
   });
@@ -89,6 +108,7 @@ describe("POST /api/monitor/github — HMAC-forged webhook payloads must not tri
     maybeSingleMock.mockResolvedValue({ data: null });
 
     await POST(req(raw, sign(raw)));
+    await flushAfter();
     expect(runGithubScanMock).not.toHaveBeenCalled();
   });
 
