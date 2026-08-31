@@ -100,7 +100,8 @@ export function PostgresPanel({
         identical from outside.
       </p>
       <p style={{ margin: "0 0 12px", fontSize: 12.5, lineHeight: 1.7, color: "var(--d-muted)" }}>
-        <b>Give us a read-only role, and we&apos;ll check that you did.</b> We refuse the
+        <b>Give us a read-only role, and we&apos;ll check that you did.</b>{" "}
+        We refuse the
         connection if the role can write, or if it can bypass Row Level Security, so
         &ldquo;ShipLock cannot change your database&rdquo; is something your grants enforce, not
         something you have to take our word for.
