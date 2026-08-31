@@ -54,24 +54,34 @@ export interface RouteFact {
 }
 
 const ROUTE_FILE_RE = /(^|\/)route\.(ts|js|tsx|jsx)$/;
-const PAGES_API_RE = /^(src\/)?pages\/api\/.+\.(ts|js|tsx|jsx)$/;
+
+// A workspace prefix before app/ or pages/, because startup codebases are
+// monorepos. Auditing corpus-g, 2,359 files with 112 tables, returned ZERO
+// routes: every endpoint sits at apps/web/src/app/api/.../route.ts and the
+// matcher required the path to START with app/. The agent then skipped the run
+// entirely with "no route reaches a table", so the largest and most valuable
+// codebases were exactly the ones we said nothing about.
+const WORKSPACE_PREFIX = "(?:[\\w.-]+\\/)*?";
+const PAGES_API_RE = new RegExp(`^${WORKSPACE_PREFIX}(?:src\\/)?pages\\/api\\/.+\\.(ts|js|tsx|jsx)$`);
+const APP_DIR_RE = new RegExp(`^${WORKSPACE_PREFIX}(?:src\\/)?app\\/`);
 
 /** app/api/scan/route.ts -> /api/scan ; app/(d)/api/x/route.ts -> /api/x */
 export function routePathFromFile(file: string): string {
-  let p = file.replace(/^(src\/)?/, "");
-
   // pages/api/foo.ts -> /api/foo ; pages/api/foo/index.ts -> /api/foo
   if (PAGES_API_RE.test(file)) {
+    const fromPages = file.slice(file.indexOf("pages/") + "pages/".length);
     return (
       "/" +
-      p
-        .replace(/^pages\//, "")
-        .replace(/\.(ts|js|tsx|jsx)$/, "")
-        .replace(/\/index$/, "")
+      fromPages.replace(/\.(ts|js|tsx|jsx)$/, "").replace(/\/index$/, "")
     );
   }
 
-  p = p.replace(/^app\//, "").replace(/\/route\.(ts|js|tsx|jsx)$/, "");
+  // Everything up to and including the app/ segment is workspace layout, not
+  // URL. apps/web/src/app/api/x/route.ts and app/api/x/route.ts are the same
+  // endpoint as far as an attacker is concerned.
+  const appMatch = APP_DIR_RE.exec(file);
+  let p = appMatch ? file.slice(appMatch[0].length) : file.replace(/^(src\/)?app\//, "");
+  p = p.replace(/\/route\.(ts|js|tsx|jsx)$/, "");
   // Route groups — `(d)` — organise files without appearing in the URL.
   const segments = p.split("/").filter((s) => s.length > 0 && !/^\(.+\)$/.test(s));
   return "/" + segments.join("/");
@@ -399,8 +409,9 @@ export function analyzeRouteFile(
 export function isRouteFile(path: string): boolean {
   if (PAGES_API_RE.test(path)) return true;
   if (!ROUTE_FILE_RE.test(path)) return false;
-  // Only under app/ (or src/app/) — a `route.ts` elsewhere isn't an endpoint.
-  return /^(src\/)?app\//.test(path);
+  // Under an app/ directory anywhere, so a monorepo workspace still counts. A
+  // `route.ts` outside one is not an endpoint.
+  return APP_DIR_RE.test(path);
 }
 
 /**

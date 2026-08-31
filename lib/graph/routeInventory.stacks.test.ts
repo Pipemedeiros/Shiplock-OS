@@ -120,3 +120,44 @@ describe("built-in .from() is not a table read", () => {
     expect(fact.tables).toContain("invoices");
   });
 });
+
+describe("monorepo layouts, because startup codebases are monorepos", () => {
+  // Auditing corpus-g (2,359 files, 112 tables) returned ZERO routes: every
+  // endpoint sits under apps/web/src/app/ and the matcher required the path to
+  // start with app/. The agent then skipped the run with "no route reaches a
+  // table", so the largest codebases were the ones we said nothing about.
+  it("finds routes in a workspace, and reports the real URL", () => {
+    const facts = collectRoutes([
+      {
+        path: "apps/web/src/app/api/invoices/[id]/route.ts",
+        content: `export async function GET() { return Response.json(await db.select().from(invoices)); }`,
+      },
+      {
+        path: "apps/admin/app/api/users/route.ts",
+        content: `export async function GET() { return Response.json(1); }`,
+      },
+      {
+        path: "packages/api/src/pages/api/legacy.ts",
+        content: `export default function handler(req, res) { res.json({}); }`,
+      },
+    ]);
+    const paths = facts.map((f) => f.path).sort();
+    expect(paths).toEqual(["/api/invoices/[id]", "/api/legacy", "/api/users"]);
+  });
+
+  it("still refuses a route.ts that is not under an app directory", () => {
+    const facts = collectRoutes([
+      { path: "lib/trpc/route.ts", content: "export async function GET() {}" },
+      { path: "docs/examples/route.ts", content: "export async function GET() {}" },
+    ]);
+    expect(facts).toHaveLength(0);
+  });
+
+  it("keeps the plain single-app layout working", () => {
+    const facts = collectRoutes([
+      { path: "app/api/scan/route.ts", content: "export async function POST() {}" },
+      { path: "src/app/api/other/route.ts", content: "export async function GET() {}" },
+    ]);
+    expect(facts.map((f) => f.path).sort()).toEqual(["/api/other", "/api/scan"]);
+  });
+});

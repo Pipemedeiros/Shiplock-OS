@@ -11,10 +11,32 @@ import {
 } from "./githubScan";
 
 describe("scanSecrets", () => {
-  it("flags a committed .env file", () => {
-    const f = scanSecrets([{ path: "apps/web/.env.production", content: "X=1" }]);
+  it("flags a committed .env file that carries a real value", () => {
+    const f = scanSecrets([
+      { path: "apps/web/.env.production", content: 'DATABASE_PASSWORD="hunter2GoesHereAndIsLong"' },
+    ]);
     expect(f.some((x) => x.id.includes("committed_env"))).toBe(true);
     expect(f[0].severity).toBe("CRITICAL");
+  });
+
+  it("flags a committed .env holding nothing real as a warning, not an emergency", () => {
+    // Severity has to keep meaning something. A committed env file with no
+    // filled-in value is a habit worth breaking, not a leak.
+    const f = scanSecrets([{ path: "apps/web/.env.production", content: "X=1" }]);
+    expect(f[0].severity).toBe("WARNING");
+  });
+
+  it("says nothing about a public-by-design env file", () => {
+    // A real Supabase starter commits EXPO_PUBLIC_ values including the anon
+    // key, which is meant to ship to the client. Reporting that as a credential
+    // leak is the same overreach as flagging a publishable key in a bundle.
+    const f = scanSecrets([
+      {
+        path: "expo/.env",
+        content: 'EXPO_PUBLIC_SUPABASE_URL=https://abc.supabase.co\nEXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9',
+      },
+    ]);
+    expect(f[0].severity).toBe("WARNING");
   });
 
   it("flags a PEM private key and a supabase service key", () => {
@@ -226,6 +248,40 @@ describe("fixtures are not leaks", () => {
     ]);
     expect(findings).toHaveLength(1);
     expect(findings[0].severity).toBe("CRITICAL");
+  });
+
+  it("does not report a placeholder env file as a hardcoded secret", () => {
+    // Auditing corpus-g reported a CRITICAL hardcoded secret in .env.example,
+    // which is the file every project is supposed to commit to document its
+    // variables.
+    const findings = scanSecrets([
+      {
+        path: ".env.example",
+        content: 'NEXTAUTH_SECRET="your-secret-here"\nDATABASE_URL="postgres://user:password@localhost:5432/db"',
+      },
+    ]);
+    expect(findings).toHaveLength(0);
+  });
+
+  it("still reports a real vendor key pasted into a placeholder env file", () => {
+    const findings = scanSecrets([
+      { path: ".env.example", content: 'SUPABASE_KEY="sb_secret_9f3Kq7Lm2Xz8Rt4Bn6Vc1Wd5"' },
+    ]);
+    expect(findings).toHaveLength(1);
+  });
+
+  it("treats any your-* placeholder as the placeholder it is", () => {
+    // corpus-g documents its SMTP variable in a JSDoc block as
+    // NEXT_PRIVATE_SMTP_PASSWORD='your-password'. The marker list covered
+    // your-key, your-token and your-secret but not your-password, so the
+    // documentation was reported as a committed credential.
+    const findings = scanSecrets([
+      {
+        path: "packages/email/mailer.ts",
+        content: " * NEXT_PRIVATE_SMTP_PASSWORD='your-password';\nconst x = 1;",
+      },
+    ]);
+    expect(findings).toHaveLength(0);
   });
 
   it("does not report a logged secret inside a test", () => {

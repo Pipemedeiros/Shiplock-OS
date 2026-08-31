@@ -38,8 +38,47 @@ const SECRET_PATTERNS: { id: string; label: string; re: RegExp }[] = [
   { id: "generic_secret_assignment", label: "a hardcoded secret", re: /(?<!NEXT_PUBLIC_)(SERVICE_ROLE_KEY|_SECRET|PRIVATE_KEY|PASSWORD)\s*[:=]\s*["'][^"'\s]{8,}["']/ },
 ];
 
-// A committed dotenv file is its own red flag regardless of contents.
-const COMMITTED_ENV_RE = /(^|\/)\.env(\.[A-Za-z0-9_-]+)?$/;
+// A committed dotenv file.
+const COMMITTED_ENV_RE = /(^|\/)\.env(\.[A-Za-z0-9_-]+)*$/;
+
+// ...except the ones every project is SUPPOSED to commit.
+//
+// `.env.example` and `.env.template` are the documented way to tell a new
+// contributor which variables exist. Auditing a real Supabase starter reported
+// its committed `.env.template` as a CRITICAL leak, which is both wrong and the
+// most common file shape in this market: our own repository never caught it
+// because it gitignores `.env*`, so the placeholder is never committed here.
+//
+// Their CONTENT is still scanned by the credential patterns below, so a real key
+// pasted into `.env.example` is still reported. It is the file's existence that
+// stops being a finding.
+const ENV_PLACEHOLDER_RE = /\.(example|template|sample|dist|defaults?|placeholder|tpl)$/i;
+
+/** Prefixes whose values are published to the browser on purpose. */
+const PUBLIC_ENV_PREFIX = /^(NEXT_PUBLIC_|EXPO_PUBLIC_|VITE_|PUBLIC_|REACT_APP_|GATSBY_)/;
+
+/** A filled-in value rather than a fill-me-in marker. */
+const ENV_FILLED_VALUE = /^["']?(?!\s*$)(?!your[-_])(?!<)(?!\.\.\.)(?!xxx)[^\s"']{16,}/i;
+
+/**
+ * Whether a committed env file actually carries a secret.
+ *
+ * A file holding only NEXT_PUBLIC_/EXPO_PUBLIC_ values carries nothing private:
+ * those ship to the browser by design, and the Supabase anon key is meant to be
+ * there. A real Supabase starter committed exactly that and was reported as a
+ * CRITICAL credential leak, which is the same overreach as flagging the
+ * publishable key in a bundle, something this codebase already refuses to do.
+ */
+export function envFileHasSecret(content: string): boolean {
+  for (const line of content.split("\n")) {
+    const match = /^\s*([A-Za-z0-9_]+)\s*=\s*(.*)$/.exec(line);
+    if (!match) continue;
+    const [, key, rawValue] = match;
+    if (PUBLIC_ENV_PREFIX.test(key)) continue;
+    if (ENV_FILLED_VALUE.test(rawValue.trim())) return true;
+  }
+  return false;
+}
 
 // ── Fixtures are not leaks ─────────────────────────────────────────────────
 // A test suite that exercises a secret detector has to contain things shaped
@@ -66,7 +105,7 @@ export function isTestPath(path: string): boolean {
 // "example" with no word boundary anywhere near it, and a \b here silently
 // matched neither -- which is the whole false-positive burst all over again.
 const SYNTHETIC_RE =
-  /(example|fake|dummy|placeholder|redacted|notreal|test[-_]?key|testkey|your[-_](key|token|secret)|changeme|xxxx|aaaa|00000|1234567|deadbeef|foobar|lorem)/i;
+  /(example|fake|dummy|placeholder|redacted|notreal|test[-_]?key|testkey|your[-_]\w+|changeme|xxxx|aaaa|00000|1234567|deadbeef|foobar|lorem)/i;
 
 /**
  * Whether a matched credential looks manufactured for a test.
@@ -119,22 +158,32 @@ export function scanSecrets(files: RepoFile[]): GithubFinding[] {
   const seen = new Set<string>();
 
   for (const file of files) {
-    if (COMMITTED_ENV_RE.test(file.path)) {
+    if (COMMITTED_ENV_RE.test(file.path) && !ENV_PLACEHOLDER_RE.test(file.path)) {
       const id = `github:committed_env:${file.path}`;
+      // A committed env file holding only placeholders is untidy, not urgent.
+      // Reserving CRITICAL for a file that actually carries a value keeps the
+      // severity meaning something.
+      const hasRealValue = envFileHasSecret(file.content);
       if (!seen.has(id)) {
         seen.add(id);
         findings.push({
           id,
-          severity: "CRITICAL",
+          severity: hasRealValue ? "CRITICAL" : "WARNING",
           title: `Environment file committed to the repo (${file.path})`,
-          consequence:
-            `${file.path} is committed to source control — anyone with repo access (and anyone if it's ever public) can read whatever secrets it holds. Remove it, add it to .gitignore, and rotate every value in it.`,
+          consequence: hasRealValue
+            ? `${file.path} is committed to source control and contains values. Anyone with repository access, and anyone at all if it ever goes public, can read them. Remove the file, add it to .gitignore, and rotate every value in it.`
+            : `${file.path} is committed to source control. Its values are either placeholders or public by design, such as a NEXT_PUBLIC_ variable or a Supabase anon key, so nothing private is exposed here. Add it to .gitignore before something real is pasted into it.`,
           packageName: null, version: null, vulnId: null, cveId: null,
         });
       }
     }
 
-    const inTest = isTestPath(file.path);
+    // A placeholder env file is documentation of which variables exist. Its
+    // values are examples by definition, so it gets the same treatment as test
+    // scaffolding: the generic assignment pattern proves nothing there, and a
+    // synthetic-looking value is a placeholder rather than a leak. A
+    // real-looking vendor-shaped key pasted into one is still reported.
+    const inTest = isTestPath(file.path) || ENV_PLACEHOLDER_RE.test(file.path);
 
     for (const pat of SECRET_PATTERNS) {
       const match = pat.re.exec(file.content);

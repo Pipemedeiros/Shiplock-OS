@@ -135,6 +135,22 @@ function routeClaims(route: RouteFact | undefined, stack: StackReport): Claim[] 
     });
   }
 
+  // Whether an unscoped query is actually exploitable turns on one thing: does
+  // anything below it still filter? A service-role client answers that
+  // definitively, because it bypasses row policies entirely. Auditing two real
+  // repositories showed both shapes side by side, one cancelling any
+  // subscription through a service-role client and one updating any row through
+  // the caller's own session, where a row policy may well be stopping it. They
+  // are not the same claim and must not be stated with the same certainty.
+  if (route.usesServiceRole) {
+    claims.push({
+      claim:
+        "The route uses a service-role client, which bypasses row policies, so nothing below the query filters it either.",
+      origin: "imports",
+      verified: true,
+    });
+  }
+
   const auth = stack.tools.find((t) => t.kind === "auth");
   if (auth) {
     claims.push({
@@ -184,6 +200,36 @@ export function buildFindings(input: BuildFindingsInput): AgentFinding[] {
       { claim: h.consequence, origin: "agent", verified: false },
     ];
 
+    // An unscoped query through the CALLER'S OWN session may still be stopped
+    // by a row policy we never read. Saying so is not hedging: it is the
+    // difference between a finding and a guess, and connecting a database is
+    // what resolves it. A service-role route needs no such caveat, because
+    // nothing below it filters.
+    // Only where a declarative policy engine could actually be compensating.
+    // Supabase and Firebase enforce rules inside the store, so an unscoped
+    // query through the caller's own session may still be filtered there. An
+    // app talking to plain Postgres through Drizzle or Prisma has no such
+    // layer: the query IS the authorization, and hedging it would understate a
+    // real finding.
+    const usesPolicyEngine = input.stack.tools.some(
+      (t) => t.kind === "database" && (t.id === "supabase" || t.id === "firebase"),
+    );
+    const rlsCouldStillProtect =
+      !input.hasDatabase &&
+      usesPolicyEngine &&
+      Boolean(route) &&
+      !route!.usesServiceRole &&
+      !route!.ownershipFiltered;
+
+    if (rlsCouldStillProtect) {
+      claims.push({
+        claim:
+          "We did not read your row policies, so one of them may still be narrowing this query. Connect your database to settle it.",
+        origin: "schema",
+        verified: false,
+      });
+    }
+
     findings.push({
       // Stable across runs: the same gap on the same entry keeps its identity,
       // so the diff engine does not re-alert it every pass.
@@ -191,7 +237,11 @@ export function buildFindings(input: BuildFindingsInput): AgentFinding[] {
       title: h.title,
       consequence: h.consequence,
       severity: SEVERITY[h.attackClass] ?? "WARNING",
-      confidence: confidenceFrom(claims),
+      // Capped, not computed, when a row policy could still be enforcing this.
+      // The origin count says several collectors agree the query is unscoped;
+      // it cannot say the database is not compensating, and reporting
+      // "corroborated" would claim exactly that.
+      confidence: rlsCouldStillProtect ? "inferred" : confidenceFrom(claims),
       attackClass: h.attackClass,
       entry: h.entry,
       file: route?.file ?? h.citedFiles[0] ?? null,
