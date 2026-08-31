@@ -26,6 +26,38 @@ describe("scanSecrets", () => {
     expect(f[0].severity).toBe("WARNING");
   });
 
+  it("does not call a project name a credential", () => {
+    // A 7,000-star boilerplate's committed .env.production was reported
+    // CRITICAL for setting a project name and a contact email address.
+    const f = scanSecrets([
+      {
+        path: ".env.production",
+        content: "CHECKLY_EMAIL_ADDRESS=contact@example.com\nCHECKLY_PROJECT_NAME=SaaS Boilerplate\nCHECKLY_LOGICAL_ID=saas-boilerplate",
+      },
+    ]);
+    expect(f[0].severity).toBe("WARNING");
+  });
+
+  it("does not call a localhost database url a credential", () => {
+    const f = scanSecrets([
+      { path: ".env", content: "DATABASE_URL=postgresql://postgres@localhost:5432/app" },
+    ]);
+    expect(f[0].severity).toBe("WARNING");
+  });
+
+  it("still calls a filled-in credential key what it is", () => {
+    const f = scanSecrets([
+      { path: ".env", content: "DATABASE_URL=postgresql://admin:Hunter2Hunter2@db.prod.example.com:5432/app" },
+    ]);
+    expect(f[0].severity).toBe("CRITICAL");
+  });
+
+  it("does not report a dev password in a seed script", () => {
+    // A starter kit sets ADMIN_PASSWORD to 'admin@123' in prisma/seed.ts.
+    // Telling its author to rotate that is noise.
+    expect(scanSecrets([{ path: "prisma/seed.ts", content: "const ADMIN_PASSWORD = 'admin@123';" }])).toHaveLength(0);
+  });
+
   it("says nothing about a public-by-design env file", () => {
     // A real Supabase starter commits EXPO_PUBLIC_ values including the anon
     // key, which is meant to ship to the client. Reporting that as a credential

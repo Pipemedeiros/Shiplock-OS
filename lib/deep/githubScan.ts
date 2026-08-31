@@ -61,6 +61,30 @@ const PUBLIC_ENV_PREFIX = /^(NEXT_PUBLIC_|EXPO_PUBLIC_|VITE_|PUBLIC_|REACT_APP_|
 const ENV_FILLED_VALUE = /^["']?(?!\s*$)(?!your[-_])(?!<)(?!\.\.\.)(?!xxx)[^\s"']{16,}/i;
 
 /**
+ * Values that are long enough to look filled in but carry no secret.
+ *
+ * A DATABASE_URL pointing at localhost is the default every starter ships with,
+ * and a pk_test_ / pk_live_ publishable key is published on purpose. Auditing a
+ * 7,000-star boilerplate reported its committed .env as a credential leak on the
+ * strength of `postgresql://postgres@localhost:5432/db`.
+ */
+const HARMLESS_ENV_VALUE =
+  /^["']?(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis|amqp|http|https):\/\/[^\s"']*(?:localhost|127\.0\.0\.1|0\.0\.0\.0|@db[:\/]|@postgres[:\/]|@mysql[:\/]|host\.docker\.internal)/i;
+
+/**
+ * Keys whose NAME says they carry a credential.
+ *
+ * Without this, any long value counted. A 7,000-star boilerplate's committed
+ * .env.production was reported CRITICAL because it sets CHECKLY_PROJECT_NAME
+ * and a contact email address, neither of which is a secret by any reading.
+ */
+const CREDENTIAL_KEY_RE =
+  /(SECRET|PASSWORD|PRIVATE_KEY|API_?KEY|_KEY$|TOKEN|CREDENTIAL|SERVICE_ROLE|DSN|CONNECTION_STRING|DATABASE_URL|AUTH)/i;
+
+/** Vendor prefixes that mark a key as publishable. */
+const PUBLISHABLE_KEY_VALUE = /^["']?(?:pk_(?:test|live)_|sb_publishable_|whsec_test_)/i;
+
+/**
  * Whether a committed env file actually carries a secret.
  *
  * A file holding only NEXT_PUBLIC_/EXPO_PUBLIC_ values carries nothing private:
@@ -75,7 +99,10 @@ export function envFileHasSecret(content: string): boolean {
     if (!match) continue;
     const [, key, rawValue] = match;
     if (PUBLIC_ENV_PREFIX.test(key)) continue;
-    if (ENV_FILLED_VALUE.test(rawValue.trim())) return true;
+    if (!CREDENTIAL_KEY_RE.test(key)) continue;
+    const value = rawValue.trim();
+    if (HARMLESS_ENV_VALUE.test(value) || PUBLISHABLE_KEY_VALUE.test(value)) continue;
+    if (ENV_FILLED_VALUE.test(value)) return true;
   }
   return false;
 }
@@ -90,12 +117,17 @@ export function envFileHasSecret(content: string): boolean {
 // files all the time -- a suite that talks to a live sandbox needs a real key.
 // So the path decides how loudly we speak, and the VALUE decides whether we
 // speak at all.
+// Seed and fixture scripts populate a development database. Their passwords are
+// dev logins by construction: a 7,000-star starter kit sets ADMIN_PASSWORD to
+// 'admin@123' in prisma/seed.ts, and telling its author to rotate that is noise.
+const SEED_PATH_RE = /(^|\/)(seeds?|fixtures?)\.[cm]?[jt]s$|(^|\/)(seeds?|fixtures?)\//i;
+
 const TEST_PATH_RE =
   /(^|\/)(__tests__|__mocks__|__fixtures__|tests?|spec|fixtures|mocks|examples?)(\/)|\.(test|spec)\.[cm]?[jt]sx?$|\.fixture\.[cm]?[jt]sx?$|(^|\/)vitest\.config\.[cm]?[jt]s$|(^|\/)jest\.config\.[cm]?[jt]s$|(^|\/)jest\.setup\.[cm]?[jt]s$/i;
 
 /** Whether this file is test scaffolding rather than shipped code. */
 export function isTestPath(path: string): boolean {
-  return TEST_PATH_RE.test(path);
+  return TEST_PATH_RE.test(path) || SEED_PATH_RE.test(path);
 }
 
 // Values that announce themselves as fake. Vendors publish several of these
