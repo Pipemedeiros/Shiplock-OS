@@ -12,7 +12,15 @@ import { runRepositoryAudit } from "@/lib/agent/audit";
  * any: the run already writes its progress to audit_runs, so the client can
  * poll that if the request outlives its connection.
  */
-export const maxDuration = 300;
+// 60, not 300. The plan this project runs on stops a function at 60 seconds, so
+// declaring 300 bought nothing and hid the real ceiling: a large repository
+// would be killed with its audit_runs row still marked "running", leaving the
+// customer watching a spinner for a function that no longer exists.
+//
+// runRepositoryAudit budgets itself against the same number and gives up
+// reasoning rather than the whole run, so a big codebase returns a shorter
+// audit that says on Coverage exactly what it skipped.
+export const maxDuration = 60;
 
 const Body = z.object({ repository: z.string().regex(/^[\w.-]+\/[\w.-]+$/) });
 

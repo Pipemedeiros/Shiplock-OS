@@ -68,6 +68,7 @@ function buildCoverage(
   hasDatabase: boolean,
   routesOmittedCount = 0,
   liveProvidersRead: string[] = [],
+  reasoningSkipped = false,
 ): CoverageNote[] {
   const notes: CoverageNote[] = [];
 
@@ -110,6 +111,19 @@ function buildCoverage(
     });
   }
 
+  if (reasoningSkipped) {
+    // The most important coverage note there is. A run that read the code but
+    // never reasoned over it has found only what the deterministic collectors
+    // find, and without saying so it is indistinguishable from a clean audit.
+    notes.push({
+      name: "Reasoning about who can reach what",
+      why: "This repository took long enough to read that there was not enough time left to reason over it safely.",
+      effect:
+        "Committed credentials and dependency advisories were still checked. Attack paths were not looked for at all, so this run finding none means nothing.",
+      upgrade: "Run the audit again",
+    });
+  }
+
   if (routesOmittedCount > 0) {
     // The reasoning prompt holds a bounded number of routes. Saying so is not
     // optional: an audit that silently reasoned over two thirds of a codebase
@@ -140,6 +154,26 @@ function tablesFrom(routes: RouteFact[], files: ArchiveFile[]): string[] {
   const fromRoutes = routes.flatMap((r) => r.tables);
   return [...new Set([...fromSchema, ...fromRoutes])].sort();
 }
+
+/**
+ * How long the whole audit may take before it stops reasoning and reports.
+ *
+ * The route runs synchronously inside a serverless function, and this project
+ * is on a plan that stops a function at 60 seconds. Being killed there is the
+ * worst possible outcome: the audit_runs row is already inserted as "running",
+ * so a customer with a large repository would watch a spinner forever while the
+ * function that was going to finish it no longer exists.
+ *
+ * Ingestion and the deterministic scans are fast even on a 2,359-file monorepo,
+ * about four seconds of compute. What varies is the tarball download and the
+ * model call. So the budget is spent where it can be given up: if there is not
+ * enough time left to reason, the run completes with what the deterministic
+ * collectors found and says on the Coverage page that reasoning was skipped.
+ * A shorter honest audit beats a run that never finishes.
+ */
+export const AUDIT_BUDGET_MS = 50_000;
+/** Reasoning needs roughly this long, measured across real repositories. */
+export const REASONING_RESERVE_MS = 25_000;
 
 export interface RunAuditOptions {
   userId: string;
@@ -249,15 +283,34 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       domain.summary,
     );
 
-    step("Reasoning about who can reach what");
-    const agent = await proposeAttacks({
+    const elapsed = Date.now() - startedAt;
+    const timeLeft = AUDIT_BUDGET_MS - elapsed;
+    const canReason = timeLeft >= REASONING_RESERVE_MS;
+
+    if (!canReason) {
+      step(
+        "Reasoning skipped to finish inside the time budget",
+        `${Math.round(elapsed / 1000)}s spent reading this repository, which leaves too little to reason safely`,
+      );
+    }
+
+    if (canReason) step("Reasoning about who can reach what");
+    const agent = canReason
+      ? await proposeAttacks({
       routes,
       stack,
       tables,
       domain,
       liveFacts,
       files: archive.files.map((f) => f.path),
-    });
+        })
+      : {
+          admitted: [],
+          rejected: [],
+          model: "none",
+          skipped: true,
+          skipReason: "not enough time left in this run",
+        };
 
     if (agent.skipped) {
       step("Attack reasoning did not run", agent.skipReason);
@@ -292,6 +345,7 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       options.hasDatabase ?? false,
       routesOmitted({ routes, stack, tables, domain, files: [] }),
       liveFacts.length > 0 ? ["connected"] : [],
+      !canReason,
     );
 
     step("Audit complete", `${findings.length} open ${findings.length === 1 ? "path" : "paths"}`);
