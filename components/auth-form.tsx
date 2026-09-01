@@ -29,6 +29,75 @@ function GitHubMark() {
   );
 }
 
+/** Roughly the proportions Google, GitHub and Stripe all use, centred on the
+ * screen the window actually sits on rather than the primary one. */
+function openSignInWindow(): Window | null {
+  const w = 520;
+  const h = 640;
+  const dualLeft = window.screenLeft ?? window.screenX ?? 0;
+  const dualTop = window.screenTop ?? window.screenY ?? 0;
+  const width = window.outerWidth || document.documentElement.clientWidth;
+  const height = window.outerHeight || document.documentElement.clientHeight;
+  const left = Math.max(0, dualLeft + (width - w) / 2);
+  const top = Math.max(0, dualTop + (height - h) / 2.4);
+
+  const popup = window.open(
+    "about:blank",
+    "shiplock-oauth",
+    `width=${w},height=${h},left=${Math.round(left)},top=${Math.round(top)},` +
+      "toolbar=no,menubar=no,location=no,status=no,resizable=yes,scrollbars=yes",
+  );
+
+  // A blocked popup is null in most browsers and a window that is instantly
+  // closed in a few, so both count as "no window".
+  return popup && !popup.closed ? popup : null;
+}
+
+interface SignInWatchers {
+  onDone: (next: string) => void;
+  onFailed: () => void;
+  onDismissed: () => void;
+}
+
+/**
+ * Waits for the sign-in window to report back, or for the person to close it.
+ *
+ * Both endings have to be handled. Listening only for the message leaves the
+ * button spinning forever when someone changes their mind and closes the
+ * window, which reads as a broken page.
+ */
+function watchSignInWindow(popup: Window, { onDone, onFailed, onDismissed }: SignInWatchers): void {
+  let settled = false;
+
+  const finish = (run: () => void) => {
+    if (settled) return;
+    settled = true;
+    window.removeEventListener("message", onMessage);
+    window.clearInterval(closedTimer);
+    run();
+  };
+
+  function onMessage(event: MessageEvent) {
+    // Same-origin only, and only our own message shape. Anything else on this
+    // channel is somebody else's page talking, and is ignored.
+    if (event.origin !== window.location.origin) return;
+    const data = event.data as { source?: string; ok?: boolean; next?: string } | null;
+    if (!data || data.source !== "shiplock-auth") return;
+
+    finish(() => {
+      try { popup.close(); } catch { /* already gone */ }
+      if (data.ok) onDone(typeof data.next === "string" ? data.next : "/onboarding");
+      else onFailed();
+    });
+  }
+
+  const closedTimer = window.setInterval(() => {
+    if (popup.closed) finish(onDismissed);
+  }, 400);
+
+  window.addEventListener("message", onMessage);
+}
+
 export function AuthForm({ oauthError = false }: { oauthError?: boolean }) {
   const [mode, setMode] = useState<Mode>("sign-in");
   const [email, setEmail] = useState("");
@@ -79,16 +148,54 @@ export function AuthForm({ oauthError = false }: { oauthError?: boolean }) {
     setError("");
     setOauthLoading(provider);
     const supabase = getSupabaseBrowser();
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    });
-    // On success the browser navigates away immediately; an error here
-    // means the redirect never started.
-    if (error) {
-      setError(error.message);
-      setOauthLoading(null);
+    const redirectTo = `${window.location.origin}/auth/callback`;
+
+    // OPEN THE WINDOW FIRST, BEFORE ANY await.
+    //
+    // A browser allows window.open only while it is still handling the click.
+    // Waiting for signInWithOAuth to come back first spends that permission,
+    // and every popup blocker on earth then refuses the window -- which is why
+    // this opens a blank one immediately and points it at the provider once the
+    // URL arrives. If the blocker refuses even this, we fall back to the
+    // full-page redirect rather than leaving the person on a dead button.
+    const popup = openSignInWindow();
+
+    // Tells /auth/callback to render a page that hands the result back here and
+    // closes, instead of redirecting this small window into the app. A cookie
+    // rather than a query parameter, so the redirect URL still matches the
+    // provider allow-list exactly.
+    if (popup) {
+      document.cookie = `sl_oauth_popup=1; path=/; max-age=300; samesite=lax${
+        window.location.protocol === "https:" ? "; secure" : ""
+      }`;
     }
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo, skipBrowserRedirect: popup !== null },
+    });
+
+    if (error || (popup && !data?.url)) {
+      popup?.close();
+      setError(error?.message ?? "Could not start sign-in. Try again.");
+      setOauthLoading(null);
+      return;
+    }
+
+    // No popup: the call above is already navigating this tab away.
+    if (!popup) return;
+
+    popup.location.href = data!.url;
+    watchSignInWindow(popup, {
+      onDone: (next) => {
+        window.location.href = next;
+      },
+      onFailed: () => {
+        setError("Sign-in with that provider didn't go through. Try again.");
+        setOauthLoading(null);
+      },
+      onDismissed: () => setOauthLoading(null),
+    });
   }
 
   return (

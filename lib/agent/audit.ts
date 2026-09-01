@@ -318,6 +318,10 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       domain,
       liveFacts,
       files: archive.files.map((f) => f.path),
+      // Whatever is left of the budget, less a margin to persist the findings
+      // and finish the run. Reasoning is the step we give up, so it is the step
+      // that gets bounded.
+      timeoutMs: Math.max(5_000, AUDIT_BUDGET_MS - (Date.now() - startedAt) - 6_000),
         })
       : {
           admitted: [],

@@ -3,6 +3,7 @@ import type { RouteFact } from "@/lib/graph/routeInventory";
 import { MAX_PROMPT_ROUTES, buildPrompt, extractJsonArray, rankRoutes, routesOmitted,
   salvageJsonObjects,
   maxTokensFor,
+  proposeAttacks,
 } from "./attack";
 import type { StackReport } from "./stack";
 
@@ -227,5 +228,25 @@ describe("a truncated answer is not an empty one", () => {
     expect(maxTokensFor(60)).toBeGreaterThanOrEqual(60 * 200);
     expect(maxTokensFor(1)).toBeGreaterThanOrEqual(4000);
     expect(maxTokensFor(10000)).toBeLessThanOrEqual(16000);
+  });
+});
+
+describe("the reasoning call is bounded by the run's budget", () => {
+  it("passes no request options when no deadline was given", async () => {
+    // A script or a test has no serverless ceiling to respect.
+    const outcome = await proposeAttacks({
+      routes: [], stack: { tools: [] } as never, tables: [], files: [],
+    });
+    expect(outcome.skipped).toBe(true);
+    expect(outcome.skipReason).toBe("no route reaches a table");
+  });
+
+  it("keeps a floor so a nearly-exhausted budget still attempts the call", () => {
+    // audit.ts computes max(5000, budget - elapsed - margin). A negative or
+    // tiny timeout would abort instantly and lose findings we could have had.
+    const remaining = (elapsed: number) => Math.max(5_000, 50_000 - elapsed - 6_000);
+    expect(remaining(0)).toBe(44_000);
+    expect(remaining(40_000)).toBe(5_000);
+    expect(remaining(49_000)).toBe(5_000);
   });
 });

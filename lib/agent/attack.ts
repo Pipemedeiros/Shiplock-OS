@@ -86,6 +86,19 @@ export interface AgentInput {
    */
   domain?: DomainModel;
   /**
+   * Milliseconds this call may take before it is abandoned.
+   *
+   * The audit runs inside a serverless function with a hard ceiling, and a
+   * larger output budget means a longer call: raising max_tokens to cover sixty
+   * findings also made it possible for the model to still be writing when the
+   * function is killed. A killed function leaves the run row stuck on
+   * "running" forever, which is worse than a report without attack paths.
+   *
+   * Omitted means no deadline, which is right for a test or a script.
+   */
+  timeoutMs?: number;
+
+  /**
    * Live provider facts observed this run, as `{ id, statement }`.
    *
    * These are the half of the system that is not in the repository. They enter
@@ -328,7 +341,7 @@ export async function proposeAttacks(input: AgentInput): Promise<AgentOutcome> {
       temperature: 0,
       system: SYSTEM,
       messages: [{ role: "user", content: prompt }],
-    });
+    }, input.timeoutMs ? { timeout: input.timeoutMs } : undefined);
 
     const usage = response.usage;
     console.log(
@@ -359,12 +372,16 @@ export async function proposeAttacks(input: AgentInput): Promise<AgentOutcome> {
 
     return { ...guardHypotheses(hypotheses, recon), model, skipped: false, truncated };
   } catch (err) {
+    const message = err instanceof Error ? err.message : "unknown";
+    const timedOut = err instanceof Anthropic.APIConnectionTimeoutError || /timeout/i.test(message);
     return {
       admitted: [],
       rejected: [],
       model,
       skipped: true,
-      skipReason: `model call failed: ${err instanceof Error ? err.message : "unknown"}`,
+      skipReason: timedOut
+        ? "reasoning did not finish inside this run's time budget"
+        : `model call failed: ${message}`,
     };
   }
 }
