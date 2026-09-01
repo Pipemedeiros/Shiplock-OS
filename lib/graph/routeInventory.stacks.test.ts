@@ -360,3 +360,67 @@ describe("an auth helper's own query is not the route's data access", () => {
     expect(fact.ownershipFiltered).toBe(true);
   });
 });
+
+// Auth mechanisms found by auditing five real startup codebases (corpus-a,
+// corpus-c, corpus-e, corpus-b, corpus-d). Each one read as ANONYMOUS, and
+// each produced a CRITICAL "anyone on the internet can call this endpoint".
+describe("auth this inventory did not recognise", () => {
+  const route = (src: string) =>
+    collectRoutes([{ path: "app/api/x/route.ts", content: src }] as never)[0];
+
+  it("sees an Upstash QStash receiver as a machine gate", () => {
+    const r = route(`
+      import { receiver } from "@/lib/cron";
+      export async function POST(req: Request) {
+        const isValid = await receiver.verify({ signature: req.headers.get("Upstash-Signature") || "", body: "" });
+        if (!isValid) return new Response("Unauthorized", { status: 401 });
+        return Response.json(await prisma.dataroom.findMany());
+      }`);
+    expect(r.machineGated).toBe(true);
+  });
+
+  it("sees a signature verifier behind a project-specific name", () => {
+    // `verifySignature` did not match `verifyQstashSignature`.
+    const r = route(`
+      import { verifyQstashSignature } from "@/lib/cron/verify-qstash";
+      export const POST = async (req: Request) => {
+        await verifyQstashSignature({ req, rawBody: await req.text() });
+        return Response.json(await prisma.webhook.findUnique({ where: { pId: "x" } }));
+      };`);
+    expect(r.machineGated).toBe(true);
+  });
+
+  it("sees a header compared against an environment secret", () => {
+    const r = route(`
+      export async function POST(req) {
+        const token = req.headers.authorization?.split(" ")[1];
+        if (token !== process.env.INTERNAL_API_KEY) return res.status(401).json({ message: "Unauthorized" });
+        return Response.json(await prisma.dataroomDocument.findMany());
+      }`);
+    expect(r.machineGated).toBe(true);
+  });
+
+  it("does NOT treat reading a provider secret as a gate", () => {
+    // Using STRIPE_SECRET_KEY to call Stripe is not authentication. Treating it
+    // as one would silence the real finding on this exact route.
+    const r = route(`
+      export async function POST(req) {
+        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+        const { id } = await req.json();
+        return Response.json(await prisma.subscription.delete({ where: { id } }));
+      }`);
+    expect(r.machineGated).toBe(false);
+    expect(r.authenticated).toBe(false);
+  });
+
+  it("sees a project-specific session verifier as user authentication", () => {
+    const r = route(`
+      import { verifyDataroomSession } from "@/lib/auth/dataroom-auth";
+      export async function GET(req) {
+        const session = await verifyDataroomSession(req, linkId, dataroomId);
+        if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        return NextResponse.json(await prisma.dataroomFaqItem.findMany());
+      }`);
+    expect(r.authenticated).toBe(true);
+  });
+});

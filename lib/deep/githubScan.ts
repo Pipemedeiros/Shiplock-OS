@@ -122,8 +122,28 @@ export function envFileHasSecret(content: string): boolean {
 // 'admin@123' in prisma/seed.ts, and telling its author to rotate that is noise.
 const SEED_PATH_RE = /(^|\/)(seeds?|fixtures?)\.[cm]?[jt]s$|(^|\/)(seeds?|fixtures?)\//i;
 
+// The directory list is not decoration: `playwright/`, `e2e/` and `cypress/`
+// are where a real codebase keeps the suite that signs in as a fake user, and
+// omitting them reported corpus-a's Playwright signup password and corpus-c'
+// MOCK_PASSWORD as committed credentials, at CRITICAL, on a stranger's repo.
+// The file list covers the setup module every framework wants at the root --
+// vitestSetup.ts has no dot before "Setup", so a pattern written for
+// jest.setup.ts matched neither it nor setupTests.ts.
 const TEST_PATH_RE =
-  /(^|\/)(__tests__|__mocks__|__fixtures__|tests?|spec|fixtures|mocks|examples?)(\/)|\.(test|spec)\.[cm]?[jt]sx?$|\.fixture\.[cm]?[jt]sx?$|(^|\/)vitest\.config\.[cm]?[jt]s$|(^|\/)jest\.config\.[cm]?[jt]s$|(^|\/)jest\.setup\.[cm]?[jt]s$/i;
+  /(^|\/)(__tests__|__mocks__|__fixtures__|tests?|spec|fixtures|mocks|examples?|playwright|e2e|cypress|testing)(\/)|\.(test|spec|e2e)\.[cm]?[jt]sx?$|\.fixture\.[cm]?[jt]sx?$|(^|\/)(vitest|jest|playwright|cypress)\.config\.[cm]?[jt]s$|(^|\/)(jest\.setup|vitestSetup|setupTests|test-setup|testSetup)\.[cm]?[jt]sx?$/i;
+
+/**
+ * CI, build and container configuration -- scaffolding that does not ship.
+ *
+ * Separate from isTestPath because it is a different argument: these files are
+ * not a test suite, but they are the documented home of a build-time stand-in,
+ * and the values in them are read by a pipeline rather than served to a user.
+ */
+export function isScaffoldPath(path: string): boolean {
+  return /(^|\/)(\.github|\.gitlab|\.circleci|\.buildkite)\//i.test(path)
+    || /(^|\/)(docker-compose[\w.-]*\.ya?ml|Dockerfile[\w.-]*|devcontainer\.json)$/i.test(path)
+    || /(^|\/)(skaffold|docker-bake)\.[\w.]*ya?ml$/i.test(path);
+}
 
 /** Whether this file is test scaffolding rather than shipped code. */
 export function isTestPath(path: string): boolean {
@@ -137,7 +157,7 @@ export function isTestPath(path: string): boolean {
 // "example" with no word boundary anywhere near it, and a \b here silently
 // matched neither -- which is the whole false-positive burst all over again.
 const SYNTHETIC_RE =
-  /(example|fake|dummy|placeholder|redacted|notreal|test[-_]?key|testkey|your[-_]\w+|changeme|xxxx|aaaa|00000|1234567|deadbeef|foobar|lorem)/i;
+  /(example|fake|dummy|placeholder|redacted|notreal|test[-_]?key|testkey|testing|mock|stub|sample|your[-_]\w+|changeme|xxxx|aaaa|00000|1234567|deadbeef|foobar|lorem)/i;
 
 /**
  * Whether a matched credential looks manufactured for a test.
@@ -215,7 +235,8 @@ export function scanSecrets(files: RepoFile[]): GithubFinding[] {
     // scaffolding: the generic assignment pattern proves nothing there, and a
     // synthetic-looking value is a placeholder rather than a leak. A
     // real-looking vendor-shaped key pasted into one is still reported.
-    const inTest = isTestPath(file.path) || ENV_PLACEHOLDER_RE.test(file.path);
+    const inTest =
+      isTestPath(file.path) || ENV_PLACEHOLDER_RE.test(file.path) || isScaffoldPath(file.path);
 
     for (const pat of SECRET_PATTERNS) {
       const match = pat.re.exec(file.content);
@@ -241,6 +262,18 @@ export function scanSecrets(files: RepoFile[]): GithubFinding[] {
       // A real-looking key in a comment still reports — people do paste those.
       if (isCommentLine(line) && looksSynthetic(match[0], line)) continue;
 
+      // Scaffolding is wider than the test suite. `UNSUBSCRIBE_TOKEN_SECRET:
+      // "dummy-secret"` in a CI workflow and `CUBEJS_API_SECRET:
+      // build-time-placeholder` in a docker build were both reported as
+      // CRITICAL committed credentials on repositories with thousands of stars.
+      // A workflow file is exactly where a build-time stand-in belongs, and
+      // nobody's real secret is spelled "dummy-secret".
+      //
+      // This deliberately does NOT extend to shipped application code, where a
+      // hardcoded key is a hardcoded key however it is spelled -- the decision
+      // recorded in "never downgrades a key in shipped code" and "it is real
+      // code either way". The axis is whether the file ships, not whether the
+      // value looks convincing.
       if (inTest && looksSynthetic(match[0], line)) continue;
 
       const id = `github:secret:${pat.id}:${file.path}`;

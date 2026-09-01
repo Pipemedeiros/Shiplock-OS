@@ -180,8 +180,17 @@ export function extractTables(src: string): string[] {
 // is exactly backwards: those are the two endpoints anyone can POST to.
 //
 // So the header patterns below only match a GET/index READ of an inbound header.
+// `verify<Anything>Session` is the shape a project-specific session check
+// takes once an app outgrows the framework helper: corpus-b resolves a visitor
+// with verifyDataroomSession() and verifyLinkSessionInPagesRouter(), both of
+// which return 401 on failure, and both of which read as ANONYMOUS here. Four
+// of that repository's twelve reported criticals were routes that verify a
+// session through a helper this list did not know.
+//
+// Widening auth recognition can only cause us to MISS a finding, never to
+// invent one, which is the direction this file's header already commits to.
 const STRONG_USER_AUTH_RE =
-  /\b(auth\.getUser\s*\(|auth\.getSession\s*\(|getUser\s*\(|getSession\s*\(|requireDashboardSession|getServerSession|currentUser\s*\(|verifyJwt|jwtVerify|await\s+auth\s*\(|clerkClient)/i;
+  /\b(auth\.getUser\s*\(|auth\.getSession\s*\(|getUser\s*\(|getSession\s*\(|requireDashboardSession|getServerSession|currentUser\s*\(|verifyJwt|jwtVerify|await\s+auth\s*\(|clerkClient|verify[A-Za-z]*Session[A-Za-z]*\s*\()/i;
 
 /**
  * Reading an inbound Authorization header. WEAK evidence of a user session on
@@ -202,8 +211,21 @@ const HEADER_READ_RE =
  * user_profiles" would be a false alarm, while "user-authenticated route reads
  * every tenant's rows" would be a real one. Conflating them loses that.
  */
+// The additions after the original list all came from real repositories:
+//
+//   receiver.verify({signature})        Upstash QStash, corpus-b's cron routes
+//   verifyQstashSignature(...)          the same thing behind a project helper;
+//                                       `verifySignature` alone did not match it
+//   token !== process.env.INTERNAL_API_KEY
+//                                       the generic shape this comment block
+//                                       already describes -- a header compared
+//                                       against an environment secret
+//
+// The last one is why the comparison is required rather than the mere presence
+// of an env secret: reading `process.env.STRIPE_SECRET_KEY` to CALL Stripe is
+// not a gate, and treating it as one would silence real findings.
 const MACHINE_GATE_RE =
-  /\b(CRON_SECRET|WEBHOOK_SECRET|constructEvent|timingSafeEqual|createHmac|verifyHmac|verifySignature|x-hub-signature|stripe-signature)\b|\.eq\s*\(\s*["']\w*token["']/i;
+  /\b(CRON_SECRET|WEBHOOK_SECRET|constructEvent|timingSafeEqual|createHmac|verifyHmac|verifySignature|x-hub-signature|stripe-signature)\b|\.eq\s*\(\s*["']\w*token["']|\bverify[A-Za-z]*(?:Signature|Webhook)[A-Za-z]*\s*\(|\breceiver\s*\.\s*verify\s*\(|(?:!==|===|!=|==)\s*process\.env\.[A-Z0-9_]*(?:SECRET|TOKEN|API_KEY|KEY)\b/i;
 
 const SERVICE_ROLE_RE =
   /\b(getSupabaseAdmin|SUPABASE_SERVICE_ROLE_KEY|SERVICE_ROLE_KEY|service_role)\b/;
