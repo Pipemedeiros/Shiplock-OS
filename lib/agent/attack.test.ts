@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { RouteFact } from "@/lib/graph/routeInventory";
-import { MAX_PROMPT_ROUTES, buildPrompt, extractJsonArray, rankRoutes, routesOmitted } from "./attack";
+import { MAX_PROMPT_ROUTES, buildPrompt, extractJsonArray, rankRoutes, routesOmitted,
+  salvageJsonObjects,
+  maxTokensFor,
+} from "./attack";
 import type { StackReport } from "./stack";
 
 const route = (over: Partial<RouteFact>): RouteFact => ({
@@ -175,5 +178,54 @@ describe("live facts in the prompt", () => {
   it("says nothing about live facts when none were collected", () => {
     const prompt = buildPrompt({ routes: [], stack, tables: [], files: [] });
     expect(prompt).not.toContain("live");
+  });
+});
+
+// Named for the measurement that found it: ten runs of one 234k-line repository
+// admitted 0, 13, 12, 0, 0, 10, 2, 10, 9 and 7 hypotheses on identical input.
+// Every call came back with stop_reason "max_tokens" at exactly the old 2000
+// budget, and whether the run produced findings or nothing depended only on
+// where the cut landed.
+describe("a truncated answer is not an empty one", () => {
+  const truncated = `[
+    {"entry":"/api/a","attackClass":"missing_authorization","title":"One","consequence":"c","citedFiles":["a.ts"],"citedTables":["t"]},
+    {"entry":"/api/b","attackClass":"missing_authentication","title":"Two","consequence":"c","citedFiles":["b.ts"],"citedTables":["t"]},
+    {"entry":"/api/c","attackClass":"missing_authorization","title":"Thr`;
+
+  it("salvages every complete object from a cut-off array", () => {
+    const out = salvageJsonObjects(truncated) as { entry: string }[];
+    expect(out.map((o) => o.entry)).toEqual(["/api/a", "/api/b"]);
+  });
+
+  it("returns nothing when the cut lands before the first object closes", () => {
+    expect(salvageJsonObjects(`[{"entry":"/api/a","title":"partia`)).toEqual([]);
+  });
+
+  it("is not confused by braces or brackets inside strings", () => {
+    const tricky = `[{"entry":"/api/a","consequence":"a } and a ] and a \\" quote","citedFiles":["x.ts"]}]`;
+    const out = salvageJsonObjects(tricky) as { consequence: string }[];
+    expect(out).toHaveLength(1);
+    expect(out[0].consequence).toBe('a } and a ] and a " quote');
+  });
+
+  it("handles a nested array inside an object", () => {
+    const out = salvageJsonObjects(
+      `[{"entry":"/a","citedFiles":["x.ts","y.ts"],"citedTables":["t"]},{"entry":"/b"`,
+    ) as { entry: string }[];
+    expect(out.map((o) => o.entry)).toEqual(["/a"]);
+  });
+
+  it("stops at the array's own closing bracket", () => {
+    const out = salvageJsonObjects(`[{"entry":"/a"}] trailing prose {"entry":"/b"}`) as { entry: string }[];
+    expect(out.map((o) => o.entry)).toEqual(["/a"]);
+  });
+
+  it("budgets output for what it asked about, not a round number", () => {
+    // The old flat 2000 is roughly nine findings. Sixty routes is what
+    // MAX_PROMPT_ROUTES lets into the prompt, so the ceiling has to cover
+    // reporting on all of them.
+    expect(maxTokensFor(60)).toBeGreaterThanOrEqual(60 * 200);
+    expect(maxTokensFor(1)).toBeGreaterThanOrEqual(4000);
+    expect(maxTokensFor(10000)).toBeLessThanOrEqual(16000);
   });
 });

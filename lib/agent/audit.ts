@@ -69,6 +69,7 @@ function buildCoverage(
   routesOmittedCount = 0,
   liveProvidersRead: string[] = [],
   reasoningSkipped = false,
+  reasoningTruncated = false,
 ): CoverageNote[] {
   const notes: CoverageNote[] = [];
 
@@ -120,6 +121,20 @@ function buildCoverage(
       why: "This repository took long enough to read that there was not enough time left to reason over it safely.",
       effect:
         "Committed credentials and dependency advisories were still checked. Attack paths were not looked for at all, so this run finding none means nothing.",
+      upgrade: "Run the audit again",
+    });
+  }
+
+  if (reasoningTruncated) {
+    // Distinct from reasoningSkipped: the reasoning DID run and was cut off
+    // partway through writing its answer. The findings it finished are real;
+    // the ones it was still writing are gone. Without this note a partial
+    // answer is indistinguishable from a complete one that found less.
+    notes.push({
+      name: "Some of the reasoning did not fit",
+      why: "The reasoning step reached its output limit while writing this run's findings.",
+      effect:
+        "What is reported was completed and checked. Anything it had not finished writing is missing, so this list is a floor rather than the whole picture.",
       upgrade: "Run the audit again",
     });
   }
@@ -315,6 +330,12 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
     if (agent.skipped) {
       step("Attack reasoning did not run", agent.skipReason);
     } else {
+      if (agent.truncated) {
+        step(
+          "Reasoning hit its output limit",
+          "The findings below were completed and checked; anything still being written is missing from this run.",
+        );
+      }
       step(
         `${agent.admitted.length} attack ${agent.admitted.length === 1 ? "path" : "paths"} proposed and checked`,
         agent.rejected.length
@@ -346,6 +367,7 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       routesOmitted({ routes, stack, tables, domain, files: [] }),
       liveFacts.length > 0 ? ["connected"] : [],
       !canReason,
+      agent.truncated === true,
     );
 
     step("Audit complete", `${findings.length} open ${findings.length === 1 ? "path" : "paths"}`);

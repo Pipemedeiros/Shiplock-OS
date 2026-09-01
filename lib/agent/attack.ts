@@ -29,6 +29,22 @@ const SONNET = "claude-sonnet-4-6";
 /** Above this many interesting entries the reasoning is worth the better model. */
 const SONNET_ENTRY_THRESHOLD = 25;
 
+/**
+ * Output budget, sized to the answer we asked for rather than to a round number.
+ *
+ * The old value was a flat 2000, which is roughly nine findings once each
+ * carries a title, a consequence and its citations. Every audit of a real
+ * startup codebase overflowed it, and overflow silently produced a CLEAN
+ * REPORT. Sixty routes is what MAX_PROMPT_ROUTES lets into the prompt, and a
+ * finding runs about 220 output tokens, so the ceiling is what it would cost to
+ * report on everything we asked about.
+ */
+export function maxTokensFor(interestingEntries: number): number {
+  const perFinding = 220;
+  const askedAbout = Math.min(interestingEntries, MAX_PROMPT_ROUTES);
+  return Math.min(16000, Math.max(4000, Math.ceil(askedAbout * perFinding)));
+}
+
 const SYSTEM = [
   "You are a security engineer reading an inventory of a web application.",
   "Propose where an attacker would find a way to reach data they should not.",
@@ -85,6 +101,15 @@ export interface AgentOutcome extends GuardResult {
   /** True when the model was never called -- no key, or nothing worth asking. */
   skipped: boolean;
   skipReason?: string;
+  /**
+   * The model ran out of output budget mid-answer.
+   *
+   * Load-bearing rather than diagnostic: a truncated run has looked at only
+   * part of what it was asked about, so "no attack paths" from it is not a
+   * clean bill of health. The caller MUST surface this on the Coverage page,
+   * for the same reason a skipped reasoning step is surfaced there.
+   */
+  truncated?: boolean;
 }
 
 /**
@@ -205,6 +230,64 @@ export function extractJsonArray(text: string): unknown {
 }
 
 /**
+ * Every COMPLETE object in a possibly-truncated JSON array.
+ *
+ * Measured on a real 234k-line repository: every single reasoning call came
+ * back with stop_reason "max_tokens", the array cut off mid-object, and
+ * extractJsonArray returned null because there was no closing bracket. The
+ * whole run was then reported as "response was not JSON" and the customer got
+ * ZERO findings from a model that had just written nine of them.
+ *
+ * That is the bimodality behind 0, 13, 12, 0, 0, 10, 2, 10, 9, 7 admitted
+ * hypotheses across ten runs of one repository: not the model changing its
+ * mind, but whether its answer happened to fit in the budget. A run that
+ * overflowed threw away everything; a run that fitted kept everything.
+ *
+ * Objects that ARE complete were paid for and are as valid as any other -- the
+ * guard still judges each one. Only the object the cut lands inside is lost.
+ */
+export function salvageJsonObjects(text: string): unknown[] {
+  const start = text.indexOf("[");
+  if (start === -1) return [];
+
+  const out: unknown[] = [];
+  let depth = 0;
+  let objectStart = -1;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = start + 1; i < text.length; i++) {
+    const ch = text[i];
+
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+
+    if (ch === '"') { inString = true; continue; }
+    if (ch === "{") { if (depth === 0) objectStart = i; depth++; continue; }
+    if (ch === "}") {
+      depth--;
+      if (depth === 0 && objectStart !== -1) {
+        try {
+          out.push(JSON.parse(text.slice(objectStart, i + 1)));
+        } catch {
+          // A complete-looking object that will not parse is dropped, not fatal.
+        }
+        objectStart = -1;
+      }
+      continue;
+    }
+    // The array's own closing bracket at depth 0 ends the scan.
+    if (ch === "]" && depth === 0) break;
+  }
+
+  return out;
+}
+
+/**
  * Runs the agent over one repository's recon.
  *
  * Fails into silence rather than into a wrong answer: no API key, a transport
@@ -237,7 +320,12 @@ export async function proposeAttacks(input: AgentInput): Promise<AgentOutcome> {
     const client = new Anthropic({ apiKey });
     const response = await client.messages.create({
       model,
-      max_tokens: 2000,
+      max_tokens: maxTokensFor(interesting.length),
+      // Deterministic decoding. This is an extraction task with a fixed output
+      // schema, not a creative one, and two audits of an unchanged repository
+      // that disagree are two audits the customer cannot trust. Sampling bought
+      // nothing here and cost reproducibility.
+      temperature: 0,
       system: SYSTEM,
       messages: [{ role: "user", content: prompt }],
     });
@@ -251,17 +339,25 @@ export async function proposeAttacks(input: AgentInput): Promise<AgentOutcome> {
       .map((block) => (block.type === "text" ? block.text : ""))
       .join("");
 
+    const truncated = response.stop_reason === "max_tokens";
+
+    // A complete answer parses whole. A truncated one is salvaged object by
+    // object rather than discarded: the findings the model finished writing
+    // were paid for and are still judged by the guard.
     const parsed = extractJsonArray(text);
-    if (parsed === null) {
+    const hypotheses = parsed !== null ? parsed : salvageJsonObjects(text);
+
+    if (!Array.isArray(hypotheses) || hypotheses.length === 0) {
       return {
         admitted: [],
-        rejected: [{ hypothesis: text.slice(0, 200), reason: "response was not JSON" }],
+        rejected: [{ hypothesis: text.slice(0, 200), reason: truncated ? "response was cut off before any finding was complete" : "response was not JSON" }],
         model,
         skipped: false,
+        truncated,
       };
     }
 
-    return { ...guardHypotheses(parsed, recon), model, skipped: false };
+    return { ...guardHypotheses(hypotheses, recon), model, skipped: false, truncated };
   } catch (err) {
     return {
       admitted: [],
