@@ -467,3 +467,91 @@ describe("type-only imports are erased and must not be followed", () => {
     expect(out).toHaveLength(1);
   });
 });
+
+// ── Prose about a secret is not a secret ───────────────────────────────────
+//
+// Named for the run that found them: the live dashboard for the only real
+// account carried nineteen CRITICALs, every one pointing at a design prototype
+// whose sample data DESCRIBES a finding. The file it accused does not exist.
+describe("the nineteen false criticals on our own dashboard", () => {
+  const proto = (extra = "") =>
+    file(
+      "app/(d)/proto/data.ts",
+      `export const RISK = {
+         file: "components/UsageChart.tsx → lib/db/admin.ts:4",
+         gaps: [{ kind: "asset", label: "DATABASE_URL", detail: "Full read and write" }],
+         claim: "It imports lib/db/admin.ts, which reads DATABASE_URL at module scope.",
+       };${extra}`
+    );
+
+  it("does not report a client page whose data file only TALKS about a secret", () => {
+    const out = scanServerSecretsInClientCode([
+      file("app/(d)/proto/page.tsx", `"use client";\nimport { RISK } from "./data";\nexport default () => RISK.file;`),
+      proto(),
+    ]);
+    expect(out).toEqual([]);
+  });
+
+  it("does not follow an import statement quoted inside a string", () => {
+    // The same prototype embeds a code sample for the mockup to render.
+    const out = scanServerSecretsInClientCode([
+      file("app/(d)/proto/page.tsx", `"use client";\nimport { SNIPPET } from "./data";\nexport default () => SNIPPET;`),
+      file(
+        "app/(d)/proto/data.ts",
+        'export const SNIPPET = `import { adminDb } from "@/lib/db/admin";`;'
+      ),
+      // The module the snippet names DOES exist here, which is the harder case:
+      // without the guard the quoted import becomes a real edge in the graph.
+      file("lib/db/admin.ts", `export const adminDb = process.env.DATABASE_URL;`),
+    ]);
+    expect(out).toEqual([]);
+  });
+
+  it("STILL flags a computed env read, where the token is legitimately in a string", () => {
+    // The carve-out that keeps the fix from becoming a fail-open.
+    const out = scanServerSecretsInClientCode([
+      file(
+        "components/Panel.tsx",
+        `"use client";\nexport const P = () => process.env["SUPABASE_SERVICE_ROLE_KEY"];`
+      ),
+    ]);
+    expect(out).toHaveLength(1);
+    expect(out[0].severity).toBe("CRITICAL");
+  });
+
+  it("STILL flags a real server-only read sitting beside prose about one", () => {
+    const out = scanServerSecretsInClientCode([
+      file("app/(d)/proto/page.tsx", `"use client";\nimport { RISK } from "./data";\nexport default () => RISK;`),
+      proto(`\nexport const key = process.env.STRIPE_SECRET_KEY;`),
+    ]);
+    expect(out).toHaveLength(1);
+  });
+});
+
+describe("a detector must not report its own fixtures", () => {
+  it("does not fire the NAME signal inside test scaffolding", () => {
+    // This is how it read on our own repo: the variable is not a variable, it
+    // is a fragment of an expected finding id inside an assertion.
+    const out = scanPublicPrefixedSecrets([
+      file("lib/fixes/codemods.test.ts", `expect(id("github:public_prefixed_secret:NEXT_PUBLIC_X_SECRET:.env"));`),
+    ]);
+    expect(out).toEqual([]);
+  });
+
+  it("STILL reports a real-looking value in a test file", () => {
+    // The rule is not "skip test files". A suite talking to a live sandbox
+    // needs a real key, and silence there is the failure Coverage exists for.
+    const out = scanPublicPrefixedSecrets([
+      file("lib/x.test.ts", `const env = { NEXT_PUBLIC_STRIPE_KEY: "sk_live_51H8xQ2eZvKYlo2C" };`),
+    ]);
+    expect(out).toHaveLength(1);
+    expect(out[0].severity).toBe("CRITICAL");
+  });
+
+  it("stays silent on a synthetic value in a test file", () => {
+    const out = scanPublicPrefixedSecrets([
+      file("lib/x.test.ts", `const env = { NEXT_PUBLIC_STRIPE_KEY: "sk_live_example_key_here" };`),
+    ]);
+    expect(out).toEqual([]);
+  });
+});

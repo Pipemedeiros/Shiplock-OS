@@ -1,5 +1,5 @@
 import type { RepoFile } from "@/lib/deep/githubScan";
-import { stripComments, resolveImport } from "@/lib/deep/clientExposure";
+import { stripComments, resolveImport, stringSpans } from "@/lib/deep/clientExposure";
 
 // The source collector's structural output: which HTTP routes exist, which
 // tables each one touches, and whether it checks who is asking.
@@ -138,37 +138,11 @@ const NOT_A_TABLE = new Set([
   "db", "sql", "table", "query", "select", "insert", "update", "delete", "raw", "schema", "$queryRaw",
 ]);
 
-/**
- * Which byte offsets sit inside a string literal.
- *
- * A query written inside a string is not a query. `const sample =
- * "admin.from('orders').select('*')"` is documentation, a code sample, or a
- * generator template, and reading it as data access reported an endpoint that
- * returns a constant as CRITICAL for exposing a table.
- *
- * Comments are already stripped upstream; this is the other half. The scan is a
- * single pass tracking quote state and escapes, which is enough to tell a
- * `.from(` that is CODE from one that is text. The table name inside a real
- * `.from("orders")` is itself a string, so its argument still resolves: what
- * matters is whether the `.from(` token was reached while already inside one.
- */
-function stringSpans(src: string): (index: number) => boolean {
-  const inside = new Uint8Array(src.length);
-  let quote: string | null = null;
-
-  for (let i = 0; i < src.length; i++) {
-    const ch = src[i];
-    if (quote) {
-      inside[i] = 1;
-      if (ch === "\\") { if (i + 1 < src.length) inside[i + 1] = 1; i++; continue; }
-      if (ch === quote) quote = null;
-      continue;
-    }
-    if (ch === '"' || ch === "'" || ch === "`") quote = ch;
-  }
-
-  return (index: number) => index < inside.length && inside[index] === 1;
-}
+// `stringSpans` lives in lib/deep/clientExposure.ts, which owns the source-
+// reading helpers this file already imports. It was moved there when the same
+// "a token inside a string is not code" rule was needed by the client-exposure
+// detector -- two copies of a scanner like that drift, and the copy that drifts
+// is the one that stops catching things.
 
 export function extractTables(src: string): string[] {
   const out = new Set<string>();

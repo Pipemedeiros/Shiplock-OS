@@ -23,7 +23,7 @@ vi.mock("@/lib/supabase", () => ({
   }),
 }));
 
-const { runZeroDayCheck } = await import("./zeroDay");
+const { runZeroDayCheck, stripRepoPrefix } = await import("./zeroDay");
 
 const withDeps = { data: { facts: { dependencies: [{ name: "left-pad", version: "1.0.0" }] } } };
 const vuln = {
@@ -111,5 +111,19 @@ describe("visibility and de-duplication", () => {
     const result = await runZeroDayCheck("u1");
     expect(result.newCount).toBe(0);
     expect(insertMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("the dedup that matched nothing", () => {
+  it("strips the repository namespace runGithubScan adds", () => {
+    expect(stripRepoPrefix("acme/app::github:dep:hono:GHSA-x")).toBe("github:dep:hono:GHSA-x");
+  });
+
+  it("leaves an id that was never namespaced alone", () => {
+    expect(stripRepoPrefix("github:dep:hono:GHSA-x")).toBe("github:dep:hono:GHSA-x");
+  });
+
+  it("keeps a `::` that appears later in the id", () => {
+    expect(stripRepoPrefix("acme/app::github:dep:a::b")).toBe("github:dep:a::b");
   });
 });

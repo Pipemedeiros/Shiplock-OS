@@ -174,7 +174,7 @@ function hasAlphabeticRun(text: string): boolean {
 }
 
 /** Whether the match sits on a comment line. */
-function isCommentLine(line: string): boolean {
+export function isCommentLine(line: string): boolean {
   return /^\s*(\/\/|\*|\/\*|#|--)/.test(line);
 }
 

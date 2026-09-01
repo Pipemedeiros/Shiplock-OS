@@ -1,4 +1,4 @@
-import type { GithubFinding, RepoFile } from "./githubScan";
+import { isTestPath, looksSynthetic, type GithubFinding, type RepoFile } from "./githubScan";
 
 // C10 + C11 from CHECK-SPEC.md §4 — the two catastrophic, stack-specific
 // exposures. Both have the same shape of consequence: a credential that was
@@ -54,6 +54,52 @@ export function stripComments(src: string): string {
   return src.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[^:'"`\\])\/\/[^\n]*/g, "$1");
 }
 
+/**
+ * Where the string literals are.
+ *
+ * A single pass tracking quote state and escapes. Comments are stripped
+ * upstream by stripComments; this is the other half of "is this token code, or
+ * is it text that happens to look like code".
+ *
+ * Lives here because this file is where the source-reading helpers live —
+ * lib/graph/routeInventory.ts already imports stripComments and resolveImport
+ * from it, and it needs this one for the same reason.
+ */
+export function stringLiteralRanges(src: string): { start: number; end: number }[] {
+  const ranges: { start: number; end: number }[] = [];
+  let quote: string | null = null;
+  let start = 0;
+
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
+    if (quote) {
+      if (ch === "\\") { i++; continue; }
+      if (ch === quote) { ranges.push({ start, end: i }); quote = null; }
+      continue;
+    }
+    if (ch === '"' || ch === "'" || ch === "`") { quote = ch; start = i + 1; }
+  }
+  if (quote) ranges.push({ start, end: src.length });
+
+  return ranges;
+}
+
+/**
+ * Which byte offsets sit inside a string literal.
+ *
+ * A query written inside a string is not a query. `const sample =
+ * "admin.from('orders').select('*')"` is documentation, a code sample, or a
+ * generator template, and reading it as data access reported an endpoint that
+ * returns a constant as CRITICAL for exposing a table.
+ */
+export function stringSpans(src: string): (index: number) => boolean {
+  const inside = new Uint8Array(src.length);
+  for (const { start, end } of stringLiteralRanges(src)) {
+    for (let i = start; i < end && i < inside.length; i++) inside[i] = 1;
+  }
+  return (index: number) => index < inside.length && inside[index] === 1;
+}
+
 // ── C10: a server-only credential reachable from browser code ──────────────
 
 /** `"use client"` / `'use client'` as a real directive — top of file only. */
@@ -70,10 +116,52 @@ const USE_CLIENT_RE = /^[\s\S]{0,400}?["']use client["']/;
 const SERVER_ONLY_RE =
   /\b(SUPABASE_SERVICE_ROLE_KEY|SERVICE_ROLE_KEY|SERVICE_ROLE|service_role|serviceRoleKey|getSupabaseAdmin|STRIPE_SECRET_KEY|ANTHROPIC_API_KEY|OPENAI_API_KEY|RESEND_API_KEY|SENDGRID_API_KEY|TWILIO_AUTH_TOKEN|AWS_SECRET_ACCESS_KEY|ENCRYPTION_KEY|CRON_SECRET|GITHUB_WEBHOOK_SECRET|GITHUB_APP_PRIVATE_KEY|JWT_SECRET|SESSION_SECRET|DATABASE_URL|sb_secret_)\b|sb_secret_[A-Za-z0-9_-]{10,}/;
 
+/**
+ * The server-only token this source actually USES, or null.
+ *
+ * A match inside a string literal is usually text about the bug rather than the
+ * bug. This detector reported nineteen CRITICALs on ShipLock's own dashboard
+ * because a design prototype's sample data describes a finding in prose --
+ * "lib/db/admin.ts ... reads DATABASE_URL at module scope" -- and every
+ * "use client" page in that tree imports the file holding it. The file it names
+ * does not exist in the repository. Nineteen fabricated criticals about a
+ * fictional file, on the one account a customer would have been shown.
+ *
+ * But a blanket "ignore strings" would be wrong in the other direction, and
+ * wrong on real code: `process.env["SUPABASE_SERVICE_ROLE_KEY"]` puts the token
+ * inside a string and is exactly the bug. So there is one carve-out, and it is
+ * the SYNTAX that makes it a lookup rather than anything about the string's
+ * contents. The first attempt at this admitted any string whose whole content
+ * was a bare identifier, which is also the shape of the prototype's
+ * `label: "DATABASE_URL"` -- a caption on a mockup. Requiring the string to sit
+ * inside a computed read of an env object is the difference between a program
+ * reading a secret and a designer naming one.
+ */
+
+/** `process.env[`, `import.meta.env[`, `env?.[` -- a computed env read. */
+const ENV_LOOKUP_RE = /\benv\s*\??\.?\s*\[\s*$/;
+export function findServerOnly(src: string): string | null {
+  const ranges = stringLiteralRanges(src);
+  const enclosing = (index: number) =>
+    ranges.find((r) => index >= r.start && index < r.end) ?? null;
+
+  const re = new RegExp(SERVER_ONLY_RE.source, "g");
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(src)) !== null) {
+    const range = enclosing(m.index);
+    if (!range) return m[0];
+    // Inside a string: it counts only as the key of a computed env read.
+    const before = src.slice(Math.max(0, range.start - 40), range.start - 1);
+    if (ENV_LOOKUP_RE.test(before) && src.slice(range.start, range.end).trim() === m[0]) {
+      return m[0];
+    }
+  }
+  return null;
+}
+
 /** A friendly name for whatever we matched, for the finding text. */
 function describeServerOnly(src: string): string {
-  const m = SERVER_ONLY_RE.exec(src);
-  const hit = m?.[0] ?? "a server-only credential";
+  const hit = findServerOnly(src) ?? "a server-only credential";
   if (/service_?role|sb_secret_/i.test(hit)) return "your Supabase service-role key";
   if (/getSupabaseAdmin/.test(hit)) return "the service-role Supabase client (getSupabaseAdmin)";
   if (/DATABASE_URL/.test(hit)) return "your database connection string";
@@ -176,16 +264,28 @@ export function scanServerSecretsInClientCode(files: RepoFile[]): GithubFinding[
       for (const node of frontier) {
         const src = stripped.get(node.path);
         if (src === undefined) continue;
-        if (SERVER_ONLY_RE.test(src)) {
+        if (findServerOnly(src) !== null) {
           hit = node;
           break;
         }
         if (depth === MAX_DEPTH) continue;
+        // An import statement quoted inside a string is a code sample, not an
+        // edge in the module graph. Same rule as the secret match above, and it
+        // matters for the same reason: the prototype data that produced the
+        // nineteen false criticals also contains a quoted `import ... from
+        // "@/lib/db/admin"` for a module that does not exist.
+        const inString = stringSpans(src);
         IMPORT_RE.lastIndex = 0;
         let m: RegExpExecArray | null;
         while ((m = IMPORT_RE.exec(src)) !== null) {
           const spec = m[1] ?? m[2] ?? m[3];
           if (!spec) continue;
+          // Judge the SPECIFIER's own opening quote, not the match start. The
+          // match can begin at a real `export` on line 1 and run into a quoted
+          // sample further down, so m.index is code even when the import is
+          // text. A genuine import's opening quote is code; the same quote
+          // inside a template literal is already within a string span.
+          if (inString(m.index + m[0].lastIndexOf(spec) - 1)) continue;
           const resolved = resolveImport(node.path, spec, byPath);
           if (!resolved || seen.has(resolved)) continue;
           seen.add(resolved);
@@ -304,6 +404,15 @@ export function scanPublicPrefixedSecrets(files: RepoFile[]): GithubFinding[] {
     if (!isCode && !ENVISH_RE.test(file.path)) continue;
     const src = isCode ? stripComments(file.content) : file.content;
 
+    // Test scaffolding gets the discipline scanSecrets already applies, and for
+    // the reason recorded there: the rule is NOT "skip test files", because a
+    // suite talking to a live sandbox needs a real key and silence there is the
+    // "thinner audit looks cleaner" failure. The PATH decides how loudly we
+    // speak; the VALUE decides whether we speak at all. Without this, this
+    // detector reports a detector's own fixtures -- sixteen criticals on this
+    // repository, every one of them a variable invented to test this file.
+    const inTest = isTestPath(file.path);
+
     // Variables already reported by a VALUE signal below. The name signal skips
     // these: `NEXT_PUBLIC_STRIPE_SECRET_KEY=sk_live_…` trips both, and the
     // value finding is strictly better evidence — it names the actual key type
@@ -323,6 +432,9 @@ export function scanPublicPrefixedSecrets(files: RepoFile[]): GithubFinding[] {
       if (!value || PLACEHOLDER_RE.test(value)) continue;
       // A value that just forwards another env var isn't a literal secret.
       if (/^process\.env\b|^import\.meta\.env\b/.test(value)) continue;
+
+      const line = src.slice(src.lastIndexOf("\n", a.index) + 1, src.indexOf("\n", a.index) + 1 || undefined);
+      if (inTest && looksSynthetic(value, line)) continue;
 
       const shape = SECRET_VALUE_RES.find((candidate) => candidate.re.test(value));
       if (shape) {
@@ -364,6 +476,15 @@ export function scanPublicPrefixedSecrets(files: RepoFile[]): GithubFinding[] {
       const assign = new RegExp(`${name}\\s*[:=]\\s*["']?([^"'\\n\\r]*)`).exec(src);
       const value = assign?.[1]?.trim() ?? null;
       const placeholder = value !== null && PLACEHOLDER_RE.test(value);
+
+      // The NAME signal does not fire in test scaffolding at all -- the same
+      // conclusion githubScan reached for generic_secret_assignment. Inside a
+      // test, a server-only name proves only that somebody named a variable,
+      // and the names here are usually inside an expected finding id
+      // ("...:NEXT_PUBLIC_X_SECRET:.env") rather than a variable at all. A
+      // real-looking VALUE in a test file still reports, through the value
+      // signals above, which is where the evidence actually is.
+      if (inTest) continue;
 
       push(
         `github:public_prefixed_secret:${name}:${file.path}`,

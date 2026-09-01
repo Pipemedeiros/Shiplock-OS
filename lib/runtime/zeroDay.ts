@@ -16,6 +16,17 @@ import type { SourceFacts } from "@/lib/graph/graphRun";
 // on the scheduled pass. Nothing needs to be pushed for a newly-published CVE in
 // a package they already depend on to reach them.
 
+/**
+ * `owner/name::github:dep:hono:GHSA-x` -> `github:dep:hono:GHSA-x`.
+ *
+ * Only the repository namespace runGithubScan adds is removed; an id that was
+ * never namespaced is returned unchanged.
+ */
+export function stripRepoPrefix(id: string): string {
+  const at = id.indexOf("::");
+  return at === -1 ? id : id.slice(at + 2);
+}
+
 export async function runZeroDayCheck(
   userId: string
 ): Promise<{ total: number; newCount: number; resolvedCount: number }> {
@@ -52,13 +63,24 @@ export async function runZeroDayCheck(
   // The same CVE can already be open from a pull-request scan. Both carry the
   // same finding_id under different sources, so without this the customer would
   // see one problem twice — once in the GitHub panel and once in the fix list.
+  //
+  // THE COMPARISON HAS TO STRIP THE REPOSITORY PREFIX. runGithubScan namespaces
+  // every id it writes as `owner/name::<id>` (githubRun.ts, so archiving stays
+  // scoped to the repos a pass actually read), and this check compared those
+  // against bare ids. It therefore matched nothing, ever: the live database
+  // carried ten dependency advisories twice, three of them CRITICAL, which is
+  // the whole finding count of that account doubled. The dedup was written,
+  // shipped, and silently did nothing — the same shape as the three collectors
+  // in this repo that existed and were never called.
   const { data: fromSourceScan } = await admin
     .from("deep_findings")
     .select("finding_id")
     .eq("user_id", userId)
     .eq("source", "github")
     .is("archived_at", null);
-  const alreadyReported = new Set((fromSourceScan ?? []).map((r) => r.finding_id as string));
+  const alreadyReported = new Set(
+    (fromSourceScan ?? []).map((r) => stripRepoPrefix(r.finding_id as string))
+  );
 
   const active = new Set((existing ?? []).map((r) => r.finding_id as string));
   const current = new Set(findings.map((f) => f.id));

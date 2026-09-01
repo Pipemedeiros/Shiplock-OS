@@ -113,3 +113,70 @@ describe("historyFindings", () => {
     expect(historyFindings(hits, true).map((x) => x.id)).toEqual(historyFindings(hits, true).map((x) => x.id));
   });
 });
+
+// Named for the run that found it: six credential classes on ShipLock's own
+// dashboard, every one a fixture inside this file's own test suite, added by
+// the commit that created historyScan.ts.
+describe("the history scanner reporting its own test data", () => {
+  const commit = (patch: string) => ({
+    sha: "d93adcea9be5bceff20d86a98d91751f81fc3fe7",
+    message: "feat: secrets in history",
+    date: new Date().toISOString(),
+    patch,
+  });
+
+  it("stays silent on a synthetic key added to a test file", () => {
+    const hits = scanPatches([
+      commit(
+        `diff --git a/lib/deep/historyScan.test.ts b/lib/deep/historyScan.test.ts\n` +
+          `+  const patch = "sk_live_example_key_0000000000";\n`
+      ),
+    ]);
+    expect(hits).toEqual([]);
+  });
+
+  it("stays silent on a vendor's published example inside a comment", () => {
+    const hits = scanPatches([
+      commit(
+        `diff --git a/lib/deep/githubScan.ts b/lib/deep/githubScan.ts\n` +
+          `+      // AKIAIOSFODNN7EXAMPLE is Amazon's own published example key\n`
+      ),
+    ]);
+    expect(hits).toEqual([]);
+  });
+
+  it("STILL reports a real-looking key added to a test file", () => {
+    // The rule is not "skip test files". A suite that talks to a live sandbox
+    // needs a real key, and silence there is the failure Coverage exists for.
+    const hits = scanPatches([
+      commit(
+        `diff --git a/lib/x.test.ts b/lib/x.test.ts\n` +
+          `+  const key = "sb_secret_9f3Kq7Lm2Xz8Rt4Bn6Vc1Wd5";\n`
+      ),
+    ]);
+    expect(hits.map((h) => h.secretId)).toEqual(["supabase_secret"]);
+  });
+
+  it("STILL reports a real key added to shipped code", () => {
+    const hits = scanPatches([
+      commit(
+        `diff --git a/lib/config.ts b/lib/config.ts\n` +
+          `+const key = "sk_live_51H8xQ2eZvKYlo2Cabcdefgh";\n`
+      ),
+    ]);
+    expect(hits.map((h) => h.secretId)).toEqual(["stripe_live"]);
+  });
+
+  it("attributes a hit to the file it was added to, not the whole commit", () => {
+    // One commit touching two files: a synthetic fixture and a real key.
+    const hits = scanPatches([
+      commit(
+        `diff --git a/lib/deep/x.test.ts b/lib/deep/x.test.ts\n` +
+          `+  const fake = "sk_live_example_0000000000000";\n` +
+          `diff --git a/lib/pay.ts b/lib/pay.ts\n` +
+          `+const real = "sk_live_51H8xQ2eZvKYlo2Cabcdefgh";\n`
+      ),
+    ]);
+    expect(hits.map((h) => h.secretId)).toEqual(["stripe_live"]);
+  });
+});

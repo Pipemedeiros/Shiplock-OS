@@ -1,4 +1,4 @@
-import type { GithubFinding } from "./githubScan";
+import { isCommentLine, isTestPath, looksSynthetic, type GithubFinding } from "./githubScan";
 
 // C2 — secrets that were committed, then removed.
 //
@@ -74,20 +74,55 @@ export interface HistoryHit {
  * patch would flag the very commit that REMOVED a secret — reporting the fix as
  * the problem, at the moment the developer did the right thing.
  */
+/**
+ * Added lines, grouped by the file they were added to.
+ *
+ * The path is the whole point. Scanning a combined diff as one blob loses which
+ * file each line came from, and without that this check reported ShipLock's own
+ * dashboard with six credential classes -- a live Stripe key, a PEM private
+ * key, a Slack token -- every one of them a fixture inside
+ * lib/deep/historyScan.test.ts, added by the very commit that created this
+ * file. The scanner found its own test data and called it a leak.
+ */
+function addedLinesByFile(patch: string): { path: string; line: string }[] {
+  const out: { path: string; line: string }[] = [];
+  let path = "";
+  for (const line of patch.split("\n")) {
+    const header = /^diff --git a\/(?:.+) b\/(.+)$/.exec(line);
+    if (header) { path = header[1]; continue; }
+    const plus = /^\+\+\+ b\/(.+)$/.exec(line);
+    if (plus) { path = plus[1]; continue; }
+    if (line.startsWith("+") && !line.startsWith("+++")) out.push({ path, line });
+  }
+  return out;
+}
+
 export function scanPatches(commits: CommitPatch[]): HistoryHit[] {
   const hits: HistoryHit[] = [];
   const seen = new Set<string>();
 
   for (const commit of commits.slice(0, MAX_COMMITS)) {
     const patch = commit.patch.slice(0, MAX_PATCH_BYTES);
-    const added = patch
-      .split("\n")
-      .filter((line) => line.startsWith("+") && !line.startsWith("+++"))
-      .join("\n");
-    if (!added) continue;
+    const added = addedLinesByFile(patch);
+    if (added.length === 0) continue;
 
     for (const secret of HISTORY_SECRETS) {
-      if (!secret.re.test(added)) continue;
+      // The PATH decides how loudly we speak and the VALUE decides whether we
+      // speak at all -- the rule githubScan settled on, applied here too. A
+      // real key committed in a test file is still a real key, so a
+      // real-LOOKING value in test scaffolding still reports.
+      const real = added.some(({ path, line }) => {
+        const m = secret.re.exec(line);
+        if (!m) return false;
+        if (isTestPath(path) && looksSynthetic(m[0], line)) return false;
+        // A vendor's published example quoted in a comment is documentation,
+        // wherever it lives. Amazon publishes AKIAIOSFODNN7EXAMPLE itself, and
+        // this file's own source comments explaining that were reported as a
+        // committed AWS key.
+        if (isCommentLine(line.slice(1)) && looksSynthetic(m[0], line)) return false;
+        return true;
+      });
+      if (!real) continue;
       // One finding per secret class, attributed to the earliest commit we saw
       // introduce it.
       if (seen.has(secret.id)) continue;
