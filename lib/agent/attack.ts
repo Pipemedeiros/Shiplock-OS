@@ -55,6 +55,10 @@ const SYSTEM = [
   "  id=machine-verified: we read a shared secret or signature check, such as a",
   "    Stripe constructEvent or an HMAC comparison. Never report it as unsigned or",
   "    unauthenticated.",
+  "  id=identity-unreadable: this route HAS a gate we could not follow, such as a",
+  "    wrapper, a signed cookie, or an import outside what we read. NEVER report it",
+  "    as public, unauthenticated or reachable by anyone. Judge it on other grounds",
+  "    or leave it alone.",
   "  owner-filtered: we read a query narrowed by the caller's identity, such as",
   "    .eq('user_id', session.userId). Never report it as missing an ownership,",
   "    tenant or authorization check.",
@@ -187,11 +191,18 @@ export function buildPrompt(input: AgentInput): string {
     // user session" and then speculate that no signature check existed, which
     // reported our own Stripe webhook, which verifies via constructEvent, as
     // unsigned.
+    // "unreadable" is a fourth state, not a synonym for anonymous. The model
+    // was previously handed "anonymous" for routes wrapped in withWorkspace(),
+    // gated by a signed cookie, or checking an API key we did not recognise --
+    // and it faithfully reasoned that anyone could call them. The label was
+    // wrong, not the reasoning, so the fix is in what we hand it.
     const identity = r.machineGated
       ? "machine-verified"
       : r.authenticated
         ? "user"
-        : "anonymous";
+        : r.identityReadable
+          ? "anonymous"
+          : "identity-unreadable";
     // "owner-filtered" rather than "scoped", for the same reason machine gates
     // are stated as verified: a bare adjective reads as a category the model can
     // argue with, while a stated observation is a fact it must not contradict.

@@ -43,6 +43,24 @@ export function checkUnauthenticatedMutations(routes: RouteFact[]): GithubFindin
     // Touching no table at all is usually a health check or a redirect.
     if (route.tables.length === 0) continue;
 
+    // We could not read how this route decides who is calling, so we cannot
+    // say it accepts writes "from anyone". Named as our gap, at a severity that
+    // matches what we actually know, rather than dropped -- an endpoint we
+    // could not judge is worth a sentence.
+    if (!route.identityReadable) {
+      out.push(
+        f(
+          `github:unreadable_mutation:${route.path}`,
+          "WARNING",
+          `${route.path} accepts ${mutating.join("/")} and we could not read what guards it`,
+          `${route.path} writes to ${route.tables.slice(0, 3).join(", ")}, and ${route.identityGap}. ` +
+            `That means we cannot tell you whether this endpoint is protected -- not that it is unprotected. ` +
+            `Open ${route.file} and confirm the caller is checked before the write.`,
+        ),
+      );
+      continue;
+    }
+
     out.push(
       f(
         `github:unauthenticated_mutation:${route.path}`,

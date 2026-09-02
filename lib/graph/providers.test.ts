@@ -92,6 +92,8 @@ describe("the same facts read correctly on a different provider", () => {
     ownershipFiltered: false,
     usesServiceRole: false,
     isApiRoute: true,
+    identityReadable: true,
+    identityGap: null,
     via: [],
   };
 
@@ -149,6 +151,8 @@ describe("provider inference", () => {
           ownershipFiltered: false,
           usesServiceRole: false,
           isApiRoute: true,
+          identityReadable: true,
+          identityGap: null,
           via: [],
         },
       ],

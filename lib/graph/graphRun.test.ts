@@ -50,6 +50,8 @@ const routeFact = {
   usesServiceRole: false,
   ownershipFiltered: false,
   isApiRoute: true,
+  identityReadable: true,
+  identityGap: null,
   via: [],
 };
 

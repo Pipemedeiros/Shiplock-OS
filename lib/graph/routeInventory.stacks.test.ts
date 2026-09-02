@@ -424,3 +424,102 @@ describe("auth this inventory did not recognise", () => {
     expect(r.authenticated).toBe(true);
   });
 });
+
+// Every route below is real, taken from the five startup codebases audited on
+// 2026-09-01, and every one was reported as a CRITICAL "anyone on the internet
+// can call this endpoint". Thirteen of fourteen false criticals were this.
+describe("a route we cannot read is not a route with no gate", () => {
+  const route = (src: string, extra: { path: string; content: string }[] = []) =>
+    collectRoutes([{ path: "app/api/x/route.ts", content: src }, ...extra] as never)[0];
+
+  it("does not call a wrapped handler anonymous (corpus-a: 435 of 511 routes)", () => {
+    const r = route(`
+      import { withWorkspace } from "@/lib/auth";
+      export const GET = withWorkspace(async ({ workspace }) => {
+        return NextResponse.json(await prisma.link.findMany());
+      });`);
+    expect(r.identityReadable).toBe(false);
+    expect(r.identityGap).toMatch(/withWorkspace/);
+  });
+
+  it("does not call a cookie-session route anonymous (corpus-b)", () => {
+    const r = route(`
+      import { parse as parseCookieHeader } from "cookie";
+      export default async function handler(req, res) {
+        const cookies = parseCookieHeader(req.headers.cookie || "");
+        const accessCookie = cookies[getSignedAgreementAccessCookieName(linkId)];
+        return res.json(await prisma.agreementResponse.findMany());
+      }`);
+    expect(r.identityReadable).toBe(false);
+    expect(r.identityGap).toMatch(/cookie/i);
+  });
+
+  it("does not call a route that answers 401 anonymous (corpus-c)", () => {
+    const r = route(`
+      export async function GET(req) {
+        if (!authentication || !("apiKeyId" in authentication)) {
+          return responses.unauthorizedResponse();
+        }
+        return Response.json(await prisma.survey.findMany());
+      }`);
+    expect(r.identityReadable).toBe(false);
+  });
+
+  it("does not call a route anonymous when its auth import was never read", () => {
+    const r = route(`
+      import { verifyDataroomSession } from "@/lib/auth/dataroom-auth";
+      export async function GET(req) {
+        return Response.json(await prisma.faq.findMany());
+      }`);
+    // The helper file is outside this file set, so we never saw what it does.
+    expect(r.identityReadable).toBe(false);
+    expect(r.identityGap).toMatch(/dataroom-auth/);
+  });
+
+  // THE OTHER DIRECTION, and the one that matters more: the cure must not be
+  // silence. A route with genuinely nothing guarding it still reports.
+  it("STILL calls a genuinely open route anonymous", () => {
+    const r = route(`
+      import prisma from "@/lib/prisma";
+      export default async function handler(req, res) {
+        const { documentVersionId } = req.query;
+        const v = await prisma.documentVersion.findUnique({ where: { id: documentVersionId } });
+        res.status(200).json(v);
+      }`);
+    expect(r.identityReadable).toBe(true);
+    expect(r.authenticated).toBe(false);
+    expect(r.machineGated).toBe(false);
+  });
+
+  it("does not treat a plain database import as a possible gate", () => {
+    // The first version of this fired on @/lib/supabase and silenced a real
+    // finding. Only a module that could plausibly BE the gate counts.
+    const r = route(`
+      import { getSupabaseAdmin } from "@/lib/supabase";
+      export async function GET() {
+        return Response.json(await getSupabaseAdmin().from("orders").select("*"));
+      }`);
+    expect(r.identityReadable).toBe(true);
+  });
+
+  it("does not mark a route we DID read as unreadable", () => {
+    const r = route(
+      `import { requireUser } from "@/lib/guard";
+       export async function GET(req) {
+         const user = await requireUser(req);
+         return Response.json(await supabase.from("orders").select("*").eq("user_id", user.id));
+       }`,
+      [{ path: "lib/guard.ts", content: `export async function requireUser(req) { return getSession(req); }` }],
+    );
+    expect(r.identityReadable).toBe(true);
+    expect(r.authenticated).toBe(true);
+  });
+
+  it("a neutral wrapper is not treated as a gate", () => {
+    const r = route(`
+      export const GET = handler(async (req) => {
+        return Response.json(await prisma.post.findMany());
+      });`);
+    expect(r.identityReadable).toBe(true);
+  });
+});

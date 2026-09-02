@@ -194,6 +194,8 @@ describe("the end-to-end consequence", () => {
     ownershipFiltered: false,
     usesServiceRole: false,
     isApiRoute: true,
+    identityReadable: true,
+    identityGap: null,
     via: [],
   };
 

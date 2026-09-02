@@ -113,9 +113,14 @@ function routeClaims(route: RouteFact | undefined, stack: StackReport): Claim[] 
         ? "The route is gated by a shared secret or signature."
         : route.authenticated
           ? "The route resolves a user, so this is a gap between customers rather than an open door."
-          : "The route is reachable without any credential.",
+          : route.identityReadable
+            ? "The route is reachable without any credential."
+            : `We could not read how this route checks the caller: ${route.identityGap}.`,
       origin: "routes",
-      verified: true,
+      // An admission that we could not read something is not an observation.
+      // Marking it verified would let a gap in our own reading count toward
+      // `corroborated`, which is the opposite of what confidence means here.
+      verified: route.machineGated || route.authenticated || route.identityReadable,
     },
   ];
 

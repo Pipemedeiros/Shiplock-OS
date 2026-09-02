@@ -68,7 +68,26 @@ function routeOf(node: GraphNode): RouteFact & { suspiciousRequests: number } {
  * by the ownership paths instead.
  */
 function isAnonymous(route: RouteFact): boolean {
+  // `identityReadable: false` is the same argument one step earlier: we did not
+  // read a gate, which is not the same as there being none. A wrapped handler,
+  // a 401 we cannot attribute, a cookie session, an import outside the read
+  // budget -- each is evidence the route checks SOMETHING. Reporting those as
+  // "anyone on the internet can reach this" produced thirteen of the fourteen
+  // false criticals measured across five real startup codebases.
+  if (!route.identityReadable) return false;
   return !route.authenticated && !route.machineGated && !route.ownershipFiltered;
+}
+
+/**
+ * A route we could not read, over data worth protecting.
+ *
+ * Reported as a gap rather than a breach, and named as ours: the customer
+ * learns which endpoint we could not judge and why, instead of either a false
+ * alarm or silence. Silence here would be the "thinner audit looks cleaner"
+ * failure the Coverage page exists to prevent.
+ */
+export function isUnreadable(route: RouteFact): boolean {
+  return !route.identityReadable && !route.authenticated && !route.machineGated;
 }
 
 /**

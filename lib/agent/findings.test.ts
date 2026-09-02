@@ -13,6 +13,8 @@ const route: RouteFact = {
   usesServiceRole: false,
   ownershipFiltered: false,
   isApiRoute: true,
+  identityReadable: true,
+  identityGap: null,
   via: [],
 };
 

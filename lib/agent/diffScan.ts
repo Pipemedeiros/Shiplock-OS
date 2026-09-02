@@ -125,6 +125,12 @@ export function scanDiff(input: DiffScanInput): DiffScanResult {
     // indirection than the import walk follows. Reporting the contradiction as
     // a blocking critical is the worst outcome available, so the safer half of
     // it wins and the route falls through to the ownership checks below.
+    // A route whose gate we could not read is not a route with no gate, and a
+    // BLOCKING verdict on one is the failure that gets a security tool switched
+    // off in its first week. Measured across five real codebases: every one of
+    // these was actually protected.
+    if (!route.identityReadable) continue;
+
     if (!route.authenticated && !route.ownershipFiltered) {
       findings.push({
         id: `diff:anon:${route.path}`,

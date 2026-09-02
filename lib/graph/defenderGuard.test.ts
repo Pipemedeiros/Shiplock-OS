@@ -23,6 +23,8 @@ function route(over: Partial<RouteFact> = {}): RouteFact {
     usesServiceRole: false,
     ownershipFiltered: false,
     isApiRoute: true,
+    identityReadable: true,
+    identityGap: null,
     via: [],
     ...over,
   };

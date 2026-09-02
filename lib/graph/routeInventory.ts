@@ -47,6 +47,28 @@ export interface RouteFact {
   /** True for Next.js route handlers under app/; false for page-level code. */
   isApiRoute: boolean;
   /**
+   * Whether we could READ how this route decides who is calling.
+   *
+   * `authenticated: false` used to mean two different things -- "we read this
+   * route and there is no gate" and "we could not follow how this route is
+   * gated" -- and only the first justifies reporting that anyone on the
+   * internet can call the endpoint. Collapsing them is a fail-open, and it was
+   * the single cause of thirteen of fourteen false CRITICALs across five real
+   * startup codebases.
+   *
+   * This is the route-level twin of AuthzFacts.rulesRead, which already draws
+   * exactly this line for database policies: "we read every policy and none
+   * filters" is a finding, "we never read the policies" is a gap. The same
+   * distinction simply never reached the routes.
+   *
+   * False means UNREADABLE, and an unreadable route is never called anonymous.
+   */
+  identityReadable: boolean;
+
+  /** Why identity was unreadable, for the coverage note and the finding text. */
+  identityGap: string | null;
+
+  /**
    * Modules the route pulls in that contributed facts (auth, tables). Evidence,
    * so a finding can say WHERE it saw the gate rather than asserting one exists.
    */
@@ -437,6 +459,78 @@ export function reachableSources(
 }
 
 /**
+ * Signals that this route decides who is calling in a way we could not follow.
+ *
+ * Each one came from a real repository, and each is evidence the route HAS a
+ * gate rather than evidence it lacks one. Order matters only for the message.
+ *
+ * The reasoning is the same one already applied when a route looked anonymous
+ * while filtering by the caller: those cannot both be true, so the safer half
+ * wins. A route that answers 401 is not a route with no notion of who is
+ * asking.
+ */
+
+/** `export const GET = withWorkspace(async (…) => …)` — the body is inside a call. */
+const WRAPPED_HANDLER_RE =
+  /export\s+(?:const|let|var)\s+(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s*(?::[^=]+)?=\s*([A-Za-z_$][\w$]*)\s*\(/g;
+
+/** Handler factories that wrap without gating — a wrapper is not automatically auth. */
+const NEUTRAL_WRAPPERS = new Set([
+  "handler", "createHandler", "route", "createRoute", "defineHandler",
+  "NextResponse", "Response", "json", "compose", "pipe",
+]);
+
+/** The route refuses somebody. Whatever it checks, it checks something. */
+const REJECTS_RE =
+  /\b(?:status|Status)\s*[(:]\s*(?:401|403)\b|\b(?:401|403)\s*[,)]|\bunauthorized(?:Response)?\b|\bforbidden\b|"Unauthorized"|'Unauthorized'/i;
+
+/** A session carried in a cookie we do not recognise by name. */
+const COOKIE_AUTH_RE =
+  /\bcookies\s*\(\s*\)|\breq(?:uest)?\.cookies\b|\.headers\.get\s*\(\s*["']cookie|\breq(?:uest)?\.headers\.cookie\b|parseCookieHeader\s*\(/i;
+
+/**
+ * Why we could not read this route's identity check, or null if we could.
+ *
+ * Only consulted when the route looks anonymous — a route we DID read as
+ * authenticated or machine-gated has no gap to report.
+ */
+export function identityGapFor(
+  entrySrc: string,
+  unresolvedImports: string[],
+): string | null {
+  WRAPPED_HANDLER_RE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = WRAPPED_HANDLER_RE.exec(entrySrc)) !== null) {
+    if (!NEUTRAL_WRAPPERS.has(m[1])) {
+      return `the handler is wrapped in ${m[1]}(), and we could not read what it checks`;
+    }
+  }
+
+  if (REJECTS_RE.test(entrySrc)) {
+    return "the route answers 401 or 403, so it checks something we could not attribute";
+  }
+
+  if (COOKIE_AUTH_RE.test(entrySrc)) {
+    return "the route reads cookies, and we could not tell which of them is a session";
+  }
+
+  // Only an unread module that could plausibly BE the gate. The first version
+  // fired on any unresolved local import, which made `import { getSupabaseAdmin }
+  // from "@/lib/supabase"` — a database client — read as a possible auth check,
+  // and a genuinely anonymous route stopped being reported. Caught by the test
+  // named "still reports a genuinely anonymous route", which is exactly the
+  // regression this whole change must not cause: the cure cannot be silence.
+  const gateLike = unresolvedImports.find((spec) =>
+    /auth|session|guard|middleware|permission|policy|acl|rbac|token|identity|clerk|current-?user|require/i.test(spec),
+  );
+  if (gateLike) {
+    return `we could not read ${gateLike}, which this route imports and which may be its gate`;
+  }
+
+  return null;
+}
+
+/**
  * Facts for one route. `byPath` enables import following; omit it to analyse the
  * single file only.
  */
@@ -450,6 +544,24 @@ export function analyzeRouteFile(
     : [{ path: file, src: stripComments(content) }];
 
   const entrySrc = sources[0].src;
+
+  // Local imports the read budget did not reach. A route whose gate lives in a
+  // file we never downloaded is unreadable, not ungated. Bare package
+  // specifiers are excluded: node_modules is out of scope by design, and
+  // treating every framework import as a gap would make every route unreadable.
+  const unresolvedImports: string[] = [];
+  if (byPath) {
+    const seen = new Set<string>();
+    IMPORT_RE.lastIndex = 0;
+    let im: RegExpExecArray | null;
+    while ((im = IMPORT_RE.exec(entrySrc)) !== null) {
+      const spec = im[1] ?? im[2] ?? im[3];
+      if (!spec || seen.has(spec)) continue;
+      seen.add(spec);
+      if (!/^[.~]|^@\//.test(spec)) continue;
+      if (resolveImport(file, spec, byPath) === null) unresolvedImports.push(spec);
+    }
+  }
   const tables = new Set<string>();
   const via = new Set<string>();
   let authenticated = false;
@@ -521,6 +633,10 @@ export function analyzeRouteFile(
   // unfiltered" would fire on all of them.
   if (machineGated && !strongAuth) authenticated = false;
 
+  // Only a route we are about to call anonymous needs the question asked.
+  const identityGap =
+    authenticated || machineGated ? null : identityGapFor(entrySrc, unresolvedImports);
+
   return {
     path: routePathFromFile(file),
     file,
@@ -533,6 +649,8 @@ export function analyzeRouteFile(
     usesServiceRole,
     ownershipFiltered,
     isApiRoute: true,
+    identityReadable: identityGap === null,
+    identityGap,
     via: [...via].sort(),
   };
 }
