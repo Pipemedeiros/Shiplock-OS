@@ -51,6 +51,8 @@ const routeFact = {
   ownershipFiltered: false,
   identityReadable: true,
   identityGap: null,
+  dataReadable: true,
+  dataGap: null,
   ownershipReadable: true,
   ownershipGap: null,
   serviceRoleReadable: true,

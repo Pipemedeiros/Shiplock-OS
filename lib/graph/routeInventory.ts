@@ -2,6 +2,7 @@ import type { RepoFile } from "@/lib/deep/githubScan";
 import { stripComments, resolveImport, stringSpans, stringLiteralRanges } from "@/lib/deep/clientExposure";
 import { blankDeclarations } from "./declarations";
 import { traceExecutedSources } from "./callPath";
+import { isWorkspacePackageImport } from "./tsconfigPaths";
 
 // The source collector's structural output: which HTTP routes exist, which
 // tables each one touches, and whether it checks who is asking.
@@ -101,6 +102,21 @@ export interface RouteFact {
 
   /** Why identity was unreadable, for the coverage note and the finding text. */
   identityGap: string | null;
+
+  /**
+   * Whether we could READ this route's data access at all.
+   *
+   * The call-path work made many routes reach no table rather than be credited
+   * with tables they never touch -- the right failure direction, and still
+   * silently unassessed: a route whose query sits behind an import we could
+   * not resolve looks identical to a route that touches nothing. False when
+   * the route reaches no table AND imports something local we could not
+   * follow. "Absent is not clean" is the second design commitment of this
+   * codebase, and this field is what lets Coverage keep it for data access.
+   */
+  dataReadable: boolean;
+  /** Why data access was unreadable, or null. */
+  dataGap: string | null;
 
   /**
    * Modules the route pulls in that contributed facts (auth, tables). Evidence,
@@ -368,7 +384,12 @@ const OWNERSHIP_RE = new RegExp(
     `|[{,]\\s*${OWNER_VALUE}\\s*[,}]` +
     `|,\\s*${OWNER_VALUE}\\s*[,)]` +
     `|\\b${OWNER_VALUE}\\s*(?:===|!==|==|!=)\\s*${EITHER}\\b` +
-    `|\\b${EITHER}\\s*(?:===|!==|==|!=)\\s*${OWNER_VALUE}\\b`,
+    `|\\b${EITHER}\\s*(?:===|!==|==|!=)\\s*${OWNER_VALUE}\\b` +
+    // A value we TRACED to the caller, anywhere inside a where clause, however
+    // it is wrapped: `where: { id: normalizeWorkspaceId(workspace.id) }`.
+    // Restricted to the traced marker on purpose -- a vocabulary match inside
+    // a call argument would count `console.log(userId)`.
+    "|\\bwhere\\s*:\\s*\\{[^}]*\\bserverEstablishedId\\b",
 );
 
 // The COLUMN side: filtering on an ownership column at all. Weaker evidence than
@@ -544,6 +565,24 @@ export function callerDecodedIdentities(src: string): { names: string[]; holders
   return boundFrom(src, DECODER_CALL);
 }
 
+/**
+ * One more hop: a value computed FROM a traced identity is still the caller's.
+ * `const programId = getDefaultProgramIdOrThrow(workspace)` on a route that
+ * received `workspace` from a session-resolving wrapper; the query then
+ * filters by programId. Applied after the identity renames, so it sees the
+ * marker and nothing else.
+ */
+export function propagateDerived(text: string): string {
+  const names = new Set<string>();
+  // The argument list may not nest: `[^()]*` keeps the match inside one call,
+  // so `export const GET = withWorkspace(async () => { const x = f(marker) …`
+  // does not bind GET.
+  const derived = /(?:const|let|var)\s+(\w+)\s*(?::[^=;]*)?=\s*(?:await\s+)?[\w.$]+\s*\([^()]*\bserverEstablishedId\b[^()]*\)/g;
+  let m: RegExpExecArray | null;
+  while ((m = derived.exec(text)) !== null) names.add(m[1]);
+  return renameAll(text, [...names], [], "serverEstablishedId");
+}
+
 function renameAll(text: string, names: string[], holders: string[], to: string): string {
   let out = text;
   for (const h of holders) {
@@ -619,7 +658,7 @@ export function withoutIdentityResolution(src: string, original: string = src): 
     "serverEstablishedId",
   );
 
-  return out;
+  return propagateDerived(out);
 }
 
 /**
@@ -790,8 +829,16 @@ const REJECTS_RE =
 // which kind, so both land here rather than in MACHINE_GATE_RE. That route
 // had been masked by an unrelated gap; once the tracer removed the gap the
 // merge check BLOCKED it as anonymous, on a route that verifies every request.
+// Two more from the alias-resolution census (2026-09-02): `authenticate*()` --
+// corpus-c' v2 API wrapper authenticates by API key through
+// authenticateRequest(), and once the wrapper was readable the route read as
+// anonymous and BLOCKED the merge check -- and a database lookup keyed by a
+// token, `where: { token, expires: { gte } }` in corpus-a's reset-password route,
+// which is the Prisma spelling of the `.eq("...token", …)` MACHINE_GATE_RE has
+// known for Supabase. Both land here, never as a gate: a lookup whose result
+// nobody checks would silence a real finding.
 const UNCLASSIFIED_VERIFIER_RE =
-  /\b(?:verify|validate|decode|parse)[A-Za-z]*(?:Token|Credential|Bearer)[A-Za-z]*\s*\(|\b(?:assert|require|check)[A-Za-z]*(?:Auth|Access|Permission|Member)[A-Za-z]*\s*\(|\.\s*verify\s*\(|["'][\w-]*-signature["']/i;
+  /\b(?:verify|validate|decode|parse)[A-Za-z]*(?:Token|Credential|Bearer)[A-Za-z]*\s*\(|\b(?:assert|require|check)[A-Za-z]*(?:Auth|Access|Permission|Member)[A-Za-z]*\s*\(|\bauthenticate[A-Za-z]*\s*\(|\.\s*verify\s*\(|["'][\w-]*-signature["']|\bwhere\s*:\s*\{\s*(?:\w*[tT]oken|hashedKey|hashed_key|apiKey|api_key|secret)\b/i;
 
 /** A session carried in a cookie we do not recognise by name. */
 const COOKIE_AUTH_RE =
@@ -808,7 +855,14 @@ export function identityGapFor(
   unresolvedImports: string[],
   machineGateWitness: string | null = null,
   headerReadWitness: string | null = null,
+  conditionalIdentityWitness: string | null = null,
 ): string | null {
+  // A wrapper that resolves a session only when an option says so (corpus-c'
+  // withApiLogging: `switch (authenticationMethod)`). Which option this route
+  // set is data we did not read, so the gate is neither asserted nor denied.
+  if (conditionalIdentityWitness) {
+    return `${conditionalIdentityWitness} resolves a session only when an option tells it to, and we could not read which option this route sets`;
+  }
   // A signature or shared-secret check sitting in a module this route imports.
   // We deliberately do not credit it as a gate ON this route -- a helper that
   // mentions a secret does not gate its importer -- but it is plainly evidence
@@ -943,6 +997,17 @@ const CONTEXT_GET_RE =
   /\bc\s*\.\s*get\s*\(\s*["'][^"']+["']\s*\)|\bctx\s*\.\s*(?:workspace|team|tenant|session|auth)\b|\breq(?:uest)?\s*\.\s*(?:workspace|team|tenant)\b/;
 
 /**
+ * A role check on the path. `withAdmin()` resolves a session and then requires
+ * a role; read whole, an admin route is "authenticated and unscoped", and the
+ * merge check blocked corpus-a's /api/admin/domains/renew as an outlier on invoice.
+ * A route admitted by role is not narrowed to one tenant BY DESIGN, so its
+ * scope is disclosed as unreadable rather than judged. "role" is the concept,
+ * not a domain noun: the discriminator is a comparison on a value so named.
+ */
+const ROLE_GATE_RE =
+  /\brequiredRoles?\b|\b\w*[rR]ole\b\s*(?:===|!==|==|!=)|\.includes\s*\(\s*\w*[rR]ole\w*\s*\)|\bis(?:Super)?Admin\b/;
+
+/**
  * Why the ownership filter could not be read, or null if it could.
  *
  * Only asked of a route we are about to describe as unscoped -- a route we DID
@@ -952,9 +1017,13 @@ export function ownershipGapFor(
   entrySrc: string,
   identityReadable: boolean,
   tablesFromImport: string[],
+  roleGateWitness: string | null = null,
 ): string | null {
   if (!identityReadable) {
     return "we could not read how this route resolves its caller, so the scope it runs under is decided somewhere we could not read";
+  }
+  if (roleGateWitness) {
+    return `the caller is admitted by role in ${roleGateWitness}, so the query is deliberately not narrowed to one tenant`;
   }
   if (SCOPED_IDENTITY_CALL_RE.test(entrySrc)) {
     return "the caller is resolved by a call that also carries the scope, so the session lookup may itself be the filter";
@@ -981,12 +1050,30 @@ export function analyzeRouteFile(
   // each source is the text of what that handler actually runs: unexecuted
   // functions blanked, declarations blanked, parameters no call site supplies
   // renamed. When it cannot, whole files two hops deep, as before.
-  const traced = byPath ? traceExecutedSources({ path: file, content }, byPath) : null;
-  const sources: { path: string; src: string; original: string; prepared: boolean; host: boolean }[] = traced
-    ? traced.sources.map((s) => ({ path: s.path, src: s.src, original: s.original, prepared: true, host: s.host }))
+  const traced = byPath
+    ? traceExecutedSources({ path: file, content }, byPath, {
+        isIdentityCall: (callee) => STRONG_USER_AUTH_RE.test(`${callee}(`),
+      })
+    : null;
+  const sources: { path: string; src: string; original: string; prepared: boolean; host: boolean; infra: boolean }[] = traced
+    ? traced.sources.map((s) => ({ path: s.path, src: s.src, original: s.original, prepared: true, host: s.host, infra: s.identityInfrastructure }))
     : byPath
-      ? reachableSources({ path: file, content }, byPath).map((s) => ({ ...s, original: s.src, prepared: false, host: s.path === file }))
-      : [{ path: file, src: stripComments(content), original: stripComments(content), prepared: false, host: true }];
+      ? reachableSources({ path: file, content }, byPath).map((s) => ({ ...s, original: s.src, prepared: false, host: s.path === file, infra: false }))
+      : [{ path: file, src: stripComments(content), original: stripComments(content), prepared: false, host: true, infra: false }];
+
+  // WHAT A WRAPPER INJECTS IS THE WRAPPER'S TO ESTABLISH. `withPartnerProfile(
+  // async ({ partner }) => …)` hands the handler a partner it looked up by the
+  // session it resolved. `partner.id` in a filter is then the caller's identity
+  // by provenance, whatever the name -- but only when the wrapper resolved an
+  // identity; a wrapper that injects a value it read from the URL injects the
+  // caller's input.
+  const wrapperResolvesIdentity =
+    traced !== null &&
+    traced.wrapperPaths.some((p) => {
+      const w = traced.sources.find((s) => s.path === p);
+      return w !== undefined && STRONG_USER_AUTH_RE.test(w.src);
+    });
+  const injectedIdentities = wrapperResolvesIdentity ? traced!.injected : [];
 
   // The gap questions are asked of the route as written -- wrapper names,
   // `({ workspace }) =>` parameters, 401s -- so they read the unblanked entry
@@ -1010,7 +1097,10 @@ export function analyzeRouteFile(
       const spec = im[1] ?? im[2] ?? im[3];
       if (!spec || seen.has(spec)) continue;
       seen.add(spec);
-      if (!/^[.~]|^@\//.test(spec)) continue;
+      // A workspace package (`@corpus-a/utils`, `@corpus-e/db`) is this
+      // repository's own code that we do not resolve; it is disclosed as
+      // unresolved, never mistaken for a third-party dependency.
+      if (!/^[.~]|^@\//.test(spec) && !isWorkspacePackageImport(spec, byPath)) continue;
       if (resolveImport(file, spec, byPath) === null) unresolvedImports.push(spec);
     }
   }
@@ -1025,7 +1115,11 @@ export function analyzeRouteFile(
   let serviceRoleReadable = true;
   let ownershipFiltered = false;
 
-  for (const { path, src: raw, original, prepared, host } of sources) {
+  let roleGateWitness: string | null = null;
+  const isAdminPath = /(^|\/)admin(\/|$)/.test(routePathFromFile(file));
+  const conditionalIdentityWitness = traced?.conditionalIdentityPaths[0] ?? null;
+
+  for (const { path, src: raw, original, prepared, host, infra } of sources) {
     // A HOST file is the route: the entry itself, or the file its handler was
     // re-exported from or resolved into. Its queries and its machine gate are
     // the route's own. Everything else is a helper the route calls.
@@ -1040,7 +1134,17 @@ export function analyzeRouteFile(
     // can still be neutralised. A traced source arrives already prepared.
     const src = prepared ? raw : blankDeclarations(raw, path);
 
-    const resolvesIdentity = STRONG_USER_AUTH_RE.test(src) || HEADER_READ_RE.test(src);
+    // Identity infrastructure (NextAuth options handed to getServerSession)
+    // resolves identity by definition, even when no pattern in it says so.
+    const resolvesIdentity = infra || STRONG_USER_AUTH_RE.test(src) || HEADER_READ_RE.test(src);
+    // Only under an admin URL. corpus-a's withWorkspace() ALSO takes requiredRoles
+    // -- a permission inside the caller's own workspace -- and the first
+    // version of this rule made 59 workspace-scoped routes unreadable, hiding
+    // exactly the unscoped-lookup class the check exists for. The role check
+    // is textually the same in both wrappers; what differs is that the
+    // application segregates its admin surface by URL. That is a convention,
+    // stated as one, not a fact read from the code.
+    if (isAdminPath && ROLE_GATE_RE.test(src)) roleGateWitness ??= path;
 
     // Tables from an IMPORTED auth helper are the helper's own scoped read of
     // whoever is signed in, not data the route exposes. requireProUser selects
@@ -1117,7 +1221,16 @@ export function analyzeRouteFile(
     // A data helper that genuinely scopes on the route's behalf still counts,
     // because it does not resolve identity itself.
     const ownershipCounts = isEntry || !resolvesIdentity;
-    const filterable = withoutIdentityResolution(src, original);
+    let filterable = withoutIdentityResolution(src, original);
+    if (isEntry && injectedIdentities.length > 0) {
+      for (const name of injectedIdentities) {
+        const esc = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        filterable = filterable.replace(new RegExp(`\\b${esc}\\s*\\??\\.\\s*(?:\\w*Id|id|uid|sub)\\b`, "g"), "serverEstablishedId");
+        // The whole injected object handed on: getDefaultProgramIdOrThrow(workspace).
+        filterable = filterable.replace(new RegExp(`\\(\\s*${esc}\\s*\\)`, "g"), "(serverEstablishedId)");
+      }
+      filterable = propagateDerived(filterable);
+    }
     // The column-side pattern is NOT quote-filtered: its match begins inside
     // the column name's own quotes (`.eq('user_id', ...)`), which is the shape
     // it exists to see.
@@ -1135,7 +1248,7 @@ export function analyzeRouteFile(
   const identityGap =
     authenticated || machineGated
       ? null
-      : identityGapFor(entrySrc, unresolvedImports, machineGateWitness, headerReadWitness);
+      : identityGapFor(entrySrc, unresolvedImports, machineGateWitness, headerReadWitness, conditionalIdentityWitness);
   const identityReadable = identityGap === null;
 
   // Same question, one field over. Only asked when we are about to call the
@@ -1145,7 +1258,7 @@ export function analyzeRouteFile(
   // path WAS read, filter and all, so that clause no longer applies.
   const ownershipGap = ownershipFiltered
     ? null
-    : ownershipGapFor(entrySrc, identityReadable, traced ? [] : [...tablesFromImport]);
+    : ownershipGapFor(entrySrc, identityReadable, traced ? [] : [...tablesFromImport], roleGateWitness);
 
   return {
     path: routePathFromFile(file),
@@ -1174,6 +1287,11 @@ export function analyzeRouteFile(
     ownershipFiltered,
     identityReadable,
     identityGap,
+    dataReadable: tables.size > 0 || unresolvedImports.length === 0,
+    dataGap:
+      tables.size > 0 || unresolvedImports.length === 0
+        ? null
+        : `the route reaches no table we could see, but it imports ${unresolvedImports[0]}${unresolvedImports.length > 1 ? ` and ${unresolvedImports.length - 1} more` : ""}, which we could not follow`,
     ownershipReadable: ownershipGap === null,
     ownershipGap,
     via: [...via].sort(),

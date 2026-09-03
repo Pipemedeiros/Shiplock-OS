@@ -195,6 +195,8 @@ describe("the end-to-end consequence", () => {
     usesServiceRole: false,
     identityReadable: true,
     identityGap: null,
+    dataReadable: true,
+    dataGap: null,
     ownershipReadable: true,
     ownershipGap: null,
     serviceRoleReadable: true,

@@ -1,4 +1,5 @@
 import { isTestPath, looksSynthetic, type GithubFinding, type RepoFile } from "./githubScan";
+import { resolveViaTsconfigPaths } from "@/lib/graph/tsconfigPaths";
 
 // C10 + C11 from CHECK-SPEC.md §4 — the two catastrophic, stack-specific
 // exposures. Both have the same shape of consequence: a credential that was
@@ -198,7 +199,7 @@ function normalisePath(p: string): string {
  * scanner's job, not this one.
  */
 export function resolveImport(fromPath: string, spec: string, byPath: Map<string, RepoFile>): string | null {
-  let base: string;
+  let base: string | null = null;
   if (spec.startsWith("@/")) {
     base = spec.slice(2);
   } else if (spec.startsWith("~/")) {
@@ -206,22 +207,26 @@ export function resolveImport(fromPath: string, spec: string, byPath: Map<string
   } else if (spec.startsWith(".")) {
     const dir = fromPath.split("/").slice(0, -1).join("/");
     base = normalisePath(`${dir}/${spec}`);
-  } else {
-    return null; // bare package specifier
   }
 
   // `@/lib/x` may live at `lib/x` or `src/lib/x` depending on the project.
-  for (const prefix of ["", "src/", "app/"]) {
-    for (const ext of EXTS) {
-      const cand = `${prefix}${base}${ext}`;
-      if (byPath.has(cand)) return cand;
-    }
-    for (const idx of INDEXES) {
-      const cand = `${prefix}${base}${idx}`;
-      if (byPath.has(cand)) return cand;
+  if (base !== null) {
+    for (const prefix of ["", "src/", "app/"]) {
+      for (const ext of EXTS) {
+        const cand = `${prefix}${base}${ext}`;
+        if (byPath.has(cand)) return cand;
+      }
+      for (const idx of INDEXES) {
+        const cand = `${prefix}${base}${idx}`;
+        if (byPath.has(cand)) return cand;
+      }
     }
   }
-  return null;
+
+  // A workspace: apps/web/app/... importing `@/lib/auth` means apps/web/lib/auth,
+  // and only the repository's own tsconfig knows that. Tried last so the
+  // single-app layout above keeps resolving exactly as it did.
+  return resolveViaTsconfigPaths(fromPath, spec, byPath);
 }
 
 /** How far we chase an import chain from a client component. */

@@ -313,3 +313,118 @@ describe("handler discovery", () => {
     expect(route(files).tables).toEqual(["doc"]);
   });
 });
+
+describe("configuration handed to an identity call is identity infrastructure", () => {
+  // corpus-a's /api/track/application flipped from block to pass because
+  // getServerSession(authOptions) pulled apps/web/lib/auth/options.ts into the
+  // path, and its NextAuth callbacks write `userId: user.id`. Those callbacks
+  // run INSIDE identity resolution; they are not the route's filter, and the
+  // tables they touch are not the route's data.
+  const OPTIONS = {
+    path: "lib/auth/options.ts",
+    content: `export const authOptions = {
+      providers: [],
+      callbacks: {
+        async signIn({ user }) { await prisma.user.update({ where: { id: user.id }, data: { lastLogin: new Date() } }); return true; },
+        async jwt({ token, user }) { if (user) { const u = await prisma.account.findFirst({ where: { userId: user.id } }); token.plan = u?.plan; } return token; },
+      },
+    };`,
+  };
+
+  it("does not credit the options file's tables or filters to the route", () => {
+    const r = route([
+      {
+        path: "app/api/track/route.ts",
+        content: `import { getServerSession } from "next-auth";
+          import { authOptions } from "@/lib/auth/options";
+          export async function POST(req) {
+            const session = await getServerSession(authOptions);
+            const { linkId } = await req.json();
+            return Response.json(await prisma.link.findUnique({ where: { id: linkId } }));
+          }`,
+      },
+      OPTIONS,
+    ]);
+    expect(r.authenticated).toBe(true);
+    expect(r.tables).toEqual(["link"]);
+    expect(r.ownershipFiltered).toBe(false);
+  });
+
+  it("but the same module reached by an ordinary call is a data helper", () => {
+    const r = route([
+      {
+        path: "app/api/x/route.ts",
+        content: `import { getServerSession } from "next-auth";
+          import { touch } from "@/lib/touch";
+          export async function POST(req) {
+            const session = await getServerSession();
+            await touch(session.user.id);
+            return Response.json({});
+          }`,
+      },
+      { path: "lib/touch.ts", content: `export async function touch(userId) { await prisma.user.update({ where: { id: userId }, data: { lastLogin: new Date() } }); }` },
+    ]);
+    expect(r.tables).toEqual(["user"]);
+    expect(r.ownershipFiltered).toBe(true);
+  });
+});
+
+describe("what a wrapper injects into its handler is the wrapper's to establish", () => {
+  // corpus-a's /api/partner-profile/referrals filters `where: { partnerId: partner.id }`
+  // with `partner` handed in by withPartnerProfile(), which resolved a session
+  // and looked the partner up by it. "partner" is not in any wordlist and never
+  // should be: its provenance is the wrapper.
+  const WRAPPER = {
+    path: "lib/auth/partner.ts",
+    content: `import { getSession } from "./utils";
+      export const withPartnerProfile = (handler) => async (req, { params }) => {
+        const session = await getSession();
+        if (!session?.user?.id) return new Response("Unauthorized", { status: 401 });
+        const partner = await prisma.partner.findFirst({ where: { users: { some: { userId: session.user.id } } } });
+        return handler({ req, params, partner, session });
+      };`,
+  };
+
+  it("counts a filter on an injected identity's id", () => {
+    const r = route([
+      {
+        path: "app/api/partner-profile/referrals/route.ts",
+        content: `import { withPartnerProfile } from "@/lib/auth/partner";
+          export const GET = withPartnerProfile(async ({ partner, params }) => {
+            return Response.json(await prisma.programEnrollment.findMany({ where: { partnerId: partner.id } }));
+          });`,
+      },
+      WRAPPER,
+    ]);
+    expect(r.authenticated).toBe(true);
+    expect(r.ownershipFiltered).toBe(true);
+  });
+
+  it("does not count `params`, which the framework injects from the URL", () => {
+    const r = route([
+      {
+        path: "app/api/partner-profile/[id]/route.ts",
+        content: `import { withPartnerProfile } from "@/lib/auth/partner";
+          export const GET = withPartnerProfile(async ({ params }) => {
+            return Response.json(await prisma.programEnrollment.findMany({ where: { partnerId: params.id } }));
+          });`,
+      },
+      WRAPPER,
+    ]);
+    expect(r.ownershipFiltered).toBe(false);
+  });
+
+  it("does not count an injection from a wrapper that resolves no identity", () => {
+    const r = route([
+      {
+        path: "app/api/public/route.ts",
+        content: `import { withPublic } from "@/lib/public";
+          export const GET = withPublic(async ({ partner }) => {
+            return Response.json(await prisma.programEnrollment.findMany({ where: { partnerId: partner.id } }));
+          });`,
+      },
+      { path: "lib/public.ts", content: `export const withPublic = (handler) => async (req) => { const partner = await prisma.partner.findFirst({ where: { slug: new URL(req.url).searchParams.get("p") } }); return handler({ req, partner }); };` },
+    ]);
+    expect(r.ownershipFiltered).toBe(false);
+  });
+});

@@ -1198,3 +1198,124 @@ describe("a value from a verifier is the caller; a value from a decoder is the c
     expect(r.ownershipFiltered).toBe(false);
   });
 });
+
+// Two more shapes from the alias-resolution census, both wrong merge-check
+// BLOCKS the moment their wrappers became readable.
+describe("a token looked up in the database is a credential check we could not classify", () => {
+  // corpus-a's /api/auth/reset-password finds the reset token by value and expiry.
+  // MACHINE_GATE_RE has known the Supabase spelling `.eq("...token", …)` for a
+  // long time; this is the Prisma spelling of the same check, and it lands in
+  // the unclassified gap rather than as a gate, because a lookup whose result
+  // nobody checks would silence a real finding.
+  const route = (src: string) => collectRoutes([{ path: "app/api/x/route.ts", content: src }] as never)[0];
+
+  it("prisma where: { token }", () => {
+    const r = route(`export async function POST(req) {
+      const { token, password } = await req.json();
+      const found = await prisma.passwordResetToken.findFirst({ where: { token, expires: { gte: new Date() } }, select: { identifier: true } });
+      if (!found) return new Response("invalid", { status: 400 });
+      await prisma.user.update({ where: { email: found.identifier }, data: { password } });
+      return Response.json({});
+    }`);
+    expect(r.authenticated).toBe(false);
+    expect(r.identityReadable).toBe(false);
+    expect(r.identityGap).toMatch(/token|credential/i);
+  });
+
+  it("prisma where: { hashedKey } (corpus-b's API tokens)", () => {
+    const r = route(`export async function POST(req) {
+      const key = req.headers.get("x-api-key") ?? "";
+      const t = await prisma.restrictedToken.findUnique({ where: { hashedKey: hash(key) }, select: { teamId: true } });
+      if (!t) return new Response("no", { status: 401 });
+      return Response.json(await prisma.document.findMany({ where: { teamId: t.teamId } }));
+    }`);
+    expect(r.identityReadable).toBe(false);
+  });
+
+  it("STILL calls a lookup by a plain id anonymous", () => {
+    const r = route(`export async function GET(req) {
+      const { id } = await req.json();
+      return Response.json(await prisma.doc.findUnique({ where: { id } }));
+    }`);
+    expect(r.identityReadable).toBe(true);
+  });
+});
+
+describe("a role check admits a caller across tenants by design", () => {
+  // corpus-a's /api/admin/domains/renew is wrapped in withAdmin(), which resolves a
+  // session and then requires a role. Read whole, that is "authenticated and
+  // unscoped", and the merge check blocked it as an outlier on invoice. A
+  // route admitted by role is not narrowed to one tenant on purpose, so the
+  // scope is disclosed as unreadable rather than judged.
+  const ADMIN = {
+    path: "lib/auth/admin.ts",
+    content: `import { getSession } from "./utils";
+      export const withAdmin = (handler, { requiredRoles = [] } = {}) => async (req, { params }) => {
+        const session = await getSession();
+        if (!session?.user?.id) return new Response("Unauthorized", { status: 401 });
+        const role = await getDubAdminRole(session.user.id);
+        if (!role || (requiredRoles.length && !requiredRoles.includes(role))) return new Response("Forbidden", { status: 403 });
+        return handler({ req, params, session });
+      };`,
+  };
+
+  it("does not judge an admin route's scope", () => {
+    const r = collectRoutes([
+      { path: "app/api/admin/domains/renew/route.ts", content: `import { withAdmin } from "@/lib/auth/admin";
+        export const POST = withAdmin(async ({ req }) => {
+          const { domain } = await req.json();
+          const d = await prisma.registeredDomain.findUnique({ where: { slug: domain } });
+          await prisma.invoice.create({ data: { domainId: d.id } });
+          return Response.json(d);
+        });` },
+      ADMIN,
+    ] as never).find((x) => x.path === "/api/admin/domains/renew")!;
+    expect(r.authenticated).toBe(true);
+    expect(r.ownershipFiltered).toBe(false);
+    expect(r.ownershipReadable).toBe(false);
+    expect(r.ownershipGap).toMatch(/role/);
+  });
+});
+
+// Provenance through one more hop, both found on corpus-a once wrappers resolved.
+describe("an identity does not stop being the caller's when a function is applied to it", () => {
+  const WRAPPER = {
+    path: "lib/auth/workspace.ts",
+    content: `import { getSession } from "./utils";
+      export const withWorkspace = (handler) => async (req) => {
+        const session = await getSession();
+        if (!session?.user?.id) return new Response("Unauthorized", { status: 401 });
+        const workspace = await prisma.project.findFirst({ where: { users: { some: { userId: session.user.id } } } });
+        return handler({ req, workspace, session, searchParams: {} });
+      };`,
+  };
+  const collect = (content: string) =>
+    collectRoutes([{ path: "app/api/x/route.ts", content }, WRAPPER] as never).find((r) => r.path === "/api/x")!;
+
+  it("KEEP where: { id: normalizeWorkspaceId(workspace.id) } (corpus-a ai/completion)", () => {
+    const r = collect(`import { withWorkspace } from "@/lib/auth/workspace";
+      export const POST = withWorkspace(async ({ workspace }) => {
+        await prisma.project.update({ where: { id: normalizeWorkspaceId(workspace.id) }, data: { aiUsage: { increment: 1 } } });
+        return Response.json({});
+      });`);
+    expect(r.ownershipFiltered).toBe(true);
+  });
+
+  it("KEEP a scope derived from the injected tenant: const programId = getDefaultProgramIdOrThrow(workspace) (corpus-a activity-logs)", () => {
+    const r = collect(`import { withWorkspace } from "@/lib/auth/workspace";
+      export const GET = withWorkspace(async ({ workspace, searchParams }) => {
+        const programId = getDefaultProgramIdOrThrow(workspace);
+        return Response.json(await prisma.activityLog.findMany({ where: { programId, action: searchParams.action } }));
+      });`);
+    expect(r.ownershipFiltered).toBe(true);
+  });
+
+  it("DROP an identity that is only logged", () => {
+    const r = collect(`import { withWorkspace } from "@/lib/auth/workspace";
+      export const GET = withWorkspace(async ({ workspace, searchParams }) => {
+        console.log(workspace.id);
+        return Response.json(await prisma.link.findUnique({ where: { id: searchParams.linkId } }));
+      });`);
+    expect(r.ownershipFiltered).toBe(false);
+  });
+});

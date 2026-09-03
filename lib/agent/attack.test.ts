@@ -18,6 +18,8 @@ const route = (over: Partial<RouteFact>): RouteFact => ({
   ownershipFiltered: false,
   identityReadable: true,
   identityGap: null,
+  dataReadable: true,
+  dataGap: null,
   ownershipReadable: true,
   ownershipGap: null,
   serviceRoleReadable: true,
