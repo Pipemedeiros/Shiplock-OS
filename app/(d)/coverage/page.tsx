@@ -18,57 +18,97 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Scope of engagement",
   description:
-    "The four areas ShipLock covers: continuous configuration and code review, sandboxed exploitation, traffic defence, and verified remediation. The boundaries of each are stated plainly.",
+    "What ShipLock does today, read from the code that does it: a repository audit that traces who can reach which data, a merge check on pull requests, committed-secret and dependency scanning, and fix pull requests you approve. The boundaries of each are stated plainly.",
 };
 
+// EVERY CLAIM BELOW NAMES THE CODE THAT MAKES IT TRUE. Rewritten 2026-09-03
+// against source. The previous version claimed sandboxed exploitation, verified
+// remediation, a scheduled repository review and Postgres configuration review;
+// on a GitHub-only account none of the four was true (lib/proving is imported by
+// nothing outside itself; the scheduled pass runs runGithubScan and the
+// monitoring collectors, not runRepositoryAudit; no account has a database
+// connected). A security vendor overstating its own coverage is the failure that
+// makes a buyer never come back, so where the honest statement is unflattering
+// this page says the unflattering thing.
 const AREAS = [
   {
     id: "01",
-    name: "Continuous review",
-    lead: "Your Postgres configuration, application source and live surface, re-examined on every pull request and on a fixed schedule.",
+    name: "Repository audit",
+    // lib/agent/audit.ts: fetchRepoArchive → collectRoutes → proposeAttacks →
+    // attackGuard → persistFindings. Triggered by POST /api/audit and by the
+    // GitHub App webhook (app/api/monitor/github/route.ts).
+    lead: "We read your repository as one archive, work out which endpoints reach which tables and who can call them, and reason about how a stranger or another tenant would get to your users' data.",
     detail: [
-      "Row-level security posture per table, policy expressions that resolve to unconditional access, column-level grants held by browser-reachable roles, and the full set of Supabase advisor lints ingested rather than duplicated.",
-      "Source analysis for committed and historical credentials, dependency advisories matched against your lockfile, injection, XSS and mass assignment sinks, server-side request forgery in outbound fetches, and the stack-specific failure of a service-role client reachable from a client component. A publishable key in the bundle is not reported, because that is where it belongs. A secret one is.",
-      "The deployed artefact itself: what your bundle ships, whether source maps are public, DNS authentication records, and whether your edge protection can be reached around. Where you connect a database, configuration is read through the provider's Management API or a verified read-only role, over a transport that cannot issue a write.",
+      // lib/graph/routeInventory.ts, callPath.ts, declarations.ts.
+      "Every route is traced from its exported handler through the code it actually runs: the wrappers it is passed to, the helpers it calls, the module it re-exports. From that we record whether a caller is identified, whether the query is narrowed to that caller, and which tables it touches. Evidence comes from behaviour, never from a type declaration or an import.",
+      // lib/agent/attack.ts + attackGuard.ts: model proposes, guard disposes.
+      "A model proposes attack paths over those facts. A deterministic guard then refuses anything that cites an endpoint, file or table we did not observe, and anything that contradicts a fact we read. What survives is reported with the reasoning, line by line, so you can disagree with it.",
+      // lib/agent/unassessed.ts, wired in buildCoverage (lib/agent/audit.ts).
+      "Where a check runs somewhere we could not follow, the endpoint is reported as unassessed, with the proportion and a named sample, at the top of the Coverage page. An endpoint we could not judge is never shown as clean.",
     ],
+    // lib/agent/attackGuard.ts refuses on unreadable facts; lib/graph/tsconfigPaths.ts
+    // resolves tsconfig paths only; workspace packages are recorded as unresolved.
     limit:
-      "Static analysis reasons about code as written. Where a filter is applied somewhere our import graph cannot follow, we say the finding is inference and label it as such. Each finding carries a stable identifier across runs, so a check that flaps is not re-reported as new. A check that could not run is recorded as not run: an absent result is never rendered as a pass.",
+      "This is static analysis of code as written, and we do not attack your production application or anything you operate. On real codebases a large share of data-touching endpoints stays unjudged: a session resolved behind an option we did not read, an API key checked by a helper we could not classify, a query behind a workspace package we do not follow. We say so on Coverage rather than guess, and a check that could not run is recorded as not run: an absent result is never rendered as a pass. Each finding carries a stable identifier across runs, so one that flaps is not re-reported as new. The audit runs when you start it and when the GitHub App delivers a push or pull-request event; it does not run on a schedule of its own.",
   },
   {
     id: "02",
-    name: "Sandboxed exploitation",
-    lead: "We reconstruct the component under test in an isolated environment and attack it there, never your production system.",
+    name: "Merge check",
+    // lib/agent/prCheck.ts + diffScan.ts, called from app/api/monitor/github/route.ts.
+    lead: "On every pull request the GitHub App tells us about, the files it touches are checked and a verdict is posted to the pull request before the merge.",
     detail: [
-      "A throwaway arena is provisioned: either an ephemeral branch of your project carrying schema and policies but no customer data, or the specific table and its policies rebuilt on our own infrastructure. Two synthetic tenants are seeded into it. None of your data is copied, read or moved at any point.",
-      "Authenticated as the first tenant, we attempt to read the second's rows. A control query runs first. If the arena cannot return the caller's own row, the run is discarded rather than reported as clean.",
-      "Where the deterministic probe finds nothing, a reasoning agent proposes further queries. Its action space is constrained by a deterministic guard to read-only statements inside the disposable schema; every proposal, including refused ones, is recorded. The model contributes ideas, never authority. Nothing it emits is read as a permission.",
+      // lib/agent/diffScan.ts: committed credentials, anonymous routes reaching data,
+      // routes that stop narrowing a table their siblings narrow.
+      "Committed credentials in the diff, an endpoint that reaches data without identifying its caller, and an endpoint that reads a table without narrowing it to the caller when the routes beside it do. The verdict is deterministic; the model can explain a finding and can never create or clear one.",
+      // diffScan.ts: `if (!route.identityReadable) continue; if (!route.ownershipReadable) continue;`
+      "A route whose gate or scope we could not read never blocks a merge. The check fails closed toward passing, because a wrong block stops your pull request rather than producing a report you can argue with.",
     ],
+    // Whether GitHub actually delivers the webhook is an external fact (CLAUDE.md).
     limit:
-      "We do not attack your production application, and we do not run an adversarial agent against anything you operate. Policies that depend on other tables or custom functions cannot be reconstructed faithfully, and we decline to test those rather than report an unreliable result.",
+      "The check depends on the GitHub App being installed on the repository and its webhook reaching us; we cannot see that configuration from your code. Endpoints that are public by design, such as an SDK ingest route, read as anonymous and unscoped, because that is what they are; whether such a route should block a merge is a policy we have not yet let you set.",
   },
   {
     id: "03",
-    name: "Traffic defence",
-    lead: "Application-layer abuse identified from your authentication events, and optionally turned away in the request.",
+    name: "Source scanning",
+    // lib/deep/githubRun.ts: scanSecrets, scanTokenStorage, scanLoggedSecrets,
+    // scanCodePatterns, scanClientExposure, depFindings (OSV). Runs on the GitHub
+    // webhook and every 48 hours from app/api/monitor/scheduled/route.ts.
+    lead: "Deterministic checks on the source itself, on every push the App reports and at most every 48 hours from the daily pass.",
     detail: [
-      "Credential stuffing distinguished by spread across accounts, brute force by concentration, and account takeover by the sequence of failures, success and password change from one source.",
-      "Distributed floods assessed against your own traffic baseline rather than a fixed rate, and separated from legitimate growth by whether the surge is concentrated on one endpoint.",
-      "Detection requires no installation. It reads the authentication log your database already writes. An optional edge module upgrades detection to enforcement, turning requests away before they reach your application.",
+      "Committed and historical credentials in real key shapes, secrets written to logs, tokens stored where a browser can read them, and a server-only secret reachable from a client component through the import graph. A publishable key in the bundle is not reported, because that is where it belongs; a service-role key is.",
+      "Dependencies matched against public vulnerability advisories, and source patterns for injection, cross-site scripting, mass assignment and server-side request forgery in outbound fetches.",
     ],
     limit:
-      "Volumetric network-layer attacks are absorbed by your hosting provider's network, not by us; that is a function of capacity and position, and we do not claim it. Automatic response is limited to rate-limiting a single endpoint, is reversible, and lifts itself.",
+      "Pattern checks are high-precision by design and therefore miss shapes they were not written for. A dependency advisory is matched by package and version; whether the vulnerable path is reachable in your application is not determined.",
   },
   {
     id: "04",
-    name: "Verified remediation",
-    lead: "Mechanical fixes are applied as a diff against your code. Everything requiring judgement is prepared, not performed.",
+    name: "Fix pull requests",
+    // app/api/fix/pr/route.ts and lib/agent/autoFixPr.ts (called at the end of
+    // every audit in lib/agent/audit.ts). lib/agent/fixPr.ts: no authorization
+    // logic is machine-authored; the PR is a draft for you to complete.
+    lead: "A fix arrives as a pull request on its own branch off your default branch. We never merge it.",
     detail: [
-      "Where the correct output is determined entirely by the input, meaning response headers, a build flag, a variable that should not carry a public prefix, or workflow permissions, we open a pull request containing the edited file.",
-      "Database changes are demonstrated before they are offered: the fix is applied in the arena, the attack re-run to confirm it now fails, and legitimate access re-run to confirm it still succeeds. A change that closes the attack by denying everyone is rejected.",
-      "Findings close on evidence. When a subsequent pass no longer reproduces the condition, the finding is archived automatically rather than waiting for anyone to mark it done.",
+      "After an audit, a pull request is opened for each finding that has a mechanical fix, so the work waiting for you is an approval rather than a queue of homework. The same pull request is available on one click from the dashboard.",
+      "A finding closes on evidence: when a later audit no longer reproduces it, it is archived rather than waiting for someone to mark it done.",
     ],
     limit:
-      "Application logic is never machine-authored. Authorisation rules, injection fixes and ownership checks arrive as a draft pull request for you or your coding agent to complete. A leaked credential is a rotation, and no pull request is offered for it.",
+      "Authorisation rules, ownership checks and injection fixes are never machine-authored. Those pull requests are drafts that mark where the change belongs, for you or your coding agent to complete. A leaked credential is a rotation, and no pull request is offered for it. Nothing here demonstrates a fix by re-running an attack; there is no sandbox in this product today.",
+  },
+  {
+    id: "05",
+    name: "Database connection, optional and unused so far",
+    // app/api/deep/supabase/* (read-only Management API OAuth, inert without
+    // SUPABASE_OAUTH_CLIENT_ID), lib/deep/postgresDirect.ts (role verified
+    // read-only, BEGIN TRANSACTION READ ONLY), lib/exposure/model.ts (column
+    // names and row counts, never a value). No account has connected one.
+    lead: "Row-level security policies live in your database, not your repository. Without a connection we infer them from code and say so; with one we read them.",
+    detail: [
+      "If you connect a database, configuration is read through Supabase's Management API in read-only mode or through a Postgres role we verify cannot write, inside a transaction that cannot write either. The exposure model reads column names and row counts and none of your data: never a value, never a row.",
+      "No account has connected a database yet. Every audit to date has run on the repository alone, and every finding that depends on a policy is labelled as inferred.",
+    ],
+    limit:
+      "We will not ask you to buy or upgrade a third-party plan to connect. Where a provider gates its configuration behind a paid tier, we read the code instead and say so.",
   },
 ] as const;
 
@@ -131,19 +171,16 @@ export default function CoveragePage() {
 
         <Reveal>
           <section aria-label="Engagement terms" style={{ marginTop: 8 }}>
-            <h2 className="dxd-serif" style={{ fontSize: 20, marginBottom: 10 }}>Terms of the engagement</h2>
             <p style={{ fontSize: 14.5, lineHeight: 1.8, color: "var(--d-muted)", maxWidth: "70ch" }}>
-              $49 per month, billed monthly, with the first seven days free. Cancellation is
-              self-serve from your dashboard and takes effect at the end of the current period.
-              there is no cancellation fee, no notice period, and no requirement to contact us.
-              Prepaid six- and twelve-month terms are one-time charges rather than auto-renewing
-              subscriptions, and carry no early-termination fee.
+              While the product is in its open period, any signed-in account gets everything above
+              and is not charged. Billing is built and switched off; when it is switched on, the
+              price will be on this page before it applies to anyone.
             </p>
             <p style={{ fontSize: 14.5, lineHeight: 1.8, color: "var(--d-muted)", maxWidth: "70ch", marginTop: 12 }}>
-              Autonomous action is off by default and governed by a per-account switch you control.
-              With it off, we observe and report; nothing is changed on your systems without you.
-              Full terms are on the <Link href="/terms">terms page</Link>, and what we store is
-              described on the <Link href="/privacy">privacy page</Link>.
+              Nothing here writes to your systems. The only thing we create is a pull request on
+              your repository, and you decide whether it merges. Full terms are on the{" "}
+              <Link href="/terms">terms page</Link>, and what we store is described on the{" "}
+              <Link href="/privacy">privacy page</Link>.
             </p>
           </section>
         </Reveal>

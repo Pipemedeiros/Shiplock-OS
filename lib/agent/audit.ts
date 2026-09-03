@@ -11,6 +11,7 @@ import { inferDomain } from "./domain";
 import { loadLiveFacts } from "./liveFacts";
 import { openFixPullRequests } from "./autoFixPr";
 import { getOpenFindings } from "./dashboardData";
+import { unassessedNote } from "./unassessed";
 
 /**
  * One audit of one repository, start to finish.
@@ -70,10 +71,18 @@ function buildCoverage(
   liveProvidersRead: string[] = [],
   reasoningSkipped = false,
   reasoningTruncated = false,
-  unassessedRoutes: string[] = [],
+  routes: RouteFact[] = [],
   wholesaleRejected = false,
 ): CoverageNote[] {
   const notes: CoverageNote[] = [];
+
+  // WHAT WE COULD NOT JUDGE, FROM THE FACTS. Leads the list, because on a real
+  // codebase it is the largest single statement about this audit: on corpus-a it
+  // is 139 of 442 endpoints that reach data. Computed from the route facts,
+  // never from what the model happened to raise -- a disclosure conditional
+  // on model behaviour is not a disclosure (lib/agent/unassessed.ts).
+  const unassessed = unassessedNote(routes);
+  if (unassessed) notes.push(unassessed);
 
   if (!hasDatabase) {
     notes.push({
@@ -148,27 +157,6 @@ function buildCoverage(
       effect:
         "That is a fault on our side, not a finding about your application. This run tells you nothing about attack paths either way — it is not a clean result.",
       upgrade: "Run the audit again",
-    });
-  }
-
-  if (unassessedRoutes.length > 0) {
-    // OUR OWN REFUSALS, SURFACED. The reasoning proposed a problem on these
-    // endpoints and we threw it away, because the thing it depended on was
-    // something we could not read. That is the right call -- an unsupported
-    // claim is not a quieter finding -- but a refusal nobody can see is
-    // indistinguishable from an endpoint that came back clean, which is the
-    // failure this page exists to prevent.
-    //
-    // Described by risk, not by field name: the customer learns which endpoints
-    // went unjudged and what to do, not that `ownershipReadable` was false.
-    const shown = unassessedRoutes.slice(0, 5).join(", ");
-    notes.push({
-      name: `${unassessedRoutes.length} endpoint${unassessedRoutes.length === 1 ? "" : "s"} we could not judge`,
-      why:
-        `On ${shown}${unassessedRoutes.length > 5 ? ` and ${unassessedRoutes.length - 5} more` : ""}, the check that decides who may see the data runs somewhere we could not follow -- behind a wrapper, a signed cookie, or a helper outside what we read.`,
-      effect:
-        "We had a possible problem on these and dropped it rather than report something we cannot stand behind. They are not confirmed safe; they are unexamined, and a real gap here would look exactly like this.",
-      upgrade: "Review these endpoints by hand, or connect your database so the rules can be read directly",
     });
   }
 
@@ -441,7 +429,7 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       liveFacts.length > 0 ? ["connected"] : [],
       !canReason,
       agent.truncated === true,
-      agent.unassessed ?? [],
+      routes,
       agent.admitted.length === 0 && (agent.unmatchedEntries ?? []).length > 0,
     );
 

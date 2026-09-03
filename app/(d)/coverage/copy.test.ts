@@ -91,9 +91,13 @@ describe("the sandboxed exploitation section", () => {
   });
 
   // A broken sandbox reporting "no leak" is the failure worth naming publicly.
-  it("explains the control check rather than only the attack", () => {
-    expect(COVERAGE).toMatch(/control query runs first/i);
-    expect(COVERAGE).toMatch(/discarded rather than reported as clean/i);
+  // Rewritten 2026-09-03: the arena and its control query are not reachable
+  // by any account, so the page no longer describes them. What it must still
+  // explain is the control that DOES run: the guard, and the disclosure of
+  // what could not be judged.
+  it("explains the guard and the unassessed disclosure rather than only the attack", () => {
+    expect(COVERAGE).toMatch(/deterministic guard then refuses/i);
+    expect(COVERAGE).toMatch(/never shown as clean/i);
   });
 
   it("says the agent proposes but does not decide", () => {
@@ -110,22 +114,31 @@ describe("scope page", () => {
     expect(limits).toBe(areas);
   });
 
-  it("covers the four areas by name", () => {
-    for (const area of ["Continuous review", "Sandboxed exploitation", "Traffic defence", "Verified remediation"]) {
+  it("covers the five areas by name, and names none it does not do", () => {
+    for (const area of ["Repository audit", "Merge check", "Source scanning", "Fix pull requests", "Database connection"]) {
       expect(COVERAGE).toContain(area);
     }
+    // Claimed until 2026-09-03; none was true on a GitHub-only account.
+    expect(COVERAGE).not.toMatch(/Sandboxed exploitation|Verified remediation|Traffic defence/);
+    expect(COVERAGE).not.toMatch(/re-examined on every pull request and on a fixed schedule/);
   });
 
   // Cancellation terms belong where someone evaluating the product will read
   // them, not only in the legal page.
-  it("states the cancellation terms plainly", () => {
-    expect(COVERAGE).toMatch(/self-serve/i);
-    expect(COVERAGE).toMatch(/no cancellation fee/i);
-    expect(COVERAGE).toMatch(/no early-termination fee/i);
+  // Billing is parked (lib/access.ts BILLING_ENABLED = false). The page must
+  // say the product is free while it is, and must not quote a price or a
+  // cancellation term for a charge nobody is paying.
+  it("states the open-period terms plainly and quotes no price", () => {
+    expect(COVERAGE).toMatch(/is not charged/i);
+    expect(COVERAGE).not.toMatch(/\$\d+ per month|no cancellation fee|seven days free/i);
   });
 
-  it("says autonomous action is off by default", () => {
-    expect(COVERAGE).toMatch(/off by default/i);
+  // There is no per-account autonomy switch in the code; the only thing the
+  // product creates is a pull request, and it never merges one
+  // (app/api/fix/pr/route.ts, lib/agent/autoFixPr.ts).
+  it("says the only thing it creates is a pull request, and that it never merges", () => {
+    expect(COVERAGE).toMatch(/never merge/i);
+    expect(COVERAGE).not.toMatch(/off by default/i);
   });
 });
 

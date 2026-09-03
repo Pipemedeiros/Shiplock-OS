@@ -85,9 +85,9 @@ export default async function Coverage() {
 
           <div className="v3-card v3-card-p">
             <p className="v3-sub" style={{ fontSize: 14, maxWidth: 720 }}>
-              Connecting a database raises findings from inferred to proven, because a policy can then
-              be reproduced on a disposable copy of your schema rather than read from code alone. It is
-              not a setup step and nothing is withheld without it.
+              Connecting a read-only database role lets the audit read your access rules directly
+              instead of inferring them from code. It is not a setup step and nothing is withheld
+              without it.
             </p>
           </div>
         </div>
