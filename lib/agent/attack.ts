@@ -23,11 +23,11 @@ import type { StackReport } from "./stack";
  * passes still call Claude zero times (lib/monitoring/findings.ts).
  */
 
-const HAIKU = "claude-haiku-4-5-20251001";
-const SONNET = "claude-sonnet-4-6";
+export const HAIKU = "claude-haiku-4-5-20251001";
+export const SONNET = "claude-sonnet-4-6";
 
 /** Above this many interesting entries the reasoning is worth the better model. */
-const SONNET_ENTRY_THRESHOLD = 25;
+export const SONNET_ENTRY_THRESHOLD = 25;
 
 /**
  * Output budget, sized to the answer we asked for rather than to a round number.
@@ -45,7 +45,7 @@ export function maxTokensFor(interestingEntries: number): number {
   return Math.min(16000, Math.max(4000, Math.ceil(askedAbout * perFinding)));
 }
 
-const SYSTEM = [
+export const SYSTEM = [
   "You are a security engineer reading an inventory of a web application.",
   "Propose where an attacker would find a way to reach data they should not.",
   "Rules: cite only routes, files, tables and live fact ids present in the input. Never invent one.",
