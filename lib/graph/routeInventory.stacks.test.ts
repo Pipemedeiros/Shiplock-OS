@@ -1124,3 +1124,77 @@ describe("a signature check we cannot classify is unreadable, not anonymous", ()
     expect(r.identityReadable).toBe(true);
   });
 });
+
+// PROVENANCE, NOT VOCABULARY, in the other direction. /api/unsubscribe/yir
+// filters `userId_teamId: { userId: viewerId, teamId }` where `viewerId` came
+// out of jwt.verify(). That is a server-established scope, dropped by the
+// tightening because the VALUE is not identity-shaped by name -- and it was
+// safe only because the route happened to be identity-unreadable. A value
+// bound from a signature verification or a session lookup is the caller's, no
+// matter what it is called; a value bound from a decode or a parse is the
+// caller's INPUT, no matter what it is called.
+describe("a value from a verifier is the caller; a value from a decoder is the caller's input", () => {
+  const page = (src: string) => collectRoutes([{ path: "pages/api/x.ts", content: src }] as never)[0];
+
+  it("KEEP corpus-b yir: destructured from a verified JWT payload, two hops", () => {
+    const r = page(`import { verifyUnsubscribeToken } from "@/lib/utils/unsubscribe";
+    export default async function handle(req, res) {
+      const { token } = req.query;
+      const payload = verifyUnsubscribeToken(token);
+      if (!payload) return res.status(404).json({ message: "Invalid token" });
+      const { viewerId, teamId } = payload;
+      const userTeam = await prisma.userTeam.findUnique({ where: { userId_teamId: { userId: viewerId, teamId } } });
+      return res.json(userTeam);
+    }`);
+    expect(r.ownershipFiltered).toBe(true);
+  });
+
+  it("KEEP a member of a session returned by a project verifier: session.viewerId", () => {
+    const r = page(`import { verifyDataroomSession } from "@/lib/auth/dataroom-auth";
+    export default async function handle(req, res) {
+      const { linkId, dataroomId } = req.query;
+      const session = await verifyDataroomSession(req, linkId, dataroomId);
+      if (!session) return res.status(401).end();
+      return res.json(await prisma.conversation.findMany({ where: { dataroomId, participants: { some: { viewerId: session.viewerId } } } }));
+    }`);
+    expect(r.ownershipFiltered).toBe(true);
+  });
+
+  it("KEEP a renamed destructure straight off jwt.verify(): const { sub: uid }", () => {
+    const r = page(`import jwt from "jsonwebtoken";
+    export default async function handle(req, res) {
+      const { sub: uid } = jwt.verify(req.headers.authorization.split(" ")[1], process.env.JWT_SECRET);
+      return res.json(await prisma.doc.findMany({ where: { ownerId: uid } }));
+    }`);
+    expect(r.ownershipFiltered).toBe(true);
+  });
+
+  it("DROP a userId read from an UNVERIFIED decode: jwt.decode(token).userId", () => {
+    const r = page(`import jwt from "jsonwebtoken";
+    export default async function handle(req, res) {
+      const { token } = req.query;
+      const payload = jwt.decode(token);
+      return res.json(await prisma.doc.findMany({ where: { userId: payload.userId } }));
+    }`);
+    expect(r.ownershipFiltered).toBe(false);
+  });
+
+  it("DROP a userId parsed out of the body: JSON.parse(rawBody).userId", () => {
+    const r = page(`export default async function handle(req, res) {
+      const body = JSON.parse(req.body);
+      return res.json(await prisma.doc.findMany({ where: { userId: body.userId } }));
+    }`);
+    expect(r.ownershipFiltered).toBe(false);
+  });
+
+  it("STILL does not count a verifier ARGUMENT that came from the request", () => {
+    const r = page(`import { verifyLinkAccess } from "@/lib/links";
+    export default async function handle(req, res) {
+      const { viewerId, linkId } = req.query;
+      const ok = await verifyLinkAccess(linkId);
+      if (!ok) return res.status(403).end();
+      return res.json(await prisma.view.findMany({ where: { viewerId } }));
+    }`);
+    expect(r.ownershipFiltered).toBe(false);
+  });
+});

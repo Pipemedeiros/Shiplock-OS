@@ -349,7 +349,9 @@ const SERVICE_ROLE_RE =
 // Template literals are CODE here, not strings: `sql\`... where user_id =
 // ${userId}\`` is exactly where a raw-SQL filter lives. Only quoted strings are
 // excluded from the match (see the loop in analyzeRouteFile).
-const OWNER_VALUE = "(?:\\w+\\s*\\??\\.\\s*)*(?:user|owner|account|tenant|org|profile)Id";
+// `serverEstablished` is not a domain noun: it is the marker
+// withoutIdentityResolution() writes over a value it traced to a verifier.
+const OWNER_VALUE = "(?:\\w+\\s*\\??\\.\\s*)*(?:user|owner|account|tenant|org|profile|serverEstablished)Id";
 // `user.id`, `session.user.id`, `claims.sub`: the caller, by structure.
 const CALLER_IDENTITY =
   "(?:user|session|claims|profile|account|tenant|org|owner)\\s*\\??\\s*\\.\\s*(?:\\w+\\s*\\??\\s*\\.\\s*)?(?:id|uid|sub)";
@@ -471,6 +473,90 @@ const REQUEST_ASSIGN_RE =
  */
 const IDENTITY_NAME_RE = /Id$|_id$/i;
 
+/**
+ * PROVENANCE, NOT VOCABULARY, in both directions.
+ *
+ * The request rule above neutralises a name because of where its VALUE came
+ * from. The same principle runs the other way: a value bound from a signature
+ * verification or a session lookup is the caller's identity no matter what it
+ * is called. corpus-b's /api/unsubscribe/yir filters `userId_teamId: {
+ * userId: viewerId, teamId }` where `viewerId` was destructured from
+ * jwt.verify()'s payload -- a genuine server-established scope that the
+ * tightened pattern dropped because "viewerId" is not in its wordlist. It was
+ * safe only because that route happened to be identity-unreadable, which is
+ * luck, not design.
+ *
+ * And a value bound from a DECODE or a PARSE of request data is the caller's
+ * input no matter what it is called: `jwt.decode(token).userId` is whatever
+ * the caller put in the token. Before this rule that read as ownership.
+ *
+ * Both follow one hop through a holder: `const payload = verify(token)` then
+ * `payload.viewerId` or `const { viewerId } = payload`. Names the request rule
+ * already neutralised are never promoted.
+ */
+// Any receiver chain is allowed before the method: `jwt.verify(`,
+// `supabase.auth.getUser(`, `receiver.verify(`.
+const RECEIVER = "(?:[\\w$]+\\s*\\??\\.\\s*)*";
+const VERIFIER_CALL =
+  `${RECEIVER}(?:verify[A-Za-z]*|jwtVerify|getServerSession|getSession|getUser|currentUser|auth)\\s*\\(`;
+// decode…() of anything, and parse()/safeParse()/JSON.parse() of something that
+// is visibly the request: the argument is the provenance, so `JSON.parse(await
+// redis.get(k))` is NOT caught -- that is server data.
+const DECODER_CALL =
+  `(?:${RECEIVER}decode[A-Za-z]*\\s*\\(|${RECEIVER}(?:safeParse|parse)\\s*\\(\\s*(?:await\\s+)?(?:req|request|body|rawBody|raw|formData|payload|input)\\b)`;
+
+function boundNames(list: string): string[] {
+  const out: string[] = [];
+  for (const raw of list.split(",")) {
+    const name = raw.includes(":") ? raw.split(":")[1] : raw;
+    const clean = name.trim().replace(/\s*=.*$/, "").replace(/^\.\.\./, "");
+    if (/^\w+$/.test(clean)) out.push(clean);
+  }
+  return out;
+}
+
+/** Names and holders bound from `call`, one hop deep. */
+function boundFrom(src: string, call: string): { names: string[]; holders: string[] } {
+  const names = new Set<string>();
+  const holders = new Set<string>();
+  const destructure = new RegExp(`(?:const|let|var)\\s*\\{([^}]*)\\}\\s*(?::\\s*\\{[^}]*\\})?\\s*=\\s*(?:await\\s+)?${call}`, "g");
+  const holder = new RegExp(`(?:const|let|var)\\s+(\\w+)\\s*(?::[^=;]*)?=\\s*(?:await\\s+)?${call}`, "g");
+  let m: RegExpExecArray | null;
+  while ((m = destructure.exec(src)) !== null) for (const n of boundNames(m[1])) names.add(n);
+  while ((m = holder.exec(src)) !== null) holders.add(m[1]);
+  for (const h of holders) {
+    const esc = h.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const hop = new RegExp(`(?:const|let|var)\\s*\\{([^}]*)\\}\\s*(?::[^=;]*)?=\\s*${esc}\\s*[;,)]`, "g");
+    while ((m = hop.exec(src)) !== null) for (const n of boundNames(m[1])) names.add(n);
+    const member = new RegExp(`(?:const|let|var)\\s+(\\w+)\\s*(?::[^=;]*)?=\\s*${esc}\\s*\\??\\.\\s*\\w+\\s*;`, "g");
+    while ((m = member.exec(src)) !== null) names.add(m[1]);
+  }
+  return { names: [...names], holders: [...holders] };
+}
+
+/** Names and holders whose value came out of a verifier: server-established. */
+export function serverEstablishedIdentities(src: string): { names: string[]; holders: string[] } {
+  return boundFrom(src, VERIFIER_CALL);
+}
+
+/** Names and holders whose value came out of decoding or parsing request data: caller-supplied. */
+export function callerDecodedIdentities(src: string): { names: string[]; holders: string[] } {
+  return boundFrom(src, DECODER_CALL);
+}
+
+function renameAll(text: string, names: string[], holders: string[], to: string): string {
+  let out = text;
+  for (const h of holders) {
+    const esc = h.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    // `payload.viewerId` -> the marker; other members of the holder are left alone.
+    out = out.replace(new RegExp(`\\b${esc}\\s*\\??\\.\\s*\\w*Id\\b`, "g"), to);
+  }
+  for (const n of names) {
+    out = out.replace(new RegExp(`\\b${n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "g"), to);
+  }
+  return out;
+}
+
 /** Identity-looking names this route reads out of the request. */
 export function requestSuppliedIdentities(src: string): string[] {
   const names = new Set<string>();
@@ -514,9 +600,24 @@ export function withoutIdentityResolution(src: string, original: string = src): 
 
   // Neutralise every mention of a name the caller supplied, so filtering by it
   // stops counting as filtering by the caller.
-  for (const name of requestSuppliedIdentities(original)) {
+  const supplied = new Set(requestSuppliedIdentities(original));
+  for (const name of supplied) {
     out = out.replace(new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "g"), "attackerSupplied");
   }
+
+  // Provenance in both directions (see serverEstablishedIdentities). Decoded
+  // request data is neutralised first, so a name can never be promoted after
+  // being neutralised.
+  const decoded = callerDecodedIdentities(original);
+  out = renameAll(out, decoded.names.filter((n) => !supplied.has(n)), decoded.holders, "attackerSupplied");
+  const server = serverEstablishedIdentities(original);
+  const tainted = new Set([...supplied, ...decoded.names, ...decoded.holders]);
+  out = renameAll(
+    out,
+    server.names.filter((n) => !tainted.has(n)),
+    server.holders.filter((h) => !tainted.has(h)),
+    "serverEstablishedId",
+  );
 
   return out;
 }
