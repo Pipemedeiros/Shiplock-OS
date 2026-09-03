@@ -87,6 +87,7 @@ describe("the pipeline, end to end on a repository with a real bug", () => {
     entries: new Set(routes.map((r) => r.path)),
     files: new Set(REPO.map((f) => f.path)),
     tables: new Set(tables),
+    routes: new Map(routes.map((r) => [r.path, r])),
   };
 
   it("admits a grounded hypothesis and produces an actionable finding", () => {

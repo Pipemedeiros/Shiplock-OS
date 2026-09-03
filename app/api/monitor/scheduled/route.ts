@@ -8,7 +8,7 @@ import { runGraphReasoner, saveFacts } from "@/lib/graph/graphRun";
 import { collectTrafficFacts } from "@/lib/traffic/graphFacts";
 import { runZeroDayCheck } from "@/lib/runtime/zeroDay";
 import { sendWeeklyDigest } from "@/lib/monitoring/digest";
-import { withPaidFilter } from "@/lib/access";
+import { withPaidFilter, BILLING_ENABLED } from "@/lib/access";
 
 // This pass iterates every paid user and makes several network calls each
 // (policy scan, schema inventory, auth log, dependency re-check, reasoner). The
@@ -248,12 +248,29 @@ export async function GET(req: NextRequest) {
     sourceScanned,
     pathsFound,
     digestsSent,
+    // -1 means the sweep is switched off with billing, not that it found nobody.
     expired,
   });
 }
 
-/** Flips is_paid false for prepaid terms whose window has passed. */
+/**
+ * Flips is_paid false for prepaid terms whose window has passed.
+ *
+ * GATED ON BILLING_ENABLED, and the gate is not cosmetic. This sweep writes
+ * `is_paid: false` AND `monitoring_enabled: false` to live rows, and it ran on
+ * the daily cron the whole time billing was parked. The second column is the
+ * damaging one: nothing in the product sets monitoring_enabled back to true
+ * outside the enrolment path in /api/scan, so a customer swept here drops out
+ * of the scheduled pass permanently and silently, for a billing decision the
+ * product is not currently making.
+ *
+ * With billing parked, is_paid is not read for access at all (hasProductAccess
+ * short-circuits), so expiring it decides nothing and costs a column that is
+ * hard to restore. Returns -1 to distinguish "did not run" from "ran, expired
+ * nobody".
+ */
 async function expirePrepaidTerms(): Promise<number> {
+  if (!BILLING_ENABLED) return -1;
   const admin = getSupabaseAdmin();
   const { data, error } = await admin
     .from("user_profiles")

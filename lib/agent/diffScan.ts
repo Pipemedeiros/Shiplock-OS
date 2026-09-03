@@ -61,6 +61,13 @@ export interface DiffScanInput {
   /** The rest of the repository, for comparison. Not scanned. */
   baseline: ArchiveFile[];
   stack: StackReport;
+  /**
+   * The route inventory of baseline + changed, when the caller already holds
+   * it. Purely a cost saving: the inventory is a pure function of the file set,
+   * and a measurement that scans every route of a repository one at a time
+   * would otherwise rebuild it once per route. Never changes the verdict.
+   */
+  inventory?: RouteFact[];
 }
 
 /**
@@ -72,7 +79,12 @@ export interface DiffScanInput {
  * and an argument.
  */
 export function siblingsScopingTable(routes: RouteFact[], table: string): { scoped: number; total: number } {
-  const touching = routes.filter((r) => r.tables.includes(table));
+  // Routes whose filter we could not READ are excluded from BOTH halves, not
+  // counted as unscoped. They are the denominator's problem: "5 of 6 routes
+  // scope this table" is an argument, and it becomes a false one the moment the
+  // sixth is merely unread. Excluding them shrinks the evidence rather than
+  // inventing it, which is the direction this file should always fail.
+  const touching = routes.filter((r) => r.tables.includes(table) && r.ownershipReadable);
   return { scoped: touching.filter((r) => r.ownershipFiltered).length, total: touching.length };
 }
 
@@ -112,7 +124,7 @@ export function scanDiff(input: DiffScanInput): DiffScanResult {
   // verdict with a wrong reason is worse than no check: it is the thing that
   // gets a security tool switched off in its first week.
   const changedPaths = new Set(changed.map((f) => f.path));
-  const allRoutes = collectRoutes([...input.baseline, ...changed]);
+  const allRoutes = input.inventory ?? collectRoutes([...input.baseline, ...changed]);
   const changedRoutes = allRoutes.filter((r) => changedPaths.has(r.file));
 
   for (const route of changedRoutes) {
@@ -130,6 +142,12 @@ export function scanDiff(input: DiffScanInput): DiffScanResult {
     // off in its first week. Measured across five real codebases: every one of
     // these was actually protected.
     if (!route.identityReadable) continue;
+
+    // FAIL CLOSED HERE SPECIFICALLY. This function gates the merge check, so a
+    // misread does not produce a finding somebody can disagree with -- it
+    // blocks a customer's pull request. An unreadable ownership filter buys a
+    // pass, never a block.
+    if (!route.ownershipReadable) continue;
 
     if (!route.authenticated && !route.ownershipFiltered) {
       findings.push({

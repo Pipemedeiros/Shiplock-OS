@@ -59,14 +59,25 @@ const SYSTEM = [
   "    wrapper, a signed cookie, or an import outside what we read. NEVER report it",
   "    as public, unauthenticated or reachable by anyone. Judge it on other grounds",
   "    or leave it alone.",
+  "  scope-unreadable: this route's query MAY be narrowed by the caller through a",
+  "    mechanism we could not follow, such as a session lookup that carries the",
+  "    scope in its arguments. NEVER report it as missing an ownership or tenant",
+  "    check. Judge it on other grounds or leave it alone.",
   "  owner-filtered: we read a query narrowed by the caller's identity, such as",
   "    .eq('user_id', session.userId). Never report it as missing an ownership,",
   "    tenant or authorization check.",
   "Absence of a detail in this inventory is not evidence of a missing control, and",
   "a finding that speculates past what is listed is discarded.",
-  "entry is the route path exactly as listed under 'routes', never a file path.",
-  "citedFacts refers ONLY to lines under a 'live' heading, each of which starts",
-  "with its id. Omit citedFacts entirely when the input has no 'live' section:",
+  "entry is the route path EXACTLY as listed: the text at the start of a route",
+  "line, up to the first space. Never a file path, and never with the id=,",
+  "scope=, methods=, tables= or file= attributes appended -- those are labels we",
+  "added, not part of the path. An entry that does not match a listed path",
+  "exactly is discarded along with the whole finding.",
+  "citedFiles are the values after file=. citedTables are individual names from",
+  "tables=, one per entry, never the comma-joined string.",
+  "citedFacts refers ONLY to lines under a 'live' heading. Each such line is",
+  "`<id> :: <statement>`, and the id is the text before ` :: ` -- never the",
+  "statement, and never both. Omit citedFacts entirely when the input has no 'live' section:",
   "an id we did not give you is discarded along with the whole finding. Only a",
   "finding with no route at all, such as a leaked credential, uses such an id as",
   "its entry. Copy routes and ids exactly; a reworded one is discarded.",
@@ -155,8 +166,15 @@ export const MAX_PROMPT_ROUTES = 60;
  *   everything else                                          — context
  */
 export function routeRisk(route: RouteFact, sensitive: Set<string>): number {
-  const anonymous = !route.authenticated && !route.machineGated;
-  const unscoped = !route.ownershipFiltered;
+  // Same rule as `unscoped` below, and missed for the same reason: an
+  // unreadable identity ranked as anonymous, putting the routes we had just
+  // decided we cannot judge at the FRONT of the sixty that reach the model.
+  const anonymous = route.identityReadable && !route.authenticated && !route.machineGated;
+  // An unreadable filter is not a missing one, so it must not rank as one.
+  // routeRisk decides which sixty routes reach the prompt at all -- treating
+  // "we could not see the scoping" as "unscoped" put exactly the routes we had
+  // just decided we cannot judge at the FRONT of the queue.
+  const unscoped = route.ownershipReadable && !route.ownershipFiltered;
   const touchesSensitive = route.tables.some((t) => sensitive.has(t));
 
   if (anonymous && unscoped && touchesSensitive) return 0;
@@ -209,8 +227,29 @@ export function buildPrompt(input: AgentInput): string {
     // Auditing our own repository, three correctly scoped routes were reported
     // as missing ownership checks even though the inventory said scoped, and
     // ShipLock opened pull requests against its own working code.
-    const scoped = r.ownershipFiltered ? "owner-filtered" : "unscoped";
-    return `${r.path} [${r.methods.join(",") || "GET"}] id=${identity} ${scoped} tables=${r.tables.join(",")} file=${r.file}`;
+    // The twin of the identity label, and it was missed when that one was
+    // fixed. Telling the model "unscoped" about a route whose scoping we could
+    // not read is handing it the same false fact in a different column, and it
+    // is the shape behind corpus-b's remaining criticals.
+    const scoped = r.ownershipFiltered
+      ? "owner-filtered"
+      : r.ownershipReadable
+        ? "unscoped"
+        : "scope-unreadable";
+    // THE PATH STANDS ALONE, AND NOTHING BRACKETED FOLLOWS IT.
+    //
+    // This line used to render as `${path} [${methods}] id=...`, and the model
+    // copied `/api/feedback [ALL]` -- path plus our own bracket -- into `entry`.
+    // The guard matches entries exactly, so EVERY hypothesis in the run was
+    // rejected and the audit reported zero findings. Measured: in eight runs the
+    // model proposed all three corpus-b true positives eight times, and five of
+    // those runs were destroyed here. Whole audits, silently voided, since
+    // before stage 3d.
+    //
+    // Methods move behind a label like every other attribute. The path is now
+    // the only unlabelled token on the line, which is what makes "the text
+    // before the first space" an unambiguous instruction in SYSTEM.
+    return `${r.path} id=${identity} scope=${scoped} methods=${r.methods.join(",") || "GET"} tables=${r.tables.join(",")} file=${r.file}`;
   });
 
   const stackLine = input.stack.tools
@@ -228,7 +267,12 @@ export function buildPrompt(input: AgentInput): string {
     // for the same reason routes are: prompt spent here is prompt not spent on
     // the routes that can actually leak something.
     ...(input.liveFacts?.length
-      ? ["live", ...input.liveFacts.slice(0, 20).map((f) => `${f.id} ${f.statement}`)]
+      // ` :: ` for the same reason the route line changed: id followed by a
+      // space and then prose is the shape the model absorbed on the route line,
+      // and citedFacts is matched just as exactly. This one has already bitten
+      // once -- 773a70c records citedFacts:["anonymous"], a label copied off a
+      // route line -- so it gets a delimiter that cannot occur inside an id.
+      ? ["live", ...input.liveFacts.slice(0, 20).map((f) => `${f.id} :: ${f.statement}`)]
       : []),
     "routes",
     ...routeLines,
@@ -325,16 +369,17 @@ export async function proposeAttacks(input: AgentInput): Promise<AgentOutcome> {
     files: new Set(input.files),
     tables: new Set(input.tables),
     facts: new Set((input.liveFacts ?? []).map((f) => f.id)),
+    routes: new Map(input.routes.map((r) => [r.path, r])),
   };
 
   const interesting = input.routes.filter((r) => r.tables.length > 0);
   if (interesting.length === 0) {
-    return { admitted: [], rejected: [], model: "none", skipped: true, skipReason: "no route reaches a table" };
+    return { admitted: [], rejected: [], unassessed: [], unmatchedEntries: [], model: "none", skipped: true, skipReason: "no route reaches a table" };
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    return { admitted: [], rejected: [], model: "none", skipped: true, skipReason: "no model credential configured" };
+    return { admitted: [], rejected: [], unassessed: [], unmatchedEntries: [], model: "none", skipped: true, skipReason: "no model credential configured" };
   }
 
   const model = interesting.length >= SONNET_ENTRY_THRESHOLD ? SONNET : HAIKU;
@@ -375,6 +420,8 @@ export async function proposeAttacks(input: AgentInput): Promise<AgentOutcome> {
       return {
         admitted: [],
         rejected: [{ hypothesis: text.slice(0, 200), reason: truncated ? "response was cut off before any finding was complete" : "response was not JSON" }],
+        unassessed: [],
+        unmatchedEntries: [],
         model,
         skipped: false,
         truncated,
@@ -388,6 +435,8 @@ export async function proposeAttacks(input: AgentInput): Promise<AgentOutcome> {
     return {
       admitted: [],
       rejected: [],
+      unassessed: [],
+      unmatchedEntries: [],
       model,
       skipped: true,
       skipReason: timedOut

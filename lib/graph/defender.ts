@@ -95,7 +95,7 @@ function describe(paths: AttackPath[], evidence: DefenceEvidence): string {
     .map(
       (r) =>
         `  ${r.path} [${r.methods.join(",") || "-"}] tables=${r.tables.join(",") || "-"} ` +
-        `auth=${r.authenticated} machine=${r.machineGated} owned=${r.ownershipFiltered} api=${r.isApiRoute}`
+        `auth=${r.authenticated} machine=${r.machineGated} owned=${r.ownershipFiltered}`
     )
     .join("\n");
 

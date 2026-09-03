@@ -193,9 +193,13 @@ describe("the end-to-end consequence", () => {
     machineGated: false,
     ownershipFiltered: false,
     usesServiceRole: false,
-    isApiRoute: true,
     identityReadable: true,
     identityGap: null,
+    ownershipReadable: true,
+    ownershipGap: null,
+    serviceRoleReadable: true,
+    machineGateReadable: true,
+    machineGateGap: null,
     via: [],
   };
 

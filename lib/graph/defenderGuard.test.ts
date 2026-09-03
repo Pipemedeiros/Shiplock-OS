@@ -22,9 +22,13 @@ function route(over: Partial<RouteFact> = {}): RouteFact {
     machineGated: false,
     usesServiceRole: false,
     ownershipFiltered: false,
-    isApiRoute: true,
     identityReadable: true,
     identityGap: null,
+    ownershipReadable: true,
+    ownershipGap: null,
+    serviceRoleReadable: true,
+    machineGateReadable: true,
+    machineGateGap: null,
     via: [],
     ...over,
   };
@@ -111,12 +115,32 @@ describe("verifyClaim", () => {
     expect(v.verdict).toBe("confirmed");
   });
 
-  // An `authenticated` flag with no witnessing module is a collector inference.
-  // Inference does not get to defend against inference.
-  it("will not confirm authentication with no gating module identified", () => {
+  // REVISED in the three-state pass. An empty `via` used to read as "no witness
+  // at all", which is wrong in the one direction that matters: a route that
+  // authenticates IN ITS OWN FILE has nothing to import, and it is the
+  // best-evidenced case there is. The witness is the route.
+  it("confirms authentication resolved in the handler itself", () => {
     const v = verifyClaim(
       { kind: "route_authenticated", route: "/api/invoices" },
       evidence({ routes: [route({ authenticated: true, via: [] })] })
+    );
+    expect(v.verdict).toBe("confirmed");
+    expect(v.basis).toMatch(/in the handler itself/);
+  });
+
+  // What genuinely cannot defend is a route whose gate we could not READ.
+  it("will not confirm authentication on a route whose gate is unreadable", () => {
+    const v = verifyClaim(
+      { kind: "route_authenticated", route: "/api/invoices" },
+      evidence({
+        routes: [
+          route({
+            authenticated: false,
+            identityReadable: false,
+            identityGap: "the handler is wrapped in withWorkspace()",
+          }),
+        ],
+      })
     );
     expect(v.verdict).toBe("unverifiable");
   });

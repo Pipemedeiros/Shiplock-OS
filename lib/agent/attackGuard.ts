@@ -18,6 +18,8 @@
  * a customer as a security finding.
  */
 
+import type { RouteFact } from "@/lib/graph/routeInventory";
+
 /** The classes we are prepared to report. A hypothesis outside this is refused. */
 export const ATTACK_CLASSES = [
   "missing_authorization",
@@ -58,6 +60,16 @@ export interface ReconIndex {
   files: Set<string>;
   tables: Set<string>;
   /**
+   * The route facts themselves, keyed by path, for the compatibility check.
+   *
+   * REQUIRED, not optional. Every other field on this index answers "did we
+   * observe the thing you cited"; this one answers "does what you claim about
+   * it agree with what we observed". Making it optional would mean a caller
+   * that forgot it silently got no checking at all, which is the exact
+   * fail-open shape this whole sequence has been closing.
+   */
+  routes: Map<string, RouteFact>;
+  /**
    * Stable ids of live provider facts observed THIS RUN.
    *
    * Optional so every existing caller keeps working, and absent means the model
@@ -68,7 +80,7 @@ export interface ReconIndex {
 
 export type GuardVerdict =
   | { allowed: true; attackClass: AttackClass; citedFacts: string[] }
-  | { allowed: false; reason: string };
+  | { allowed: false; reason: string; unassessed?: string };
 
 const MAX_TITLE = 160;
 const MAX_CONSEQUENCE = 400;
@@ -77,6 +89,112 @@ const MAX_CONSEQUENCE = 400;
 const UNSAFE_PROSE = /[<>\u0000-\u001F]/;
 
 /**
+ * THE CLASS/FACT COMPATIBILITY MATRIX.
+ *
+ * Every other rule in this file asks whether the model cited something we
+ * observed. This one asks whether what it CLAIMS about that thing agrees with
+ * what we observed. Both are needed, and only the first was implemented: three
+ * of seven surviving false criticals had entirely correct route facts and were
+ * admitted anyway, because the prompt asked the model not to make the claim and
+ * nothing refused it when it did. "Model proposes, guard disposes" was being
+ * enforced for citations and merely requested for conclusions.
+ *
+ * Two distinct refusals, and they are not the same argument:
+ *
+ *   CONTRADICTED  our facts positively say otherwise. The route authenticates
+ *                 and the model says it does not. This is the failure that
+ *                 opened five pull requests against this codebase's own working
+ *                 code, and the prompt has been rewritten twice to prevent it.
+ *
+ *   UNSUPPORTED   the fact the claim rests on is one we could not read. Not a
+ *                 weaker version of the finding -- there is no finding, because
+ *                 the assertion has nothing under it.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * class                     asserts about the route          needs readable
+ * ─────────────────────────────────────────────────────────────────────────────
+ * missing_authorization     an identified caller reaches     ownershipReadable
+ *                           rows that are not theirs         (contradicted by
+ *                                                            ownershipFiltered)
+ *
+ * missing_authentication    no credential of any kind is     identityReadable
+ *                           required to reach this           (contradicted by
+ *                                                            authenticated or
+ *                                                            machineGated)
+ *
+ * unsigned_webhook          an inbound request is accepted   machineGateReadable
+ *                           without verifying its signature  and identityReadable
+ *                                                            (contradicted by
+ *                                                            machineGated)
+ *
+ * secret_exposure           a credential is present in the   -- NOTHING --
+ *                           source we read
+ * server_boundary_crossed   a server-only module is          -- NOTHING --
+ *                           reachable from client code
+ * injection                 user input reaches an            -- NOTHING --
+ *                           interpreter unsanitised
+ * mass_assignment           the request body is spread       -- NOTHING --
+ *                           into a write
+ * unsafe_redirect           a user-controlled value reaches  -- NOTHING --
+ *                           a redirect target
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ * THE FIVE EMPTY ROWS ARE NOT OVERSIGHTS AND MUST NOT BE FILLED IN LATER
+ * WITHOUT AN ARGUMENT. Each of those claims is about the CONTENT of code we
+ * read, not about who may call it. A perfectly authenticated, perfectly scoped
+ * route can still concatenate user input into SQL, still spread a request body
+ * into an update, still redirect wherever the query string says. Authentication
+ * facts cannot contradict them, so demanding one would refuse true findings to
+ * look rigorous. `secret_exposure` is the clearest case: the credential is
+ * either in the file or it is not, and no property of a route bears on it.
+ */
+function compatibility(
+  attackClass: AttackClass,
+  route: RouteFact | undefined,
+): { ok: true } | { ok: false; reason: string; unassessed: boolean } {
+  // A hypothesis with no route -- a leaked credential citing a live fact -- has
+  // no route facts to contradict. Nothing to check.
+  if (!route) return { ok: true };
+
+  switch (attackClass) {
+    case "missing_authorization":
+      if (route.ownershipFiltered) {
+        return { ok: false, reason: "we read a query narrowed to the caller in this route", unassessed: false };
+      }
+      if (!route.ownershipReadable) {
+        return { ok: false, reason: `we could not read how this route narrows its query: ${route.ownershipGap}`, unassessed: true };
+      }
+      return { ok: true };
+
+    case "missing_authentication":
+      if (route.authenticated || route.machineGated) {
+        return { ok: false, reason: "we read a credential check in this route", unassessed: false };
+      }
+      if (!route.identityReadable) {
+        return { ok: false, reason: `we could not read how this route checks the caller: ${route.identityGap}`, unassessed: true };
+      }
+      return { ok: true };
+
+    case "unsigned_webhook":
+      if (route.machineGated) {
+        return { ok: false, reason: "we read a signature or shared-secret check in this route", unassessed: false };
+      }
+      if (!route.machineGateReadable || !route.identityReadable) {
+        return {
+          ok: false,
+          reason: `we could not read what verifies this route: ${route.machineGateGap ?? route.identityGap}`,
+          unassessed: true,
+        };
+      }
+      return { ok: true };
+
+    default:
+      return { ok: true };
+  }
+}
+
+/**
+ * Judges one hypothesis./**
  * Judges one hypothesis.
  *
  * Every rejection reason names the rule, because a guard whose refusals cannot
@@ -172,12 +290,48 @@ export function judgeHypothesis(h: Hypothesis, recon: ReconIndex): GuardVerdict 
     return { allowed: false, reason: "control characters or markup in prose" };
   }
 
+  // Last, because it is the only rule that judges the CLAIM rather than the
+  // citation, and it should only run on a hypothesis that is otherwise sound.
+  // `?.` is crash-safety, not permissiveness: the field is required by the type,
+  // and an entry with no matching route fact is the same case as a hypothesis
+  // with no route at all -- there is nothing of ours for it to contradict.
+  const compat = compatibility(h.attackClass as AttackClass, recon.routes?.get(h.entry));
+  if (!compat.ok) {
+    return {
+      allowed: false,
+      reason: compat.reason,
+      // Distinguishes "we could not assess this" from "this is wrong", so the
+      // first can reach Coverage and the second is simply discarded.
+      unassessed: compat.unassessed ? h.entry : undefined,
+    };
+  }
+
   return { allowed: true, attackClass: h.attackClass as AttackClass, citedFacts: verifiedFacts };
 }
 
 export interface GuardResult {
   admitted: (Hypothesis & { attackClass: AttackClass })[];
   rejected: { hypothesis: unknown; reason: string }[];
+  /**
+   * Routes where a claim was refused because the fact it rested on was one we
+   * could not read -- NOT because the claim was wrong.
+   *
+   * Carried separately so it can reach the Coverage page. A refusal a customer
+   * cannot see is indistinguishable from an assessment that came back clean,
+   * which is the failure Coverage exists to prevent, now applied to our own
+   * refusals rather than only to collectors that did not run.
+   */
+  unassessed: string[];
+  /**
+   * Entries the model named that are not in the inventory.
+   *
+   * "The model found nothing" and "we threw away everything the model found"
+   * are OPPOSITE outcomes and the trace could not tell them apart. A run where
+   * every hypothesis is rejected on a format mismatch rendered exactly like a
+   * clean audit -- which is the "absent is not clean" failure again, one layer
+   * down, inside our own diagnostics. This is what makes it loud.
+   */
+  unmatchedEntries: string[];
 }
 
 /**
@@ -186,13 +340,22 @@ export interface GuardResult {
  * guard would hide it.
  */
 export function guardHypotheses(raw: unknown, recon: ReconIndex): GuardResult {
-  const result: GuardResult = { admitted: [], rejected: [] };
+  const result: GuardResult = { admitted: [], rejected: [], unassessed: [], unmatchedEntries: [] };
   if (!Array.isArray(raw)) {
-    return { admitted: [], rejected: [{ hypothesis: raw, reason: "model did not return an array" }] };
+    return { admitted: [], rejected: [{ hypothesis: raw, reason: "model did not return an array" }], unassessed: [], unmatchedEntries: [] };
   }
 
   for (const item of raw) {
     const verdict = judgeHypothesis(item as Hypothesis, recon);
+    if (!verdict.allowed && verdict.unassessed && !result.unassessed.includes(verdict.unassessed)) {
+      result.unassessed.push(verdict.unassessed);
+    }
+    if (!verdict.allowed && /is not in the route inventory/.test(verdict.reason)) {
+      const named = (item as Hypothesis)?.entry;
+      if (typeof named === "string" && !result.unmatchedEntries.includes(named)) {
+        result.unmatchedEntries.push(named);
+      }
+    }
     if (verdict.allowed) {
       // citedFacts is replaced with only the ids we verified, so nothing
       // downstream can turn an unrecognised citation into a claim.

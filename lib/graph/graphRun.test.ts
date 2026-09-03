@@ -49,9 +49,13 @@ const routeFact = {
   machineGated: false,
   usesServiceRole: false,
   ownershipFiltered: false,
-  isApiRoute: true,
   identityReadable: true,
   identityGap: null,
+  ownershipReadable: true,
+  ownershipGap: null,
+  serviceRoleReadable: true,
+  machineGateReadable: true,
+  machineGateGap: null,
   via: [],
 };
 

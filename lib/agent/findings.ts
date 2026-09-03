@@ -133,11 +133,23 @@ function routeClaims(route: RouteFact | undefined, stack: StackReport): Claim[] 
   }
 
   if (!route.ownershipFiltered && route.tables.length > 0) {
-    claims.push({
-      claim: "No column in the query belongs to the caller, so nothing narrows the result to them.",
-      origin: "imports",
-      verified: true,
-    });
+    // A claim marked `verified` counts toward `corroborated`, so it must be an
+    // OBSERVATION. On a route whose scoping we could not follow, the honest
+    // statement is the gap itself, unverified -- otherwise a hole in our reading
+    // raises our confidence, which is exactly backwards.
+    claims.push(
+      route.ownershipReadable
+        ? {
+            claim: "No column in the query belongs to the caller, so nothing narrows the result to them.",
+            origin: "imports",
+            verified: true,
+          }
+        : {
+            claim: `We could not follow how this query is narrowed to the caller: ${route.ownershipGap}.`,
+            origin: "imports",
+            verified: false,
+          },
+    );
   }
 
   // Whether an unscoped query is actually exploitable turns on one thing: does
@@ -147,7 +159,7 @@ function routeClaims(route: RouteFact | undefined, stack: StackReport): Claim[] 
   // subscription through a service-role client and one updating any row through
   // the caller's own session, where a row policy may well be stopping it. They
   // are not the same claim and must not be stated with the same certainty.
-  if (route.usesServiceRole) {
+  if (route.usesServiceRole && route.serviceRoleReadable) {
     claims.push({
       claim:
         "The route uses a service-role client, which bypasses row policies, so nothing below the query filters it either.",
@@ -216,15 +228,34 @@ export function buildFindings(input: BuildFindingsInput): AgentFinding[] {
     // app talking to plain Postgres through Drizzle or Prisma has no such
     // layer: the query IS the authorization, and hedging it would understate a
     // real finding.
-    const usesPolicyEngine = input.stack.tools.some(
-      (t) => t.kind === "database" && (t.id === "supabase" || t.id === "firebase"),
-    );
+    // `databaseUnknown` is the readability pair this type already carries, and
+    // it was going unread. Stack detection requires a real import, so a database
+    // reached through a renamed wrapper or a monorepo package leaves `tools`
+    // empty -- and an empty list was being treated as "no policy engine",
+    // silently disabling the hedge and stating every unscoped finding at full
+    // confidence with no "we did not read your row policies" caveat.
+    //
+    // Undetected is not absent: when we could not identify a database at all, we
+    // keep the hedge. The cost is a slightly softer finding on an app that
+    // genuinely has no policy engine; the alternative is overclaiming on one
+    // that does.
+    const usesPolicyEngine =
+      input.stack.databaseUnknown ||
+      input.stack.tools.some(
+        (t) => t.kind === "database" && (t.id === "supabase" || t.id === "firebase"),
+      );
     const rlsCouldStillProtect =
       !input.hasDatabase &&
       usesPolicyEngine &&
       Boolean(route) &&
-      !route!.usesServiceRole &&
-      !route!.ownershipFiltered;
+      // Unknown must not remove the hedge: a service-role mention we could only
+      // see inside a string is not proof the store is bypassed.
+      (!route!.usesServiceRole || !route!.serviceRoleReadable) &&
+      // The hedge must survive an unreadable filter. This is already true by
+      // polarity -- ownershipFiltered is false whenever it is unreadable -- but
+      // stating it keeps the intent explicit and the invariant checkable, rather
+      // than correct by accident of how two fields happen to line up.
+      (!route!.ownershipFiltered || !route!.ownershipReadable);
 
     if (rlsCouldStillProtect) {
       claims.push({

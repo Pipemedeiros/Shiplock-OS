@@ -162,29 +162,46 @@ export function verifyClaim(claim: DefenceClaim, evidence: DefenceEvidence): Ver
     case "route_not_api": {
       const route = findRoute(evidence, claim.route);
       if (!route) return settle("unverifiable", `No route inventory entry for ${claim.route ?? "(unnamed)"}.`);
-      return route.isApiRoute
-        ? settle("refuted", `${route.file} exports ${route.methods.join("/") || "a handler"} as an API route.`)
-        : settle("confirmed", `${route.file} is not an API route handler.`);
+      // Every entry in the inventory IS an API route -- collectRoutes only
+      // admits files that isRouteFile() accepted -- so finding one refutes the
+      // claim outright. This used to branch on a hardcoded `true`, which made
+      // the second arm unreachable and the field a fact with one possible value.
+      return settle(
+        "refuted",
+        `${route.file} exports ${route.methods.join("/") || "a handler"} as an API route.`,
+      );
     }
 
     case "route_ownership_filtered": {
       const route = findRoute(evidence, claim.route);
       if (!route) return settle("unverifiable", `No route inventory entry for ${claim.route ?? "(unnamed)"}.`);
-      return route.ownershipFiltered
-        ? settle("confirmed", `${route.file} scopes its query to the caller.`)
-        : settle("refuted", `No ownership filter observed in ${route.file}.`);
+      if (route.ownershipFiltered) {
+        return settle("confirmed", `${route.file} scopes its query to the caller.`);
+      }
+      // Not observing a filter is not observing its absence.
+      return route.ownershipReadable
+        ? settle("refuted", `No ownership filter observed in ${route.file}.`)
+        : settle("unverifiable", `${route.file}: ${route.ownershipGap}.`);
     }
 
     case "route_authenticated": {
       const route = findRoute(evidence, claim.route);
       if (!route) return settle("unverifiable", `No route inventory entry for ${claim.route ?? "(unnamed)"}.`);
+      // "We could not read the gate" is not "there is no gate", so an
+      // unreadable route can no longer be used to REFUTE a defence claim.
+      if (!route.identityReadable) {
+        return settle("unverifiable", `${route.file}: ${route.identityGap}.`);
+      }
       if (!route.authenticated) return settle("refuted", `No user identity resolved in ${route.file}.`);
-      // `via` is what makes this evidence rather than an assertion: it names the
-      // module where the gate was seen. A route flagged authenticated with no
-      // witness is a collector inference, and inference does not defend.
-      return route.via.length > 0
-        ? settle("confirmed", `${route.file} resolves a user identity via ${route.via.join(", ")}.`)
-        : settle("unverifiable", `${route.file} looks authenticated but no gating module was identified.`);
+      // `via` names the imported module where the gate was seen, and an empty
+      // `via` was treated as no witness at all. But a route that authenticates
+      // IN ITS OWN FILE has nothing to import and is the best-evidenced case
+      // there is -- the witness is the route. Empty `via` is now read as
+      // "gated here" rather than "gated by nothing we can name".
+      if (route.via.length > 0) {
+        return settle("confirmed", `${route.file} resolves a user identity via ${route.via.join(", ")}.`);
+      }
+      return settle("confirmed", `${route.file} resolves a user identity in the handler itself.`);
     }
 
     case "route_machine_gated": {

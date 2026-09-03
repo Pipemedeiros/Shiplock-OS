@@ -70,6 +70,8 @@ function buildCoverage(
   liveProvidersRead: string[] = [],
   reasoningSkipped = false,
   reasoningTruncated = false,
+  unassessedRoutes: string[] = [],
+  wholesaleRejected = false,
 ): CoverageNote[] {
   const notes: CoverageNote[] = [];
 
@@ -136,6 +138,37 @@ function buildCoverage(
       effect:
         "What is reported was completed and checked. Anything it had not finished writing is missing, so this list is a floor rather than the whole picture.",
       upgrade: "Run the audit again",
+    });
+  }
+
+  if (wholesaleRejected) {
+    notes.push({
+      name: "This run's reasoning did not produce a usable result",
+      why: "Everything the reasoning step proposed named an endpoint we could not match back to your code, so all of it was discarded.",
+      effect:
+        "That is a fault on our side, not a finding about your application. This run tells you nothing about attack paths either way — it is not a clean result.",
+      upgrade: "Run the audit again",
+    });
+  }
+
+  if (unassessedRoutes.length > 0) {
+    // OUR OWN REFUSALS, SURFACED. The reasoning proposed a problem on these
+    // endpoints and we threw it away, because the thing it depended on was
+    // something we could not read. That is the right call -- an unsupported
+    // claim is not a quieter finding -- but a refusal nobody can see is
+    // indistinguishable from an endpoint that came back clean, which is the
+    // failure this page exists to prevent.
+    //
+    // Described by risk, not by field name: the customer learns which endpoints
+    // went unjudged and what to do, not that `ownershipReadable` was false.
+    const shown = unassessedRoutes.slice(0, 5).join(", ");
+    notes.push({
+      name: `${unassessedRoutes.length} endpoint${unassessedRoutes.length === 1 ? "" : "s"} we could not judge`,
+      why:
+        `On ${shown}${unassessedRoutes.length > 5 ? ` and ${unassessedRoutes.length - 5} more` : ""}, the check that decides who may see the data runs somewhere we could not follow -- behind a wrapper, a signed cookie, or a helper outside what we read.`,
+      effect:
+        "We had a possible problem on these and dropped it rather than report something we cannot stand behind. They are not confirmed safe; they are unexamined, and a real gap here would look exactly like this.",
+      upgrade: "Review these endpoints by hand, or connect your database so the rules can be read directly",
     });
   }
 
@@ -217,7 +250,15 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
     trace.push({ time: clock(startedAt), label, ...(note ? { note } : {}), ...(found ? { found } : {}) });
   };
 
-  const { data: run } = await admin
+  // THE RUN ROW IS A PRECONDITION, NOT BOOKKEEPING.
+  //
+  // This used to read `(run?.id as string) ?? ""` with the insert's error
+  // discarded. On a failed insert every later `.eq("id", "")` matched zero
+  // rows, so the audit ran to completion writing NOTHING to audit_runs while
+  // findings still persisted with a null run_id -- a dashboard showing findings
+  // with no run behind them, and no error anywhere. Failing here is loud and
+  // recoverable; succeeding into an empty id is silent and is not.
+  const { data: run, error: runError } = await admin
     .from("audit_runs")
     .insert({
       user_id: userId,
@@ -229,7 +270,15 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
     .select("id")
     .single();
 
-  const runId = (run?.id as string) ?? "";
+  if (runError || !run?.id) {
+    // Thrown before any work begins, so there is nothing to roll back and no
+    // partial state to explain.
+    throw new Error(
+      `Could not start the audit: ${runError?.message ?? "the run could not be recorded"}`,
+    );
+  }
+
+  const runId = run.id as string;
 
   try {
     step(`Read-only checkout of ${fullName}`);
@@ -326,6 +375,8 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       : {
           admitted: [],
           rejected: [],
+          unassessed: [],
+          unmatchedEntries: [],
           model: "none",
           skipped: true,
           skipReason: "not enough time left in this run",
@@ -338,6 +389,24 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
         step(
           "Reasoning hit its output limit",
           "The findings below were completed and checked; anything still being written is missing from this run.",
+        );
+      }
+      // A RUN WHERE EVERYTHING WAS THROWN AWAY IS NOT A CLEAN RUN.
+      // The model named routes and we could not match a single one, which means
+      // the audit produced nothing for a reason that has nothing to do with the
+      // customer's code. Said loudly, because for four measurement stages this
+      // rendered as "0 attack paths" and was indistinguishable from a repository
+      // with no attack paths in it.
+      if (agent.admitted.length === 0 && (agent.unmatchedEntries ?? []).length > 0) {
+        step(
+          "This run's reasoning was discarded",
+          `Every proposed finding named an endpoint we could not match (${agent.unmatchedEntries.slice(0, 3).join(", ")}). This is a fault on our side, not a result about your code.`,
+        );
+      }
+      if ((agent.unassessed ?? []).length > 0) {
+        step(
+          `${agent.unassessed.length} endpoint${agent.unassessed.length === 1 ? "" : "s"} left unjudged`,
+          "A possible problem was proposed on these and dropped: the check that decides who may see the data runs somewhere we could not follow.",
         );
       }
       step(
@@ -372,6 +441,8 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       liveFacts.length > 0 ? ["connected"] : [],
       !canReason,
       agent.truncated === true,
+      agent.unassessed ?? [],
+      agent.admitted.length === 0 && (agent.unmatchedEntries ?? []).length > 0,
     );
 
     step("Audit complete", `${findings.length} open ${findings.length === 1 ? "path" : "paths"}`);
@@ -410,7 +481,7 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       step("Fix pull requests could not be opened", err instanceof Error ? err.message : "unknown error");
     }
 
-    await admin
+    const { error: completeError } = await admin
       .from("audit_runs")
       .update({
         status: "complete",
@@ -428,10 +499,31 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       })
       .eq("id", runId);
 
-    await admin
+    // A run that finished but could not be MARKED finished is the stuck-in-
+    // "running" spinner, and it is invisible unless we say so here.
+    // Logged, NOT thrown. The findings are already persisted and correct;
+    // throwing here would fall into the catch below and mark a successful audit
+    // "failed", which contradicts the rows we just wrote. What is left is a run
+    // stuck on "running" with its results intact -- a monitoring problem, and
+    // now a visible one rather than a silent one.
+    if (completeError) {
+      console.error(
+        `[audit] run ${runId} completed but could not be marked complete:`,
+        completeError.message,
+      );
+    }
+
+    const { error: repoError } = await admin
       .from("repositories")
       .update({ last_audit_at: new Date().toISOString() })
       .eq("id", repositoryId);
+
+    // Not fatal: the audit and its findings are already written, and a stale
+    // last_audit_at costs a scheduling decision, not a result. Logged so it is
+    // not invisible.
+    if (repoError) {
+      console.error(`[audit] could not stamp last_audit_at for ${repositoryId}:`, repoError.message);
+    }
 
     return {
       runId,
@@ -448,10 +540,17 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
 
     // The run is marked failed and KEPT. Nothing is archived and no findings are
     // written, so a broken run can never resolve a real finding by omission.
-    await admin
+    const { error: failError } = await admin
       .from("audit_runs")
       .update({ status: "failed", finished_at: new Date().toISOString(), trace, error: message })
       .eq("id", runId);
+
+    // Both halves matter and only one is recoverable, so both are logged: the
+    // original failure is what the customer needs, and a failure to RECORD the
+    // failure is what leaves the row on "running" forever.
+    if (failError) {
+      console.error(`[audit] run ${runId} failed AND could not be marked failed:`, failError.message);
+    }
 
     throw err;
   }
@@ -465,50 +564,82 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
  * caller's catch never gets here -- so a failed audit cannot mark a customer's
  * real problems as resolved.
  */
-async function persistFindings(
+export async function persistFindings(
   userId: string,
   repositoryId: string,
   runId: string,
   findings: AgentFinding[],
+  client: { from: (t: string) => never } | null = null,
 ): Promise<void> {
-  const admin = getSupabaseAdmin();
-  const activeIds = new Set(findings.map((f) => f.id));
+  const admin = (client ?? getSupabaseAdmin()) as ReturnType<typeof getSupabaseAdmin>;
+  const activeIds = findings.map((f) => f.id);
 
-  const { data: existing } = await admin
+  // ── 1. INSERT FIRST. ────────────────────────────────────────────────────
+  //
+  // The order is the whole fix. This used to archive first and insert second,
+  // and a death between the two left the previous findings archived with
+  // nothing written in their place -- a dashboard showing ZERO, which reads as
+  // clean. Inverting it means a crash here leaves the OLD findings intact and
+  // simply adds nothing: too much or unchanged, never absent.
+  //
+  // `upsert` with ignoreDuplicates makes the statement re-runnable against
+  // migration 051's partial unique index, so a retry after a partial write
+  // converges instead of duplicating.
+  if (findings.length > 0) {
+    const { error: insertError } = await admin
+      .from("deep_findings")
+      .upsert(
+        findings.map((f) => ({
+          user_id: userId,
+          repository_id: repositoryId,
+          run_id: runId || null,
+          source: "agent",
+          finding_id: f.id,
+          severity: f.severity,
+          title: f.title,
+          consequence: f.consequence,
+          attack_class: f.attackClass,
+          entry: f.entry,
+          file: f.file,
+          confidence: f.confidence,
+          fix_kind: f.fixKind,
+          claims: f.claims,
+          blast_radius: f.blastRadius,
+        })),
+        { onConflict: "repository_id,finding_id", ignoreDuplicates: true },
+      );
+
+    // Checked, where both writes previously discarded their error. If the
+    // insert failed we must NOT proceed to archive -- archiving on the strength
+    // of a run whose findings were never written is exactly the zero-findings
+    // failure, arrived at by a different route.
+    if (insertError) {
+      throw new Error(`Findings could not be saved: ${insertError.message}`);
+    }
+  }
+
+  // ── 2. ARCHIVE SECOND, keyed on what this run reproduced. ───────────────
+  //
+  // Anything still open for this repository that this run did not produce is
+  // resolved. Reached only after the insert succeeded, so the replacement set
+  // is already durable before anything is retired.
+  const archive = admin
     .from("deep_findings")
-    .select("id, finding_id")
+    .update({ archived_at: new Date().toISOString() })
     .eq("repository_id", repositoryId)
     .is("archived_at", null);
 
-  const gone = (existing ?? []).filter((row) => !activeIds.has(row.finding_id as string));
-  if (gone.length > 0) {
-    await admin
-      .from("deep_findings")
-      .update({ archived_at: new Date().toISOString() })
-      .in("id", gone.map((row) => row.id as string));
+  const { error: archiveError } = await (activeIds.length > 0
+    ? archive.not("finding_id", "in", `(${activeIds.map((id) => `"${id}"`).join(",")})`)
+    : archive);
+
+  // Not thrown. The new findings are written and correct; failing here leaves
+  // stale rows visible alongside them, which is the safe direction and self-
+  // corrects on the next successful run.
+  if (archiveError) {
+    console.error(
+      `[audit] findings for ${repositoryId} were written but stale ones could not be archived:`,
+      archiveError.message,
+    );
   }
-
-  const known = new Set((existing ?? []).map((row) => row.finding_id as string));
-  const fresh = findings.filter((f) => !known.has(f.id));
-  if (fresh.length === 0) return;
-
-  await admin.from("deep_findings").insert(
-    fresh.map((f) => ({
-      user_id: userId,
-      repository_id: repositoryId,
-      run_id: runId || null,
-      source: "agent",
-      finding_id: f.id,
-      severity: f.severity,
-      title: f.title,
-      consequence: f.consequence,
-      attack_class: f.attackClass,
-      entry: f.entry,
-      file: f.file,
-      confidence: f.confidence,
-      fix_kind: f.fixKind,
-      claims: f.claims,
-      blast_radius: f.blastRadius,
-    })),
-  );
 }

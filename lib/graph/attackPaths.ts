@@ -75,6 +75,10 @@ function isAnonymous(route: RouteFact): boolean {
   // "anyone on the internet can reach this" produced thirteen of the fourteen
   // false criticals measured across five real startup codebases.
   if (!route.identityReadable) return false;
+  // Same argument, one field over: an unreadable ownership filter is not an
+  // absent one, and `isAnonymous` leans on `!ownershipFiltered` as one of its
+  // three legs.
+  if (!route.ownershipReadable) return false;
   return !route.authenticated && !route.machineGated && !route.ownershipFiltered;
 }
 
@@ -167,7 +171,18 @@ export function findAttackPaths(input: GraphInput): AttackPath[] {
       // A signed-in user reaching every tenant's rows. The single most damaging
       // bug this ICP ships, and invisible to every tool in isolation: the route
       // looks secure (it authenticates) and the policy looks present.
-      if (route.authenticated && !route.ownershipFiltered && protectedByDb === false) {
+      // `ownershipReadable` is the whole gate on this path. It reports a
+      // signed-in user reading every tenant's rows, and it does so on the
+      // strength of a filter being ABSENT -- so a filter we merely could not
+      // see must not reach it. Seven of corpus-b's eight remaining criticals
+      // came through here, every one a route scoped by a session lookup that
+      // carries the scope in its arguments.
+      if (
+        route.authenticated &&
+        route.ownershipReadable &&
+        !route.ownershipFiltered &&
+        protectedByDb === false
+      ) {
         const amplified = posture.signupsOpen === true;
         paths.push({
           id: `path:tenant_isolation:${route.path}:${table.qualified}`,
@@ -203,7 +218,17 @@ export function findAttackPaths(input: GraphInput): AttackPath[] {
       // ── Path 3: service-role route with no ownership filter ────────────
       // The service-role key bypasses RLS entirely, so the database cannot help
       // here no matter how good the policies are — the code is the only control.
-      if (route.usesServiceRole && !route.ownershipFiltered && !isAnonymous(route) && table.sensitive) {
+      // Reads BOTH pairs. This path asserts two absences at once -- no service
+      // role hedge and no ownership filter -- and neither may be an absence we
+      // merely could not see.
+      if (
+        route.usesServiceRole &&
+        route.serviceRoleReadable &&
+        route.ownershipReadable &&
+        !route.ownershipFiltered &&
+        !isAnonymous(route) &&
+        table.sensitive
+      ) {
         paths.push({
           id: `path:service_role_unscoped:${route.path}:${table.qualified}`,
           severity: "WARNING",

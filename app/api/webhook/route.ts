@@ -4,6 +4,7 @@ import Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { sendEmail } from "@/lib/email";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { BILLING_ENABLED } from "@/lib/access";
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
@@ -119,9 +120,26 @@ export async function POST(req: NextRequest) {
     const sub = event.data.object as Stripe.Subscription;
     const customerId = sub.customer as string;
 
+    // `monitoring_enabled` is withdrawn only when billing is actually on.
+    //
+    // is_paid is always written: it is the record of what Stripe says, it is
+    // the single source of truth the paywall reads when billing returns, and
+    // letting it drift out of step with Stripe would be its own bug.
+    //
+    // monitoring_enabled is different in kind. It is not a billing fact, it is
+    // an enrolment fact, and NOTHING in the product sets it back to true except
+    // the enrolment path in /api/scan -- there is no control for it anywhere in
+    // the UI. So a cancel event received while billing is parked would drop a
+    // live account out of the scheduled pass permanently, to enforce a payment
+    // decision the product is not currently making. Same hazard, and the same
+    // gate, as the prepaid sweep in /api/monitor/scheduled.
+    const changes = BILLING_ENABLED
+      ? { is_paid: false, monitoring_enabled: false }
+      : { is_paid: false };
+
     await admin
       .from("user_profiles")
-      .update({ is_paid: false, monitoring_enabled: false })
+      .update(changes)
       .eq("stripe_customer_id", customerId);
   }
 

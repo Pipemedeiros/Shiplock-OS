@@ -16,9 +16,13 @@ const route = (over: Partial<RouteFact>): RouteFact => ({
   machineGated: false,
   usesServiceRole: false,
   ownershipFiltered: false,
-  isApiRoute: true,
   identityReadable: true,
   identityGap: null,
+  ownershipReadable: true,
+  ownershipGap: null,
+  serviceRoleReadable: true,
+  machineGateReadable: true,
+  machineGateGap: null,
   via: [],
   ...over,
 });
@@ -92,6 +96,12 @@ describe("what survives truncation", () => {
     ({
       path: "/api/x", file: "app/api/x/route.ts", methods: ["GET"],
       authenticated: true, machineGated: false, ownershipFiltered: true,
+      // A fixture standing for a route we READ completely. Omitting these left
+      // them undefined, which is falsy, which silently made every fixture route
+      // "scope-unreadable" and reordered the ranking.
+      identityReadable: true, identityGap: null,
+      ownershipReadable: true, ownershipGap: null,
+      serviceRoleReadable: true, machineGateReadable: true, machineGateGap: null,
       tables: ["things"], ...over,
     }) as RouteFact;
 
@@ -250,5 +260,35 @@ describe("the reasoning call is bounded by the run's budget", () => {
     expect(remaining(0)).toBe(44_000);
     expect(remaining(40_000)).toBe(5_000);
     expect(remaining(49_000)).toBe(5_000);
+  });
+});
+
+describe("the route line cannot be mistaken for the entry", () => {
+  const route = (over: Partial<RouteFact>) => ({
+    path: "/api/feedback", file: "pages/api/feedback/index.ts", methods: ["ALL"],
+    tables: ["view"], authenticated: false, machineGated: false, ownershipFiltered: false,
+    usesServiceRole: false, via: [], identityReadable: true, identityGap: null,
+    ownershipReadable: true, ownershipGap: null, serviceRoleReadable: true,
+    machineGateReadable: true, machineGateGap: null, ...over,
+  }) as RouteFact;
+
+  const prompt = () =>
+    buildPrompt({
+      routes: [route({})], stack: { tools: [], authUnknown: false, databaseUnknown: false },
+      tables: ["view"], files: ["pages/api/feedback/index.ts"],
+    } as never);
+
+  it("puts nothing bracketed after the path", () => {
+    expect(prompt()).not.toMatch(/\/api\/feedback\s*\[/);
+  });
+
+  it("labels the methods like every other attribute", () => {
+    expect(prompt()).toMatch(/\/api\/feedback id=\S+ scope=\S+ methods=ALL/);
+  });
+
+  it("leaves the path as the only unlabelled token on its line", () => {
+    const line = prompt().split("\n").find((l) => l.startsWith("/api/feedback"))!;
+    const rest = line.slice("/api/feedback".length).trim();
+    expect(rest.split(/\s+/).every((tok) => tok.includes("="))).toBe(true);
   });
 });
