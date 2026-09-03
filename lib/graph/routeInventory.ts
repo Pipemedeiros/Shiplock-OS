@@ -1,5 +1,7 @@
 import type { RepoFile } from "@/lib/deep/githubScan";
-import { stripComments, resolveImport, stringSpans } from "@/lib/deep/clientExposure";
+import { stripComments, resolveImport, stringSpans, stringLiteralRanges } from "@/lib/deep/clientExposure";
+import { blankDeclarations } from "./declarations";
+import { traceExecutedSources } from "./callPath";
 
 // The source collector's structural output: which HTTP routes exist, which
 // tables each one touches, and whether it checks who is asking.
@@ -40,12 +42,44 @@ export interface RouteFact {
    * HMAC) rather than a user session. Not anonymous, but there is no user.
    */
   machineGated: boolean;
+  /**
+   * False when a machine gate exists in an imported module but not in the route
+   * file. Distinguishes "the gate may be one file away" from "there is no gate";
+   * consumers reporting an ungated webhook must not fire on the first.
+   */
+  machineGateReadable: boolean;
+  /** Why the machine gate was unreadable, or null. */
+  machineGateGap: string | null;
   /** Whether it uses the service-role client, which bypasses RLS entirely. */
   usesServiceRole: boolean;
+  /**
+   * False when a service-role token was seen only inside a string literal.
+   *
+   * The inverse-direction case: this field guards against asserting `true` on
+   * weak evidence, not against a missing `false`.
+   */
+  serviceRoleReadable: boolean;
   /** Whether any query is scoped to the caller (an ownership filter). */
   ownershipFiltered: boolean;
-  /** True for Next.js route handlers under app/; false for page-level code. */
-  isApiRoute: boolean;
+  /**
+   * Whether we could READ how this route scopes its query to the caller.
+   *
+   * The twin of `identityReadable`, and the field behind seven of corpus-b's
+   * eight remaining reasoned criticals. `ownershipFiltered: false` was carrying
+   * both "we read the query and it is not narrowed to the caller" and "the
+   * narrowing happens somewhere we cannot see", and only the first is a finding.
+   *
+   * The second is not exotic. It is the ordinary shape of a scoped read once an
+   * application grows past one file: the session lookup IS the tenant boundary
+   * (`verifyDataroomSession(req, linkId, dataroomId)`), the tenant arrives on a
+   * context object a wrapper injected, or the filter lives in the data helper
+   * that owns the query.
+   */
+  ownershipReadable: boolean;
+
+  /** Why ownership was unreadable, or null when we could read it. */
+  ownershipGap: string | null;
+
   /**
    * Whether we could READ how this route decides who is calling.
    *
@@ -215,14 +249,32 @@ const STRONG_USER_AUTH_RE =
   /\b(auth\.getUser\s*\(|auth\.getSession\s*\(|getUser\s*\(|getSession\s*\(|requireDashboardSession|getServerSession|currentUser\s*\(|verifyJwt|jwtVerify|await\s+auth\s*\(|clerkClient|verify[A-Za-z]*Session[A-Za-z]*\s*\()/i;
 
 /**
- * Reading an inbound Authorization header. WEAK evidence of a user session on
- * its own, because the same code shape reads a shared secret — a cron endpoint
- * comparing `Bearer <CRON_SECRET>` looks identical to one validating a user
- * token. Resolved below: when a machine gate is also present, the secret reading
- * wins, because that is what it almost always is.
+ * Reading an inbound Authorization header. NOT evidence of a user session, and
+ * NOT evidence of a machine gate: the same code shape reads a user token, a
+ * cron secret, or -- corpus-a's SCIM endpoint -- a per-directory bearer that is
+ * handed to a library to verify. Which of those it is cannot be read from the
+ * header access alone.
+ *
+ * It used to set `authenticated: true` unless a machine gate was also present.
+ * That made the SCIM route, which has no caller-user by design, read as a user
+ * route that "does not narrow to the caller", and the merge check BLOCKED on
+ * it. A bare header read now lands where every other credential check we
+ * cannot classify lands: identityReadable: false, disclosed as unassessed. The
+ * route is never called anonymous, and never credited with a session we did
+ * not read.
  */
+// The last alternative is the indirection form: `const h = await headers()`
+// followed by `h.get("Authorization")`. Counted across the five audited
+// repositories: six route files, including corpus-e and corpus-b's SCIM
+// endpoint, which hands the bearer secret to @boxyhq/saml-jackson to verify and
+// read as completely ungated.
+//
+// NOT covered, and left for the wrapper-body work on the standing list: a
+// helper that takes the request and reads the header inside itself
+// (`getAuthHeader(req)`) -- five more files. That is import-following, not
+// pattern-widening, and pretending otherwise would be another wordlist.
 const HEADER_READ_RE =
-  /\.headers\s*\.get\s*\(\s*["']authorization|\.headers\s*\[\s*["']authorization|\bheaders\s*\(\s*\)\s*\.get\s*\(\s*["']authorization|\breq(uest)?\.headers\.authorization/i;
+  /\.headers\s*\.get\s*\(\s*["']authorization|\.headers\s*\[\s*["']authorization|\bheaders\s*\(\s*\)\s*\.get\s*\(\s*["']authorization|\breq(uest)?\.headers\.authorization|\b(?:const|let)\s+\w+\s*=\s*(?:await\s+)?headers\s*\(\s*\)[\s\S]{0,400}?\.\s*get\s*\(\s*["']authorization/i;
 
 /**
  * A MACHINE gate: a shared secret or signature, not a user session.
@@ -274,8 +326,48 @@ const SERVICE_ROLE_RE =
 //   auth.uid()  ·  user.id / session.user.id / claims.sub  ·  userId / ownerId
 // "authorized" cannot match because nothing follows `auth` but letters; the
 // pattern needs a `.` or a camelCase `Id`.
-const OWNERSHIP_RE =
-  /\bauth\s*\??\s*\.\s*uid\s*\(|\b(?:user|session|claims|profile|account|tenant|org|owner)\s*\??\s*\.\s*(?:\w+\s*\??\s*\.\s*)?(?:id|uid|sub)\b|\b(?:user|owner|account|tenant|org|profile)Id\b/;
+//
+// THE THIRD ALTERNATIVE REQUIRES A FILTER POSITION, NOT A MENTION. It used to
+// be the bare token `\buserId\b`, which matched anywhere in any file a route
+// reaches -- and what it mostly reached was declarations: `userId: string` in
+// an interface, `userId?: string` in a type, `.omit({ userId: true })` in a Zod
+// schema, `select: { userId: true }` in a projection. Those describe SHAPE, not
+// behaviour. Measured on corpus-b: 82% of routes were marked owner-filtered,
+// most of them from lib/types.ts, which suppresses the tenant-isolation attack
+// path on the one check class this product exists for.
+//
+// A use looks like one of these, and nothing else:
+//   `: userId`             a value in an object literal   where: { ownerId: userId }
+//   `{ userId }` `, userId }`   shorthand in an object     where: { userId }
+//   `, userId)` `, user.userId)`   a trailing call argument   .eq('user_id', user.userId)
+//   `=== userId` / `userId !==`   a comparison               if (doc.ownerId !== userId)
+// The value may be a member chain (`ctx.userId`, `session.user.userId`): an
+// earlier draft forgot that and silently broke `.eq('user_id', user.userId)`,
+// which only the existing suite caught. `routeInventory.stacks.test.ts` now
+// pins every shape above, keep and drop, by name.
+//
+// Template literals are CODE here, not strings: `sql\`... where user_id =
+// ${userId}\`` is exactly where a raw-SQL filter lives. Only quoted strings are
+// excluded from the match (see the loop in analyzeRouteFile).
+const OWNER_VALUE = "(?:\\w+\\s*\\??\\.\\s*)*(?:user|owner|account|tenant|org|profile)Id";
+// `user.id`, `session.user.id`, `claims.sub`: the caller, by structure.
+const CALLER_IDENTITY =
+  "(?:user|session|claims|profile|account|tenant|org|owner)\\s*\\??\\s*\\.\\s*(?:\\w+\\s*\\??\\s*\\.\\s*)?(?:id|uid|sub)";
+// A comparison counts only when BOTH sides look like identity. `doc.ownerId
+// !== userId` is a fetch-then-compare authorization check; `message.userId
+// === null` and `participant.userId === unsuppliedArg` (a parameter no call
+// site passed, see ./callPath.ts) are not, and the first draft matched them
+// on the left-hand column alone.
+const EITHER = `(?:${OWNER_VALUE}|${CALLER_IDENTITY})`;
+const OWNERSHIP_RE = new RegExp(
+  "\\bauth\\s*\\??\\s*\\.\\s*uid\\s*\\(" +
+    `|\\b${CALLER_IDENTITY}\\b` +
+    `|:\\s*${OWNER_VALUE}\\b` +
+    `|[{,]\\s*${OWNER_VALUE}\\s*[,}]` +
+    `|,\\s*${OWNER_VALUE}\\s*[,)]` +
+    `|\\b${OWNER_VALUE}\\s*(?:===|!==|==|!=)\\s*${EITHER}\\b` +
+    `|\\b${EITHER}\\s*(?:===|!==|==|!=)\\s*${OWNER_VALUE}\\b`,
+);
 
 // The COLUMN side: filtering on an ownership column at all. Weaker evidence than
 // an identity value, and kept deliberately — dropping it would swing the error
@@ -338,14 +430,46 @@ const IDENTITY_GUARD_RE =
 // leaving it out cost a real finding: the repository that exposed this fail-open
 // writes `const { userId, avatarUrl }: { userId: string; avatarUrl: string } =
 // await request.json()`, and the pattern expected `}` followed directly by `=`.
-const REQUEST_DESTRUCTURE_RE =
-  /(?:const|let|var)\s*\{([^}]*)\}\s*(?::\s*\{[^}]*\})?\s*=\s*(?:await\s+)?(?:req|request)\s*\.\s*(?:json|body|formData)\s*\(/g;
-const REQUEST_DESTRUCTURE_STATEMENT_RE =
-  /(?:const|let|var)\s*\{[^}]*\}\s*(?::\s*\{[^}]*\})?\s*=\s*(?:await\s+)?(?:req|request)\s*\.\s*(?:json|body|formData)\s*\([^;]*;/g;
+// Both routers. The app router reads the request through a call --
+// `await req.json()`, `req.formData()` -- and the pages router through a
+// property: `req.query`, `req.body`, optionally followed by a cast. The first
+// version knew only the call forms, so in pages/api `const { userId } =
+// req.query` was never neutralised and `where: { userId }` read as an
+// ownership filter. corpus-b is pages/api throughout.
+const REQUEST_READ = "(?:req|request)\\s*\\.\\s*(?:(?:json|formData)\\s*\\(|(?:body|query)\\b)";
+const REQUEST_DESTRUCTURE_RE = new RegExp(
+  `(?:const|let|var)\\s*\\{([^}]*)\\}\\s*(?::\\s*\\{[^}]*\\})?\\s*=\\s*(?:await\\s+)?${REQUEST_READ}`,
+  "g",
+);
+const REQUEST_DESTRUCTURE_STATEMENT_RE = new RegExp(
+  `(?:const|let|var)\\s*\\{[^}]*\\}\\s*(?::\\s*\\{[^}]*\\})?\\s*=\\s*(?:await\\s+)?${REQUEST_READ}[^;]*;`,
+  "g",
+);
 const REQUEST_ASSIGN_RE =
-  /(?:const|let|var)\s+(\w+)\s*=\s*[^;=]*?(?:(?:req|request)\s*\.\s*(?:json|body|formData|nextUrl)|searchParams|params)\b[^;]*;/g;
+  /(?:const|let|var)\s+(\w+)\s*=\s*[^;=]*?(?:(?:req|request)\s*\.\s*(?:json|body|query|formData|nextUrl)|searchParams|params)\b[^;]*;/g;
 
-const IDENTITY_NAME_RE = /^(?:user|owner|account|tenant|org|profile)Id$|^(?:user|owner|account|tenant|org|profile)_id$/i;
+/**
+ * A name that looks like an identifier. NOT a list of domain nouns.
+ *
+ * THE WORDLIST WAS THE WRONG INSTRUMENT AND IT DEFEATED CORRECT LOGIC. The rule
+ * this file enforces is "a value the caller supplied is not a value that
+ * identifies the caller" -- the discriminator is PROVENANCE, and provenance is
+ * already traced: requestSuppliedIdentities only inspects names bound from
+ * req.json/body/query/params. The wordlist then threw most of them away.
+ *
+ * It covered user|owner|account|tenant|org|profile, and missed `viewerId`, which
+ * corpus-b's conversations endpoint takes from the query and uses as the actor
+ * -- an unauthenticated route that reads as owner-filtered because it "filters"
+ * by a value the caller handed it. Counted across the five audited repositories:
+ * partnerId 667 occurrences in corpus-a, viewerId 156 in corpus-b, plus customerId,
+ * contactId, memberId, clientId, sourcePartnerId, referredByPartnerId. Domain
+ * identity nouns are unbounded; every codebase invents its own.
+ *
+ * Shape, not vocabulary: anything ending in Id or _id that came from the
+ * request. `format` and `limit` are still ignored because they are not
+ * identifiers, which is the only discrimination this needs to make.
+ */
+const IDENTITY_NAME_RE = /Id$|_id$/i;
 
 /** Identity-looking names this route reads out of the request. */
 export function requestSuppliedIdentities(src: string): string[] {
@@ -370,7 +494,14 @@ export function requestSuppliedIdentities(src: string): string[] {
   return [...names];
 }
 
-export function withoutIdentityResolution(src: string): string {
+/**
+ * `original` is the text the request-supplied names are read from. When `src`
+ * has had its declarations blanked (see ./declarations.ts) the destructure
+ * `const { userId } = await req.json()` is already gone from it, and the names
+ * it bound -- which must still be neutralised everywhere they are USED -- can
+ * only be recovered from the unblanked text.
+ */
+export function withoutIdentityResolution(src: string, original: string = src): string {
   let out = src.replace(IDENTITY_RESOLUTION_RE, " ").replace(IDENTITY_GUARD_RE, " ");
 
   // Drop the request-reading statement itself. Neutralising the local name is
@@ -383,7 +514,7 @@ export function withoutIdentityResolution(src: string): string {
 
   // Neutralise every mention of a name the caller supplied, so filtering by it
   // stops counting as filtering by the caller.
-  for (const name of requestSuppliedIdentities(src)) {
+  for (const name of requestSuppliedIdentities(original)) {
     out = out.replace(new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "g"), "attackerSupplied");
   }
 
@@ -470,19 +601,96 @@ export function reachableSources(
  * asking.
  */
 
-/** `export const GET = withWorkspace(async (…) => …)` — the body is inside a call. */
-const WRAPPED_HANDLER_RE =
-  /export\s+(?:const|let|var)\s+(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s*(?::[^=]+)?=\s*([A-Za-z_$][\w$]*)\s*\(/g;
+/**
+ * `export const GET = withWorkspace(async (…) => …)` — the body is inside a call.
+ *
+ * THE NEGATIVE LOOKAHEAD IS THE LOAD-BEARING PART. This regex captures the
+ * identifier between `=` and `(`, and on the single most common handler form in
+ * modern Next.js —
+ *
+ *     export const GET = async (req: NextRequest) => { … }
+ *
+ * — that identifier is `async`, a language keyword, not a wrapper. The route was
+ * therefore marked "wrapped in something we could not read" and suppressed.
+ * Measured across five real codebases: 45 routes mis-captured this way, and it
+ * silenced corpus-a's /api/links/exists, a genuinely unauthenticated endpoint that
+ * takes workspaceId from the query string — exactly the shape this product
+ * exists to catch.
+ *
+ * The fix is deliberately a KEYWORD exclusion and not another entry in
+ * NEUTRAL_WRAPPERS. The set of JavaScript keywords that can legally sit here is
+ * closed and finite; the set of library wrapper names is neither. Patching the
+ * two instances we happened to see would have left the parse bug in place for
+ * the next one.
+ *
+ * Enumerated against all five repositories before choosing this shape. Forms
+ * that do NOT occur even once in 975 route files, and are therefore not built
+ * for: `= Ident<T>(…)` generic calls and `= a.b(…)` member calls. Forms that are
+ * already safe because they produce no identifier-before-paren: `= (…)` plain
+ * arrows (12 in corpus-a) and `= Ident;` direct references (15 across the set).
+ */
+const RESERVED_BEFORE_PAREN = "async|await|new|typeof|void|delete|function|return|yield|import";
+const WRAPPED_HANDLER_RE = new RegExp(
+  `export\\s+(?:const|let|var)\\s+(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\\s*(?::[^=]+)?=` +
+    `\\s*(?!(?:${RESERVED_BEFORE_PAREN})\\b)([A-Za-z_$][\\w$]*)\\s*\\(`,
+  "g",
+);
 
-/** Handler factories that wrap without gating — a wrapper is not automatically auth. */
+/**
+ * Handler factories that wrap without gating — a wrapper is not automatically auth.
+ *
+ * `withAxiom` is here under protest, and the limitation is worth stating rather
+ * than hiding: it is a real wrapper that genuinely cannot gate (next-axiom is a
+ * logging decorator), but its body lives in node_modules, outside the corpus, so
+ * we cannot READ that it cannot gate — we are asserting it from the name. The
+ * next logging decorator with a different name will be wrong in the same way.
+ *
+ * The principled fix, and it is a real one, is scoped out of this change: when
+ * the wrapper resolves to a LOCAL module we already read, inspect that module
+ * for an auth pattern and decide from its body instead of its name. That covers
+ * every wrapper in corpus-a, which are all under lib/auth/. It cannot cover a wrapper
+ * imported from a package, and for those there is no principled distinction
+ * between "a decorator that cannot gate" and "a gate we have not read" — so a
+ * name list is the honest floor, not a solution.
+ */
 const NEUTRAL_WRAPPERS = new Set([
   "handler", "createHandler", "route", "createRoute", "defineHandler",
   "NextResponse", "Response", "json", "compose", "pipe",
+  // Logging/telemetry decorators, asserted by name — see the caveat above.
+  "withAxiom", "withAxiomBodyLog", "withLogging", "withSentry",
 ]);
 
 /** The route refuses somebody. Whatever it checks, it checks something. */
 const REJECTS_RE =
   /\b(?:status|Status)\s*[(:]\s*(?:401|403)\b|\b(?:401|403)\s*[,)]|\bunauthorized(?:Response)?\b|\bforbidden\b|"Unauthorized"|'Unauthorized'/i;
+
+/**
+ * A call that verifies a credential we cannot classify.
+ *
+ * `verifyUnsubscribeToken(token)` gates corpus-b's unsubscribe endpoint.
+ * STRONG_USER_AUTH_RE requires "Session" in the name and MACHINE_GATE_RE
+ * requires "Signature" or "Webhook", so it matched neither and the route read
+ * as completely ungated. Counted across the five repositories: seventeen route
+ * files carry a verifier-shaped call that neither regex gates.
+ *
+ * DELIBERATELY NOT `authenticated: true`, and this is the trade worth stating.
+ * Widening a NAME pattern to assert authentication marks routes as gated on the
+ * evidence of a string, which stage 1b flagged as an unmeasured false-negative
+ * hazard -- a `validateInput()` whose boolean nobody checks would silence a real
+ * finding. Routing these to identityReadable: false instead takes NO such risk:
+ * it says only "there is a check here we could not attribute", which is exactly
+ * what we know. The guard refuses the critical, Coverage discloses the route as
+ * unjudged, and we never claim a gate we did not read.
+ */
+// The two shapes added after the call-path tracer landed both come from corpus-a's
+// /api/resend/webhook: `new Webhook(secret).verify(rawBody, { "svix-signature":
+// … })`. A member call named verify() on anything, and an inbound header whose
+// name ends in "signature", are each the shape of a check -- and neither says
+// which kind, so both land here rather than in MACHINE_GATE_RE. That route
+// had been masked by an unrelated gap; once the tracer removed the gap the
+// merge check BLOCKED it as anonymous, on a route that verifies every request.
+const UNCLASSIFIED_VERIFIER_RE =
+  /\b(?:verify|validate|decode|parse)[A-Za-z]*(?:Token|Credential|Bearer)[A-Za-z]*\s*\(|\b(?:assert|require|check)[A-Za-z]*(?:Auth|Access|Permission|Member)[A-Za-z]*\s*\(|\.\s*verify\s*\(|["'][\w-]*-signature["']/i;
 
 /** A session carried in a cookie we do not recognise by name. */
 const COOKIE_AUTH_RE =
@@ -497,7 +705,27 @@ const COOKIE_AUTH_RE =
 export function identityGapFor(
   entrySrc: string,
   unresolvedImports: string[],
+  machineGateWitness: string | null = null,
+  headerReadWitness: string | null = null,
 ): string | null {
+  // A signature or shared-secret check sitting in a module this route imports.
+  // We deliberately do not credit it as a gate ON this route -- a helper that
+  // mentions a secret does not gate its importer -- but it is plainly evidence
+  // that a gate exists somewhere, so it belongs here rather than in silence.
+  // Folded into identityReadable rather than given its own consumer wiring,
+  // because every consumer that must not call this route anonymous already
+  // reads identityReadable.
+  if (machineGateWitness) {
+    return `a signature or shared-secret check appears in ${machineGateWitness}, which this route imports, but not in the route itself`;
+  }
+  // An inbound Authorization header is read and nothing we recognise verifies
+  // it. A user token, a cron secret and a SCIM directory secret all arrive this
+  // way, so the only honest claim is that a credential check exists here.
+  if (headerReadWitness) {
+    return `the route reads the Authorization header${
+      /route\.[tj]sx?$|pages\//.test(headerReadWitness) ? "" : ` in ${headerReadWitness}`
+    }, and we could not read what verifies the credential`;
+  }
   WRAPPED_HANDLER_RE.lastIndex = 0;
   let m: RegExpExecArray | null;
   while ((m = WRAPPED_HANDLER_RE.exec(entrySrc)) !== null) {
@@ -512,6 +740,14 @@ export function identityGapFor(
 
   if (COOKIE_AUTH_RE.test(entrySrc)) {
     return "the route reads cookies, and we could not tell which of them is a session";
+  }
+
+  const verifier = UNCLASSIFIED_VERIFIER_RE.exec(entrySrc);
+  if (verifier) {
+    const what = verifier[0].replace(/\s*\($/, "").replace(/^\./, "");
+    return /^["']/.test(what)
+      ? `the route reads a ${what} header, a signature check we could not classify`
+      : `the route calls ${what}(), a credential check we could not classify`;
   }
 
   // Only an unread module that could plausibly BE the gate. The first version
@@ -530,6 +766,107 @@ export function identityGapFor(
   return null;
 }
 
+/** The first match of `re` that does not begin inside a string literal, or null. */
+export function matchOutsideStrings(src: string, re: RegExp): number | null {
+  const scan = new RegExp(re.source, re.flags.includes("g") ? re.flags : re.flags + "g");
+  const inString = stringSpans(src);
+  scan.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = scan.exec(src)) !== null) {
+    if (!inString(m.index)) return m.index;
+  }
+  return null;
+}
+
+/**
+ * The same, excluding only QUOTED strings. A template literal is code: it is
+ * where raw SQL and its `${userId}` filter live, and dropping it would invent
+ * attack paths for routes that scope through `sql\`...\``.
+ */
+export function matchOutsideQuotes(src: string, re: RegExp): number | null {
+  const scan = new RegExp(re.source, re.flags.includes("g") ? re.flags : re.flags + "g");
+  const inside = new Uint8Array(src.length);
+  for (const { start, end, quote } of stringLiteralRanges(src)) {
+    if (quote === "`") continue;
+    for (let i = start; i < end && i < inside.length; i++) inside[i] = 1;
+  }
+  scan.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = scan.exec(src)) !== null) {
+    if (!(m.index < inside.length && inside[m.index] === 1)) return m.index;
+  }
+  return null;
+}
+
+/**
+ * An identity call carrying MORE than the request.
+ *
+ * `verifyDataroomSession(req, linkId, dataroomId)` does not merely establish who
+ * is calling -- the extra arguments are the scope, and the lookup succeeds only
+ * for a caller entitled to that link and that dataroom. The session check IS the
+ * ownership filter, and no `.eq()` will ever appear in the route.
+ */
+const SCOPED_IDENTITY_CALL_RE =
+  /\b(?:verify|require|assert|check|get|load)[A-Za-z]*(?:Session|Access|Auth|Permission|Member|Tenant)[A-Za-z]*\s*\(\s*[^)]*,[^)]*\)/;
+
+/**
+ * A tenant handed to the handler by something above it.
+ *
+ * `withWorkspace(async ({ workspace }) => …)` and Hono's `c.get("apiAuth")` both
+ * mean the scope was resolved before this code ran. The query below may be
+ * narrowed by a value we can see being destructured but never see assigned.
+ */
+// THE `) =>` IS THE WHOLE SIGNAL. Without it this matched any call carrying an
+// object literal that mentioned one of these words anywhere -- including inside
+// a string. Measured across the five audited repositories it fired on twelve
+// routes and was wrong on all twelve: an error message reading "No workspace
+// slug provided", an outbound sendEmail({ stripeId: workspace.stripeId }), a
+// feature-flag lookup, and -- worst -- Prisma `where: { id, teamId }` clauses,
+// which ARE the ownership filter. A signal meant to say "we cannot see the
+// scoping" was firing on the scoping itself.
+//
+// It cost a real finding. corpus-b's /api/links/[id]/annotations reads linkId
+// and viewId straight from the query with no auth anywhere in 94 lines, and it
+// was marked unreadable because of `getFeatureFlags({ teamId: ... })`. Once the
+// compatibility guard landed, that stopped being a softened finding and became
+// a refused one, invisible in four runs out of five.
+//
+// Requiring the destructure to close into `) =>` restricts it to what it was
+// written for: an object destructured as a FUNCTION PARAMETER, which is how a
+// wrapper hands a tenant to the handler it wraps.
+const INJECTED_CONTEXT_RE = new RegExp(
+  "\\(\\s*\\{[^}]*\\b(?:workspace|workspaceId|team|teamId|tenant|tenantId|org|orgId|" +
+    "space|spaceId|session|account|accountId)\\b[^}]*\\}\\s*(?::[^)=]*)?\\)\\s*=>",
+);
+const CONTEXT_GET_RE =
+  /\bc\s*\.\s*get\s*\(\s*["'][^"']+["']\s*\)|\bctx\s*\.\s*(?:workspace|team|tenant|session|auth)\b|\breq(?:uest)?\s*\.\s*(?:workspace|team|tenant)\b/;
+
+/**
+ * Why the ownership filter could not be read, or null if it could.
+ *
+ * Only asked of a route we are about to describe as unscoped -- a route we DID
+ * read a filter on has nothing to explain.
+ */
+export function ownershipGapFor(
+  entrySrc: string,
+  identityReadable: boolean,
+  tablesFromImport: string[],
+): string | null {
+  if (!identityReadable) {
+    return "we could not read how this route resolves its caller, so the scope it runs under is decided somewhere we could not read";
+  }
+  if (SCOPED_IDENTITY_CALL_RE.test(entrySrc)) {
+    return "the caller is resolved by a call that also carries the scope, so the session lookup may itself be the filter";
+  }
+  if (INJECTED_CONTEXT_RE.test(entrySrc) || CONTEXT_GET_RE.test(entrySrc)) {
+    return "the tenant arrives on a context object created before this handler ran";
+  }
+  if (tablesFromImport.length > 0) {
+    return `the query runs inside ${tablesFromImport[0]}, so any filter it applies is out of this file`;
+  }
+  return null;
+}
+
 /**
  * Facts for one route. `byPath` enables import following; omit it to analyse the
  * single file only.
@@ -539,11 +876,25 @@ export function analyzeRouteFile(
   content: string,
   byPath?: Map<string, RepoFile>
 ): RouteFact {
-  const sources = byPath
-    ? reachableSources({ path: file, content }, byPath)
-    : [{ path: file, src: stripComments(content) }];
+  // PER-CALL-PATH ATTRIBUTION (./callPath.ts). When the handler can be found,
+  // each source is the text of what that handler actually runs: unexecuted
+  // functions blanked, declarations blanked, parameters no call site supplies
+  // renamed. When it cannot, whole files two hops deep, as before.
+  const traced = byPath ? traceExecutedSources({ path: file, content }, byPath) : null;
+  const sources: { path: string; src: string; original: string; prepared: boolean; host: boolean }[] = traced
+    ? traced.sources.map((s) => ({ path: s.path, src: s.src, original: s.original, prepared: true, host: s.host }))
+    : byPath
+      ? reachableSources({ path: file, content }, byPath).map((s) => ({ ...s, original: s.src, prepared: false, host: s.path === file }))
+      : [{ path: file, src: stripComments(content), original: stripComments(content), prepared: false, host: true }];
 
-  const entrySrc = sources[0].src;
+  // The gap questions are asked of the route as written -- wrapper names,
+  // `({ workspace }) =>` parameters, 401s -- so they read the unblanked entry
+  // text, plus the text of any file that HOSTS the handler (a re-exported
+  // handler's 401 is this route's 401).
+  const entrySrc = [
+    stripComments(content),
+    ...sources.filter((s) => s.host && s.path !== file).map((s) => s.src),
+  ].join("\n");
 
   // Local imports the read budget did not reach. A route whose gate lives in a
   // file we never downloaded is unreadable, not ungated. Bare package
@@ -563,16 +914,30 @@ export function analyzeRouteFile(
     }
   }
   const tables = new Set<string>();
+  const tablesFromImport = new Set<string>();
   const via = new Set<string>();
   let authenticated = false;
-  let strongAuth = false;
   let machineGated = false;
+  let machineGateWitness: string | null = null;
+  let headerReadWitness: string | null = null;
   let usesServiceRole = false;
+  let serviceRoleReadable = true;
   let ownershipFiltered = false;
 
-  for (const { path, src } of sources) {
-    const isEntry = path === file;
+  for (const { path, src: raw, original, prepared, host } of sources) {
+    // A HOST file is the route: the entry itself, or the file its handler was
+    // re-exported from or resolved into. Its queries and its machine gate are
+    // the route's own. Everything else is a helper the route calls.
+    const isEntry = host;
     let contributed = false;
+
+    // THE DECLARATION RULE. Every pattern below reads `src`, which has its
+    // declarations blanked: types, interfaces, imports, parameter bindings and
+    // projections describe shape, and no collector may draw evidence from
+    // shape. The unblanked text is kept as `raw` for the one thing that needs
+    // it -- recovering the names a request destructure bound, so their uses
+    // can still be neutralised. A traced source arrives already prepared.
+    const src = prepared ? raw : blankDeclarations(raw, path);
 
     const resolvesIdentity = STRONG_USER_AUTH_RE.test(src) || HEADER_READ_RE.test(src);
 
@@ -591,20 +956,52 @@ export function analyzeRouteFile(
       for (const table of extractTables(src)) {
         if (!tables.has(table)) contributed = true;
         tables.add(table);
+        // Remembered for the ownership gap below: a query that runs inside an
+        // imported helper carries any filter that helper applies, and that
+        // filter is not in the file we are judging.
+        if (path !== file) tablesFromImport.add(path);
       }
     }
     if (STRONG_USER_AUTH_RE.test(src)) {
       if (!authenticated) contributed = true;
       authenticated = true;
-      strongAuth = true;
     } else if (HEADER_READ_RE.test(src)) {
-      if (!authenticated) contributed = true;
-      authenticated = true;
+      // Remembered, not credited. Consulted only if the route ends up with no
+      // session and no machine gate, where it becomes the identity gap.
+      headerReadWitness ??= path;
     }
     // A machine gate only counts from the ROUTE FILE. A helper that happens to
     // mention a secret name does not gate the endpoint that imports it.
-    if (isEntry && MACHINE_GATE_RE.test(src)) machineGated = true;
-    if (SERVICE_ROLE_RE.test(src)) usesServiceRole = true;
+    if (isEntry && MACHINE_GATE_RE.test(src)) {
+      machineGated = true;
+    } else if (!isEntry && MACHINE_GATE_RE.test(src)) {
+      // The existing conservatism is kept exactly: a helper that MENTIONS a
+      // secret does not gate the endpoint importing it, so this still does not
+      // set machineGated. What changes is that it is no longer indistinguishable
+      // from silence. HMAC verification factored into a shared verifyWebhook()
+      // is the normal refactor, and "the gate may be one file away" is a
+      // different claim from "there is no gate".
+      machineGateWitness = path;
+    }
+    // A SERVICE-ROLE MENTION INSIDE A STRING IS NOT A CLIENT.
+    //
+    // `.eq("role", "service_role")` is an RBAC comparison -- code CHECKING a
+    // role, the opposite of code assuming one. Without this guard that route was
+    // marked as using the service-role client, which removes the
+    // `rlsCouldStillProtect` hedge in findings.ts and promotes the finding from
+    // `inferred` to `corroborated`. A route doing a role check earned a MORE
+    // confident critical than one that was not.
+    //
+    // Same rule and same helper as extractTables, which has had it since the
+    // string-literal fix; this call site never got it.
+    const serviceRoleAt = matchOutsideStrings(src, SERVICE_ROLE_RE);
+    if (serviceRoleAt !== null) {
+      usesServiceRole = true;
+    } else if (SERVICE_ROLE_RE.test(src)) {
+      // Seen, but only as text. We cannot confirm a client from a string, and we
+      // must not assert one -- so this is the unreadable state, not `false`.
+      serviceRoleReadable = false;
+    }
     // Ownership from an IMPORTED source counts only when that source is a data
     // helper, not an auth helper. An auth helper filters by the caller to fetch
     // the caller: this repository's own requireProUser does
@@ -619,38 +1016,65 @@ export function analyzeRouteFile(
     // A data helper that genuinely scopes on the route's behalf still counts,
     // because it does not resolve identity itself.
     const ownershipCounts = isEntry || !resolvesIdentity;
-    const filterable = withoutIdentityResolution(src);
-    if (ownershipCounts && (OWNERSHIP_RE.test(filterable) || OWNERSHIP_ALT_RE.test(filterable))) {
+    const filterable = withoutIdentityResolution(src, original);
+    // The column-side pattern is NOT quote-filtered: its match begins inside
+    // the column name's own quotes (`.eq('user_id', ...)`), which is the shape
+    // it exists to see.
+    if (
+      ownershipCounts &&
+      (matchOutsideQuotes(filterable, OWNERSHIP_RE) !== null || OWNERSHIP_ALT_RE.test(filterable))
+    ) {
       if (!ownershipFiltered) contributed = true;
       ownershipFiltered = true;
     }
-    if (contributed && !isEntry) via.add(path);
+    if (contributed && path !== file) via.add(path);
   }
-
-  // A bare inbound-header read next to a machine gate is a shared secret, not a
-  // user session. Without this, every CRON_SECRET-gated cron endpoint claims a
-  // user identity it does not have, and "authenticated route reads user_profiles
-  // unfiltered" would fire on all of them.
-  if (machineGated && !strongAuth) authenticated = false;
 
   // Only a route we are about to call anonymous needs the question asked.
   const identityGap =
-    authenticated || machineGated ? null : identityGapFor(entrySrc, unresolvedImports);
+    authenticated || machineGated
+      ? null
+      : identityGapFor(entrySrc, unresolvedImports, machineGateWitness, headerReadWitness);
+  const identityReadable = identityGap === null;
+
+  // Same question, one field over. Only asked when we are about to call the
+  // route unscoped.
+  // "The query runs inside a helper, so its filter is out of this file" is a
+  // whole-file-reading gap. When the handler was traced, the helper's executed
+  // path WAS read, filter and all, so that clause no longer applies.
+  const ownershipGap = ownershipFiltered
+    ? null
+    : ownershipGapFor(entrySrc, identityReadable, traced ? [] : [...tablesFromImport]);
 
   return {
     path: routePathFromFile(file),
     file,
     // Methods must be exported by the route file itself — an imported helper
-    // exporting GET does not make the route respond to GET.
-    methods: extractMethods(entrySrc),
+    // exporting GET does not make the route respond to GET. The parser also
+    // sees `export { handler as GET }`, which the regex never did.
+    methods: [...new Set([...extractMethods(stripComments(content)), ...(traced?.methods ?? [])])]
+      .filter((m, _, all) => m !== "ALL" || all.length === 1)
+      .sort(),
     tables: [...tables].sort(),
     authenticated,
     machineGated,
+    // False when a machine gate was seen in an imported module but not in the
+    // route file: we cannot attribute it to this endpoint, and we must not
+    // report the endpoint as ungated either.
+    machineGateReadable: machineGated || machineGateWitness === null,
+    machineGateGap: machineGated || machineGateWitness === null
+      ? null
+      : `a signature or shared-secret check appears in ${machineGateWitness}, which this route imports, but not in the route itself`,
     usesServiceRole,
+    // True unless a service-role token appeared ONLY as text. Consumers that
+    // rely on `usesServiceRole === false` to justify a hedge must keep the hedge
+    // when this is false.
+    serviceRoleReadable,
     ownershipFiltered,
-    isApiRoute: true,
-    identityReadable: identityGap === null,
+    identityReadable,
     identityGap,
+    ownershipReadable: ownershipGap === null,
+    ownershipGap,
     via: [...via].sort(),
   };
 }

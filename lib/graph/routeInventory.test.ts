@@ -187,12 +187,18 @@ describe("analyzeRouteFile", () => {
     expect(fact.ownershipFiltered).toBe(true);
   });
 
-  it("recognises auth via a bearer header", () => {
+  // A bare header read is not a session. The same code shape reads a shared
+  // secret (corpus-a's SCIM endpoint hands the bearer to @boxyhq/saml-jackson), so
+  // the honest fact is "there is a credential check here we could not read".
+  it("treats a bare bearer-header read as unreadable, never as a user session", () => {
     const fact = analyzeRouteFile(
       "app/api/x/route.ts",
       `export async function POST(req) { const t = req.headers.get("authorization"); }`
     );
-    expect(fact.authenticated).toBe(true);
+    expect(fact.authenticated).toBe(false);
+    expect(fact.machineGated).toBe(false);
+    expect(fact.identityReadable).toBe(false);
+    expect(fact.identityGap).toMatch(/Authorization header/);
   });
 
   // Commented-out code is not behaviour.
@@ -303,11 +309,12 @@ describe("gate classification — user session vs machine secret vs open", () =>
     expect(routes[0].machineGated).toBe(false);
   });
 
-  it("counts reading an inbound Authorization header", () => {
+  it("reads an inbound Authorization header as a gate we could not classify, not as a session", () => {
     const routes = collectRoutes(
       files(["app/api/x/route.ts", `export async function GET(req){ const t = req.headers.get("authorization"); return supabase.from("t").select() }`])
     );
-    expect(routes[0].authenticated).toBe(true);
+    expect(routes[0].authenticated).toBe(false);
+    expect(routes[0].identityReadable).toBe(false);
   });
 
   it("classifies a Stripe-signature webhook as machine-gated, not user-authenticated", () => {

@@ -65,8 +65,8 @@ export function stripComments(src: string): string {
  * lib/graph/routeInventory.ts already imports stripComments and resolveImport
  * from it, and it needs this one for the same reason.
  */
-export function stringLiteralRanges(src: string): { start: number; end: number }[] {
-  const ranges: { start: number; end: number }[] = [];
+export function stringLiteralRanges(src: string): { start: number; end: number; quote: string }[] {
+  const ranges: { start: number; end: number; quote: string }[] = [];
   let quote: string | null = null;
   let start = 0;
 
@@ -74,12 +74,12 @@ export function stringLiteralRanges(src: string): { start: number; end: number }
     const ch = src[i];
     if (quote) {
       if (ch === "\\") { i++; continue; }
-      if (ch === quote) { ranges.push({ start, end: i }); quote = null; }
+      if (ch === quote) { ranges.push({ start, end: i, quote }); quote = null; }
       continue;
     }
     if (ch === '"' || ch === "'" || ch === "`") { quote = ch; start = i + 1; }
   }
-  if (quote) ranges.push({ start, end: src.length });
+  if (quote) ranges.push({ start, end: src.length, quote });
 
   return ranges;
 }

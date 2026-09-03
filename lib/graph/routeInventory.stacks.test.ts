@@ -523,3 +523,604 @@ describe("a route we cannot read is not a route with no gate", () => {
     expect(r.identityReadable).toBe(true);
   });
 });
+
+// The wrapper-parse bug. `async` is a keyword, not a wrapper name, and treating
+// it as one suppressed corpus-a's /api/links/exists — a genuinely unauthenticated
+// endpoint taking workspaceId from the query string. 45 routes across five real
+// codebases were mis-captured this way.
+describe("a keyword is not a wrapper", () => {
+  const route = (src: string) =>
+    collectRoutes([{ path: "app/api/x/route.ts", content: src }] as never)[0];
+
+  const OPEN_BODY = `
+        const { workspaceId } = getSearchParams(req.url);
+        const ws = await getWorkspaceViaEdge({ workspaceId });
+        return NextResponse.json(await prisma.link.findMany({ where: { workspaceId } }));`;
+
+  it("reads an async arrow handler as READABLE, not wrapped", () => {
+    const r = route(`export const GET = async (req: NextRequest) => {${OPEN_BODY}\n};`);
+    expect(r.identityReadable).toBe(true);
+    expect(r.authenticated).toBe(false);
+    expect(r.machineGated).toBe(false);
+  });
+
+  it("reads a plain arrow handler as readable", () => {
+    const r = route(`export const GET = (req) => {${OPEN_BODY}\n};`);
+    expect(r.identityReadable).toBe(true);
+  });
+
+  it("does not treat `new` as a wrapper", () => {
+    const r = route(`export const POST = new Handler({ run: async (req) => {${OPEN_BODY}\n} });`);
+    expect(r.identityReadable).toBe(true);
+  });
+
+  it("STILL suppresses a genuine wrapper", () => {
+    const r = route(`export const GET = withWorkspace(async ({ workspace }) => {${OPEN_BODY}\n});`);
+    expect(r.identityReadable).toBe(false);
+    expect(r.identityGap).toMatch(/withWorkspace/);
+  });
+
+  it("does not suppress on a logging decorator", () => {
+    const r = route(`export const GET = withAxiom(async (req) => {${OPEN_BODY}\n});`);
+    expect(r.identityReadable).toBe(true);
+  });
+
+  it("a typed async arrow is still readable", () => {
+    const r = route(`export const GET: RouteHandler = async (req) => {${OPEN_BODY}\n};`);
+    expect(r.identityReadable).toBe(true);
+  });
+});
+
+// The injected-context signal, narrowed. It fired on twelve routes across the
+// five audited repositories and was wrong on all twelve.
+describe("injected tenant context is a function parameter, not any object", () => {
+  const route = (body: string) =>
+    collectRoutes([{ path: "app/api/x/route.ts", content: body }] as never)[0];
+
+  const READ = `const { id } = req.query;\n  const rows = await prisma.doc.findMany();`;
+
+  it("does not fire on an error message mentioning a workspace", () => {
+    const r = route(`export async function GET(req) {\n  ${READ}\n  return NextResponse.json({ error: "No workspace slug provided." }, { status: 400 });\n}`);
+    expect(r.ownershipReadable).toBe(true);
+  });
+
+  it("does not fire on a prisma where clause — that IS the filter", () => {
+    const r = route(`export async function GET(req) {\n  const v = await prisma.view.findUnique({ where: { id: viewerId, teamId } });\n  return Response.json(v);\n}`);
+    expect(r.ownershipReadable).toBe(true);
+  });
+
+  it("does not fire on an outbound call carrying a tenant value", () => {
+    const r = route(`export async function GET(req) {\n  ${READ}\n  await sendEmail({ stripeId: workspace.stripeId, amount: 1 });\n  return Response.json(rows);\n}`);
+    expect(r.ownershipReadable).toBe(true);
+  });
+
+  it("does not fire on a feature-flag lookup — the corpus-b case exactly", () => {
+    const r = route(`export default async function handle(req, res) {\n  const { id: linkId, viewId } = req.query;\n  const view = await prisma.view.findUnique({ where: { id: viewId } });\n  const flags = await getFeatureFlags({ teamId: view.teamId || undefined });\n  res.json(view);\n}`);
+    expect(r.ownershipReadable).toBe(true);
+  });
+
+  it("STILL fires on a tenant destructured as a handler parameter", () => {
+    const r = route(`export const GET = someWrapper(async ({ workspace }) => {\n  return Response.json(await prisma.link.findMany());\n});`);
+    expect(r.ownershipReadable).toBe(false);
+  });
+});
+
+// The three collector gaps from stage 5d, fixed as a class. Every case is a
+// real route from the five audited repositories.
+describe("gaps found by adjudicating stable false positives", () => {
+  const route = (src: string) =>
+    collectRoutes([{ path: "app/api/x/route.ts", content: src }] as never)[0];
+
+  // 2.1 — a header bag assigned to a local before it is read (corpus-b SCIM).
+  it("sees an Authorization header read through a local bag", () => {
+    const r = route(`
+      import { headers } from "next/headers";
+      export async function POST(req) {
+        const headersList = await headers();
+        const apiSecret = headersList.get("Authorization")?.split(" ")[1];
+        return Response.json(await prisma.team.findMany({ apiSecret }));
+      }`);
+    expect(r.authenticated || !r.identityReadable).toBe(true);
+  });
+
+  // 2.2 — a credential check we cannot classify is UNREADABLE, never "authenticated".
+  it("treats an unclassifiable token verifier as unreadable, not as a gate", () => {
+    const r = route(`
+      import { verifyUnsubscribeToken } from "@/lib/utils/unsubscribe";
+      export default async function handle(req, res) {
+        const { token } = req.query;
+        const ok = verifyUnsubscribeToken(token);
+        return res.json(await prisma.userTeam.findMany());
+      }`);
+    expect(r.identityReadable).toBe(false);
+    expect(r.identityGap).toMatch(/could not classify/);
+    // The trade: we do NOT claim it authenticates.
+    expect(r.authenticated).toBe(false);
+  });
+
+  // 2.3 — provenance, not vocabulary (corpus-b conversations).
+  it("does not count a caller-supplied viewerId as an ownership filter", () => {
+    const r = route(`
+      export default async function handler(req, res) {
+        const { dataroomId, viewerId } = req.query;
+        const rows = await prisma.conversation.findMany({ where: { viewerId, dataroomId } });
+        return res.json(rows);
+      }`);
+    expect(r.ownershipFiltered).toBe(false);
+  });
+
+  it("covers identity names no wordlist would have listed", () => {
+    for (const name of ["partnerId", "contactId", "memberId", "subscriberId", "patientId"]) {
+      const r = route(`
+        export default async function handler(req, res) {
+          const { ${name} } = req.query;
+          return res.json(await prisma.thing.findMany({ where: { ${name} } }));
+        }`);
+      expect(r.ownershipFiltered, `${name} must not read as ownership`).toBe(false);
+    }
+  });
+
+  // The other direction: a session-derived id still counts.
+  it("STILL counts a session-derived id as an ownership filter", () => {
+    const r = route(`
+      import { getServerSession } from "next-auth";
+      export default async function handler(req, res) {
+        const session = await getServerSession();
+        const rows = await prisma.doc.findMany({ where: { ownerId: session.user.id } });
+        return res.json(rows);
+      }`);
+    expect(r.authenticated).toBe(true);
+    expect(r.ownershipFiltered).toBe(true);
+  });
+});
+
+// The SCIM blocker. corpus-a's app/(ee)/api/scim/v2.0/[...directory]/route.ts reads
+// `headersList.get("Authorization")` and hands the bearer secret to
+// @boxyhq/saml-jackson. HEADER_READ_RE fed that into `authenticated: true`, so
+// a machine-to-machine endpoint with no caller-user was judged as a user route
+// that "does not narrow to the caller", and the merge check BLOCKED on it.
+//
+// The rule, stated once: a bare Authorization header read, with no recognised
+// machine gate and no session call, is not user authentication. It is a
+// credential check we could not classify, and it lands where those already
+// land -- identityReadable: false -- disclosed as unassessed, never asserted.
+describe("a bare Authorization header read is not a user session", () => {
+  const route = (src: string, extra: { path: string; content: string }[] = []) =>
+    collectRoutes([{ path: "app/api/x/route.ts", content: src }, ...extra] as never)[0];
+
+  it("SCIM: a bearer handed to a library is unreadable, not authenticated", () => {
+    const r = route(`
+      import { jackson } from "@/lib/jackson";
+      import { headers } from "next/headers";
+      const handler = async (req: Request) => {
+        const headersList = await headers();
+        const authHeader = headersList.get("Authorization");
+        const apiSecret = authHeader ? authHeader.split(" ")[1] : null;
+        const { directorySyncController } = await jackson();
+        const { status, data } = await directorySyncController.requests.handle({ apiSecret }, handleEvents);
+        await prisma.projectUsers.findMany();
+        return NextResponse.json(data, { status });
+      };
+      export { handler as DELETE, handler as GET, handler as POST, handler as PUT };`);
+    expect(r.authenticated).toBe(false);
+    expect(r.machineGated).toBe(false);
+    expect(r.identityReadable).toBe(false);
+    expect(r.identityGap).toMatch(/Authorization header/);
+    // Unreadable identity means the scope is unreadable too: no diffScan block.
+    expect(r.ownershipReadable).toBe(false);
+  });
+
+  it("a direct req.headers.get('authorization') with nothing else is unreadable", () => {
+    const r = route(`
+      export async function GET(req: Request) {
+        const token = req.headers.get("authorization")?.replace("Bearer ", "");
+        const rows = await prisma.apiKey.findMany({ where: { hashedKey: hash(token) } });
+        return Response.json(rows);
+      }`);
+    expect(r.authenticated).toBe(false);
+    expect(r.identityReadable).toBe(false);
+  });
+
+  it("a header read next to a recognised machine gate is STILL a machine gate", () => {
+    const r = route(`
+      import { timingSafeEqual } from "crypto";
+      export async function POST(req: Request) {
+        const given = req.headers.get("authorization") ?? "";
+        if (!timingSafeEqual(Buffer.from(given), Buffer.from(process.env.CRON_SECRET!))) return new Response("no", { status: 401 });
+        return Response.json(await prisma.job.findMany());
+      }`);
+    expect(r.machineGated).toBe(true);
+    expect(r.authenticated).toBe(false);
+    expect(r.identityReadable).toBe(true);
+  });
+
+  it("a header read next to a session call is STILL a user session", () => {
+    const r = route(`
+      import { getServerSession } from "next-auth";
+      export async function GET(req: Request) {
+        const bearer = req.headers.get("authorization");
+        const session = await getServerSession(authOptions);
+        if (!session) return new Response("no", { status: 401 });
+        return Response.json(await prisma.doc.findMany({ where: { ownerId: session.user.id } }));
+      }`);
+    expect(r.authenticated).toBe(true);
+    expect(r.identityReadable).toBe(true);
+  });
+
+  it("a header read inside an imported helper makes the route unreadable, and names the helper", () => {
+    const r = route(
+      `import { bearerFrom } from "@/lib/bearer";
+       export async function GET(req: Request) {
+         const token = bearerFrom(req);
+         return Response.json(await prisma.doc.findMany());
+       }`,
+      [{ path: "lib/bearer.ts", content: `export function bearerFrom(req: Request) { return req.headers.get("authorization")?.split(" ")[1]; }` }],
+    );
+    expect(r.authenticated).toBe(false);
+    expect(r.identityReadable).toBe(false);
+    expect(r.identityGap).toMatch(/lib\/bearer\.ts/);
+  });
+
+  // THE OTHER DIRECTION: the cure must not be silence.
+  it("STILL calls a route with no header read and no gate anonymous", () => {
+    const r = route(`
+      export async function GET(req: Request) {
+        const id = new URL(req.url).searchParams.get("id");
+        return Response.json(await prisma.doc.findUnique({ where: { id } }));
+      }`);
+    expect(r.authenticated).toBe(false);
+    expect(r.identityReadable).toBe(true);
+  });
+
+  it("an OUTBOUND Authorization header is neither a gate nor a gap", () => {
+    const r = route(`
+      export async function GET() {
+        const res = await fetch("https://api.example.com", { headers: { Authorization: \`Bearer \${process.env.EXAMPLE_KEY}\` } });
+        return Response.json(await prisma.doc.findMany());
+      }`);
+    expect(r.authenticated).toBe(false);
+    expect(r.identityReadable).toBe(true);
+  });
+});
+
+// The OWNERSHIP_RE tightening. Its third alternative used to match the bare
+// token `userId` ANYWHERE in any file a route reaches, so it matched
+// declarations, not uses: interface fields, type unions, Zod schemas, SELECT
+// projections. On corpus-b 82% of routes were wrongly marked owner-filtered,
+// which suppresses the tenant-isolation attack path -- a fail-open on the one
+// check class the product exists for. The pattern now requires a
+// filter-argument position.
+//
+// Every shape below is named for what it protects. An earlier draft of this
+// tightening broke `.eq('user_id', user.userId)` -- a real server-established
+// filter through a member expression -- and only the existing suite caught it.
+// These tests exist so the next draft cannot.
+describe("ownership evidence is a filter position, not a mention", () => {
+  const route = (src: string, extra: { path: string; content: string }[] = []) =>
+    collectRoutes([{ path: "app/api/x/route.ts", content: src }, ...extra] as never)[0];
+  const SESSION = `import { getServerSession } from "next-auth";\n`;
+
+  // ── KEEP: real filters, each a different syntactic shape ──
+  it("KEEP Supabase argument position: .eq('id', userId)", () => {
+    const r = route(`${SESSION}export async function GET() {
+      const session = await getServerSession();
+      const userId = session.user.id;
+      const { data } = await supabase.from("orders").select("*").eq("user_id", userId);
+      return Response.json(data);
+    }`);
+    expect(r.ownershipFiltered).toBe(true);
+  });
+
+  it("KEEP member expression through a session object: .eq('user_id', user.userId)", () => {
+    const r = route(`export async function GET() {
+      const user = await requireProUser();
+      await admin.from('audit_runs').select('*').eq('user_id', user.userId);
+      return Response.json({});
+    }`);
+    expect(r.ownershipFiltered).toBe(true);
+  });
+
+  it("KEEP Prisma shorthand: where: { userId }", () => {
+    const r = route(`${SESSION}export async function GET() {
+      const session = await getServerSession();
+      const userId = session.user.id;
+      return Response.json(await prisma.doc.findMany({ where: { userId } }));
+    }`);
+    expect(r.ownershipFiltered).toBe(true);
+  });
+
+  it("KEEP Prisma key-value: where: { ownerId: userId }", () => {
+    const r = route(`${SESSION}export async function GET() {
+      const session = await getServerSession();
+      const userId = session.user.id;
+      return Response.json(await prisma.doc.findMany({ where: { ownerId: userId } }));
+    }`);
+    expect(r.ownershipFiltered).toBe(true);
+  });
+
+  it("KEEP Prisma nested relation filter: users: { some: { userId } }", () => {
+    const r = route(`${SESSION}export async function GET() {
+      const session = await getServerSession();
+      const userId = session.user.id;
+      return Response.json(await prisma.team.findFirst({ where: { id: teamId, users: { some: { userId } } } }));
+    }`);
+    expect(r.ownershipFiltered).toBe(true);
+  });
+
+  it("KEEP Drizzle argument position: eq(notes.ownerId, ctx.userId)", () => {
+    const r = route(`export async function GET() {
+      const ctx = await requireProUser();
+      return Response.json(await db.select().from(notes).where(eq(notes.ownerId, ctx.userId)));
+    }`);
+    expect(r.ownershipFiltered).toBe(true);
+  });
+
+  it("KEEP fetch-then-compare: if (doc.ownerId !== userId) return 403", () => {
+    const r = route(`${SESSION}export async function GET(req, { params }) {
+      const session = await getServerSession();
+      const userId = session.user.id;
+      const doc = await prisma.doc.findUnique({ where: { id: params.id } });
+      if (doc.ownerId !== userId) return new Response("Forbidden", { status: 403 });
+      return Response.json(doc);
+    }`);
+    expect(r.ownershipFiltered).toBe(true);
+  });
+
+  it("KEEP fetch-then-compare against a session member: doc.ownerId !== session.user.id", () => {
+    const r = route(`${SESSION}export async function GET(req, { params }) {
+      const session = await getServerSession();
+      const doc = await prisma.doc.findUnique({ where: { id: params.id } });
+      if (doc.ownerId !== session.user.id) return new Response("Forbidden", { status: 403 });
+      return Response.json(doc);
+    }`);
+    expect(r.ownershipFiltered).toBe(true);
+  });
+
+  it("DROP a comparison whose other side is not identity: message.userId === null", () => {
+    const r = route(`export async function GET(req) {
+      const { id } = await req.json();
+      const m = await prisma.message.findUnique({ where: { id } });
+      const fromAdmin = m.userId === null ? "viewer" : "admin";
+      return Response.json({ m, fromAdmin });
+    }`);
+    expect(r.ownershipFiltered).toBe(false);
+  });
+
+  it("KEEP a scoping DATA helper reached through an import", () => {
+    const r = route(
+      `import { historyFor } from "@/lib/history";
+       export async function GET() {
+        const ctx = await requireProUser();
+        return Response.json(await historyFor(ctx.userId));
+      }`,
+      [{ path: "lib/history.ts", content: `export async function historyFor(userId) {
+        return admin.from("scan_history").select("*").eq("user_id", userId);
+      }` }],
+    );
+    expect(r.ownershipFiltered).toBe(true);
+  });
+
+  // ── DROP: mentions that describe shape, not behaviour ──
+  const UNSCOPED_READ = `export async function GET(req) {
+    const { id } = await req.json();
+    return Response.json(await prisma.doc.findUnique({ where: { id } }));
+  }`;
+
+  it("DROP an interface field in a reachable type module", () => {
+    const r = route(`import type { Job } from "@/lib/types";\nimport { fmt } from "@/lib/types";\n${UNSCOPED_READ}`, [
+      { path: "lib/types.ts", content: `export interface Job { id: string; userId: string; status: string }\nexport const fmt = (x) => x;` },
+    ]);
+    expect(r.ownershipFiltered).toBe(false);
+  });
+
+  it("DROP a type alias with an optional field: type Args = { userId?: string }", () => {
+    const r = route(`type Args = { userId?: string; limit?: number };\n${UNSCOPED_READ}`);
+    expect(r.ownershipFiltered).toBe(false);
+  });
+
+  it("DROP a Zod schema: z.object({ userId: z.string() }) and .omit({ userId: true })", () => {
+    const r = route(`const Input = z.object({ userId: z.string(), name: z.string() });\nconst Body = Input.omit({ userId: true });\n${UNSCOPED_READ}`);
+    expect(r.ownershipFiltered).toBe(false);
+  });
+
+  it("DROP a SELECT projection: select: { userId: true }", () => {
+    const r = route(`export async function GET(req) {
+      const { id } = await req.json();
+      return Response.json(await prisma.membership.findMany({ where: { teamId: id }, select: { userId: true, role: true } }));
+    }`);
+    expect(r.ownershipFiltered).toBe(false);
+  });
+
+  it("DROP a validation branch: if ((!viewerId && !userId) || (viewerId && userId)) throw", () => {
+    const r = route(`export async function POST(req) {
+      const { viewerId, userId, id } = await req.json();
+      if ((!viewerId && !userId) || (viewerId && userId)) throw new Error("one of viewerId or userId");
+      return Response.json(await prisma.doc.findUnique({ where: { id } }));
+    }`);
+    expect(r.ownershipFiltered).toBe(false);
+  });
+
+  it("DROP a quoted string mentioning the word", () => {
+    const r = route(`export async function GET(req) {
+      const { id } = await req.json();
+      console.log("lookup by ownerId: userId", id);
+      return Response.json(await prisma.doc.findUnique({ where: { id } }));
+    }`);
+    expect(r.ownershipFiltered).toBe(false);
+  });
+
+  // A template literal is code, not a string: raw SQL lives there.
+  it("KEEP a raw-SQL template: sql`... where user_id = ${userId}`", () => {
+    const r = route(`${SESSION}export async function GET() {
+      const session = await getServerSession();
+      const userId = session.user.id;
+      const rows = await sql\`select * from orders where user_id = \${userId}\`;
+      return Response.json(rows);
+    }`);
+    expect(r.ownershipFiltered).toBe(true);
+  });
+});
+
+// THE DECLARATION RULE, at route level. lib/graph/declarations.ts blanks
+// types, interfaces, imports, parameter bindings and projections before any
+// pattern runs, so no collector can draw evidence from shape. These pin the
+// shapes the tightened ownership pattern alone would still have matched.
+describe("the declaration rule: shape is not behaviour", () => {
+  const route = (src: string, extra: { path: string; content: string }[] = []) =>
+    collectRoutes([{ path: "app/api/x/route.ts", content: src }, ...extra] as never)[0];
+
+  it("DROP a parameter list: function f(teamId, userId)", () => {
+    const r = route(`export async function GET(req) {
+      const { id } = await req.json();
+      return Response.json(await load(id));
+    }
+    async function load(teamId, userId) { return prisma.doc.findMany({ where: { teamId } }); }`);
+    expect(r.ownershipFiltered).toBe(false);
+  });
+
+  it("DROP a destructured parameter: async function f({ teamId, userId })", () => {
+    const r = route(`export async function GET(req) {
+      const { id } = await req.json();
+      return Response.json(await load({ teamId: id }));
+    }
+    async function load({ teamId, userId }) { return prisma.doc.findMany({ where: { teamId } }); }`);
+    expect(r.ownershipFiltered).toBe(false);
+  });
+
+  it("KEEP the use of that parameter inside the body", () => {
+    const r = route(`export async function GET() {
+      const ctx = await requireProUser();
+      return Response.json(await load({ userId: ctx.userId }));
+    }
+    async function load({ userId }) { return prisma.doc.findMany({ where: { ownerId: userId } }); }`);
+    expect(r.ownershipFiltered).toBe(true);
+  });
+
+  it("KEEP a membership check nested inside a select projection (corpus-a: domains/[domain]/transfer)", () => {
+    const r = route(`import { getServerSession } from "next-auth";
+    export async function POST(req) {
+      const session = await getServerSession();
+      const { newWorkspaceId } = await req.json();
+      const ws = await prisma.project.findUnique({
+        where: { id: newWorkspaceId },
+        select: { plan: true, users: { where: { userId: session.user.id }, select: { role: true } } },
+      });
+      if (!ws || ws.users.length === 0) return new Response("not found", { status: 404 });
+      return Response.json(ws);
+    }`);
+    expect(r.ownershipFiltered).toBe(true);
+  });
+
+  it("DROP a table named only inside a type: typeof prisma.user.findMany", () => {
+    const r = route(`type Rows = Awaited<ReturnType<typeof prisma.user.findMany>>;
+    export async function GET() { return Response.json([]); }`);
+    expect(r.tables).toEqual([]);
+  });
+
+  it("DROP an imported-but-never-called session helper", () => {
+    const r = route(`import { getServerSession } from "next-auth";
+    export async function GET(req) {
+      const { id } = await req.json();
+      return Response.json(await prisma.doc.findUnique({ where: { id } }));
+    }`);
+    expect(r.authenticated).toBe(false);
+  });
+
+  it("DROP an imported-but-never-called signature verifier as a machine gate", () => {
+    const r = route(`import { timingSafeEqual } from "crypto";
+    export async function POST(req) {
+      const { id } = await req.json();
+      return Response.json(await prisma.doc.findUnique({ where: { id } }));
+    }`);
+    expect(r.machineGated).toBe(false);
+  });
+
+  it("STILL neutralises a request-supplied name whose destructure was blanked", () => {
+    // The destructure is a declaration and is blanked; the USES it bound must
+    // still be neutralised, which needs the names from the unblanked text.
+    const r = route(`export async function POST(req) {
+      const { userId } = await req.json();
+      return Response.json(await prisma.doc.findMany({ where: { ownerId: userId } }));
+    }`);
+    expect(r.ownershipFiltered).toBe(false);
+  });
+});
+
+// The pages-router half of "a value the caller supplied is not a value that
+// identifies the caller". REQUEST_DESTRUCTURE_RE only knew `req.json()`,
+// `req.body(` and `req.formData(` -- the app-router shapes. In pages/api the
+// same read is `req.query` and `req.body` with no call, and corpus-b is
+// pages/api throughout. Probed on 2026-09-02: `const { userId } = req.query`
+// followed by `where: { userId }` read as owner-filtered. A fail-open on the
+// one check class this product exists for, in the router half the test corpus
+// mostly uses.
+describe("a pages-router request value is caller-supplied too", () => {
+  const page = (src: string) => collectRoutes([{ path: "pages/api/x.ts", content: src }] as never)[0];
+
+  it("does not count a userId destructured from req.query", () => {
+    const r = page(`export default async function handler(req, res) {
+      const { userId } = req.query;
+      return res.json(await prisma.doc.findMany({ where: { userId } }));
+    }`);
+    expect(r.ownershipFiltered).toBe(false);
+  });
+
+  it("does not count a userId destructured from req.body, with or without a cast", () => {
+    for (const read of ["req.body", "req.body as { userId: string }"]) {
+      const r = page(`export default async function handler(req, res) {
+        const { userId } = ${read};
+        return res.json(await prisma.doc.findMany({ where: { userId } }));
+      }`);
+      expect(r.ownershipFiltered, read).toBe(false);
+    }
+  });
+
+  it("does not count a userId assigned from req.query.userId", () => {
+    const r = page(`export default async function handler(req, res) {
+      const userId = req.query.userId as string;
+      return res.json(await prisma.doc.findMany({ where: { userId } }));
+    }`);
+    expect(r.ownershipFiltered).toBe(false);
+  });
+
+  it("STILL counts a session-derived userId in a pages route", () => {
+    const r = page(`import { getServerSession } from "next-auth/next";
+    export default async function handler(req, res) {
+      const session = await getServerSession(req, res, authOptions);
+      const userId = session.user.id;
+      const { teamId } = req.query;
+      return res.json(await prisma.userTeam.findUnique({ where: { userId_teamId: { userId, teamId } } }));
+    }`);
+    expect(r.ownershipFiltered).toBe(true);
+  });
+});
+
+// Found by the call-path tracer, which removed the gap that had been hiding
+// it: corpus-a's /api/resend/webhook verifies every request through Svix and read
+// as anonymous, and the merge check blocked it.
+describe("a signature check we cannot classify is unreadable, not anonymous", () => {
+  const route = (src: string) => collectRoutes([{ path: "app/api/x/route.ts", content: src }] as never)[0];
+
+  it("a member call named verify() on a library object", () => {
+    const r = route(`import { Webhook } from "svix";
+      export const POST = async (req: Request) => {
+        const rawBody = await req.text();
+        new Webhook(process.env.RESEND_WEBHOOK_SECRET!).verify(rawBody, { "svix-id": req.headers.get("svix-id")!, "svix-signature": req.headers.get("svix-signature")! });
+        const { data } = JSON.parse(rawBody);
+        await prisma.emailEvent.create({ data });
+        return Response.json({ ok: true });
+      };`);
+    expect(r.authenticated).toBe(false);
+    expect(r.machineGated).toBe(false);
+    expect(r.identityReadable).toBe(false);
+    expect(r.identityGap).toMatch(/verify|signature/);
+  });
+
+  it("STILL calls a route with no verify and no signature header anonymous", () => {
+    const r = route(`export const POST = async (req: Request) => {
+      const { id } = await req.json();
+      return Response.json(await prisma.doc.findUnique({ where: { id } }));
+    };`);
+    expect(r.identityReadable).toBe(true);
+  });
+});
