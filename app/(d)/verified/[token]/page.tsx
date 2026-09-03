@@ -3,152 +3,170 @@ import Link from "next/link";
 import { getVerifiedReport, type VerifiedReport } from "@/lib/verified/report";
 import { LockMark } from "@/components/d/Brand";
 
-// Public, shareable "ShipLock Verified" posture report. No session — addressed
-// by an unguessable token. Renders an honest, scoped attestation (posture +
-// scope + cadence), never the specific findings/fixes. Lives in the (d) route
-// group only to inherit the design system/fonts; the URL is /verified/<token>.
+// The public, shareable assessment summary. No session — addressed by an
+// unguessable token. Rebuilt 2026-09-03 against the audit pipeline.
+//
+// THE READER IS NOT THE CUSTOMER. It is a technical reviewer at the customer's
+// enterprise prospect, who is deciding whether to believe the customer's
+// security answer, and who will check this against the repository if anything
+// reads as overstated. So the page is ordered the way that reader needs rather
+// than the way a badge would flatter: what was assessed and how much of it
+// could not be, then what was found, then the provenance, then the boundary.
+//
+// The green-badge layout this replaces put "Passing 16 of 16 checks" at the top
+// of a project that had never run that check. There is no badge here.
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Security posture report, ShipLock Verified",
-  description: "A continuously-monitored security posture attestation by ShipLock.",
-  robots: { index: false }, // per-customer report, not for search indexes
+  title: "Security assessment summary, ShipLock",
+  description: "What ShipLock's last automated review of a repository assessed, and what it found.",
+  robots: { index: false }, // per-customer, not for search indexes
 };
 
-function Stat({ label, value, good }: { label: string; value: string; good?: boolean }) {
+const S = {
+  card: {
+    border: "1px solid var(--d-line, #1f2a3a)",
+    borderRadius: 12,
+    padding: "16px 18px",
+    background: "var(--d-card, rgba(255,255,255,0.02))",
+  },
+  eyebrow: { fontSize: 12, opacity: 0.7, marginBottom: 10 } as const,
+} as const;
+
+function Figure({ label, value, tone }: { label: string; value: string; tone?: "bad" | "muted" }) {
   return (
-    <div
-      style={{
-        border: "1px solid var(--d-line, #1f2a3a)",
-        borderRadius: 12,
-        padding: "16px 18px",
-        background: "var(--d-card, rgba(255,255,255,0.02))",
-      }}
-    >
-      <div className="dxd-mono" style={{ fontSize: 11, opacity: 0.7, marginBottom: 6 }}>{label}</div>
-      <div style={{ fontSize: 20, fontWeight: 600, color: good ? "var(--d-verified)" : "inherit" }}>{value}</div>
+    <div style={S.card}>
+      <div style={{ fontSize: 22, fontWeight: 600, color: tone === "bad" ? "var(--crit, #e5484d)" : undefined, opacity: tone === "muted" ? 0.7 : 1 }}>
+        {value}
+      </div>
+      <div className="dxd-mono" style={{ fontSize: 11, opacity: 0.65, marginTop: 6 }}>{label}</div>
     </div>
   );
 }
 
-function ReportBody({ report }: { report: VerifiedReport }) {
-  const verified = report.status === "verified";
-  const fmt = (d: string | null) =>
-    d ? new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "Not recorded";
+function Coverage({ report }: { report: VerifiedReport }) {
+  const a = report.assessment;
+  if (!a) return null;
+
+  if (!a.known) {
+    return (
+      <p style={{ fontSize: 14, lineHeight: 1.7, color: "var(--d-muted)", maxWidth: "70ch" }}>
+        This assessment ran before ShipLock recorded how much of the surface it could judge, so the
+        share below is not available for it. That is a gap in the record, not a finding: it does not
+        mean the whole surface was assessed.
+      </p>
+    );
+  }
+
+  const reasons = [
+    a.reasons.identity > 0 ? `on ${a.reasons.identity}, the check that decides who is calling runs somewhere the review could not follow` : null,
+    a.reasons.scope > 0 ? `on ${a.reasons.scope}, whether the query is narrowed to the caller could not be determined` : null,
+    a.reasons.signature > 0 ? `on ${a.reasons.signature}, a signature or shared-secret check sits in a helper that could not be attributed` : null,
+  ].filter(Boolean);
 
   return (
-    <div className="dxd-shell" style={{ maxWidth: 760, margin: "0 auto", padding: "48px 20px 64px" }}>
-      <nav className="dxd-nav" aria-label="ShipLock" style={{ marginBottom: 40 }}>
-        <span className="dxd-wordmark" style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-          <LockMark size={19} />
-          ShipLock
-        </span>
-        <span className="dxd-mono" style={{ fontSize: 11, opacity: 0.7 }}>Verified report</span>
+    <>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 12, marginBottom: 18 }}>
+        <Figure label="ENDPOINTS REACHING DATA" value={String(a.dataTouching)} />
+        <Figure label="ASSESSED" value={String(a.assessed)} />
+        <Figure label="COULD NOT BE ASSESSED" value={`${a.unassessed} (${a.unassessedShare}%)`} tone={a.unassessedShare >= 25 ? "bad" : undefined} />
+      </div>
+      <p style={{ fontSize: 14, lineHeight: 1.7, color: "var(--d-muted)", maxWidth: "70ch" }}>
+        {a.unassessed === 0
+          ? "Every endpoint that reaches data was judged."
+          : `${a.unassessed} of the ${a.dataTouching} endpoints that reach data could not be judged: ${reasons.join("; ")}. `}
+        {a.unassessed > 0 ? (
+          <strong>
+            Those endpoints are not reported as safe. They were not examined, and a real gap on one of
+            them would look exactly like this.
+          </strong>
+        ) : null}
+        {a.dataUnreadable > 0
+          ? ` A further ${a.dataUnreadable} ${a.dataUnreadable === 1 ? "endpoint reaches" : "endpoints reach"} no data the review could see while importing code it could not follow, so their data access is out of view entirely.`
+          : ""}
+      </p>
+    </>
+  );
+}
+
+function ReportBody({ report }: { report: VerifiedReport }) {
+  const fmt = (d: string | null) =>
+    d ? new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "Not recorded";
+
+  return (
+    <div className="dxd-shell" style={{ maxWidth: 860, margin: "0 auto", padding: "40px 20px 72px" }}>
+      <nav style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 34 }}>
+        <LockMark size={19} />
+        <span className="dxd-mono" style={{ fontSize: 13 }}>ShipLock</span>
       </nav>
 
-      {/* Status banner */}
-      <div
-        style={{
-          display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", borderRadius: 12,
-          border: `1px solid ${verified ? "var(--d-verified)" : "var(--d-line,#1f2a3a)"}`,
-          background: verified ? "rgba(30,122,85,0.08)" : "transparent", marginBottom: 28,
-        }}
-      >
-        <span style={{ display: "flex", color: verified ? "var(--d-verified)" : "var(--d-muted, #7d8ca1)" }}>
-          {verified ? <LockMark size={22} /> : <span style={{ fontSize: 22 }}>○</span>}
-        </span>
-        <div>
-          <div style={{ fontWeight: 600 }}>
-            {verified ? "Continuously monitored by ShipLock" : "Monitoring not currently active"}
-          </div>
-          <div className="dxd-mono" style={{ fontSize: 12, opacity: 0.75 }}>
-            {report.projectHashSuffix ? `Project …${report.projectHashSuffix} · ` : ""}
-            Last verified {fmt(report.lastVerifiedAt)}
-          </div>
-        </div>
-      </div>
+      {/* The result, with its own limitation inside the sentence. */}
+      <h1 style={{ fontSize: 25, lineHeight: 1.35, margin: "0 0 12px", maxWidth: "26ch", fontWeight: 600 }}>
+        {report.headline}
+      </h1>
 
-      <h1 className="dxd-statement" style={{ fontSize: 26, marginBottom: 8 }}>Security posture</h1>
-      <p className="dxd-lede" style={{ opacity: 0.8, marginBottom: 24 }}>
-        Passing <strong>{report.checksPassing}</strong> of {report.totalChecks} automated checks across the
-        OWASP surface, under continuous monitoring.
-      </p>
+      {report.status === "never_assessed" ? (
+        <p style={{ fontSize: 14.5, lineHeight: 1.7, color: "var(--d-muted)", maxWidth: "70ch" }}>
+          This repository is connected to ShipLock, but no audit has completed. There is no result to
+          report and nothing on this page should be read as one.
+        </p>
+      ) : (
+        <>
+          <p className="dxd-mono" style={{ fontSize: 12.5, opacity: 0.7, margin: "0 0 28px" }}>
+            {report.repository}
+            {report.commit ? ` · commit ${report.commit}` : ""} · assessed {fmt(report.assessedAt)}
+            {report.ageDays !== null ? ` (${report.ageDays === 0 ? "today" : `${report.ageDays} days ago`})` : ""}
+          </p>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 12, marginBottom: 32 }}>
-        <Stat label="Checks passing" value={`${report.checksPassing} / ${report.totalChecks}`} good={report.checksPassing === report.totalChecks} />
-        <Stat label="Open critical issues" value={String(report.openCriticalCount)} good={report.openCriticalCount === 0} />
-        <Stat label="Issues resolved" value={String(report.issuesResolved)} />
-        <Stat label="Traffic protection" value={report.trafficProtection ? "Active" : "Not active"} good={report.trafficProtection} />
-        <Stat
-          label="Session signing"
-          value={report.sessionSigning === "asymmetric" ? "Asymmetric" : report.sessionSigning === "legacy" ? "Legacy" : "Not checked"}
-          good={report.sessionSigning === "asymmetric"}
-        />
-        <Stat label="Monitoring" value={report.monitored ? "Live" : "Off"} good={report.monitored} />
-      </div>
+          {report.stale ? (
+            <p style={{ ...S.card, borderColor: "var(--warn, #c98a20)", fontSize: 13.5, lineHeight: 1.6, marginBottom: 28 }}>
+              This assessment is more than a month old. The repository has probably changed since, and
+              nothing here reflects those changes.
+            </p>
+          ) : null}
 
-      <section style={{ marginBottom: 28 }}>
-        <h2 className="dxd-mono" style={{ fontSize: 12, opacity: 0.7, marginBottom: 10 }}>MONITORING CADENCE</h2>
-        <ul style={{ display: "flex", flexWrap: "wrap", gap: 8, listStyle: "none", padding: 0 }}>
-          {report.cadence.map((c) => (
-            <li key={c} className="dxd-mono" style={{ fontSize: 12, padding: "6px 10px", border: "1px solid var(--d-line,#1f2a3a)", borderRadius: 8 }}>{c}</li>
+          <section aria-label="What was assessed" style={{ marginBottom: 30 }}>
+            <h2 className="dxd-mono" style={S.eyebrow}>HOW MUCH OF THE SURFACE WAS ASSESSED</h2>
+            <Coverage report={report} />
+          </section>
+
+          <section aria-label="What was found" style={{ marginBottom: 30 }}>
+            <h2 className="dxd-mono" style={S.eyebrow}>WHAT WAS FOUND, ON THE PART THAT WAS ASSESSED</h2>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 12 }}>
+              <Figure label="UNRESOLVED CRITICAL" value={String(report.openCritical)} tone={report.openCritical > 0 ? "bad" : undefined} />
+              <Figure label="UNRESOLVED, ALL SEVERITIES" value={String(report.openTotal)} />
+              {report.read ? <Figure label="FILES READ" value={String(report.read.files)} tone="muted" /> : null}
+            </div>
+          </section>
+        </>
+      )}
+
+      <section aria-label="Not covered" style={{ marginBottom: 30 }}>
+        <h2 className="dxd-mono" style={S.eyebrow}>NOT COVERED BY THIS ASSESSMENT</h2>
+        <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 10 }}>
+          {report.notCovered.map((line) => (
+            <li key={line} style={{ fontSize: 14, lineHeight: 1.7, color: "var(--d-muted)", maxWidth: "70ch" }}>{line}</li>
           ))}
         </ul>
       </section>
 
-      <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 20, marginBottom: 32 }}>
-        <div>
-          <h2 className="dxd-mono" style={{ fontSize: 12, opacity: 0.7, marginBottom: 10 }}>COVERED</h2>
-          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14, lineHeight: 1.7 }}>
-            {report.scopeCovered.map((s) => <li key={s}>{s}</li>)}
-          </ul>
-        </div>
-        <div>
-          <h2 className="dxd-mono" style={{ fontSize: 12, opacity: 0.7, marginBottom: 10 }}>NOT COVERED BY THIS SCAN</h2>
-          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14, lineHeight: 1.7, opacity: 0.8 }}>
-            {report.scopeNotCovered.map((s) => <li key={s}>{s}</li>)}
-          </ul>
-        </div>
-      </section>
-
-      {/* The honest boundary — rendered prominently, never buried. */}
-      <p style={{ fontSize: 13, lineHeight: 1.6, opacity: 0.7, borderTop: "1px solid var(--d-line,#1f2a3a)", paddingTop: 20, marginBottom: 20 }}>
-        {report.disclaimer}
-      </p>
-
-      {/* Scope of what this page asserts, stated to the READER rather than to
-          the customer. A disclaimer living in our terms binds the customer who
-          agreed to them, not the investor or buyer relying on this page, and
-          reliance by a non-expert on a specialist's public assertion is
-          precisely the negligent-misrepresentation fact pattern. So it says so
-          here, where the relying party actually sees it. See LEGAL-MEMO.md §2. */}
-      <div
-        style={{
-          fontSize: 12.5,
-          lineHeight: 1.65,
-          opacity: 0.62,
-          border: "1px solid var(--d-line,#1f2a3a)",
-          borderRadius: 10,
-          padding: "14px 16px",
-          marginBottom: 32,
-        }}
-      >
+      {/* Stated to the READER rather than to the customer. A disclaimer in our
+          terms binds the customer who agreed to them, not the buyer relying on
+          this page, and reliance by a non-expert on a specialist's public
+          assertion is the negligent-misrepresentation fact pattern. */}
+      <div style={{ borderTop: "1px solid var(--d-line,#1f2a3a)", paddingTop: 20, fontSize: 12.5, lineHeight: 1.65, opacity: 0.62 }}>
         <div className="dxd-mono" style={{ fontSize: 10.5, letterSpacing: "0.1em", marginBottom: 8 }}>
           WHAT THIS PAGE IS, AND ISN&apos;T
         </div>
         <p style={{ margin: 0 }}>
-          This page reports that a project is connected to ShipLock, which automated checks we
-          run, and when they last ran. It is <strong>not</strong> a security certification, an
-          audit opinion, a penetration test, or a compliance attestation, and it does not state
-          that this application is secure or free of vulnerabilities. No automated tool can
-          establish that. It is published by the project&apos;s owner for information only.
-          ShipLock accepts no liability to any reader for decisions taken in reliance on it.
+          {report.disclaimer} ShipLock accepts no liability to any reader for decisions taken in
+          reliance on it.
         </p>
       </div>
 
-      <footer style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-        <span className="dxd-mono" style={{ fontSize: 11, opacity: 0.6 }}>Live report · verified by ShipLock</span>
-        <Link href="/" className="dxd-mono" style={{ fontSize: 12 }}>Secure your app with ShipLock →</Link>
+      <footer style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginTop: 26 }}>
+        <span className="dxd-mono" style={{ fontSize: 11, opacity: 0.6 }}>Generated by ShipLock from the repository&apos;s source</span>
+        <Link href="/coverage" className="dxd-mono" style={{ fontSize: 12 }}>What ShipLock checks →</Link>
       </footer>
     </div>
   );
@@ -158,14 +176,13 @@ export default async function VerifiedReportPage({ params }: { params: Promise<{
   const { token } = await params;
   const report = await getVerifiedReport(token);
 
-  // Disabled or nonexistent token are indistinguishable — no enumeration.
+  // A disabled report and a nonexistent token are indistinguishable.
   if (!report) {
     return (
       <main className="dxd">
         <div className="dxd-shell" style={{ maxWidth: 560, margin: "0 auto", padding: "80px 20px", textAlign: "center" }}>
           <LockMark size={28} />
-          <h1 className="dxd-statement" style={{ fontSize: 22, margin: "20px 0 8px" }}>No active report</h1>
-          <p className="dxd-lede" style={{ opacity: 0.75 }}>
+          <p className="dxd-lede" style={{ opacity: 0.75, marginTop: 18 }}>
             There is no active ShipLock report at this link.
           </p>
           <Link href="/" className="dxd-mono" style={{ fontSize: 13, display: "inline-block", marginTop: 20 }}>

@@ -1,196 +1,246 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { getScanTimeline } from "@/lib/scanHistory";
-import { getWatchStatus } from "@/lib/monitoring/watchLog";
-import { getProtectionStatus } from "@/lib/traffic/trafficLog";
-import { auditJwtSigning } from "@/lib/security/sessionAudit";
+import type { UnassessedSummary } from "@/lib/agent/unassessed";
 
-// "ShipLock Verified" — a shareable, honestly-scoped security-posture
-// attestation a customer can hand to their own investors / enterprise buyers.
+// "ShipLock Verified" — a shareable, honestly-scoped statement of what the last
+// audit assessed and what it found, addressed by an unguessable token.
 //
-// HARD RULES (why this file is deliberately narrow):
-//  - It attests PROCESS + CURRENT POSTURE, never a guarantee. No "certified
-//    secure" / "unhackable" language anywhere.
-//  - It is a public projection reachable by an unguessable token with NO
-//    session, so it must be attacker-safe: posture + scope + cadence only —
-//    NEVER the specific findings/titles/fixes, the project URL, or any key.
-//  - It degrades honestly: a lapsed subscriber's report drops to `inactive`
-//    (no forged/stale green badge).
-// buildVerifiedReport is pure so all of this is unit-testable.
+// REBUILT 2026-09-03 against the audit pipeline. The previous version was built
+// on the superseded external scanner and could not be made honest by editing:
+// it computed "passing N of 16 checks" as sixteen minus a scan-issue count that
+// is zero for an account that never ran that scan, so a project which had never
+// been checked rendered sixteen of sixteen; it named an hourly pass nothing
+// triggers; and its badge read `is_paid`, false for everyone while billing is
+// parked. Every number below comes from `audit_runs` and `deep_findings`.
+//
+// HARD RULES, and each is asserted in report.test.ts:
+//  - THE DISCLOSURE LEADS. The share of the surface we could not judge is in
+//    the headline sentence, not below it. A report that says "no critical
+//    findings" while silently assessing a fifth of the endpoints is the exact
+//    failure "absent is not clean" exists to prevent, and this is the surface
+//    where it would cost the most.
+//  - An absent measurement is never rendered as a clean one. A run from before
+//    the disclosure has `unassessed: null` and says so.
+//  - Attacker-safe: counts and boundaries only. Never a finding title, an
+//    endpoint path, a table name, or the repository's contents.
+//  - No billing state. Whether someone pays has nothing to do with what an
+//    audit found.
+//
+// buildVerifiedReport is pure, so all of this is unit-testable.
 
-const RECENT_SCAN_WINDOW_MS = 72 * 60 * 60 * 1000; // "recently verified" = within 72h
-const TOTAL_CHECKS = 16; // lib/scanner.ts always runs the same 16 checks
+/** Older than this and the page says so rather than presenting it as current. */
+const STALE_AFTER_DAYS = 30;
 
-// Honest, non-technical scope statements. Covered = what our automated surface
-// actually tests; NotCovered mirrors CLAUDE.md / the /owasp "what we
-// can't scan" section so the attestation reads as credible to a real reviewer.
-export const SCOPE_COVERED: string[] = [
-  "Row-level access control on the database (RLS presence + policy logic)",
-  "Publicly exposed data, tables, and storage buckets",
-  "Exposed secrets and committed credentials",
-  "Known-vulnerable dependencies (CVEs)",
-  "Security misconfiguration and session-token signing",
-  "Continuous monitoring for new issues on every pull request",
-];
-export const SCOPE_NOT_COVERED: string[] = [
-  "Deep business-logic flaws unique to the application",
-  "Runtime-only vulnerabilities that need a live exploit to confirm",
-  "Manual penetration testing depth",
-];
+export interface VerifiedRunData {
+  fullName: string;
+  commitSha: string | null;
+  finishedAt: string | null;
+  trigger: string;
+  filesRead: number | null;
+  entriesFound: number | null;
+  tablesFound: number | null;
+  /** Null for a run that predates the disclosure. Never treated as zero. */
+  unassessed: UnassessedSummary | null;
+}
 
-export type VerifiedStatus = "verified" | "inactive";
-export type SessionSigning = "asymmetric" | "legacy" | "unknown" | null;
-
-// Raw inputs assembled by getVerifiedReport, kept separate from the DB so the
-// projection logic is pure/testable.
 export interface VerifiedReportData {
-  isPaid: boolean;
-  enabled: boolean; // verified_report_enabled
-  monitoringEnabled: boolean;
-  lastScanAt: string | null;
-  projectHashSuffix: string | null; // last 6 of project_url_hash — an anonymous identifier, never the URL
-  openCriticalCount: number;
-  openIssueCount: number; // total open scan issues (drives checksPassing)
-  issuesResolved: number; // net issues resolved since monitoring began (>= 0)
-  trafficInstalled: boolean;
-  sessionSigning: SessionSigning;
+  /** The owner published this report. */
+  enabled: boolean;
+  /** The most recent COMPLETED run, or null when there has never been one. */
+  run: VerifiedRunData | null;
+  openCritical: number;
+  openTotal: number;
+  hasDatabase: boolean;
   nowMs: number;
 }
 
+export type VerifiedStatus = "assessed" | "never_assessed";
+
+/** The assessed/unassessed split, or `{ known: false }` for a run that predates it. */
+export type Assessment =
+  | { known: false }
+  | {
+      known: true;
+      dataTouching: number;
+      assessed: number;
+      unassessed: number;
+      /** Percentage of data-touching endpoints we could not judge, 0-100. */
+      unassessedShare: number;
+      reasons: { identity: number; scope: number; signature: number };
+      dataUnreadable: number;
+    };
+
 export interface VerifiedReport {
   status: VerifiedStatus;
-  monitored: boolean;
-  clean: boolean; // no open critical issues
-  lastVerifiedAt: string | null;
-  cadence: string[]; // human-readable monitoring cadence
-  checksPassing: number;
-  totalChecks: number;
-  openCriticalCount: number;
-  issuesResolved: number;
-  trafficProtection: boolean;
-  sessionSigning: SessionSigning;
-  projectHashSuffix: string | null;
-  scopeCovered: string[];
-  scopeNotCovered: string[];
-  // The honest boundary line, rendered prominently on the report.
+  repository: string | null;
+  /** Short commit sha, or null when the run recorded none. */
+  commit: string | null;
+  assessedAt: string | null;
+  ageDays: number | null;
+  stale: boolean;
+  trigger: string | null;
+  read: { files: number; entries: number; tables: number } | null;
+  assessment: Assessment | null;
+  openCritical: number;
+  openTotal: number;
+  /** What this assessment did not look at, in the reader's terms. */
+  notCovered: string[];
+  /** The one-sentence result, with the limitation inside it. */
+  headline: string;
   disclaimer: string;
 }
 
 const DISCLAIMER =
-  "This attests that the application is under continuous automated security monitoring by ShipLock and its current posture on the checks below. " +
-  "It is not a guarantee that the application is free of all vulnerabilities — no automated tool can promise that. See the scope for what is and isn't covered.";
+  "This states what ShipLock's last automated review of this repository assessed and what it found. " +
+  "It is not a security certification, an audit opinion, a penetration test, or a compliance attestation, " +
+  "and no automated review can establish that an application is free of vulnerabilities. " +
+  "It is published by the repository's owner for information only.";
 
-/**
- * Pure projection. Decides verified-vs-inactive and produces only
- * attacker-safe, paywall-safe posture fields.
- */
+function notCoveredFor(hasDatabase: boolean): string[] {
+  return [
+    ...(hasDatabase
+      ? []
+      : ["The access rules in the database itself. Row-level policies live there, not in the code, and no database is connected to this report."]),
+    "Runtime configuration: environment variable values, provider dashboard settings, and anything that is not in the repository.",
+    "Business logic specific to this application, where correct behaviour is a matter of intent rather than structure.",
+    "Anything that needs the application running. This is a read of source code, not a penetration test, and nothing was attacked.",
+  ];
+}
+
+/** Pure projection. Everything the public page renders comes from here. */
 export function buildVerifiedReport(d: VerifiedReportData): VerifiedReport {
-  const recent =
-    d.lastScanAt != null &&
-    !Number.isNaN(Date.parse(d.lastScanAt)) &&
-    d.nowMs - Date.parse(d.lastScanAt) <= RECENT_SCAN_WINDOW_MS;
+  const notCovered = notCoveredFor(d.hasDatabase);
 
-  // A live "verified" badge requires an active paid subscription, the owner
-  // having opted the report public, monitoring on, and a recent scan. Anything
-  // else degrades to `inactive` — the report still renders, honestly, without a
-  // live badge.
-  const status: VerifiedStatus =
-    d.isPaid && d.enabled && d.monitoringEnabled && recent ? "verified" : "inactive";
+  if (!d.run) {
+    return {
+      status: "never_assessed",
+      repository: null,
+      commit: null,
+      assessedAt: null,
+      ageDays: null,
+      stale: false,
+      trigger: null,
+      read: null,
+      assessment: null,
+      openCritical: 0,
+      openTotal: 0,
+      notCovered,
+      headline: "No completed assessment. Nothing on this page has been checked.",
+      disclaimer: DISCLAIMER,
+    };
+  }
 
-  const checksPassing = Math.max(0, TOTAL_CHECKS - Math.max(0, d.openIssueCount));
+  const finishedMs = d.run.finishedAt ? Date.parse(d.run.finishedAt) : NaN;
+  const ageDays = Number.isNaN(finishedMs) ? null : Math.floor((d.nowMs - finishedMs) / 86_400_000);
+
+  const u = d.run.unassessed;
+  const assessment: Assessment = u
+    ? {
+        known: true,
+        dataTouching: u.dataTouching,
+        assessed: u.dataTouching - u.unassessed,
+        unassessed: u.unassessed,
+        unassessedShare: u.dataTouching > 0 ? Math.round((100 * u.unassessed) / u.dataTouching) : 0,
+        reasons: u.reasons,
+        dataUnreadable: u.dataUnreadable,
+      }
+    : { known: false };
+
+  // THE HEADLINE CARRIES THE LIMITATION. "No critical findings" on its own is
+  // the sentence a reader would quote, and on its own it is not true of the
+  // whole surface -- only of the part we could judge. So the denominator is in
+  // the same sentence, always, and unresolved criticals lead when there are any.
+  const scope = assessment.known
+    ? `the ${assessment.assessed} of ${assessment.dataTouching} endpoints that could be assessed`
+    : "the endpoints that could be assessed";
+  const headline = !assessment.known
+    ? d.openCritical > 0
+      ? `${d.openCritical} unresolved critical ${d.openCritical === 1 ? "finding" : "findings"}. This assessment predates the record of how much of the surface could be judged.`
+      : "No critical findings, but this assessment predates the record of how much of the surface could be judged."
+    : d.openCritical > 0
+      ? `${d.openCritical} unresolved critical ${d.openCritical === 1 ? "finding" : "findings"} on ${scope}`
+      : `No critical findings on ${scope}`;
 
   return {
-    status,
-    monitored: d.monitoringEnabled && d.isPaid,
-    clean: d.openCriticalCount === 0,
-    lastVerifiedAt: d.lastScanAt,
-    cadence: ["On every pull request", "Hourly critical-check pass", "Full deep scan every 48h"],
-    checksPassing,
-    totalChecks: TOTAL_CHECKS,
-    openCriticalCount: Math.max(0, d.openCriticalCount),
-    issuesResolved: Math.max(0, d.issuesResolved),
-    trafficProtection: d.trafficInstalled,
-    sessionSigning: d.sessionSigning,
-    projectHashSuffix: d.projectHashSuffix,
-    scopeCovered: SCOPE_COVERED,
-    scopeNotCovered: SCOPE_NOT_COVERED,
+    status: "assessed",
+    repository: d.run.fullName,
+    commit: d.run.commitSha ? d.run.commitSha.slice(0, 7) : null,
+    assessedAt: d.run.finishedAt,
+    ageDays,
+    stale: ageDays !== null && ageDays > STALE_AFTER_DAYS,
+    trigger: d.run.trigger,
+    read:
+      d.run.filesRead !== null && d.run.entriesFound !== null
+        ? { files: d.run.filesRead, entries: d.run.entriesFound, tables: d.run.tablesFound ?? 0 }
+        : null,
+    assessment,
+    openCritical: Math.max(0, d.openCritical),
+    openTotal: Math.max(0, d.openTotal),
+    notCovered,
+    headline,
     disclaimer: DISCLAIMER,
   };
 }
 
-// Service-role read by token (same auth-by-unguessable-token pattern as
-// app/api/monitor/vercel/[token]). Returns null when the token doesn't match a
-// row at all — the page renders a generic "no active report" either way, so a
-// disabled report is indistinguishable from a nonexistent one (no enumeration).
+/**
+ * Service-role read by token, no session — the same unguessable-token model as
+ * the deploy webhook. Returns null when the token matches no published report,
+ * so a disabled report and a nonexistent one are indistinguishable and the
+ * token space cannot be enumerated.
+ */
 export async function getVerifiedReport(token: string): Promise<VerifiedReport | null> {
   if (!token) return null;
   const admin = getSupabaseAdmin();
 
   const { data: profile } = await admin
     .from("user_profiles")
-    .select(
-      "id, is_paid, verified_report_enabled, monitoring_enabled, last_monitored_at, monitored_project_url"
-    )
+    .select("id, verified_report_enabled, supabase_project_ref, postgres_display")
     .eq("verified_report_token", token)
     .maybeSingle();
 
-  if (!profile) return null;
+  if (!profile || !profile.verified_report_enabled) return null;
   const userId = profile.id as string;
 
-  // Latest scan + timeline (counts only — preview-safe), monitoring status,
-  // traffic install state. Deep findings' open-critical count. Session signing
-  // is best-effort from the stored project URL (used server-side only, never
-  // returned).
-  const [timeline, watchStatus, protection, deepCritical] = await Promise.all([
-    getScanTimeline(userId, 30),
-    getWatchStatus(userId),
-    getProtectionStatus(userId),
+  const [runRes, criticalRes, openRes] = await Promise.all([
+    admin
+      .from("audit_runs")
+      .select("full_name, commit_sha, finished_at, trigger, files_read, entries_found, tables_found, unassessed")
+      .eq("user_id", userId)
+      .eq("status", "complete")
+      .order("finished_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
     admin
       .from("deep_findings")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId)
       .eq("severity", "CRITICAL")
       .is("archived_at", null),
+    admin
+      .from("deep_findings")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .is("archived_at", null),
   ]);
 
-  const latestCount = timeline[0]?.issue_count ?? 0;
-  // Net issues resolved since monitoring began: the earliest recorded open
-  // count minus the current one, floored at 0. Honest and simple.
-  const earliestCount = timeline.length ? timeline[timeline.length - 1].issue_count ?? 0 : 0;
-  const issuesResolved = Math.max(0, earliestCount - latestCount);
-
-  let sessionSigning: SessionSigning = null;
-  const projectUrl = profile.monitored_project_url as string | null | undefined;
-  if (projectUrl) {
-    try {
-      const posture = await auditJwtSigning(projectUrl);
-      sessionSigning = posture.ok ? "asymmetric" : posture.title.includes("determine") ? "unknown" : "legacy";
-    } catch {
-      sessionSigning = "unknown";
-    }
-  }
-
-  // Project hash suffix as an anonymous identifier (never the URL). We only
-  // have the hash on scan_history, not the profile — fetch just the suffix.
-  const { data: lastScan } = await admin
-    .from("scan_history")
-    .select("project_url_hash")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const hash = (lastScan?.project_url_hash as string | null) ?? null;
+  const row = runRes.data as Record<string, unknown> | null;
 
   return buildVerifiedReport({
-    isPaid: Boolean(profile.is_paid),
-    enabled: Boolean(profile.verified_report_enabled),
-    monitoringEnabled: Boolean(profile.monitoring_enabled),
-    lastScanAt: (watchStatus.lastDeepScanAt as string | null) ?? timeline[0]?.created_at ?? null,
-    projectHashSuffix: hash ? hash.slice(-6) : null,
-    openCriticalCount: deepCritical.count ?? 0,
-    openIssueCount: latestCount,
-    issuesResolved,
-    trafficInstalled: protection.installed,
-    sessionSigning,
+    enabled: true,
+    run: row
+      ? {
+          fullName: String(row.full_name),
+          commitSha: (row.commit_sha as string | null) ?? null,
+          finishedAt: (row.finished_at as string | null) ?? null,
+          trigger: String(row.trigger ?? "manual"),
+          filesRead: (row.files_read as number | null) ?? null,
+          entriesFound: (row.entries_found as number | null) ?? null,
+          tablesFound: (row.tables_found as number | null) ?? null,
+          unassessed: (row.unassessed as UnassessedSummary | null) ?? null,
+        }
+      : null,
+    openCritical: criticalRes.count ?? 0,
+    openTotal: openRes.count ?? 0,
+    hasDatabase: Boolean(profile.supabase_project_ref || profile.postgres_display),
     nowMs: Date.now(),
   });
 }

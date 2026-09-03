@@ -5,6 +5,7 @@ import { getRepositories } from "@/lib/agent/dashboardData";
 import { isSupabaseMgmtConfigured } from "@/lib/deep/supabaseMgmt";
 import { SupabasePanel } from "@/components/d/SupabasePanel";
 import { PostgresPanel } from "@/components/d/PostgresPanel";
+import { VerifiedPanel } from "@/components/d/VerifiedPanel";
 import { BILLING_ENABLED } from "@/lib/access";
 
 /**
@@ -21,7 +22,9 @@ export default async function SettingsPage() {
   const [{ data: profile }, repos] = await Promise.all([
     admin
       .from("user_profiles")
-      .select("github_installation_id, supabase_mgmt_token_encrypted, postgres_dsn_encrypted, postgres_display")
+      .select(
+        "github_installation_id, supabase_mgmt_token_encrypted, postgres_dsn_encrypted, postgres_display, verified_report_enabled, verified_report_token, monitored_app_url"
+      )
       .eq("id", userId)
       .single(),
     getRepositories(userId),
@@ -86,6 +89,25 @@ export default async function SettingsPage() {
             ) : (
               <PostgresPanel connected={postgresConnected} display={profile?.postgres_display ?? null} />
             )}
+          </div>
+        </div>
+
+        {/* The shareable assessment. Lives beside the connections because that
+            is where a customer goes once an audit has run and someone has asked
+            them a security question. */}
+        <div className="v3-card">
+          <div className="v3-hd">
+            <h2 className="v3-eyebrow">Shareable assessment</h2>
+            <span className={`v3-tag ${profile?.verified_report_enabled ? "ok" : ""}`}>
+              {profile?.verified_report_enabled ? "published" : "not published"}
+            </span>
+          </div>
+          <div className="v3-card-p">
+            <VerifiedPanel
+              initialEnabled={Boolean(profile?.verified_report_enabled)}
+              initialToken={(profile?.verified_report_token as string | null) ?? null}
+              appUrl={(profile?.monitored_app_url as string | null) ?? ""}
+            />
           </div>
         </div>
 

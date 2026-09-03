@@ -11,7 +11,7 @@ import { inferDomain } from "./domain";
 import { loadLiveFacts } from "./liveFacts";
 import { openFixPullRequests } from "./autoFixPr";
 import { getOpenFindings } from "./dashboardData";
-import { unassessedNote } from "./unassessed";
+import { unassessedNote, summarizeUnassessed } from "./unassessed";
 
 /**
  * One audit of one repository, start to finish.
@@ -477,6 +477,9 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
         trace,
         coverage,
         files_read: archive.files.length,
+        // The numbers behind the coverage note, kept as data so the Verified
+        // report does not have to parse them out of a sentence.
+        unassessed: summarizeUnassessed(routes),
         entries_found: routes.length,
         tables_found: tables.length,
         findings_count: findings.length,

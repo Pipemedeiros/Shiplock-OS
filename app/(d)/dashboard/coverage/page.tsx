@@ -87,7 +87,9 @@ export default async function Coverage() {
             <p className="v3-sub" style={{ fontSize: 14, maxWidth: 720 }}>
               Connecting a read-only database role lets the audit read your access rules directly
               instead of inferring them from code. It is not a setup step and nothing is withheld
-              without it.
+              without it. If someone has asked you a security question, the same picture as this
+              page — what was assessed, what could not be, what is open — can be published at a
+              private link from <Link href="/dashboard/settings">Settings</Link>.
             </p>
           </div>
         </div>
