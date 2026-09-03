@@ -5,7 +5,7 @@ import { env } from "@/lib/env";
 // Kick off the GitHub App install. Pro-gated server-side. Redirects to the
 // App's public install page; GitHub sends the user to our callback with an
 // installation_id once they pick which repos to grant (read-only). Returns 400
-// if the App isn't registered yet (GITHUB_APP_SLUG unset — see ROADMAP.md).
+// if the App isn't registered yet (GITHUB_APP_SLUG unset — see CLAUDE.md).
 export async function GET() {
   const base = env.NEXT_PUBLIC_APP_URL;
   const pro = await requireProUser();

@@ -5,7 +5,7 @@ import type { Dep, OsvVuln } from "./githubScan";
 import { fixedVersionFromOsv } from "./githubFix";
 
 // GitHub App API access. READ-ONLY: the App requests only "Repository contents:
-// read" + "Metadata: read" (see ROADMAP.md). This module never writes
+// read" + "Metadata: read" (see CLAUDE.md). This module never writes
 // to a repo. All functions throw a clear error at call time if the App isn't
 // configured yet — same optional-env pattern as lib/deep/vercel.ts.
 const API = "https://api.github.com";
@@ -163,7 +163,7 @@ export async function queryOsv(deps: Dep[]): Promise<{ dep: Dep; vulns: OsvVuln[
 // ── Write flow (fix PRs) ───────────────────────────────────────────────────
 // Used ONLY to open pull requests for dependency bumps. Never pushes to the
 // default branch and never merges. Requires the App's Contents + Pull requests
-// write permissions (see ROADMAP.md).
+// write permissions (see CLAUDE.md).
 
 async function ghWrite(token: string, path: string, method: string, body: unknown) {
   const res = await fetch(`${API}${path}`, {

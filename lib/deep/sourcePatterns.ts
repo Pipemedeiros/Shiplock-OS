@@ -1,6 +1,6 @@
 import type { GithubFinding, RepoFile } from "./githubScan";
 
-// Tier-1 gap-closers (ROADMAP.md 🟡 rows): cheap, high-precision source
+// Tier-1 gap-closers (CLAUDE.md 🟡 rows): cheap, high-precision source
 // patterns that close crypto / client-side / URL-exposure gaps the config scan
 // can't see. PURE — no network. Rides the GitHub source layer. Same FP/FN
 // discipline as githubScan.ts: only KNOWN-BAD, context-guarded patterns, so we

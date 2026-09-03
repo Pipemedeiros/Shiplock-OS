@@ -21,7 +21,7 @@ const RECENT_SCAN_WINDOW_MS = 72 * 60 * 60 * 1000; // "recently verified" = with
 const TOTAL_CHECKS = 16; // lib/scanner.ts always runs the same 16 checks
 
 // Honest, non-technical scope statements. Covered = what our automated surface
-// actually tests; NotCovered mirrors ROADMAP.md / the /owasp "what we
+// actually tests; NotCovered mirrors CLAUDE.md / the /owasp "what we
 // can't scan" section so the attestation reads as credible to a real reviewer.
 export const SCOPE_COVERED: string[] = [
   "Row-level access control on the database (RLS presence + policy logic)",

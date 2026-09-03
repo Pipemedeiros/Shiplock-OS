@@ -34,7 +34,7 @@ const envSchema = z.object({
   SUPABASE_OAUTH_CLIENT_SECRET: optionalSecret,
   // Optional: the GitHub App (source scanning) may not be registered yet.
   // lib/deep/github.ts throws a clear error at call time if these are unset.
-  // See ROADMAP.md for how to create the App and obtain these.
+  // See CLAUDE.md for how to create the App and obtain these.
   // ShipLock's own proving project — enables the free proving path for
   // customers whose plan does not include Supabase Branching.
   SHIPLOCK_PROVING_TOKEN: optionalSecret,
@@ -45,7 +45,7 @@ const envSchema = z.object({
   GITHUB_WEBHOOK_SECRET: optionalSecret,
   // Optional: Better Auth 2FA (layered on Supabase Auth). lib/betterAuth.ts is
   // only instantiated when BOTH are present. DATABASE_URL is a direct Postgres
-  // connection (Supabase) used only by the 2FA layer. See ROADMAP.md.
+  // connection (Supabase) used only by the 2FA layer. See CLAUDE.md.
   BETTER_AUTH_SECRET: optionalSecret,
   DATABASE_URL: optionalSecret,
 });

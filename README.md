@@ -1,38 +1,37 @@
 # ShipLock
 
-Continuous, enterprise-methodology security monitoring for AI-built apps —
-built for founders shipping on Lovable/Bolt/Cursor/v0 with a Supabase backend who
-can build but aren't security experts. $49/month, 7-day trial.
+ShipLock reads a GitHub repository, reports how an attacker could reach user
+data, and opens the fix as a pull request. One connection: the GitHub App.
+Everything else is inferred from the code.
 
-The differentiator is continuous depth + honesty, delivered at a consumer price —
-not a one-off grade, and **not** an autonomous offensive agent (that direction was
-dropped by design).
+## How it works
 
-## What it does
-- **Scan** — 16 external checks across auth/access, data exposure, config, and
-  injection (`lib/scanner.ts`).
-- **Deep layer** — RLS policy-logic detection, source SAST (secrets, dependency
-  CVEs, weak crypto, client XSS, injection), and a reasoning pass, via a connected
-  GitHub App.
-- **Traffic protection** — a fail-open edge mirror + attacker blocklist.
-- **Monitoring** — deploy-triggered, hourly critical-check, and 48h deep passes.
-- **Fixes** — one reviewable, editable **PR** per finding (migration PR for
-  DB/RLS the customer merges; ShipLock never writes prod directly).
-- **Verified report** — a shareable security-posture attestation.
+1. **Ingest** — the whole repository as one tarball (`lib/deep/repoArchive.ts`).
+2. **Recon** — stack from the manifest and real imports, tables and columns from
+   the schema, and a route inventory that records whether each route resolves a
+   user identity, a machine gate, or nothing (`lib/graph/routeInventory.ts`).
+3. **Hypothesis** — a model proposes attack paths (`lib/agent/attack.ts`); a
+   deterministic guard refuses anything citing a route, file or table we did not
+   observe (`attackGuard.ts`).
+4. **Report** — findings with a claims ledger, plus a Coverage page built from
+   what actually happened in the run. Absent is never presented as clean.
+5. **Fix** — a pull request on its own branch, never merged by us.
 
-## Stack
-Next.js 16 (App Router) · TypeScript · Tailwind · Supabase · Stripe · Resend ·
-Vercel · PostHog · Anthropic.
+We never attack the customer's application. Anything reproducible is reproduced
+on a disposable replica (`lib/proving/`). We never read customer users' data.
 
 ## Development
+
 ```bash
 npm run dev      # local dev server
 npm run build    # must pass before commit
 npm run lint     # must pass before commit
-npm test         # vitest
+npm test         # vitest — 1807 tests as of 2026-09-02
 ```
 
 ## Docs
-- `CLAUDE.md` — architecture, rules, and non-negotiable boundaries (source of truth).
-- `ROADMAP.md` — current state, launch checklist, coverage honesty, roadmap.
-- `marketing.md` / `marketing-strategy.md` — market research + GTM.
+
+- `CLAUDE.md` — what the code does. Canonical.
+- `docs/STATE.md` — current work, withdrawn findings, standing list. Read first.
+- `MVP-SPEC.md` — MVP shape and the verified gap list.
+- `PRODUCT-DESIGN.md` — rationale of record, not status.
