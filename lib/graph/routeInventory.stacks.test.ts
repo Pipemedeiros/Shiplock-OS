@@ -1319,3 +1319,54 @@ describe("an identity does not stop being the caller's when a function is applie
     expect(r.ownershipFiltered).toBe(false);
   });
 });
+
+// Found on corpus-a's /api/partner-profile/programs/[programId]: the statement
+// `getProgramEnrollmentOrThrow({ partnerId: partner.id, programId:
+// params.programId })` was DELETED whole because it mentions `params`, and the
+// real filter went with it. A request read in a statement neutralises the
+// request read, never the statement.
+describe("a request read does not erase the filter beside it", () => {
+  it("KEEP a session filter in the same statement as a params read", () => {
+    const r = collectRoutes([{ path: "app/api/x/[id]/route.ts", content: `import { getServerSession } from "next-auth";
+      export async function GET(req, { params }) {
+        const session = await getServerSession();
+        const row = await prisma.doc.findFirst({ where: { id: params.id, ownerId: session.user.id } });
+        return Response.json(row);
+      }` }] as never)[0];
+    expect(r.ownershipFiltered).toBe(true);
+  });
+
+  it("STILL does not count the params value itself", () => {
+    const r = collectRoutes([{ path: "app/api/x/[userId]/route.ts", content: `export async function GET(req, { params }) {
+        const userId = params.userId;
+        const rows = await prisma.doc.findMany({ where: { userId } });
+        return Response.json(rows);
+      }` }] as never)[0];
+    expect(r.ownershipFiltered).toBe(false);
+  });
+});
+
+// corpus-e's status page keeps its anonymous routes under a route group the
+// application itself names "(public)". Once accidental ownership evidence was
+// removed, /[domain]/[locale]/llms.txt BLOCKED the merge check as anonymous --
+// a public status page, which is what it is for. A directory the application
+// names public is a stated intent, so the route is disclosed, not judged.
+describe("a route the application files under (public) is public by its own layout", () => {
+  it("is disclosed as by-design rather than judged anonymous", () => {
+    const r = collectRoutes([{ path: "src/app/(status-page)/[domain]/(public)/llms.txt/route.ts", content: `export async function GET(req, { params }) {
+      const { domain } = await params;
+      return Response.json(await db.query.page.findFirst({ where: eq(page.slug, domain) }));
+    }` }] as never)[0];
+    expect(r.authenticated).toBe(false);
+    expect(r.identityReadable).toBe(false);
+    expect(r.identityGap).toMatch(/public/);
+  });
+
+  it("STILL calls the same route anonymous outside such a group", () => {
+    const r = collectRoutes([{ path: "src/app/api/llms/route.ts", content: `export async function GET(req) {
+      const domain = new URL(req.url).searchParams.get("d");
+      return Response.json(await db.query.page.findFirst({ where: eq(page.slug, domain) }));
+    }` }] as never)[0];
+    expect(r.identityReadable).toBe(true);
+  });
+});

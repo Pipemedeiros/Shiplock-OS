@@ -377,7 +377,7 @@ const CALLER_IDENTITY =
 // site passed, see ./callPath.ts) are not, and the first draft matched them
 // on the left-hand column alone.
 const EITHER = `(?:${OWNER_VALUE}|${CALLER_IDENTITY})`;
-const OWNERSHIP_RE = new RegExp(
+export const OWNERSHIP_RE = new RegExp(
   "\\bauth\\s*\\??\\s*\\.\\s*uid\\s*\\(" +
     `|\\b${CALLER_IDENTITY}\\b` +
     `|:\\s*${OWNER_VALUE}\\b` +
@@ -470,6 +470,9 @@ const REQUEST_DESTRUCTURE_STATEMENT_RE = new RegExp(
 );
 const REQUEST_ASSIGN_RE =
   /(?:const|let|var)\s+(\w+)\s*=\s*[^;=]*?(?:(?:req|request)\s*\.\s*(?:json|body|query|formData|nextUrl)|searchParams|params)\b[^;]*;/g;
+/** A request value read in place: `params.id`, `req.query.userId`, `searchParams.get("x")`. */
+const REQUEST_MEMBER_RE =
+  /\b(?:req|request)\s*\.\s*(?:query|body|params|nextUrl)\s*(?:\??\.\s*\w+)+|\b(?:params|searchParams)\s*\??\.\s*(?:get\s*\([^)]*\)|\w+)/g;
 
 /**
  * A name that looks like an identifier. NOT a list of domain nouns.
@@ -633,9 +636,15 @@ export function withoutIdentityResolution(src: string, original: string = src): 
   // not enough when the destructure renames: `const { userId: ownerId } =
   // await request.json()` still leaves the KEY `userId` on the line, and that
   // matches the ownership pattern on its own.
+  // The destructure statement goes whole: it binds names and nothing else.
+  // An assignment does NOT: `const enrollment = getEnrollment({ partnerId:
+  // partner.id, programId: params.programId })` carries a real filter beside
+  // the request read, and deleting the statement deleted the filter (corpus-a's
+  // partner-profile routes read as unscoped for exactly that). The request
+  // read itself is neutralised in place instead.
   out = out
     .replace(REQUEST_DESTRUCTURE_STATEMENT_RE, " ")
-    .replace(REQUEST_ASSIGN_RE, " ");
+    .replace(REQUEST_MEMBER_RE, "attackerSupplied");
 
   // Neutralise every mention of a name the caller supplied, so filtering by it
   // stops counting as filtering by the caller.
@@ -1245,10 +1254,19 @@ export function analyzeRouteFile(
   }
 
   // Only a route we are about to call anonymous needs the question asked.
+  //
+  // A route the application files under a directory it names "(public)" is
+  // anonymous by its own declaration. Like the admin URL rule, this is the
+  // application's layout read as intent -- a convention, stated as one -- and
+  // it discloses rather than judges: "anyone can call this" is not a finding
+  // about a page built to be called by anyone.
+  const publicByLayout = /(^|\/)\(public\)\//.test(file);
   const identityGap =
     authenticated || machineGated
       ? null
-      : identityGapFor(entrySrc, unresolvedImports, machineGateWitness, headerReadWitness, conditionalIdentityWitness);
+      : publicByLayout
+        ? "the route sits in a directory the application names (public), so anonymous access appears to be by design"
+        : identityGapFor(entrySrc, unresolvedImports, machineGateWitness, headerReadWitness, conditionalIdentityWitness);
   const identityReadable = identityGap === null;
 
   // Same question, one field over. Only asked when we are about to call the
