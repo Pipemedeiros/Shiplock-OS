@@ -117,6 +117,28 @@ export function declarationSpans(sf: ts.SourceFile): [number, number][] {
       add(node);
       return;
     }
+    // A PARENTHESISED TYPE ASSERTION takes its parentheses with it.
+    // `(session.user as CustomUser).id` is the corpus-b idiom -- 185 files,
+    // 199 routes -- and blanking only the type left `(session.user       ).id`,
+    // where the parentheses exist SOLELY to scope a type that no longer
+    // exists. Every caller-identity pattern was blind to it, and 13
+    // table-touching routes read as unscoped for that reason alone. Erasing
+    // the punctuation with the type is the declaration rule doing its job:
+    // shape is removed, and the expression underneath is left where it was.
+    // Fixed here rather than in the patterns because one fix serves all seven
+    // of them; loosening a pattern to tolerate `as` and a paren would fix that
+    // pattern and leave the same blindness in the other six.
+    if (ts.isParenthesizedExpression(node)) {
+      const inner = node.expression;
+      if (ts.isAsExpression(inner) || ts.isSatisfiesExpression(inner)) {
+        const start = node.getStart(sf);
+        spans.push([start, start + 1]);
+        spans.push([node.end - 1, node.end]);
+        spans.push([inner.expression.end, inner.end]);
+        visit(inner.expression);
+        return;
+      }
+    }
     if (ts.isParameter(node)) {
       add(node.name);
       if (node.type) add(node.type);

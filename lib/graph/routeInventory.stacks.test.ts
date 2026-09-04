@@ -1472,3 +1472,42 @@ describe("a comparison against a traced identity is an ownership check, whatever
     expect(r.ownershipFiltered).toBe(true);
   });
 });
+
+// A type assertion between the session and the id defeated every caller-identity
+// pattern. `(session.user as CustomUser).id` appears in 185 corpus-b files;
+// 199 routes carry the shape and 13 of them read as unscoped because of it.
+describe("a type assertion does not hide the caller", () => {
+  it("KEEP a where clause filtered by an asserted session id", () => {
+    const r = collectRoutes([{ path: "pages/api/x.ts", content: `import { getServerSession } from "next-auth/next";
+      export default async function handler(req, res) {
+        const session = await getServerSession(req, res, authOptions);
+        if (!session) return res.status(401).end();
+        const rows = await prisma.doc.findMany({ where: { userId: (session.user as CustomUser).id } });
+        return res.json(rows);
+      }` }] as never)[0];
+    expect(r.ownershipFiltered).toBe(true);
+  });
+
+  it("KEEP the corpus-b ai/store/runs shape: membership list built from an asserted session id", () => {
+    const r = collectRoutes([{ path: "app/api/ai/store/runs/[runId]/route.ts", content: `import { getServerSession } from "next-auth";
+      export async function GET(req, { params }) {
+        const session = await getServerSession(authOptions);
+        if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        const userTeams = await prisma.userTeam.findMany({ where: { userId: (session.user as CustomUser).id }, select: { teamId: true } });
+        const userTeamIds = userTeams.map((ut) => ut.teamId);
+        const run = await runs.retrieve(params.runId);
+        if (!run.teamId || !userTeamIds.includes(run.teamId)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        return NextResponse.json(run);
+      }` }] as never)[0];
+    expect(r.ownershipFiltered).toBe(true);
+  });
+
+  // The assertion must not manufacture ownership out of a request read.
+  it("DROP an assertion over a caller-supplied value", () => {
+    const r = collectRoutes([{ path: "pages/api/x.ts", content: `export default async function handler(req, res) {
+      const { userId } = req.body as { userId: string };
+      return res.json(await prisma.doc.findMany({ where: { userId } }));
+    }` }] as never)[0];
+    expect(r.ownershipFiltered).toBe(false);
+  });
+});

@@ -62,6 +62,28 @@ describe("blankDeclarations", () => {
     expect(out).toContain("const userId = session.user.id;");
   });
 
+  // `(session.user as CustomUser).id` is the corpus-b idiom -- 185 files --
+  // and blanking only the type left `(session.user           ).id`, where the
+  // parentheses exist SOLELY to scope a type that no longer exists. Every
+  // pattern that looks for a caller identity was blind to it.
+  it("erases a parenthesised type assertion, parentheses included", () => {
+    const out = blankDeclarations(`const userId = (session.user as CustomUser).id;`);
+    expect(out).toMatch(/session\.user\s*\.\s*id/);
+    expect(out).not.toContain("CustomUser");
+    expect(out.length).toBe(`const userId = (session.user as CustomUser).id;`.length);
+  });
+
+  it("does the same for satisfies", () => {
+    expect(blankDeclarations(`const t = (session.user satisfies U).id;`)).toMatch(/session\.user\s*\.\s*id/);
+  });
+
+  it("keeps parentheses that are not holding a type", () => {
+    const src = `const x = (a || b).c; const y = (await f()).id;`;
+    const out = blankDeclarations(src);
+    expect(out).toContain("(a || b).c");
+    expect(out).toContain("(await f()).id");
+  });
+
   it("returns broken source unchanged in length rather than throwing", () => {
     const src = `export async function GET( { const x = ; }}}}`;
     expect(() => blankDeclarations(src)).not.toThrow();
