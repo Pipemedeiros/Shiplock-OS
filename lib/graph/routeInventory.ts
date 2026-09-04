@@ -371,20 +371,41 @@ const OWNER_VALUE = "(?:\\w+\\s*\\??\\.\\s*)*(?:user|owner|account|tenant|org|pr
 // `user.id`, `session.user.id`, `claims.sub`: the caller, by structure.
 const CALLER_IDENTITY =
   "(?:user|session|claims|profile|account|tenant|org|owner)\\s*\\??\\s*\\.\\s*(?:\\w+\\s*\\??\\s*\\.\\s*)?(?:id|uid|sub)";
-// A comparison counts only when BOTH sides look like identity. `doc.ownerId
-// !== userId` is a fetch-then-compare authorization check; `message.userId
-// === null` and `participant.userId === unsuppliedArg` (a parameter no call
-// site passed, see ./callPath.ts) are not, and the first draft matched them
-// on the left-hand column alone.
-const EITHER = `(?:${OWNER_VALUE}|${CALLER_IDENTITY})`;
+// A comparison is an ownership check when ONE operand carries verified
+// PROVENANCE. That is the fourth time a wordlist has failed here: corpus-a's
+// /partners.corpus-a.co/invoices/[payoutId] genuinely checks `payout.partnerId !==
+// partner.id` and returned unauthorized, `partner` was correctly traced to a
+// session-resolving wrapper and renamed to the marker below, and the rule then
+// discarded it because it demanded BOTH sides match user|owner|account|tenant|
+// org|profile -- and `partnerId` is a domain noun outside that list. The next
+// codebase uses merchant, vendor, subscriber, or a noun nobody has thought of.
+//
+// So: one side must be a value we TRACED to the caller -- the marker
+// withoutIdentityResolution writes over anything bound from a verifier, a
+// session lookup or a session-resolving wrapper's injection -- or a caller
+// identity that is structural (`session.user.id`). The other operand may be
+// named anything at all, because a row's ownership column is unbounded
+// vocabulary and what makes the comparison authorization is that it is
+// compared against THE CALLER, which tracing establishes and naming does not.
+//
+// THE EXCLUSION RUNS THE OTHER WAY, and it is the viewerId lesson: a
+// comparison against a value the caller supplied is not an ownership check, so
+// the request marker disqualifies an operand on either side. Erring that way
+// keeps a finding alive rather than silencing one, which is the direction this
+// file's header commits to.
+const TRACED_IDENTITY = `(?:serverEstablishedId|${CALLER_IDENTITY})`;
+/** Anything except a value provenance already marked as caller-supplied. */
+const NOT_SUPPLIED = "(?!(?:\\w+\\s*\\??\\s*\\.\\s*)*attackerSupplied\\b)";
+const OPERAND = `${NOT_SUPPLIED}(?:\\w+\\s*\\??\\s*\\.\\s*)*\\w+`;
+const CMP = "(?:===|!==|==|!=)";
 export const OWNERSHIP_RE = new RegExp(
   "\\bauth\\s*\\??\\s*\\.\\s*uid\\s*\\(" +
     `|\\b${CALLER_IDENTITY}\\b` +
     `|:\\s*${OWNER_VALUE}\\b` +
     `|[{,]\\s*${OWNER_VALUE}\\s*[,}]` +
     `|,\\s*${OWNER_VALUE}\\s*[,)]` +
-    `|\\b${OWNER_VALUE}\\s*(?:===|!==|==|!=)\\s*${EITHER}\\b` +
-    `|\\b${EITHER}\\s*(?:===|!==|==|!=)\\s*${OWNER_VALUE}\\b` +
+    `|\\b${TRACED_IDENTITY}\\s*${CMP}\\s*${OPERAND}\\b` +
+    `|\\b${OPERAND}\\s*${CMP}\\s*${TRACED_IDENTITY}\\b` +
     // A value we TRACED to the caller, anywhere inside a where clause, however
     // it is wrapped: `where: { id: normalizeWorkspaceId(workspace.id) }`.
     // Restricted to the traced marker on purpose -- a vocabulary match inside

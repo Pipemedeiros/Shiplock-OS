@@ -1370,3 +1370,105 @@ describe("a route the application files under (public) is public by its own layo
     expect(r.identityReadable).toBe(true);
   });
 });
+
+// THE FOURTH WORDLIST FAILURE. corpus-a's /partners.corpus-a.co/invoices/[payoutId]
+// carried ownershipFiltered: false while genuinely checking
+// `payout.partnerId !== partner.id` and returning "not authorized". The
+// provenance machinery worked -- `partner` came from a session-resolving
+// wrapper and was renamed to the traced marker -- and then the comparison rule
+// threw the result away because it required BOTH operands to match a
+// vocabulary list (user|owner|account|tenant|org|profile), and `partnerId` is
+// a domain noun outside it.
+//
+// The rule, not the list: one operand carrying verified provenance is
+// sufficient. The other may be named anything, because a row's ownership
+// column is unbounded vocabulary -- partner, merchant, vendor, subscriber --
+// and what makes the comparison an authorization check is that it is compared
+// against THE CALLER, which tracing establishes and naming does not.
+//
+// The exclusion runs the other way and is the viewerId lesson: a comparison
+// against a caller-supplied value is not an ownership check, so the marker for
+// request-derived values disqualifies an operand on either side.
+describe("a comparison against a traced identity is an ownership check, whatever the column is called", () => {
+  const WRAPPER = {
+    path: "lib/auth/partner.ts",
+    content: `import { getSession } from "./utils";
+      export const withPartnerProfile = (handler) => async (req, { params }) => {
+        const session = await getSession();
+        if (!session?.user?.id) return new Response("Unauthorized", { status: 401 });
+        const partner = await prisma.partner.findFirst({ where: { users: { some: { userId: session.user.id } } } });
+        return handler({ req, params, partner });
+      };`,
+  };
+  const wrapped = (body: string) =>
+    collectRoutes([{ path: "app/api/x/[id]/route.ts", content: `import { withPartnerProfile } from "@/lib/auth/partner";\n${body}` }, WRAPPER] as never)
+      .find((r) => r.path === "/api/x/[id]")!;
+
+  it("KEEP corpus-a invoices: payout.partnerId !== partner.id, fetch-then-compare", () => {
+    const r = wrapped(`export const GET = withPartnerProfile(async ({ partner, params }) => {
+      const payout = await prisma.payout.findUniqueOrThrow({ where: { id: params.payoutId } });
+      if (payout.partnerId !== partner.id) {
+        return new Response("You are not authorized to view this payout.", { status: 403 });
+      }
+      return Response.json(payout);
+    });`);
+    expect(r.ownershipFiltered).toBe(true);
+  });
+
+  it("KEEP the same shape for nouns no wordlist would contain", () => {
+    for (const col of ["merchantId", "vendorId", "subscriberId", "practitionerId", "landlordId"]) {
+      const r = wrapped(`export const GET = withPartnerProfile(async ({ partner, params }) => {
+        const row = await prisma.record.findUniqueOrThrow({ where: { id: params.id } });
+        if (row.${col} !== partner.id) return new Response("no", { status: 403 });
+        return Response.json(row);
+      });`);
+      expect(r.ownershipFiltered, `${col} must count`).toBe(true);
+    }
+  });
+
+  it("KEEP with the operands the other way round", () => {
+    const r = wrapped(`export const GET = withPartnerProfile(async ({ partner, params }) => {
+      const row = await prisma.record.findUniqueOrThrow({ where: { id: params.id } });
+      if (partner.id !== row.merchantId) return new Response("no", { status: 403 });
+      return Response.json(row);
+    });`);
+    expect(r.ownershipFiltered).toBe(true);
+  });
+
+  // The viewerId lesson, running the other way.
+  it("DROP a comparison against a caller-supplied value", () => {
+    const r = collectRoutes([{ path: "pages/api/x.ts", content: `export default async function handler(req, res) {
+      const { viewerId } = req.query;
+      const view = await prisma.view.findUnique({ where: { id: req.query.id } });
+      if (view.merchantId !== viewerId) return res.status(403).end();
+      return res.json(view);
+    }` }] as never)[0];
+    expect(r.ownershipFiltered).toBe(false);
+  });
+
+  it("DROP a comparison between two caller-supplied values", () => {
+    const r = collectRoutes([{ path: "pages/api/x.ts", content: `export default async function handler(req, res) {
+      const { viewerId, otherId } = req.query;
+      if (viewerId !== otherId) return res.status(400).end();
+      return res.json(await prisma.doc.findMany());
+    }` }] as never)[0];
+    expect(r.ownershipFiltered).toBe(false);
+  });
+
+  it("STILL leaves a route with no comparison unscoped", () => {
+    const r = wrapped(`export const GET = withPartnerProfile(async ({ params }) => {
+      return Response.json(await prisma.record.findUniqueOrThrow({ where: { id: params.id } }));
+    });`);
+    expect(r.ownershipFiltered).toBe(false);
+  });
+
+  // The shape an earlier draft of the tightening broke. Pinned by name again.
+  it("STILL counts .eq('user_id', user.userId)", () => {
+    const r = collectRoutes([{ path: "app/api/y/route.ts", content: `export async function GET() {
+      const user = await requireProUser();
+      await admin.from('audit_runs').select('*').eq('user_id', user.userId);
+      return Response.json({});
+    }` }] as never)[0];
+    expect(r.ownershipFiltered).toBe(true);
+  });
+});
