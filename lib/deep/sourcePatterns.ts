@@ -1,4 +1,4 @@
-import type { GithubFinding, RepoFile } from "./githubScan";
+import { isTestPath, isScaffoldPath, type GithubFinding, type RepoFile } from "./githubScan";
 
 // Tier-1 gap-closers (CLAUDE.md 🟡 rows): cheap, high-precision source
 // patterns that close crypto / client-side / URL-exposure gaps the config scan
@@ -161,7 +161,15 @@ export function scanInjection(files: RepoFile[]): GithubFinding[] {
     if (!CODE_RE.test(file.path)) continue;
     for (const check of INJECTION_CHECKS) {
       if (!check.res.some((re) => re.test(file.content))) continue;
-      out.push(f(`github:injection:${check.id}:${file.path}`, check.severity,
+      // THE PATH DECIDES HOW LOUDLY. Same rule the secret scanner has applied
+      // since August, applied here for the first time: injection evidence in
+      // test scaffolding or a build script is reported one step quieter, and
+      // never dropped. The trade is that a genuine injection in a file under
+      // test/ or scripts/ arrives as a WARNING rather than a CRITICAL; the
+      // mitigation is that it still arrives, with the same text.
+      const quiet = isTestPath(file.path) || isScaffoldPath(file.path);
+      const severity: Sev = quiet && check.severity === "CRITICAL" ? "WARNING" : check.severity;
+      out.push(f(`github:injection:${check.id}:${file.path}`, severity,
         `Possible ${check.label} in ${file.path}`,
         `${file.path} appears to build a ${check.label === "path traversal" ? "file path" : check.label === "open redirect" ? "redirect" : "command"} from untrusted input. ${check.fix}`));
     }

@@ -156,8 +156,12 @@ const SEED_PATH_RE = /(^|\/)(seeds?|fixtures?)\.[cm]?[jt]s$|(^|\/)(seeds?|fixtur
 // The file list covers the setup module every framework wants at the root --
 // vitestSetup.ts has no dot before "Setup", so a pattern written for
 // jest.setup.ts matched neither it nor setupTests.ts.
+// `integration-tests/` and `e2e-tests/` are test directories that this pattern
+// missed, because the segment had to BE `tests` rather than end in it. Seven
+// injection criticals across the 2026-09-06 validation sat in exactly that
+// shape. A `<word>-tests` segment is the same directory by another name.
 const TEST_PATH_RE =
-  /(^|\/)(__tests__|__mocks__|__fixtures__|tests?|spec|fixtures|mocks|examples?|playwright|e2e|cypress|testing)(\/)|\.(test|spec|e2e)\.[cm]?[jt]sx?$|\.fixture\.[cm]?[jt]sx?$|(^|\/)(vitest|jest|playwright|cypress)\.config\.[cm]?[jt]s$|(^|\/)(jest\.setup|vitestSetup|setupTests|test-setup|testSetup)\.[cm]?[jt]sx?$/i;
+  /(^|\/)(__tests__|__mocks__|__fixtures__|[\w.-]*[-.]tests?|tests?|spec|fixtures|mocks|examples?|playwright|e2e|cypress|testing)(\/)|\.(test|spec|e2e)\.[cm]?[jt]sx?$|\.fixture\.[cm]?[jt]sx?$|(^|\/)(vitest|jest|playwright|cypress)\.config\.[cm]?[jt]s$|(^|\/)(jest\.setup|vitestSetup|setupTests|test-setup|testSetup)\.[cm]?[jt]sx?$/i;
 
 /**
  * CI, build and container configuration -- scaffolding that does not ship.
@@ -169,7 +173,12 @@ const TEST_PATH_RE =
 export function isScaffoldPath(path: string): boolean {
   return /(^|\/)(\.github|\.gitlab|\.circleci|\.buildkite)\//i.test(path)
     || /(^|\/)(docker-compose[\w.-]*\.ya?ml|Dockerfile[\w.-]*|devcontainer\.json)$/i.test(path)
-    || /(^|\/)(skaffold|docker-bake)\.[\w.]*ya?ml$/i.test(path);
+    || /(^|\/)(skaffold|docker-bake)\.[\w.]*ya?ml$/i.test(path)
+    // A repository's own scripts/ directory is the same argument as .github/:
+    // build, release and local-setup code run by a pipeline or a maintainer,
+    // never served to a user. Deliberately NOT migrations/ -- those run in
+    // production against the real database, so they stay loud.
+    || /(^|\/)scripts?\//i.test(path);
 }
 
 /** Whether this file is test scaffolding rather than shipped code. */

@@ -143,3 +143,40 @@ describe("sql injection needs an execution context, not a keyword", () => {
     expect(scan("await page.query(`something`);")).toHaveLength(0);
   });
 });
+
+// BLOCKER 4 (2026-09-06). The secret scanner has applied "the PATH decides how
+// loudly we speak" since August; the injection scanner never received it. Of 81
+// injection criticals across fifteen repositories, 25 sat in paths isTestPath
+// already recognises, 7 more in `integration-tests/` (which TEST_PATH_RE misses
+// because it requires the segment to be exactly `tests`), and 7 in `scripts/`.
+describe("injection findings follow the same path rule as secrets", () => {
+  const sev = (path: string, content: string) =>
+    scanCodePatterns([{ path, content }]).find((f) => f.id.includes("injection"))?.severity;
+  const SQLI = "await db.execute(`SELECT * FROM users WHERE id = ${id}`);";
+
+  it("still CRITICAL in production code", () => {
+    expect(sev("apps/web/lib/analytics/get-analytics.ts", SQLI)).toBe("CRITICAL");
+  });
+
+  it("quieter in a test directory", () => {
+    expect(sev("server/test/utils.ts", SQLI)).toBe("WARNING");
+  });
+
+  it("quieter in integration-tests, which the segment pattern used to miss", () => {
+    expect(sev("integration-tests/helpers/use-db.js", SQLI)).toBe("WARNING");
+  });
+
+  it("quieter in a build or release script", () => {
+    expect(sev("scripts/release.ts", "execSync(`uv version --directory ml ${v}`)")).toBe("WARNING");
+  });
+
+  // The trade: a migration runs in production against the real database, so it
+  // is NOT scaffolding and is deliberately left at CRITICAL.
+  it("still CRITICAL in a migration, which runs for real", () => {
+    expect(sev("server/migrations/20171225143838-set-admins.js", SQLI)).toBe("CRITICAL");
+  });
+
+  it("is never silent — a quieted finding is still reported", () => {
+    expect(scanCodePatterns([{ path: "server/test/utils.ts", content: SQLI }])).toHaveLength(1);
+  });
+});
