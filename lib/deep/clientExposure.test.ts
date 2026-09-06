@@ -555,3 +555,11 @@ describe("a detector must not report its own fixtures", () => {
     expect(out).toEqual([]);
   });
 });
+
+describe("an empty env value is not a leak", () => {
+  it("does not adopt the next line as the value (corpus-af .env.example)", () => {
+    const f = scanClientExposure([{ path: ".env.example", content: "NEXT_PUBLIC_SENDGRID_SENDER_NAME=\n\n# Sentry\nOTHER=1\n" }]);
+    const hit = f.find((x) => x.id.includes("NEXT_PUBLIC_SENDGRID_SENDER_NAME"));
+    expect(hit?.severity ?? "WARNING").toBe("WARNING");
+  });
+});

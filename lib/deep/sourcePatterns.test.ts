@@ -97,3 +97,49 @@ describe("scanCodePatterns — clean fixture stays silent (no false positives)",
     expect(scanCodePatterns(clean)).toEqual([]);
   });
 });
+
+// BLOCKER 1 (2026-09-06). The first sql_injection pattern matched any template
+// literal holding a standalone SQL keyword plus any interpolation, so it fired
+// on CSS declarations, error strings and console messages. Over a full archive
+// it produced 155 of 178 criticals on seven new repositories and 172 on the
+// five originally-validated corpora. A SQL keyword is only evidence when it
+// sits in a SQL EXECUTION CONTEXT.
+describe("sql injection needs an execution context, not a keyword", () => {
+  const scan = (content: string) => scanCodePatterns([{ path: "a/b.ts", content }]).filter((f) => f.id.includes("sql_injection"));
+
+  it("DROP a styled-components CSS literal (outline Button.tsx)", () => {
+    expect(scan("const B = styled.button`\n  cursor: var(--pointer);\n  user-select: none;\n  ${undraggableOnDesktop()}\n`;")).toHaveLength(0);
+  });
+
+  it("DROP an error message that contains the word update (directus payload.ts)", () => {
+    expect(scan("throw new Error(`Can't update nested record \"${relation.collection}.${relation.field}\" without a field`);")).toHaveLength(0);
+  });
+
+  it("DROP a console message that mentions updated rows (immich)", () => {
+    expect(scan("console.log(`Matching database file paths were updated successfully! Set X=${newValue} and restart.`);")).toHaveLength(0);
+  });
+
+  it("DROP a Prisma tagged template, which parameterises its interpolations", () => {
+    expect(scan("const rows = await prisma.$queryRaw`SELECT id FROM users WHERE id = ${userId}`;")).toHaveLength(0);
+  });
+
+  it("KEEP an explicit unsafe raw call", () => {
+    expect(scan("await prisma.$queryRawUnsafe(`SELECT * FROM users WHERE id = ${id}`);")).toHaveLength(1);
+  });
+
+  it("KEEP a template with SQL interpolated into a query call", () => {
+    expect(scan("await db.query(`SELECT * FROM users WHERE id = ${id}`);")).toHaveLength(1);
+  });
+
+  it("KEEP knex.raw with an interpolation", () => {
+    expect(scan("knex.raw(`select * from t where id = ${id}`)")).toHaveLength(1);
+  });
+
+  it("KEEP string concatenation into a query call", () => {
+    expect(scan("db.query('SELECT * FROM users WHERE id = ' + id)")).toHaveLength(1);
+  });
+
+  it("DROP a query call with no SQL keyword and no interpolation", () => {
+    expect(scan("await page.query(`something`);")).toHaveLength(0);
+  });
+});

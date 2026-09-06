@@ -1,4 +1,5 @@
-import { gunzipSync } from "node:zlib";
+import { createGunzip } from "node:zlib";
+import { Readable } from "node:stream";
 
 /**
  * Whole-repository ingestion, in one request.
@@ -111,6 +112,85 @@ export function parseTar(buf: Buffer, onFile: (path: string, body: Buffer) => bo
   }
 }
 
+/**
+ * The same ustar reader, fed incrementally.
+ *
+ * `parseTar` needs the whole decompressed archive in memory, which is why a
+ * 293MB gzip of corpus-ai could not be read at all: the 120MB ceiling threw
+ * rather than truncating, and three of ten preregistered validation
+ * repositories produced an exception instead of an audit. A repository we
+ * cannot open is the strongest case of "absent is not clean" there is.
+ *
+ * This keeps the same semantics -- GNU long names, regular files only,
+ * symlinks skipped, `false` from the consumer stops the walk -- while holding
+ * only the current record. Memory is bounded by the caller's own budgets
+ * instead of by the size of the repository.
+ */
+export function createTarStream(onFile: (path: string, body: Buffer) => boolean | void) {
+  let buf: Buffer = Buffer.alloc(0);
+  let longName: string | null = null;
+  let stopped = false;
+  // Bytes of the current record still to be thrown away without buffering, so
+  // a 300MB file costs nothing to skip past.
+  let discard = 0;
+
+  const padded = (n: number) => Math.ceil(n / 512) * 512;
+
+  const step = (): boolean => {
+    if (discard > 0) {
+      const take = Math.min(discard, buf.length);
+      buf = buf.subarray(take);
+      discard -= take;
+      return discard === 0 && buf.length > 0;
+    }
+    if (buf.length < 512) return false;
+
+    const header = buf.subarray(0, 512);
+    if (header.every((b) => b === 0)) { stopped = true; return false; }
+
+    const rawName = header.toString("utf8", 0, 100).replace(/\0.*$/, "");
+    const size = readOctal(header, 124, 12);
+    const typeFlag = String.fromCharCode(header[156]);
+    const prefix = header.toString("utf8", 345, 500).replace(/\0.*$/, "");
+    const total = padded(size);
+
+    // The body has to be present in full before the record can be handed over.
+    if (buf.length < 512 + total) {
+      // A record we are going to skip anyway can start discarding immediately.
+      const name = longName ?? (prefix ? `${prefix}/${rawName}` : rawName);
+      if (typeFlag !== "0" && typeFlag !== "\0" && typeFlag !== "L") {
+        buf = buf.subarray(512);
+        discard = total;
+        longName = null;
+        return true;
+      }
+      void name;
+      return false;
+    }
+
+    const body = buf.subarray(512, 512 + size);
+    buf = buf.subarray(512 + total);
+
+    if (typeFlag === "L") { longName = body.toString("utf8").replace(/\0.*$/, ""); return true; }
+    const name = longName ?? (prefix ? `${prefix}/${rawName}` : rawName);
+    longName = null;
+    if (typeFlag !== "0" && typeFlag !== "\0") return true;
+    if (onFile(name, body) === false) { stopped = true; return false; }
+    return true;
+  };
+
+  return {
+    push(chunk: Buffer): boolean {
+      if (stopped) return false;
+      buf = buf.length === 0 ? chunk : Buffer.concat([buf, chunk]);
+      while (!stopped && step()) { /* consume as many records as the buffer holds */ }
+      return !stopped;
+    },
+    end(): void { while (!stopped && step()) { /* drain */ } },
+    get stopped() { return stopped; },
+  };
+}
+
 /** True for a path worth reading. Exported so the ingestion rules are testable. */
 export function isCandidate(path: string): boolean {
   if (IGNORED_RE.test(path)) return false;
@@ -142,37 +222,67 @@ export async function fetchRepoArchive(
   });
 
   if (!res.ok) throw new Error(`GitHub tarball HTTP ${res.status} for ${fullName}`);
-
-  const gz = Buffer.from(await res.arrayBuffer());
-  if (gz.length > MAX_ARCHIVE_BYTES) {
-    throw new Error(`archive for ${fullName} is ${gz.length} bytes, over the ingestion ceiling`);
-  }
-
-  const tar = gunzipSync(gz, { maxOutputLength: MAX_ARCHIVE_BYTES });
+  if (!res.body) throw new Error(`GitHub tarball for ${fullName} returned no body`);
 
   const files: ArchiveFile[] = [];
   let bytesRead = 0;
   let skipped = 0;
   let truncated = false;
+  let inflated = 0;
 
-  parseTar(tar, (rawPath, body) => {
+  // STREAMED, NOT BUFFERED. This used to read the whole gzip into memory,
+  // refuse anything over MAX_ARCHIVE_BYTES, and then decompress the lot with
+  // the same number as an output cap -- so a large monorepo threw instead of
+  // being audited. Measured 2026-09-06: three of ten preregistered validation
+  // repositories (corpus-af 163MB, corpus-an 139MB, corpus-ai 293MB gzipped) produced
+  // an exception rather than a report, which is the "absent is not clean"
+  // failure at its worst -- a repository we could not open said nothing at all.
+  //
+  // Now the archive is decompressed and parsed a chunk at a time, only files
+  // that pass the budgets are retained, and everything else is discarded
+  // without being held. MAX_ARCHIVE_BYTES becomes a bound on how much we will
+  // decompress before stopping, so runtime stays inside the function's ceiling
+  // and the result is a truncated audit that SAYS it is truncated.
+  const parser = createTarStream((rawPath, body) => {
     const path = stripRoot(rawPath);
     if (!path || !isCandidate(path)) return;
-
-    if (body.length > MAX_FILE_BYTES) {
-      skipped++;
-      return;
-    }
+    if (body.length > MAX_FILE_BYTES) { skipped++; return; }
     if (files.length >= MAX_FILES || bytesRead + body.length > MAX_TOTAL_BYTES) {
       skipped++;
       truncated = true;
-      // Keep walking rather than stopping: the count of what we could not read
-      // is itself reported, and stopping early would understate it.
       return;
     }
-
     files.push({ path, content: body.toString("utf8") });
     bytesRead += body.length;
+  });
+
+  const gunzip = createGunzip();
+  const source = Readable.fromWeb(res.body as Parameters<typeof Readable.fromWeb>[0]);
+
+  await new Promise<void>((resolve, reject) => {
+    const finish = () => resolve();
+    gunzip.on("data", (chunk: Buffer) => {
+      inflated += chunk.length;
+      if (inflated > MAX_ARCHIVE_BYTES) {
+        // Past the decompression budget. Everything after this is unread, and
+        // the caller reports that as coverage rather than as success.
+        truncated = true;
+        source.destroy();
+        gunzip.destroy();
+        finish();
+        return;
+      }
+      if (!parser.push(chunk)) { source.destroy(); gunzip.destroy(); finish(); }
+    });
+    gunzip.on("end", () => { parser.end(); finish(); });
+    gunzip.on("close", finish);
+    gunzip.on("error", (err: NodeJS.ErrnoException) => {
+      // A stream torn down on purpose is not a failure.
+      if (err?.code === "ERR_STREAM_PREMATURE_CLOSE") return finish();
+      reject(err);
+    });
+    source.on("error", reject);
+    source.pipe(gunzip);
   });
 
   return { files, bytesRead, skipped, truncated };

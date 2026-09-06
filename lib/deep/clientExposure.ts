@@ -478,9 +478,18 @@ export function scanPublicPrefixedSecrets(files: RepoFile[]): GithubFinding[] {
       // If this file assigns the variable, judge the value too, so a
       // placeholder in .env.example reads as a naming problem rather than a
       // breach. Only a REAL-looking value gets called a leak.
-      const assign = new RegExp(`${name}\\s*[:=]\\s*["']?([^"'\\n\\r]*)`).exec(src);
+      // THE SEPARATOR MUST NOT CROSS A LINE. With `\s*` after the `=`, an empty
+      // value ran on to the next non-blank line and adopted it: corpus-af's
+      // .env.example has `NEXT_PUBLIC_SENDGRID_SENDER_NAME=` followed by a
+      // blank line and `# Sentry`, and the extracted "value" was `# Sentry`,
+      // which is not a placeholder, so an empty variable was reported as a
+      // secret exposed to every browser.
+      const assign = new RegExp(`${name}[ \\t]*[:=][ \\t]*["']?([^"'\\n\\r]*)`).exec(src);
       const value = assign?.[1]?.trim() ?? null;
-      const placeholder = value !== null && PLACEHOLDER_RE.test(value);
+      // An EMPTY value cannot have leaked. corpus-af's .env.example declares
+      // `NEXT_PUBLIC_SENDGRID_SENDER_NAME=` with nothing after it and that was
+      // reported as a secret exposed to every browser.
+      const placeholder = value !== null && (value === "" || PLACEHOLDER_RE.test(value));
 
       // The NAME signal does not fire in test scaffolding at all -- the same
       // conclusion githubScan reached for generic_secret_assignment. Inside a

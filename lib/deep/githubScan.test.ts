@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   scanSecrets,
+  looksSynthetic,
   isTestPath,
   scanTokenStorage,
   scanLoggedSecrets,
@@ -321,5 +322,64 @@ describe("fixtures are not leaks", () => {
       { path: "lib/redact.test.ts", content: "console.log(user.password);" },
     ]);
     expect(findings).toHaveLength(0);
+  });
+});
+
+// BLOCKER 2 (2026-09-06). The stated rule is that the PATH decides how loudly
+// we speak and the VALUE decides whether we speak at all. For committed env
+// files only the value half was implemented, and the value test never
+// consulted looksSynthetic, so placeholders shipped as CRITICAL on three of
+// ten validation repositories.
+describe("committed env severity follows the stated rule", () => {
+  const sev = (path: string, content: string) =>
+    scanSecrets([{ path, content }]).find((f) => f.id.startsWith("github:committed_env"))?.severity;
+
+  it("a placeholder that restates its key is not a secret (nocodb)", () => {
+    expect(sev("docker-compose/.env", "CF_DNS_API_TOKEN=SOME_CLOUDFLARE_TOKEN\n")).toBe("WARNING");
+  });
+
+  it("a plain URL is not a secret even under an AUTH-ish key (corpus-ag)", () => {
+    expect(sev("apps/api/.env.development", "CLIENT_SUCCESS_AUTH_REDIRECT=https://dev.web.corpus-ag.co/auth/login\n")).toBe("WARNING");
+  });
+
+  it("a synthetic value is not a secret (outline UTILS_SECRET)", () => {
+    expect(sev(".env.local", "UTILS_SECRET=test-utils-secret\n")).toBe("WARNING");
+  });
+
+  it("a real-looking value in a TEST env file is reported one step quieter", () => {
+    expect(sev(".env.test", "SECRET_KEY=F0E5AD933D7F6FD8F4DBB3E038C501C052DC0593C686D21ACB30AE205D2F634B\n")).toBe("WARNING");
+  });
+
+  // The trade, and the direction that must not change: still reported.
+  it("a real-looking value in a NON-test env file is still CRITICAL", () => {
+    expect(sev(".env", "STRIPE_SECRET_KEY=sk_live_51H8xQ2eZvKYlo2C9mMxTr7bN3pQwErTyUiOpAsDfGh\n")).toBe("CRITICAL");
+  });
+
+  it("a test env file with a real-looking value is never silent", () => {
+    expect(sev(".env.test", "SECRET_KEY=F0E5AD933D7F6FD8F4DBB3E038C501C052DC0593C686D21ACB30AE205D2F634B\n")).toBeDefined();
+  });
+});
+
+// Three more placeholder shapes, each found by hand-reading a critical the
+// 2026-09-06 validation still produced after the first pass.
+describe("values that cannot be a usable credential", () => {
+  const sev = (path: string, content: string) =>
+    scanSecrets([{ path, content }]).find((f) => f.id.startsWith("github:committed_env"))?.severity;
+
+  it("a bcrypt hash is a hash, not a credential (corpus-ag)", () => {
+    expect(sev(".env.development", "SOCKET_IO_ADMIN_PASSWORD_HASH=$2b$10$heqvAkYMez.Va6Et2uXInOnkCT6/uQj1brkrbyG3LpopDklcq7ZOS\n")).toBe("WARNING");
+  });
+
+  it("a PEM with a body too short to be a key is a placeholder (outline)", () => {
+    expect(looksSynthetic(
+      '-----BEGIN RSA PRIVATE KEY-----\\nMIIEpAIBAAKCAQEA\\n-----END RSA PRIVATE KEY-----',
+      'GITHUB_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\\nMIIEpAIBAAKCAQEA\\n-----END RSA PRIVATE KEY-----"',
+    )).toBe(true);
+  });
+
+  it("but a full-length PEM body is still a key", () => {
+    const body = "MIIEpAIBAAKCAQEA" + "QWxpY2VCb2JDaGFybGll".repeat(12);
+    expect(looksSynthetic(`-----BEGIN RSA PRIVATE KEY-----\\n${body}\\n-----END RSA PRIVATE KEY-----`,
+      `KEY="-----BEGIN RSA PRIVATE KEY-----\\n${body}\\n-----END RSA PRIVATE KEY-----"`)).toBe(false);
   });
 });

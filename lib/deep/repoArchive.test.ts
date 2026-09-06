@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isCandidate, parseTar } from "./repoArchive";
+import { isCandidate, parseTar, createTarStream } from "./repoArchive";
 
 /** Builds a ustar entry so the parser is tested against real bytes, not a mock. */
 function entry(name: string, body: string, typeFlag = "0"): Buffer {
@@ -82,5 +82,67 @@ describe("isCandidate", () => {
     for (const p of ["assets/logo.png", "docs/spec.pdf", "bin/tool"]) {
       expect(isCandidate(p), p).toBe(false);
     }
+  });
+});
+
+// BLOCKER 3 (2026-09-06). Three of ten preregistered validation repositories
+// could not be ingested at all: corpus-af 163MB, corpus-an 139MB and corpus-ai 293MB
+// gzipped, against a 120MB ceiling that threw. A repository we cannot open
+// produced an exception, and "absent is not clean" applies hardest there.
+//
+// The fix is to stream: decompress and parse incrementally, keep only files
+// that pass the budgets, and discard the rest without ever holding the whole
+// archive. Memory is then bounded by the 24MB source budget rather than by the
+// repository's size.
+describe("streaming tar parse", () => {
+  // A minimal ustar archive, built here so the test owns its input.
+  const rec = (name: string, body: string) => {
+    const h = Buffer.alloc(512);
+    h.write(name, 0, 100, "utf8");
+    h.write("0000644\0", 100, 8, "ascii");
+    h.write(body.length.toString(8).padStart(11, "0") + "\0", 124, 12, "ascii");
+    h.write("0", 156, 1, "ascii");
+    h.write("ustar\0" + "00", 257, 8, "ascii");
+    h.fill(" ", 148, 156);
+    let sum = 0; for (const b of h) sum += b;
+    h.write(sum.toString(8).padStart(6, "0") + "\0 ", 148, 8, "ascii");
+    const pad = Buffer.alloc(Math.ceil(body.length / 512) * 512);
+    pad.write(body, 0, "utf8");
+    return Buffer.concat([h, pad]);
+  };
+  const archive = Buffer.concat([
+    rec("repo-sha/a.ts", "export const a = 1;"),
+    rec("repo-sha/big.ts", "x".repeat(1200)),
+    rec("repo-sha/b.ts", "export const b = 2;"),
+    Buffer.alloc(1024),
+  ]);
+
+  it("reads the same files as the buffered parser, however the chunks fall", () => {
+    const buffered: string[] = [];
+    parseTar(archive, (p) => { buffered.push(p); });
+    for (const size of [1, 7, 512, 513, 1024, 100000]) {
+      const streamed: string[] = [];
+      const s = createTarStream((p) => { streamed.push(p); });
+      for (let i = 0; i < archive.length; i += size) s.push(archive.subarray(i, i + size));
+      s.end();
+      expect(streamed, `chunk size ${size}`).toEqual(buffered);
+    }
+  });
+
+  it("hands back the body intact across a chunk boundary", () => {
+    const seen: Record<string, string> = {};
+    const s = createTarStream((p, b) => { seen[p] = b.toString("utf8"); });
+    for (let i = 0; i < archive.length; i += 3) s.push(archive.subarray(i, i + 3));
+    s.end();
+    expect(seen["repo-sha/a.ts"]).toBe("export const a = 1;");
+    expect(seen["repo-sha/big.ts"]).toBe("x".repeat(1200));
+  });
+
+  it("stops when the consumer says stop", () => {
+    const seen: string[] = [];
+    const s = createTarStream((p) => { seen.push(p); return false; });
+    for (let i = 0; i < archive.length; i += 64) s.push(archive.subarray(i, i + 64));
+    s.end();
+    expect(seen).toEqual(["repo-sha/a.ts"]);
   });
 });

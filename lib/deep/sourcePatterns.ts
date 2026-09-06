@@ -101,12 +101,33 @@ type Sev = GithubFinding["severity"];
 const INJECTION_CHECKS: { id: string; label: string; severity: Sev; res: RegExp[]; fix: string }[] = [
   {
     id: "sql_injection", label: "SQL injection", severity: "CRITICAL",
+    // A SQL KEYWORD IS NOT EVIDENCE. It has to sit in a place where SQL is
+    // executed. The previous first pattern matched any template literal holding
+    // a standalone keyword plus any interpolation, so `user-select: none;` in a
+    // styled-components block, "Can't update nested record ${x}" in an error,
+    // and "paths were updated successfully ${n}" in a console line all read as
+    // SQL injection. Measured 2026-09-06 over full archives: 155 of 178
+    // criticals on seven new repositories, and 172 on the five corpora this
+    // detector was supposedly validated against.
+    //
+    // Shapes counted across all twelve repositories before choosing these three
+    // (files matching): explicit unsafe API 30, execution call + template
+    // carrying a keyword and an interpolation 76, execution call + quoted
+    // concatenation 6. Dropping the keyword requirement from the second raises
+    // it to 186, so the keyword stays. Nothing is included that had no
+    // occurrences to exercise it.
+    //
+    // NOT matched, deliberately: a TAGGED template on a raw-SQL tag --
+    // prisma.$queryRaw`… ${id}` and postgres.js sql`… ${id}` bind their
+    // interpolations as parameters, so they are safe by construction and 131
+    // files use them. Flagging those was a correctness error, not just noise.
     res: [
-      // raw SQL in a template literal with an interpolation
-      /`[^`]*\b(select|insert\s+into|update|delete\s+from|drop\s+table|union\s+select)\b[^`]*\$\{/i,
-      // a query/raw call whose SQL string is concatenated with + (bounded by
-      // the call parens, so embedded quotes inside the SQL don't break it)
-      /(?:\.query|\.raw|\.execute|sequelize\.query|knex\.raw)\s*\(\s*['"`][^)]*\b(select|insert|update|delete|where|from)\b[^)]*\+/i,
+      // The APIs whose entire purpose is to bypass parameterisation.
+      /(?:\$(?:query|execute)RawUnsafe|\bsql\s*\.\s*unsafe)\s*\(\s*[^)]*(?:\$\{|\+)/,
+      // SQL built by interpolation inside an execution call.
+      /(?:\.\s*(?:query|execute|raw)|sequelize\.query|knex\.raw)\s*\(\s*`[^`]*\b(?:select|insert|update|delete|where|from|drop\s+table|union\s+select)\b[^`]*\$\{/i,
+      // SQL built by concatenation inside an execution call.
+      /(?:\.\s*(?:query|execute|raw)|sequelize\.query|knex\.raw)\s*\(\s*['"][^'"]*\b(?:select|insert|update|delete|where|from)\b[^)]*\+/i,
     ],
     fix: "Never build SQL by concatenating or interpolating input. Use parameterized queries / bound parameters (e.g. $1 placeholders), or your ORM's safe query builder.",
   },

@@ -93,6 +93,16 @@ const PUBLISHABLE_KEY_VALUE = /^["']?(?:pk_(?:test|live)_|sb_publishable_|whsec_
  * CRITICAL credential leak, which is the same overreach as flagging the
  * publishable key in a bundle, something this codebase already refuses to do.
  */
+/**
+ * A value that restates its own key in shouty snake case -- SOME_CLOUDFLARE_TOKEN,
+ * CHANGE_ME_PLEASE. Nobody's real credential is spelled this way.
+ */
+const ENV_PLACEHOLDER_VALUE = /^["']?[A-Z][A-Z0-9_]{5,}["']?$/;
+/** A URL with `user:pass@` in it. That is a credential, wherever it points. */
+const ENV_URL_WITH_CREDENTIALS = /^["']?[a-z+]+:\/\/[^\s"'@/]*:[^\s"'@/]+@/i;
+/** A plain URL carrying no inline credentials is an endpoint, not a secret. */
+const ENV_URL_VALUE = /^["']?https?:\/\/(?![^\s"'@]*:[^\s"'@]*@)[^\s"']*["']?$/i;
+
 export function envFileHasSecret(content: string): boolean {
   for (const line of content.split("\n")) {
     const match = /^\s*([A-Za-z0-9_]+)\s*=\s*(.*)$/.exec(line);
@@ -102,6 +112,23 @@ export function envFileHasSecret(content: string): boolean {
     if (!CREDENTIAL_KEY_RE.test(key)) continue;
     const value = rawValue.trim();
     if (HARMLESS_ENV_VALUE.test(value) || PUBLISHABLE_KEY_VALUE.test(value)) continue;
+    // A URL carrying inline credentials is a secret whatever else the line
+    // says. This is checked FIRST because the host is so often example.com,
+    // and `looksSynthetic` reads that as a placeholder -- which would have
+    // dropped `postgresql://admin:Hunter2Hunter2@db.prod.example.com`, a real
+    // production connection string. Caught by the pre-existing test.
+    if (ENV_URL_WITH_CREDENTIALS.test(value)) return true;
+    // A password HASH is not a password. bcrypt, argon2, scrypt and pbkdf2
+    // digests are what a codebase is supposed to store, and corpus-ag's committed
+    // dev env carries one.
+    if (/^["']?\$(?:2[aby]?|argon2(?:id|i|d)|scrypt|pbkdf2)\$/.test(value)) continue;
+    // The project's stated rule is that the VALUE decides whether we speak at
+    // all, and the placeholder test it already owns was never applied here.
+    // Applied to the value alone, never the whole line, for the same reason.
+    if (looksSynthetic(value, value)) continue;
+    // A shouty-snake placeholder restating its key, and a bare URL with no
+    // credentials in it, are not secrets either.
+    if (ENV_PLACEHOLDER_VALUE.test(value) || ENV_URL_VALUE.test(value)) continue;
     if (ENV_FILLED_VALUE.test(value)) return true;
   }
   return false;
@@ -177,6 +204,12 @@ export function looksSynthetic(match: string, line: string): boolean {
   // A PEM header with nothing under it, or a key body of one repeated
   // character, is a shape and not a key.
   if (/-----BEGIN/.test(match) && /-----BEGIN[^]{0,40}(-----END|["'`])/.test(line)) return true;
+  // A PEM whose base64 body is too short to BE a key. A real RSA or EC private
+  // key runs to hundreds of base64 characters; outline's committed .env.test
+  // carries a header, sixteen characters, and a footer, and that was reported
+  // as a leaked private key at CRITICAL.
+  const pem = /-----BEGIN[^-]*-----([\s\S]*?)-----END/.exec(line) ?? /-----BEGIN[^-]*-----([\s\S]*?)-----END/.exec(match);
+  if (pem && pem[1].replace(/[^A-Za-z0-9+/=]/g, "").length < 100) return true;
   const body = match.replace(/[^A-Za-z0-9]/g, "");
   if (body.length >= 8 && new Set(body.toLowerCase()).size <= 3) return true;
   return false;
@@ -215,7 +248,13 @@ export function scanSecrets(files: RepoFile[]): GithubFinding[] {
       // A committed env file holding only placeholders is untidy, not urgent.
       // Reserving CRITICAL for a file that actually carries a value keeps the
       // severity meaning something.
-      const hasRealValue = envFileHasSecret(file.content);
+      // ...and the PATH decides how loudly. A committed env under a test or
+      // scaffold path holding a real-looking value is reported one step
+      // quieter, never dropped: the trade is a missed ESCALATION, never a
+      // missed finding, and it is the same trade the secret scanner already
+      // makes for fixtures.
+      const quietPath = isTestPath(file.path) || isScaffoldPath(file.path) || /\.env\.(test|spec|ci)$/i.test(file.path);
+      const hasRealValue = envFileHasSecret(file.content) && !quietPath;
       if (!seen.has(id)) {
         seen.add(id);
         findings.push({
@@ -235,8 +274,11 @@ export function scanSecrets(files: RepoFile[]): GithubFinding[] {
     // scaffolding: the generic assignment pattern proves nothing there, and a
     // synthetic-looking value is a placeholder rather than a leak. A
     // real-looking vendor-shaped key pasted into one is still reported.
+    // `.env.test` is test scaffolding by name, and omitting it reported
+    // outline's truncated placeholder PEM as a committed private key.
     const inTest =
-      isTestPath(file.path) || ENV_PLACEHOLDER_RE.test(file.path) || isScaffoldPath(file.path);
+      isTestPath(file.path) || ENV_PLACEHOLDER_RE.test(file.path) || isScaffoldPath(file.path) ||
+      /\.env\.(test|spec|ci)$/i.test(file.path);
 
     for (const pat of SECRET_PATTERNS) {
       const match = pat.re.exec(file.content);
