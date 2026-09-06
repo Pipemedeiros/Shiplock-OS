@@ -1511,3 +1511,106 @@ describe("a type assertion does not hide the caller", () => {
     expect(r.ownershipFiltered).toBe(false);
   });
 });
+
+// THE FIFTH WORDLIST FAILURE, and the only recent one that fails OPEN.
+// `const body = req.body as { userId: string }` then `where: { userId:
+// body.userId }` read as an ownership filter, because
+// requestSuppliedIdentities registers a binding only when its NAME matches
+// IDENTITY_NAME_RE and `body` does not. A caller-supplied value counted as
+// ownership silences a real finding, which is the direction this product
+// exists to prevent.
+//
+// The rule: a value bound DIRECTLY from a request accessor is caller-supplied
+// whatever the binding is called. "Directly" is load-bearing -- the
+// initializer must begin with the accessor, so `req.body` and `await
+// params` qualify while `getUser(params)` does not. If the detector fired on
+// any initializer merely mentioning a request accessor, a genuinely
+// server-established value would be neutralised and real ownership filters
+// would vanish, which is recall loss expressed as invented findings.
+describe("a request-bound holder is caller-supplied whatever it is called", () => {
+  const page = (src: string) => collectRoutes([{ path: "pages/api/x.ts", content: src }] as never)[0];
+  const app = (src: string) => collectRoutes([{ path: "app/api/x/[id]/route.ts", content: src }] as never)[0];
+
+  it("DROP req.body bound to a holder named `body`", () => {
+    const r = page(`export default async function handler(req, res) {
+      const body = req.body as { userId: string };
+      return res.json(await prisma.doc.findMany({ where: { userId: body.userId } }));
+    }`);
+    expect(r.ownershipFiltered).toBe(false);
+  });
+
+  it("DROP req.query bound to a holder named `q`", () => {
+    const r = page(`export default async function handler(req, res) {
+      const q = req.query;
+      return res.json(await prisma.doc.findMany({ where: { ownerId: q.ownerId } }));
+    }`);
+    expect(r.ownershipFiltered).toBe(false);
+  });
+
+  it("DROP awaited route params bound to a holder", () => {
+    const r = app(`export async function GET(req, { params }) {
+      const p = await params;
+      return Response.json(await prisma.doc.findMany({ where: { tenantId: p.tenantId } }));
+    }`);
+    expect(r.ownershipFiltered).toBe(false);
+  });
+
+  it("DROP a parsed body holder", () => {
+    const r = app(`export async function POST(req) {
+      const input = await req.json();
+      return Response.json(await prisma.doc.findMany({ where: { accountId: input.accountId } }));
+    }`);
+    expect(r.ownershipFiltered).toBe(false);
+  });
+
+  // THE OVER-FIRE GUARD. A server-established value whose initializer merely
+  // MENTIONS the request must survive, or every real filter behind a helper
+  // disappears and the collector invents findings on correct code.
+  it("KEEP a session resolved by a helper that takes params", () => {
+    const r = app(`import { getUser } from "@/lib/auth";
+      export async function GET(req, { params }) {
+        const user = await getUser(params);
+        if (!user) return new Response("no", { status: 401 });
+        return Response.json(await prisma.doc.findMany({ where: { userId: user.id } }));
+      }`);
+    expect(r.ownershipFiltered).toBe(true);
+  });
+
+  it("KEEP a session resolved from the request object itself", () => {
+    const r = page(`import { getServerSession } from "next-auth/next";
+      export default async function handler(req, res) {
+        const session = await getServerSession(req, res, authOptions);
+        return res.json(await prisma.doc.findMany({ where: { userId: session.user.id } }));
+      }`);
+    expect(r.ownershipFiltered).toBe(true);
+  });
+
+  // Both shapes the last two sessions pinned must still hold.
+  it("STILL counts .eq('user_id', user.userId)", () => {
+    const r = collectRoutes([{ path: "app/api/y/route.ts", content: `export async function GET() {
+      const user = await requireProUser();
+      await admin.from('audit_runs').select('*').eq('user_id', user.userId);
+      return Response.json({});
+    }` }] as never)[0];
+    expect(r.ownershipFiltered).toBe(true);
+  });
+
+  it("STILL counts a comparison against a traced identity", () => {
+    const r = collectRoutes([
+      { path: "app/api/z/route.ts", content: `import { withPartnerProfile } from "@/lib/auth/partner";
+        export const GET = withPartnerProfile(async ({ partner, params }) => {
+          const payout = await prisma.payout.findUniqueOrThrow({ where: { id: params.payoutId } });
+          if (payout.partnerId !== partner.id) return new Response("no", { status: 403 });
+          return Response.json(payout);
+        });` },
+      { path: "lib/auth/partner.ts", content: `import { getSession } from "./utils";
+        export const withPartnerProfile = (handler) => async (req, { params }) => {
+          const session = await getSession();
+          if (!session?.user?.id) return new Response("Unauthorized", { status: 401 });
+          const partner = await prisma.partner.findFirst({ where: { users: { some: { userId: session.user.id } } } });
+          return handler({ req, params, partner });
+        };` },
+    ] as never).find((r) => r.path === "/api/z")!;
+    expect(r.ownershipFiltered).toBe(true);
+  });
+});

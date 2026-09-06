@@ -491,6 +491,33 @@ const REQUEST_DESTRUCTURE_STATEMENT_RE = new RegExp(
 );
 const REQUEST_ASSIGN_RE =
   /(?:const|let|var)\s+(\w+)\s*=\s*[^;=]*?(?:(?:req|request)\s*\.\s*(?:json|body|query|formData|nextUrl)|searchParams|params)\b[^;]*;/g;
+/**
+ * A value bound DIRECTLY from a request accessor, whatever the binding is
+ * called. `const body = req.body as { userId: string }` followed by
+ * `where: { userId: body.userId }` read as an ownership filter, because
+ * requestSuppliedIdentities registers a binding only when its NAME matches
+ * IDENTITY_NAME_RE and `body` does not. That is a caller-supplied value
+ * counted as ownership -- the fifth wordlist failure here, and the only one
+ * that fails OPEN, silencing a real finding rather than inventing one.
+ *
+ * The name is irrelevant: provenance is the source, not the identifier.
+ *
+ * "DIRECTLY" IS THE WHOLE GUARD. The initializer must BEGIN with the accessor,
+ * so `req.body`, `await req.json()` and `await params` qualify while
+ * `getUser(params)` does not. If this fired on any initializer that merely
+ * mentioned a request accessor, a session resolved by a helper taking the
+ * request would be marked caller-supplied, every filter behind it would be
+ * neutralised, and the collector would invent unscoped findings on correct
+ * code -- recall loss expressed as false criticals, which is worse than the
+ * bug it fixes.
+ */
+const REQUEST_HOLDER_RE =
+  // The word boundary belongs to each bare-word alternative, NOT to the group:
+  // after `json()` the next character is `;`, and `\b` cannot match between two
+  // non-word characters, so a trailing `\b` silently killed every call form
+  // while leaving `req.body` working. Caught by the test for the call form.
+  /(?:const|let|var)\s+(\w+)\s*(?::[^=;]*)?=\s*(?:await\s+)?(?:(?:req|request)\s*\??\.\s*(?:json\s*\(\s*\)|formData\s*\(\s*\)|(?:body|query|params|nextUrl)\b)|(?:params|searchParams)\b)/g;
+
 /** A request value read in place: `params.id`, `req.query.userId`, `searchParams.get("x")`. */
 const REQUEST_MEMBER_RE =
   /\b(?:req|request)\s*\.\s*(?:query|body|params|nextUrl)\s*(?:\??\.\s*\w+)+|\b(?:params|searchParams)\s*\??\.\s*(?:get\s*\([^)]*\)|\w+)/g;
@@ -620,6 +647,15 @@ function renameAll(text: string, names: string[], holders: string[], to: string)
   return out;
 }
 
+/** Bindings taken straight from a request accessor, by provenance not by name. */
+export function requestSuppliedHolders(src: string): string[] {
+  const out = new Set<string>();
+  REQUEST_HOLDER_RE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = REQUEST_HOLDER_RE.exec(src)) !== null) out.add(m[1]);
+  return [...out];
+}
+
 /** Identity-looking names this route reads out of the request. */
 export function requestSuppliedIdentities(src: string): string[] {
   const names = new Set<string>();
@@ -677,10 +713,18 @@ export function withoutIdentityResolution(src: string, original: string = src): 
   // Provenance in both directions (see serverEstablishedIdentities). Decoded
   // request data is neutralised first, so a name can never be promoted after
   // being neutralised.
+  // A binding taken straight from the request taints every identity-shaped
+  // member read off it, however the binding is named.
+  const requestHolders = requestSuppliedHolders(original);
+  for (const h of requestHolders) {
+    const esc = h.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    out = out.replace(new RegExp(`\\b${esc}\\s*\\??\\.\\s*(?:\\w*Id|id|uid|sub)\\b`, "g"), "attackerSupplied");
+  }
+
   const decoded = callerDecodedIdentities(original);
   out = renameAll(out, decoded.names.filter((n) => !supplied.has(n)), decoded.holders, "attackerSupplied");
   const server = serverEstablishedIdentities(original);
-  const tainted = new Set([...supplied, ...decoded.names, ...decoded.holders]);
+  const tainted = new Set([...supplied, ...decoded.names, ...decoded.holders, ...requestHolders]);
   out = renameAll(
     out,
     server.names.filter((n) => !tainted.has(n)),
