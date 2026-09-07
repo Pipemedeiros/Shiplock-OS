@@ -70,7 +70,8 @@ const AREAS = [
   {
     id: "03",
     name: "Source scanning",
-    // lib/deep/githubRun.ts: scanSecrets, scanPublicCredentialValues, scanNextConfigEnv,
+    // lib/deep/githubRun.ts: scanSecrets, scanPublicCredentialValues,
+    // scanCredentialHandling, scanNextConfigEnv,
     // scanWorkflows, scanRouteFacts (lib/graph/routeChecks.ts — C12/C13),
     // historyFindings, depFindings (OSV). Runs on the GitHub webhook and every
     // 48 hours from app/api/monitor/scheduled/route.ts.
@@ -78,6 +79,7 @@ const AREAS = [
     detail: [
       "Committed and historical credentials in real key shapes, and explicit Next.js environment configuration that makes a value available for client builds. Values whose publicness is unknown are flagged for review. A publishable key in the bundle is not reported, because that is where it belongs; a service-role key is.",
       "Dependencies matched against public vulnerability advisories, and GitHub Actions workflow structure: a pull_request_target workflow that checks out the pull request's own code, a third-party action pinned to a moveable tag rather than a commit, and a workflow with no stated permissions.",
+      "Two things the file settles on its own: a token or one-time code built from Math.random(), which is predictable, and a credential carried in a URL query string, where it reaches server logs, browser history and the Referer header. Under a test or scaffold path both are reported a step quieter rather than dropped.",
       "A route that changes data without identifying its caller, and mass assignment: a route that writes a request body to the database wholesale rather than a validated set of fields. These reuse the same route facts the merge check (02) reads, reported here on their own because each stands up without needing a database fact to correlate with.",
     ],
     limit:

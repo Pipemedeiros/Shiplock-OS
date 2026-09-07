@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { getInstallationToken } from "@/lib/deep/github";
 import { fetchRepoArchive, type ArchiveFile } from "@/lib/deep/repoArchive";
 import { scanSecrets } from "@/lib/deep/githubScan";
+import { scanCredentialHandling } from "@/lib/deep/credentialHandling";
 import { scanNextConfigEnv } from "@/lib/deep/nextConfigEnv";
 import { collectRoutes, type RouteFact } from "@/lib/graph/routeInventory";
 import { proposeAttacks, routesOmitted } from "./attack";
@@ -306,6 +307,7 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       ...scanSecrets(repoFiles),
       ...scanNextConfigEnv(repoFiles),
       ...scanPublicCredentialValues(repoFiles),
+      ...scanCredentialHandling(repoFiles),
     ];
     if (deterministic.length > 0) {
       step(`${deterministic.length} committed credential or configuration-exposure issue${deterministic.length === 1 ? "" : "s"}`, undefined, true);

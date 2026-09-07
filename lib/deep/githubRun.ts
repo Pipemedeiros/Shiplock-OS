@@ -2,6 +2,7 @@ import { scanPublicCredentialValues } from "./clientExposure";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { getInstallationToken, listRepos, listTree, getFile, queryOsv, listRecentCommitPatches, type Repo } from "./github";
 import { scanSecrets, extractDependencies, depFindings, type RepoFile, type GithubFinding } from "./githubScan";
+import { scanCredentialHandling } from "./credentialHandling";
 import { scanNextConfigEnv } from "./nextConfigEnv";
 import { checkRepoVisibility } from "./repoVisibility";
 import { collectRoutes } from "@/lib/graph/routeInventory";
@@ -78,6 +79,7 @@ async function scanRepo(
     ...scanSecrets(files),
     ...scanNextConfigEnv(files),
     ...scanPublicCredentialValues(files),
+    ...scanCredentialHandling(files),
     // C20 — CI is a live attack path, and workflow files are already in the set
     // we fetch (.ya?ml matches the candidate filter).
     ...scanWorkflows(files),

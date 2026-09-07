@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { generateKeyPairSync } from "node:crypto";
 import { scanSecrets, type RepoFile } from "./githubScan";
 import { scanPublicCredentialValues } from "./clientExposure";
+import { scanCredentialHandling } from "./credentialHandling";
 import { scanNextConfigEnv } from "./nextConfigEnv";
 import { scanWorkflows } from "./workflowScan";
 
@@ -27,6 +28,7 @@ import { scanWorkflows } from "./workflowScan";
 const scan = (files: RepoFile[]) => [
   ...scanSecrets(files),
   ...scanPublicCredentialValues(files),
+  ...scanCredentialHandling(files),
   ...scanNextConfigEnv(files),
   ...scanWorkflows(files),
 ];
@@ -174,5 +176,65 @@ describe("checks that must keep firing — the evidence decides the claim", () =
         "on:\n  push:\njobs:\n  j:\n    permissions:\n      contents: read\n    steps:\n      - uses: ./.github/actions/setup\n      - uses: actions/checkout@v4\n",
     };
     expect(ids([wf]).filter((i) => /unpinned/.test(i))).toEqual([]);
+  });
+});
+
+describe("restored 2026-09-07 — the file decides its own claim", () => {
+  // Deleted as collateral when sourcePatterns.ts went, restored because they
+  // pass the boundary: neither needs evidence from outside the file. Their
+  // false positives were all test scaffolding, which the shared path
+  // classifier handles. See docs/TASK-A-MEASUREMENT-2026-09-07.md.
+  const sev = (files: RepoFile[], pattern: RegExp) =>
+    scan(files).filter((x) => pattern.test(x.id)).map((x) => x.severity);
+
+  it("reports a security token built from Math.random (corpus-af's shape)", () => {
+    const file: RepoFile = {
+      path: "components/apps/make/Setup.tsx",
+      content: 'const apiKey = `cal_live_${Math.random().toString(36).substring(2)}`;',
+    };
+    expect(sev([file], /insecure_random/)).toEqual(["WARNING"]);
+  });
+
+  it("reports a secret carried in a URL query string (corpus-b's shape)", () => {
+    const file: RepoFile = {
+      path: "pages/api/links/index.ts",
+      content: 'await fetch(`${process.env.NEXTAUTH_URL}/api/revalidate?secret=${process.env.REVALIDATE_TOKEN}&id=${id}`);',
+    };
+    expect(sev([file], /secret_in_url/)).toEqual(["WARNING"]);
+  });
+
+  it("speaks one step quieter under a test path, and never drops the finding", () => {
+    // The whole reason these two came back: the false positives were a path
+    // problem, not a taint problem. Quieter, never silent.
+    const inTest: RepoFile = {
+      path: "apps/web/modules/api/v2/lib/tests/utils.test.ts",
+      content: 'const r = new Request("http://localhost/api/test?apikey=123&token=abc");',
+    };
+    expect(sev([inTest], /secret_in_url/)).toEqual(["INFO"]);
+    const seed: RepoFile = {
+      path: "scripts/seed.ts",
+      content: 'const sessionId = `s_${Math.random().toString(36)}`;',
+    };
+    expect(sev([seed], /insecure_random/)).toEqual(["INFO"]);
+  });
+
+  it("stays silent on Math.random that feeds nothing security-shaped", () => {
+    const file: RepoFile = { path: "lib/ui.ts", content: "const jitter = Math.random() * 100;\nconst key = Math.random();" };
+    expect(sev([file], /insecure_random/)).toEqual([]);
+  });
+
+  it("stays silent on a brace-delimited template placeholder, which carries no value", () => {
+    // Stripe substitutes {CHECKOUT_SESSION_ID} when it builds the redirect.
+    // corpus-af and corpus-d both write it verbatim; both were false on 2026-09-07.
+    const stripe: RepoFile = {
+      path: "lib/billing.ts",
+      content: 'const url = `${base}/api/stripe/portal?session_id={CHECKOUT_SESSION_ID}`;',
+    };
+    expect(sev([stripe], /secret_in_url/)).toEqual([]);
+  });
+
+  it("stays silent on an ordinary query string", () => {
+    const file: RepoFile = { path: "lib/search.ts", content: 'await fetch(`/api/search?q=${term}&page=2`);' };
+    expect(sev([file], /secret_in_url/)).toEqual([]);
   });
 });
