@@ -1,4 +1,5 @@
 import type { Severity } from "@/lib/types";
+import { createPrivateKey, createPublicKey } from "node:crypto";
 
 // PURE GitHub source-scan detectors — no network. All I/O (repo reads, OSV
 // lookups) lives in lib/deep/github.ts; this module turns fetched content into
@@ -28,15 +29,114 @@ export interface Dep {
 
 // ── Committed secrets ──────────────────────────────────────────────────────
 // Deliberately high-precision patterns (real leaked-credential shapes), so we
-// don't cry wolf over every "password" string. Public NEXT_PUBLIC_* assignments
-// are never flagged — they're meant to ship.
+// report credential values rather than guessing from variable names.
 const SECRET_PATTERNS: { id: string; label: string; re: RegExp }[] = [
   { id: "private_key", label: "a PEM private key", re: /-----BEGIN (?:RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY-----/ },
   { id: "supabase_service_key", label: "a Supabase service-role key", re: /\bsb_secret_[A-Za-z0-9_-]{10,}/ },
   { id: "aws_access_key", label: "an AWS access key id", re: /\bAKIA[0-9A-Z]{16}\b/ },
   { id: "openai_key", label: "an OpenAI API key", re: /\bsk-[A-Za-z0-9]{20,}\b/ },
-  { id: "generic_secret_assignment", label: "a hardcoded secret", re: /(?<!NEXT_PUBLIC_)(SERVICE_ROLE_KEY|_SECRET|PRIVATE_KEY|PASSWORD)\s*[:=]\s*["'][^"'\s]{8,}["']/ },
 ];
+
+// OpenSSH uses its own binary container, which Node's PEM parser does not
+// accept. Read the bounded envelope rather than treating its header as a key.
+function hasOpenSshKeyMaterial(body: string): boolean {
+  try {
+    const data = Buffer.from(body, "base64");
+    const magic = Buffer.from("openssh-key-v1\0");
+    if (!data.subarray(0, magic.length).equals(magic)) return false;
+    let offset = magic.length;
+    const uint = () => { const n = data.readUInt32BE(offset); offset += 4; return n; };
+    const field = () => {
+      const length = uint();
+      if (length > data.length - offset) throw new Error("truncated key");
+      const value = data.subarray(offset, offset + length); offset += length; return value;
+    };
+    const cipher = field().toString();
+    const kdf = field().toString();
+    const options = field();
+    if (uint() !== 1) return false;
+    const publicKey = field();
+    const privateKey = field();
+    if (offset !== data.length || publicKey.length < 32 || privateKey.length < 64) return false;
+    const reader = (buffer: Buffer) => {
+      let cursor = 0;
+      return {
+        field() {
+          const length = buffer.readUInt32BE(cursor); cursor += 4;
+          if (length > buffer.length - cursor) throw new Error("truncated field");
+          const value = buffer.subarray(cursor, cursor + length); cursor += length; return value;
+        },
+        rest: () => buffer.subarray(cursor),
+      };
+    };
+    const pub = reader(publicKey);
+    const algorithm = pub.field().toString();
+    if (!/^(?:ssh-ed25519|ssh-rsa|ssh-dss|ecdsa-sha2-nistp(?:256|384|521))$/.test(algorithm)) return false;
+    if (cipher !== "none") return /^(?:aes(?:128|192|256)-(?:ctr|cbc|gcm@openssh.com)|chacha20-poly1305@openssh.com)$/.test(cipher) && kdf === "bcrypt" && options.length >= 20;
+    if (kdf !== "none" || options.length !== 0 || privateKey.readUInt32BE(0) !== privateKey.readUInt32BE(4)) return false;
+    const priv = reader(privateKey.subarray(8));
+    if (priv.field().toString() !== algorithm) return false;
+    const equalField = (minimum: number) => {
+      const field = priv.field();
+      return field.length >= minimum && field.equals(pub.field());
+    };
+    if (algorithm === "ssh-ed25519") {
+      const publicBytes = priv.field();
+      const secret = priv.field();
+      if (publicBytes.length !== 32 || !publicBytes.equals(pub.field()) || secret.length !== 64 || !secret.subarray(32).equals(publicBytes)) return false;
+      const key = createPrivateKey({ key: { kty: "OKP", crv: "Ed25519", d: secret.subarray(0, 32).toString("base64url"), x: publicBytes.toString("base64url") }, format: "jwk" });
+      if (createPublicKey(key).export({ format: "jwk" }).x !== publicBytes.toString("base64url")) return false;
+    } else if (algorithm === "ssh-rsa") {
+      // Public format is e,n; private format is n,e,d,iqmp,p,q.
+      const e = pub.field(); const n = pub.field();
+      if (n.length < 64 || e.length === 0 || !priv.field().equals(n) || !priv.field().equals(e)) return false;
+      for (let i = 0; i < 4; i++) if (priv.field().length < 16) return false;
+    } else if (algorithm === "ssh-dss") {
+      for (let i = 0; i < 4; i++) if (!equalField(16)) return false;
+      if (priv.field().length < 16) return false;
+    } else {
+      if (!equalField(8) || !equalField(65) || priv.field().length < 32) return false;
+    }
+    if (pub.rest().length !== 0) return false;
+    priv.field(); // comment
+    const padding = priv.rest();
+    return padding.length <= 8 && padding.every((value, index) => value === index + 1);
+
+  } catch {
+    return false;
+  }
+}
+
+export function hasParseablePrivateKey(content: string): boolean {
+  // PEM values are commonly JSON-escaped or pasted in line/block comments.
+  // Decode line separators only, without evaluating customer source.
+  const normalized = content.replace(/\\r\\n|\\n|\\r/g, "\n");
+  const blocks = normalized.matchAll(/-----BEGIN ((?:RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY)-----([\s\S]*?)-----END \1-----/g);
+  for (const [, label, rawBody] of blocks) {
+    const cleanBody = rawBody.replace(/^\s*(?:\/\/|\*|#) ?/gm, "").trim();
+    // Traditional PEM encryption leaves this envelope visible; the private
+    // parameters cannot be parsed without the passphrase. Require the known
+    // cipher metadata, correct IV size and a substantial aligned ciphertext.
+    const encrypted = /^Proc-Type: 4,ENCRYPTED\r?\nDEK-Info: (AES-(?:128|192|256)-CBC|DES-EDE3-CBC|DES-CBC),([A-Fa-f0-9]+)\r?\n\s*([A-Za-z0-9+/=\s]+)$/.exec(cleanBody);
+    if (encrypted && /^(?:RSA|EC|DSA) PRIVATE KEY$/.test(label)) {
+      const blockSize = encrypted[1].startsWith("AES") ? 16 : 8;
+      const ciphertext = encrypted[3].replace(/\s/g, "");
+      const bytes = Buffer.from(ciphertext, "base64");
+      if (encrypted[2].length === blockSize * 2 && /^[A-Za-z0-9+/]+={0,2}$/.test(ciphertext) &&
+          bytes.length >= (label.startsWith("EC") ? 64 : 128) && bytes.length % blockSize === 0) return true;
+    }
+    const body = cleanBody.replace(/\s/g, "");
+    if (!/^[A-Za-z0-9+/]+={0,2}$/.test(body)) continue;
+    if (label === "OPENSSH PRIVATE KEY" && hasOpenSshKeyMaterial(body)) return true;
+    try {
+      createPrivateKey(`-----BEGIN ${label}-----\n${body}\n-----END ${label}-----`);
+      return true;
+    } catch {
+      // A header, a truncated fixture or arbitrary base64 is not a key.
+    }
+  }
+  return false;
+}
 
 // A committed dotenv file.
 const COMMITTED_ENV_RE = /(^|\/)\.env(\.[A-Za-z0-9_-]+)*$/;
@@ -292,18 +392,14 @@ export function scanSecrets(files: RepoFile[]): GithubFinding[] {
     for (const pat of SECRET_PATTERNS) {
       const match = pat.re.exec(file.content);
       if (!match) continue;
+      if (pat.id === "private_key" && !hasParseablePrivateKey(file.content)) continue;
 
       // A fixture value in a test file is scaffolding, not a leak. Both
       // conditions are required: a synthetic-looking value in real code is
       // still worth saying out loud, and a real-looking value in a test file
-      // is still a committed credential.
-      // The vendor-shaped patterns prove a real credential's SHAPE, so in a
-      // test file they still get the value check. The generic assignment
-      // pattern proves only that something was assigned to a name containing
-      // "SECRET" — inside test scaffolding that is a fixture by construction,
-      // and reporting it is how a detector's own suite becomes a finding.
-      if (inTest && pat.id === "generic_secret_assignment") continue;
-
+      // is still a committed credential. Every remaining pattern here proves
+      // a real credential's SHAPE, so a test file still gets the value check
+      // below rather than a blanket skip.
       const line = lineOf(file.content, match.index);
 
       // A placeholder written INTO a comment is documentation, not a
@@ -311,7 +407,7 @@ export function scanSecrets(files: RepoFile[]): GithubFinding[] {
       // AKIAIOSFODNN7EXAMPLE is Amazon's published example contains the string,
       // and the scanner reported its own explanation as a leaked AWS key.
       // A real-looking key in a comment still reports — people do paste those.
-      if (isCommentLine(line) && looksSynthetic(match[0], line)) continue;
+      if (pat.id !== "private_key" && isCommentLine(line) && looksSynthetic(match[0], line)) continue;
 
       // Scaffolding is wider than the test suite. `UNSUBSCRIBE_TOKEN_SECRET:
       // "dummy-secret"` in a CI workflow and `CUBEJS_API_SECRET:
@@ -325,7 +421,7 @@ export function scanSecrets(files: RepoFile[]): GithubFinding[] {
       // recorded in "never downgrades a key in shipped code" and "it is real
       // code either way". The axis is whether the file ships, not whether the
       // value looks convincing.
-      if (inTest && looksSynthetic(match[0], line)) continue;
+      if (pat.id !== "private_key" && inTest && looksSynthetic(match[0], line)) continue;
 
       const id = `github:secret:${pat.id}:${file.path}`;
       if (seen.has(id)) continue;
@@ -344,70 +440,6 @@ export function scanSecrets(files: RepoFile[]): GithubFinding[] {
     }
   }
   return findings;
-}
-
-// ── Secrets / tokens logged ────────────────────────────────────────────────
-// Logging a secret ships it to wherever logs go (Vercel, a log drain, a
-// third-party) and retains it. High-precision: matches a log call that logs a
-// SENSITIVE PROPERTY (obj.password / req.headers.authorization) or interpolates
-// a sensitive variable — not the mere string "password" in a message.
-const LOG_PROP_RE =
-  /(console\.(log|error|warn|info|debug)|logger\.\w+)\s*\([^)]*\.(password|passwd|secret|token|access_?token|refresh_?token|api_?key|apiKey|authorization|cookie|private_?key|privateKey|service_?role|serviceRole)\b/i;
-// Exclude LLM/usage token COUNTS (input_tokens/output_tokens/prompt_tokens…) —
-// those are numbers, not auth secrets. Guard the bare "token" alternative.
-// A COUNT of tokens is a number, not a credential. The snake_case exclusions
-// were already here; `tokensIn` and `tokensOut` slipped through them, and our
-// own token-efficiency log line was reported as a leaked secret. Plural, or
-// followed by a counting word, means arithmetic.
-const LOG_TEMPLATE_RE =
-  /(console\.(log|error|warn|info|debug)|logger\.\w+)\s*\(\s*`[^`]*\$\{[^}]*((?<!input_)(?<!output_)(?<!prompt_)(?<!completion_)(?<!total_)(?<!num_)(?<!max_)token(?!s?(In|Out|Count|Used|Usage|Estimate|Budget|Limit)\b)(?!s\b)|secret|password|apikey|authorization|cookie|private_?key)[^}]*\}/i;
-
-export function scanLoggedSecrets(files: RepoFile[]): GithubFinding[] {
-  const findings: GithubFinding[] = [];
-  for (const file of files) {
-    if (!/\.(ts|tsx|js|jsx|mjs|cjs)$/i.test(file.path)) continue;
-    // A test that asserts a redactor works has to contain the unredacted call.
-    // This finding is about what reaches a production log drain, and a test
-    // file does not run in production.
-    if (isTestPath(file.path)) continue;
-    if (LOG_PROP_RE.test(file.content) || LOG_TEMPLATE_RE.test(file.content)) {
-      findings.push({
-        id: `github:logged_secret:${file.path}`,
-        severity: "WARNING",
-        title: `Sensitive value written to logs in ${file.path}`,
-        consequence:
-          `${file.path} appears to log a secret/token/credential. Logs are shipped and retained wherever your host or log drain sends them — anyone with log access then has the secret. Remove it or redact before logging.`,
-        packageName: null, version: null, vulnId: null, cveId: null,
-      });
-    }
-  }
-  return findings;
-}
-
-// ── Token-storage anti-pattern ─────────────────────────────────────────────
-// The default @supabase/supabase-js browser client keeps the session in
-// localStorage, where any XSS can read it. The cookie-based @supabase/ssr
-// client doesn't. If the project uses @supabase/ssr anywhere, assume it's on
-// the safe path; otherwise, a createClient from supabase-js is worth flagging.
-export function scanTokenStorage(files: RepoFile[]): GithubFinding[] {
-  const usesSsr = files.some((f) => /@supabase\/ssr/.test(f.content));
-  if (usesSsr) return [];
-
-  const hit = files.find(
-    (f) => /@supabase\/supabase-js/.test(f.content) && /\bcreateClient\s*\(/.test(f.content)
-  );
-  if (!hit) return [];
-
-  return [
-    {
-      id: "github:token_storage:localstorage",
-      severity: "WARNING",
-      title: "Auth session stored in localStorage (XSS can steal it)",
-      consequence:
-        `This app uses the default @supabase/supabase-js client (e.g. in ${hit.path}), which stores the auth session in localStorage — any cross-site-scripting bug can read the token and hijack the session. Move to the cookie-based @supabase/ssr client so the token is out of JavaScript's reach.`,
-      packageName: null, version: null, vulnId: null, cveId: null,
-    },
-  ];
 }
 
 // ── Dependencies ───────────────────────────────────────────────────────────

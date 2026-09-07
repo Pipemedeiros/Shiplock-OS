@@ -77,49 +77,6 @@ jobs:
   });
 });
 
-describe("script injection", () => {
-  it("flags an untrusted expression inside run:", () => {
-    const bad = `
-on: pull_request
-jobs:
-  x:
-    permissions: { contents: read }
-    steps:
-      - run: echo "PR title is \${{ github.event.pull_request.title }}"
-`;
-    const out = scanWorkflows(wf(bad)).find((x) => x.id.includes("script_injection"))!;
-    expect(out.severity).toBe("CRITICAL");
-    expect(out.consequence).toContain("pass the value through the environment");
-  });
-
-  // THE reason this uses a parser: the same expression in `with:` is a
-  // parameter, not a shell command.
-  it("does NOT flag the same expression in a with: value", () => {
-    const safe = `
-on: pull_request
-jobs:
-  x:
-    permissions: { contents: read }
-    steps:
-      - uses: some/action@0000000000000000000000000000000000000000
-        with: { title: \${{ github.event.pull_request.title }} }
-`;
-    expect(scanWorkflows(wf(safe)).filter((x) => x.id.includes("script_injection"))).toEqual([]);
-  });
-
-  it("does not flag trusted contexts in run:", () => {
-    const safe = `
-on: push
-jobs:
-  x:
-    permissions: { contents: read }
-    steps:
-      - run: echo "\${{ github.sha }} \${{ secrets.TOKEN }} \${{ github.repository }}"
-`;
-    expect(scanWorkflows(wf(safe)).filter((x) => x.id.includes("script_injection"))).toEqual([]);
-  });
-});
-
 describe("unpinned actions", () => {
   it("flags a third-party action on a tag", () => {
     const bad = `

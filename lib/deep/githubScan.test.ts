@@ -1,10 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { generateKeyPairSync } from "node:crypto";
 import {
   scanSecrets,
   looksSynthetic,
   isTestPath,
-  scanTokenStorage,
-  scanLoggedSecrets,
   extractDependencies,
   depFindings,
   type RepoFile,
@@ -72,14 +71,70 @@ describe("scanSecrets", () => {
     expect(f[0].severity).toBe("WARNING");
   });
 
-  it("flags a PEM private key and a supabase service key", () => {
+  it("flags a parseable PEM private key and a supabase service key", () => {
+    const { privateKey } = generateKeyPairSync("ed25519");
+    const pem = privateKey.export({ type: "pkcs8", format: "pem" }).toString();
     const files: RepoFile[] = [
-      { path: "key.pem", content: "-----BEGIN RSA PRIVATE KEY-----\nMII...\n" },
+      { path: "key.pem", content: pem },
       { path: "cfg.ts", content: 'const k = "sb_secret_abcdef1234567890"' },
     ];
     const ids = scanSecrets(files).map((x) => x.id);
     expect(ids.some((i) => i.includes("private_key"))).toBe(true);
     expect(ids.some((i) => i.includes("supabase_service_key"))).toBe(true);
+  });
+
+  it("retains generated private keys in raw, escaped, and commented source", () => {
+    const pem = generateKeyPairSync("ed25519").privateKey.export({ type: "pkcs8", format: "pem" }).toString();
+    const variants = [
+      pem,
+      JSON.stringify({ private_key: pem }),
+      `export const key = ${JSON.stringify(pem)};`,
+      `// example of the actual committed key\n${pem.split("\n").map((line) => `// ${line}`).join("\n")}`,
+      `/*\n${pem.split("\n").map((line) => ` * ${line}`).join("\n")} */`,
+      `-----BEGIN PRIVATE KEY-----\ninvalid\n-----END PRIVATE KEY-----\n${pem}`,
+    ];
+    for (const content of variants) {
+      expect(scanSecrets([{ path: "config.ts", content }]).map((finding) => finding.id)).toContain("github:secret:private_key:config.ts");
+      expect(scanSecrets([{ path: "key.test.ts", content }]).find((finding) => finding.id.includes("private_key"))?.severity).toBe("WARNING");
+    }
+  });
+
+  it("retains an OpenSSH container holding a generated Ed25519 private key", () => {
+    const jwk = generateKeyPairSync("ed25519").privateKey.export({ format: "jwk" });
+    const str = (value: string | Buffer) => {
+      const body = typeof value === "string" ? Buffer.from(value) : value;
+      const length = Buffer.alloc(4); length.writeUInt32BE(body.length);
+      return Buffer.concat([length, body]);
+    };
+    const pub = Buffer.from(jwk.x!, "base64url");
+    const priv = Buffer.from(jwk.d!, "base64url");
+    const publicSection = Buffer.concat([str("ssh-ed25519"), str(pub)]);
+    const checks = Buffer.from("a1b2c3d4a1b2c3d4", "hex");
+    const section = Buffer.concat([checks, str("ssh-ed25519"), str(pub), str(Buffer.concat([priv, pub])), str("")]);
+    const padding = Buffer.from(Array.from({ length: 8 - section.length % 8 }, (_, i) => i + 1));
+    const count = Buffer.from([0, 0, 0, 1]);
+    const container = Buffer.concat([Buffer.from("openssh-key-v1\0"), str("none"), str("none"), str(""), count, str(publicSection), str(Buffer.concat([section, padding]))]);
+    const pem = `-----BEGIN OPENSSH PRIVATE KEY-----\n${container.toString("base64")}\n-----END OPENSSH PRIVATE KEY-----`;
+    expect(scanSecrets([{ path: "deploy.key", content: pem }]).map((finding) => finding.id)).toContain("github:secret:private_key:deploy.key");
+  });
+
+  it("retains a generated encrypted RSA PKCS1 key without knowing its passphrase", () => {
+    const pem = generateKeyPairSync("rsa", { modulusLength: 1024 }).privateKey.export({ type: "pkcs1", format: "pem", cipher: "aes-256-cbc", passphrase: "fixture-passphrase" }).toString();
+    expect(scanSecrets([{ path: "key.pem", content: pem }]).map((finding) => finding.id)).toContain("github:secret:private_key:key.pem");
+    expect(scanSecrets([{ path: "config.ts", content: `export const key = ${JSON.stringify(pem)}` }]).map((finding) => finding.id)).toContain("github:secret:private_key:config.ts");
+  });
+
+  it("rejects an OpenSSH envelope without an algorithm or key fields", () => {
+    const field = (value: Buffer) => { const size = Buffer.alloc(4); size.writeUInt32BE(value.length); return Buffer.concat([size, value]); };
+    const data = Buffer.concat([Buffer.from("openssh-key-v1\0"), field(Buffer.from("none")), field(Buffer.from("none")), field(Buffer.alloc(0)), Buffer.from([0, 0, 0, 1]), field(Buffer.alloc(32)), field(Buffer.alloc(64))]);
+    expect(scanSecrets([{ path: "key.pem", content: `-----BEGIN OPENSSH PRIVATE KEY-----\n${data.toString("base64")}\n-----END OPENSSH PRIVATE KEY-----` }])).toEqual([]);
+  });
+
+  it("does not call a PEM header or truncated example a private key", () => {
+    expect(scanSecrets([
+      { path: "header.txt", content: "-----BEGIN PRIVATE KEY-----" },
+      { path: "example.env", content: "-----BEGIN RSA PRIVATE KEY-----\nMII...\n-----END RSA PRIVATE KEY-----" },
+    ])).toEqual([]);
   });
 
   it("does not flag NEXT_PUBLIC_ assignments", () => {
@@ -91,51 +146,6 @@ describe("scanSecrets", () => {
 
   it("is quiet on clean files", () => {
     expect(scanSecrets([{ path: "index.ts", content: "export const x = 1;" }])).toEqual([]);
-  });
-});
-
-describe("scanLoggedSecrets", () => {
-  it("flags logging a sensitive property or interpolated secret", () => {
-    const hits: RepoFile[] = [
-      { path: "a.ts", content: "console.log(req.headers.authorization)" },
-      { path: "b.ts", content: "logger.info(user.password)" },
-      { path: "c.ts", content: "console.error(`token=${accessToken}`)" },
-    ];
-    expect(scanLoggedSecrets(hits).map((f) => f.id.split(":").pop())).toEqual(["a.ts", "b.ts", "c.ts"]);
-  });
-
-  it("does not flag the mere word in a message or non-source files", () => {
-    const clean: RepoFile[] = [
-      { path: "d.ts", content: 'console.log("password required")' },
-      { path: "e.ts", content: "console.log(user.email)" },
-      { path: "notes.md", content: "console.log(user.password)" },
-    ];
-    expect(scanLoggedSecrets(clean)).toEqual([]);
-  });
-
-  it("does not flag LLM token COUNTS (input_tokens/output_tokens)", () => {
-    const counts: RepoFile[] = [
-      { path: "a.ts", content: "console.log(`model=${m} input_tokens=${res.usage.input_tokens} output_tokens=${res.usage.output_tokens}`)" },
-    ];
-    expect(scanLoggedSecrets(counts)).toEqual([]);
-  });
-});
-
-describe("scanTokenStorage", () => {
-  it("flags localStorage supabase-js usage", () => {
-    const f = scanTokenStorage([
-      { path: "lib/supabase.ts", content: 'import { createClient } from "@supabase/supabase-js";\ncreateClient(a,b)' },
-    ]);
-    expect(f).toHaveLength(1);
-    expect(f[0].severity).toBe("WARNING");
-  });
-
-  it("stays quiet when the project uses @supabase/ssr", () => {
-    const f = scanTokenStorage([
-      { path: "lib/a.ts", content: 'import { createClient } from "@supabase/supabase-js"; createClient(a,b)' },
-      { path: "lib/b.ts", content: 'import { createServerClient } from "@supabase/ssr";' },
-    ]);
-    expect(f).toEqual([]);
   });
 });
 
@@ -241,32 +251,6 @@ describe("fixtures are not leaks", () => {
     expect(findings).toHaveLength(0);
   });
 
-  it("does not treat a generic assignment in test scaffolding as a credential", () => {
-    // The generic pattern proves only that something was assigned to a name
-    // containing SECRET. The vendor-shaped patterns still apply here.
-    const findings = scanSecrets([
-      { path: "lib/deep/vercel.test.ts", content: 'VERCEL_CLIENT_SECRET: "client-secret-456",' },
-    ]);
-    expect(findings).toHaveLength(0);
-  });
-
-  it("does not mistake a token COUNT for a token", () => {
-    // Our own [TOKENS] efficiency log line was reported as a leaked secret.
-    const findings = scanLoggedSecrets([
-      { path: "lib/graph/narrative.ts", content: "console.log(`[TOKENS] input=${tokensIn} output=${tokensOut}`);" },
-      { path: "lib/a.ts", content: "console.log(`used ${tokens} of ${maxTokens}`);" },
-    ]);
-    expect(findings).toHaveLength(0);
-  });
-
-  it("still reports an actual token being logged", () => {
-    const findings = scanLoggedSecrets([
-      { path: "lib/b.ts", content: "console.log(`session ${accessToken}`);" },
-      { path: "lib/c.ts", content: "console.log(`refresh ${refreshToken}`);" },
-    ]);
-    expect(findings).toHaveLength(2);
-  });
-
   it("does not report a placeholder written into a comment", () => {
     // githubScan.ts reported its own explanatory comment as a leaked AWS key.
     const findings = scanSecrets([
@@ -317,12 +301,6 @@ describe("fixtures are not leaks", () => {
     expect(findings).toHaveLength(0);
   });
 
-  it("does not report a logged secret inside a test", () => {
-    const findings = scanLoggedSecrets([
-      { path: "lib/redact.test.ts", content: "console.log(user.password);" },
-    ]);
-    expect(findings).toHaveLength(0);
-  });
 });
 
 // BLOCKER 2 (2026-09-06). The stated rule is that the PATH decides how loudly

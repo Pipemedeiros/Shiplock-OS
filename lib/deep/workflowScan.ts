@@ -12,12 +12,7 @@ import type { GithubFinding, RepoFile } from "./githubScan";
 // often said and least often true. A public repo's CI accepts input from anyone
 // who can open a pull request or file an issue.
 //
-// PARSED, NOT PATTERN-MATCHED. These checks depend on YAML STRUCTURE — whether a
-// `${{ }}` expression sits inside a `run:` block or a `with:` value changes it
-// from a shell injection into an ordinary parameter, and no regex distinguishes
-// those reliably. Having shipped one check this week that ran at a 100%
-// false-positive rate because it guessed from text, the parser is worth its
-// weight.
+// Checks use parsed YAML triggers, checkout refs, action pins and permissions.
 
 const f = (
   id: string,
@@ -78,12 +73,6 @@ function steps(workflow: Workflow): { job: string; step: Step }[] {
   return out;
 }
 
-// Contexts an outsider controls. `github.event.*` is the big one: PR titles,
-// branch names, issue bodies and commit messages are all attacker-writable on a
-// public repo.
-const UNTRUSTED_EXPR =
-  /\$\{\{\s*(github\.event\.(issue|pull_request|comment|review|discussion|head_commit|commits)|github\.head_ref|github\.event\.inputs)[^}]*\}\}/;
-
 /**
  * The classic pull_request_target RCE.
  *
@@ -115,32 +104,7 @@ export function checkPullRequestTarget(path: string, workflow: Workflow): Github
   ];
 }
 
-/**
- * Script injection: an attacker-controlled string interpolated into a shell.
- *
- * `run: echo "${{ github.event.pull_request.title }}"` is a shell command built
- * by string substitution, so a title containing a backtick or `$( )` executes.
- * Only `run:` blocks are affected — the same expression in `with:` is a
- * parameter, not a command, which is exactly why this needs the parser.
- */
-export function checkScriptInjection(path: string, workflow: Workflow): GithubFinding[] {
-  const hits = steps(workflow).filter(
-    ({ step }) => typeof step.run === "string" && UNTRUSTED_EXPR.test(step.run)
-  );
-  if (hits.length === 0) return [];
-
-  return [
-    f(
-      `github:workflow_script_injection:${path}`,
-      "CRITICAL",
-      `${path} builds a shell command from text an outsider controls`,
-      `A \`run:\` step in ${path} interpolates \`\${{ github.event... }}\` directly into a shell command. Those values — pull request titles, branch names, issue bodies, commit messages — are written by whoever opened them. ` +
-        `Because the expression is substituted into the script before the shell sees it, a title containing a backtick or \`$(...)\` runs as a command, with the workflow's token and secrets. Nothing needs to be merged for this to fire. ` +
-        `Fix: pass the value through the environment instead of interpolating it — set \`env: TITLE: \${{ github.event.pull_request.title }}\` and use \`"$TITLE"\` in the script. The shell then treats it as data, never as code.`
-    ),
-  ];
-}
-
+// These checks read workflow structure: triggers, checkout refs, pins and permissions.
 const SHA_PINNED = /@[0-9a-f]{40}$/i;
 /** First-party actions are maintained by GitHub and conventionally tag-pinned. */
 const FIRST_PARTY = /^(actions|github)\//i;
@@ -215,7 +179,6 @@ export function scanWorkflows(files: RepoFile[]): GithubFinding[] {
 
     out.push(
       ...checkPullRequestTarget(file.path, workflow),
-      ...checkScriptInjection(file.path, workflow),
       ...checkUnpinnedActions(file.path, workflow),
       ...checkPermissions(file.path, workflow)
     );

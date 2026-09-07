@@ -70,16 +70,18 @@ const AREAS = [
   {
     id: "03",
     name: "Source scanning",
-    // lib/deep/githubRun.ts: scanSecrets, scanTokenStorage, scanLoggedSecrets,
-    // scanCodePatterns, scanClientExposure, depFindings (OSV). Runs on the GitHub
-    // webhook and every 48 hours from app/api/monitor/scheduled/route.ts.
+    // lib/deep/githubRun.ts: scanSecrets, scanPublicCredentialValues, scanNextConfigEnv,
+    // scanWorkflows, scanRouteFacts (lib/graph/routeChecks.ts — C12/C13),
+    // historyFindings, depFindings (OSV). Runs on the GitHub webhook and every
+    // 48 hours from app/api/monitor/scheduled/route.ts.
     lead: "Deterministic checks on the source itself, on every push the App reports and at most every 48 hours from the daily pass.",
     detail: [
-      "Committed and historical credentials in real key shapes, secrets written to logs, tokens stored where a browser can read them, and a server-only secret reachable from a client component through the import graph. A publishable key in the bundle is not reported, because that is where it belongs; a service-role key is.",
-      "Dependencies matched against public vulnerability advisories, and source patterns for injection, cross-site scripting, mass assignment and server-side request forgery in outbound fetches.",
+      "Committed and historical credentials in real key shapes, and explicit Next.js environment configuration that makes a value available for client builds. Values whose publicness is unknown are flagged for review. A publishable key in the bundle is not reported, because that is where it belongs; a service-role key is.",
+      "Dependencies matched against public vulnerability advisories, and GitHub Actions workflow structure: a pull_request_target workflow that checks out the pull request's own code, a third-party action pinned to a moveable tag rather than a commit, and a workflow with no stated permissions.",
+      "A route that changes data without identifying its caller, and mass assignment: a route that writes a request body to the database wholesale rather than a validated set of fields. These reuse the same route facts the merge check (02) reads, reported here on their own because each stands up without needing a database fact to correlate with.",
     ],
     limit:
-      "Pattern checks are high-precision by design and therefore miss shapes they were not written for. A dependency advisory is matched by package and version; whether the vulnerable path is reachable in your application is not determined.",
+      "A dependency advisory is matched by package and version; whether the vulnerable path is reachable in your application is not determined. Injection, cross-site scripting and weak-crypto pattern checks were withdrawn: a static per-file pattern cannot see whether a value reaching a dangerous sink is actually attacker-controlled. Reasoning about a specific route's authorization and data access, including whether client input reaches a write unscoped, still happens in the repository audit (01) with the model-hypothesis and deterministic-guard discipline described there.",
   },
   {
     id: "04",
@@ -105,6 +107,7 @@ const AREAS = [
     lead: "Row-level security policies live in your database, not your repository. Without a connection we infer them from code and say so; with one we read them.",
     detail: [
       "If you connect a database, configuration is read through Supabase's Management API in read-only mode or through a Postgres role we verify cannot write, inside a transaction that cannot write either. The exposure model reads column names and row counts and none of your data: never a value, never a row.",
+      "What the database itself can reach: an extension able to open outbound HTTP connections and callable by a public API key, which is server-side request forgery from inside your network, and a scheduled job with a credential written into its own command text.",
       "No account has connected a database yet. Every audit to date has run on the repository alone, and every finding that depends on a policy is labelled as inferred.",
     ],
     limit:

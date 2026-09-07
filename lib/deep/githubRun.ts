@@ -1,8 +1,8 @@
+import { scanPublicCredentialValues } from "./clientExposure";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { getInstallationToken, listRepos, listTree, getFile, queryOsv, listRecentCommitPatches, type Repo } from "./github";
-import { scanSecrets, scanTokenStorage, scanLoggedSecrets, extractDependencies, depFindings, type RepoFile, type GithubFinding } from "./githubScan";
-import { scanCodePatterns } from "./sourcePatterns";
-import { scanClientExposure } from "./clientExposure";
+import { scanSecrets, extractDependencies, depFindings, type RepoFile, type GithubFinding } from "./githubScan";
+import { scanNextConfigEnv } from "./nextConfigEnv";
 import { checkRepoVisibility } from "./repoVisibility";
 import { collectRoutes } from "@/lib/graph/routeInventory";
 import { buildReachabilityIndex } from "@/lib/graph/reachability";
@@ -13,26 +13,30 @@ import { saveFacts } from "@/lib/graph/graphRun";
 import type { RouteFact } from "@/lib/graph/routeInventory";
 
 // Full source scan for a connected GitHub App installation: read-only repo
-// contents -> committed secrets, token-storage anti-pattern, dependency CVEs
-// (via OSV). Persists only NEW findings into the shared deep_findings table
-// (source='github'), same only-new + archive-on-disconnect contract as
-// runVercelEnvAudit. A single unreadable repo/file never fails the whole pass.
+// contents -> committed secrets, Next.js config env
+// exposure, workflow structure (pull_request_target RCE, unpinned actions,
+// missing permissions), dependency CVEs (via OSV). Persists only NEW findings
+// into the shared deep_findings table (source='github'), same only-new +
+// archive-on-disconnect contract as runVercelEnvAudit. A single unreadable
+// repo/file never fails the whole pass.
+// Persisted finding IDs retain their remediation routes in lib/fixes.
 
 const MAX_REPOS = 10;
 const MAX_FILES_PER_REPO = 60;
 const MAX_FILE_BYTES = 200_000; // skip large/binary blobs
 
-// Files worth reading for secret / token-storage detection, plus manifests.
+// Files worth reading for credential detection, plus manifests.
 const CANDIDATE_RE = /(^|\/)(\.env(\.[\w-]+)?|package\.json|package-lock\.json|.*\.(ts|tsx|js|jsx|mjs|cjs|json|ya?ml|env)|.*\.pem)$/i;
 
 // Read order matters because MAX_FILES_PER_REPO truncates. The tree arrives in
 // directory-traversal order, so on a repo with a large app/ directory the cap
 // used to fall before the root manifests — silently disabling dependency
-// scanning — and before lib/, which breaks the import chains scanClientExposure
-// walks from client components. Rank by what each check needs first:
+// scanning — and before lib/, which the route collector (collectRoutes, below)
+// walks import chains through to resolve ownership scoping. Rank by what each
+// check needs first:
 //   0  dotenv files and manifests: tiny, and every secret/dependency check
 //      depends on them. Never let these be the files we drop.
-//   1  application source: where client components and their imports live.
+//   1  application source: where routes and the imports they resolve live.
 //   2  everything else the candidate filter allowed.
 export function readPriority(path: string): number {
   if (/(^|\/)(\.env(\.[\w-]+)?|package(-lock)?\.json)$/i.test(path)) return 0;
@@ -72,10 +76,8 @@ async function scanRepo(
 
   const findings: GithubFinding[] = [
     ...scanSecrets(files),
-    ...scanTokenStorage(files),
-    ...scanLoggedSecrets(files),
-    ...scanCodePatterns(files),
-    ...scanClientExposure(files),
+    ...scanNextConfigEnv(files),
+    ...scanPublicCredentialValues(files),
     // C20 — CI is a live attack path, and workflow files are already in the set
     // we fetch (.ya?ml matches the candidate filter).
     ...scanWorkflows(files),

@@ -1,7 +1,9 @@
+import { scanPublicCredentialValues } from "@/lib/deep/clientExposure";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { getInstallationToken } from "@/lib/deep/github";
 import { fetchRepoArchive, type ArchiveFile } from "@/lib/deep/repoArchive";
-import { scanSecrets, scanLoggedSecrets, scanTokenStorage } from "@/lib/deep/githubScan";
+import { scanSecrets } from "@/lib/deep/githubScan";
+import { scanNextConfigEnv } from "@/lib/deep/nextConfigEnv";
 import { collectRoutes, type RouteFact } from "@/lib/graph/routeInventory";
 import { proposeAttacks, routesOmitted } from "./attack";
 import { detectStack, type StackReport } from "./stack";
@@ -302,11 +304,11 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
     const repoFiles = archive.files.map((f) => ({ path: f.path, content: f.content }));
     const deterministic = [
       ...scanSecrets(repoFiles),
-      ...scanLoggedSecrets(repoFiles),
-      ...scanTokenStorage(repoFiles),
+      ...scanNextConfigEnv(repoFiles),
+      ...scanPublicCredentialValues(repoFiles),
     ];
     if (deterministic.length > 0) {
-      step(`${deterministic.length} committed credential or logging issues`, undefined, true);
+      step(`${deterministic.length} committed credential or configuration-exposure issue${deterministic.length === 1 ? "" : "s"}`, undefined, true);
     } else {
       step("No committed credentials found");
     }
