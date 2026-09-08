@@ -7,6 +7,7 @@ import { scanCredentialHandling } from "@/lib/deep/credentialHandling";
 import { scanNextConfigEnv } from "@/lib/deep/nextConfigEnv";
 import { collectRoutes, type RouteFact } from "@/lib/graph/routeInventory";
 import { proposeAttacks, riskyRoutesOmitted, routesOmitted } from "./attack";
+import { crossTenantNotes, renderCrossTenantNote } from "./crossTenantNotes";
 import { detectStack, type StackReport } from "./stack";
 import { buildFindings, type AgentFinding } from "./findings";
 import { extractTables, extractColumns } from "./schema";
@@ -77,6 +78,7 @@ export function buildCoverage(
   reasoningTruncated = false,
   routes: RouteFact[] = [],
   wholesaleRejected = false,
+  crossTenant: string[] = [],
 ): CoverageNote[] {
   const notes: CoverageNote[] = [];
 
@@ -124,6 +126,17 @@ export function buildCoverage(
       name: "Your authentication provider",
       why: "We did not recognise an auth library in this repository.",
       effect: "Route identity is read from the code alone, so an unrecognised guard may read as no guard.",
+    });
+  }
+
+  if (crossTenant.length > 0) {
+    // An inventory statement, not a hedged finding. Every line names the file
+    // and the mechanism, and says no action needed -- a maybe-finding here is a
+    // critical with worse wording and costs the same trust.
+    notes.push({
+      name: `${crossTenant.length} gated endpoint${crossTenant.length === 1 ? "" : "s"} that read across every tenant, by design`,
+      why: "These verify a shared secret or a signature before doing anything, and then process all tenants because that is what a cron or webhook does.",
+      effect: crossTenant.join(" "),
     });
   }
 
@@ -358,10 +371,22 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       );
     }
 
+    // CROSS-TENANT MACHINE-GATED ENDPOINTS BECOME NOTES, NOT CANDIDATES.
+    //
+    // A cron or webhook that verifies a shared secret and then reads every
+    // tenant is doing its job. Emitted only where the gate was READ -- named
+    // file, named mechanism, and never where the check sits behind a
+    // process.env comparison, because on a self-hosted deployment that gate
+    // does not run and the note would be a confident instruction not to look.
+    // Everything else in population A stays a candidate.
+    const notes = crossTenantNotes(routes, new Map(archive.files.map((f) => [f.path, f])));
+    const noted = new Set(notes.map((n) => n.path));
+    const reasonedRoutes = routes.filter((r) => !noted.has(r.path));
+
     if (canReason) step("Reasoning about who can reach what");
     const agent = canReason
       ? await proposeAttacks({
-      routes,
+      routes: reasonedRoutes,
       stack,
       tables,
       domain,
@@ -450,6 +475,7 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       agent.truncated === true,
       routes,
       agent.admitted.length === 0 && (agent.unmatchedEntries ?? []).length > 0,
+      notes.map(renderCrossTenantNote),
     );
 
     step("Audit complete", `${findings.length} open ${findings.length === 1 ? "path" : "paths"}`);
