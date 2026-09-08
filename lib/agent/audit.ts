@@ -65,7 +65,7 @@ function clock(startedAt: number): string {
  * never from a static list -- a coverage note that does not change when the run
  * changes is decoration.
  */
-function buildCoverage(
+export function buildCoverage(
   stack: StackReport,
   truncated: boolean,
   skipped: number,
@@ -133,7 +133,11 @@ function buildCoverage(
     // find, and without saying so it is indistinguishable from a clean audit.
     notes.push({
       name: "Reasoning about who can reach what",
-      why: "This repository took long enough to read that there was not enough time left to reason over it safely.",
+      // Two causes reach this note and the wording must fit both: the run ran
+      // out of time to reason safely, or the reasoning call itself failed.
+      // Naming only the first was accurate until `agent.skipped` started
+      // routing here too.
+      why: "The reasoning step did not run — either this repository took long enough to read that there was not enough time left to reason over it safely, or the reasoning call itself failed.",
       effect:
         "Committed credentials and dependency advisories were still checked. Attack paths were not looked for at all, so this run finding none means nothing.",
       upgrade: "Run the audit again",
@@ -436,7 +440,13 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       routesOmitted({ routes, stack, tables, domain, files: [] }),
       riskyRoutesOmitted({ routes, stack, tables, domain, files: [] }),
       liveFacts.length > 0 ? ["connected"] : [],
-      !canReason,
+      // A model call that FAILED is a skipped reasoning step, exactly like one
+      // we never had time to start. This used to pass `!canReason` alone -- the
+      // time-budget check -- so a 400 from the API produced an audit with zero
+      // reasoned findings, no coverage note, and nothing distinguishing it from
+      // a clean result. Ten such calls were mistaken for ten measured zeros on
+      // 2026-09-08 before the discipline of diagnosing every zero caught it.
+      !canReason || agent.skipped === true,
       agent.truncated === true,
       routes,
       agent.admitted.length === 0 && (agent.unmatchedEntries ?? []).length > 0,
