@@ -127,6 +127,23 @@ export interface RouteFact {
 
 const ROUTE_FILE_RE = /(^|\/)route\.(ts|js|tsx|jsx)$/;
 
+/**
+ * `export * from "./elsewhere"` as the whole of a route file.
+ *
+ * The handler is not here. `handlerRoots` reads a module's own export NAMES and
+ * a star re-export names none, so `traceExecutedSources` returns null and the
+ * route falls back to whole-file import reading. That fallback reaches the
+ * target's queries -- ownership and tables partly propagate -- but the shim
+ * spends one of the two import hops, so a wrapper reached through a barrel sits
+ * three hops out and its session call is never read.
+ *
+ * corpus-a keeps sixteen of these under `app/api/(old)/`. They were reported
+ * `authenticated: false` with `identityReadable: TRUE` about handlers that are
+ * `withWorkspace(...)`: not an admitted unknown but a confident assertion that
+ * we read the route and found no gate. Pinned by reExportShim.test.ts.
+ */
+const STAR_REEXPORT_RE = /^\s*export\s*\*\s*(?:as\s+\w+\s+)?from\s*["']([^"']+)["']/m;
+
 // A workspace prefix before app/ or pages/, because startup codebases are
 // monorepos. Auditing corpus-g, 2,359 files with 112 tables, returned ZERO
 // routes: every endpoint sits at apps/web/src/app/api/.../route.ts and the
@@ -930,7 +947,14 @@ export function identityGapFor(
   machineGateWitness: string | null = null,
   headerReadWitness: string | null = null,
   conditionalIdentityWitness: string | null = null,
+  untracedReExport: string | null = null,
 ): string | null {
+  // Checked FIRST: every other gap below describes something we read in the
+  // handler. This one says the handler is not in this file at all and we could
+  // not follow it, which subsumes the rest -- there is nothing to have read.
+  if (untracedReExport) {
+    return `the handler is re-exported from ${untracedReExport}, and we could not follow it to read what gates it`;
+  }
   // A wrapper that resolves a session only when an option says so (corpus-c'
   // withApiLogging: `switch (authenticationMethod)`). Which option this route
   // set is data we did not read, so the gate is neither asserted nor denied.
@@ -1192,6 +1216,10 @@ export function analyzeRouteFile(
   let roleGateWitness: string | null = null;
   const isAdminPath = /(^|\/)admin(\/|$)/.test(routePathFromFile(file));
   const conditionalIdentityWitness = traced?.conditionalIdentityPaths[0] ?? null;
+  // The handler lives in another module and the trace could not reach it. Only
+  // consulted when we ended up with no identity: if it propagated anyway,
+  // `authenticated` is already true and no gap is asked for.
+  const untracedReExport = traced === null ? (STAR_REEXPORT_RE.exec(stripComments(content))?.[1] ?? null) : null;
 
   for (const { path, src: raw, original, prepared, host, infra } of sources) {
     // A HOST file is the route: the entry itself, or the file its handler was
@@ -1331,7 +1359,7 @@ export function analyzeRouteFile(
       ? null
       : publicByLayout
         ? "the route sits in a directory the application names (public), so anonymous access appears to be by design"
-        : identityGapFor(entrySrc, unresolvedImports, machineGateWitness, headerReadWitness, conditionalIdentityWitness);
+        : identityGapFor(entrySrc, unresolvedImports, machineGateWitness, headerReadWitness, conditionalIdentityWitness, untracedReExport);
   const identityReadable = identityGap === null;
 
   // Same question, one field over. Only asked when we are about to call the
