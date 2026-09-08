@@ -285,6 +285,33 @@ export function routesOmitted(input: AgentInput): number {
   return Math.max(0, interesting.length - MAX_PROMPT_ROUTES);
 }
 
+/**
+ * THE TRUNCATION FUSE.
+ *
+ * Coverage tells the customer that the routes left out of the prompt "are the
+ * ones already scoped or already guarded". That is true only while every route
+ * of a reportable shape fits inside MAX_PROMPT_ROUTES, and it is true today
+ * only by margin: measured 2026-09-08, corpus-a has 54 routes in risk bands 0-5
+ * against a cap of 60, corpus-b 20, corpus-c 3. Seven more anonymous or
+ * unscoped routes in corpus-a and real candidates start being dropped -- silently,
+ * with an output indistinguishable from a clean scan, under a Coverage note
+ * still saying the dropped ones were safe.
+ *
+ * `routeRisk` puts every reportable shape in bands 0-5 and authenticated-and-
+ * scoped in band 6, so "a route we would have reported got cut" is exactly
+ * "something below the cap scored under 6". `sensitive` only separates bands
+ * 0/1 and 2/3, never the 5/6 boundary, so it is not needed here.
+ *
+ * Returns 0 in the healthy case, which is the case on every corpus repository
+ * today. Any non-zero means the cap is now hiding candidates.
+ */
+export function riskyRoutesOmitted(input: AgentInput): number {
+  const interesting = input.routes.filter((r) => r.tables.length > 0);
+  if (interesting.length <= MAX_PROMPT_ROUTES) return 0;
+  const cut = rankRoutes(interesting, new Set(input.domain?.sensitive ?? [])).slice(MAX_PROMPT_ROUTES);
+  return cut.filter((r) => routeRisk(r, new Set()) < 6).length;
+}
+
 /** Pulls the JSON array out of a model response that may be fenced or padded. */
 export function extractJsonArray(text: string): unknown {
   const start = text.indexOf("[");

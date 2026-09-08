@@ -6,7 +6,7 @@ import { scanSecrets } from "@/lib/deep/githubScan";
 import { scanCredentialHandling } from "@/lib/deep/credentialHandling";
 import { scanNextConfigEnv } from "@/lib/deep/nextConfigEnv";
 import { collectRoutes, type RouteFact } from "@/lib/graph/routeInventory";
-import { proposeAttacks, routesOmitted } from "./attack";
+import { proposeAttacks, riskyRoutesOmitted, routesOmitted } from "./attack";
 import { detectStack, type StackReport } from "./stack";
 import { buildFindings, type AgentFinding } from "./findings";
 import { extractTables, extractColumns } from "./schema";
@@ -71,6 +71,7 @@ function buildCoverage(
   skipped: number,
   hasDatabase: boolean,
   routesOmittedCount = 0,
+  riskyOmittedCount = 0,
   liveProvidersRead: string[] = [],
   reasoningSkipped = false,
   reasoningTruncated = false,
@@ -170,7 +171,10 @@ function buildCoverage(
     notes.push({
       name: `${routesOmittedCount} route${routesOmittedCount === 1 ? "" : "s"} not reasoned over`,
       why: "More routes reach data than fit in one reasoning pass. We ranked them by exposure, putting routes with no identity and nothing narrowing the query first, and reasoned over that end.",
-      effect: "The routes left out are the ones already scoped or already guarded. They are still read, and still checked for credentials and known vulnerabilities.",
+      effect:
+        riskyOmittedCount > 0
+          ? `${riskyOmittedCount} of them had no identity or nothing narrowing the query, so they are NOT the already-guarded ones and we did not reason over them. Treat this run as incomplete for those routes rather than clean.`
+          : "The routes left out are the ones already scoped or already guarded. They are still read, and still checked for credentials and known vulnerabilities.",
     });
   }
 
@@ -430,6 +434,7 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       archive.skipped,
       options.hasDatabase ?? false,
       routesOmitted({ routes, stack, tables, domain, files: [] }),
+      riskyRoutesOmitted({ routes, stack, tables, domain, files: [] }),
       liveFacts.length > 0 ? ["connected"] : [],
       !canReason,
       agent.truncated === true,
