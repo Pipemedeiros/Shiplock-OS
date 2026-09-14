@@ -47,3 +47,9 @@ mcp/node_modules/
 # ruflo). Reproducible from ~/starred-repos and ~/Skills; ~8MB of tooling that
 # is not product code and should not live in the product repo history.
 .claude/skills/
+
+# Audit working data owned by the corpus/census agent. The vendored customer-repo
+# copies (218MB) and the 21MB witness dump are reproducible from the pinned
+# archives in docs/STATE.md "Corpus provenance"; the markdown beside them is committed.
+docs/audit/source/
+docs/audit/gate-census-witnesses.json
