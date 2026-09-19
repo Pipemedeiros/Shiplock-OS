@@ -28,7 +28,8 @@ import { scanExtensions } from "./extensionScan";
 import { scanStorage, checkBackups } from "./storageScan";
 import { scanRealtimeAndHooks } from "./realtimeScan";
 import { deriveAppUrl } from "./deriveAppUrl";
-import { saveFacts } from "@/lib/graph/graphRun";
+import { saveFacts, type SupabaseManagementSnapshot } from "@/lib/graph/graphRun";
+import { providerConnectionFingerprint } from "./providerRepositoryMap";
 import { buildInventory } from "@/lib/exposure/model";
 import { runAuthLogScan } from "@/lib/runtime/authRun";
 import { runProvingGround } from "@/lib/proving/run";
@@ -44,10 +45,20 @@ export interface PolicyScanOutcome {
   reason?: string;
 }
 
+// The fetched object is intentionally loose and may contain SMTP/OAuth secrets.
+// Existing checks use it only in memory; graph storage needs two boolean flags.
+function graphAuthConfig(config: Awaited<ReturnType<typeof fetchAuthConfig>>): SupabaseManagementSnapshot["authConfig"] {
+  if (config === null) return null;
+  return {
+    ...(typeof config.disable_signup === "boolean" ? { disable_signup: config.disable_signup } : {}),
+    ...(typeof config.mailer_autoconfirm === "boolean" ? { mailer_autoconfirm: config.mailer_autoconfirm } : {}),
+  };
+}
+
 export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> {
   const admin = getSupabaseAdmin();
 
-  const { data: row } = await admin
+  const { data: row, error: profileError } = await admin
     .from("user_profiles")
     .select(
       "supabase_mgmt_token_encrypted, supabase_mgmt_refresh_encrypted, supabase_mgmt_expires_at, supabase_mgmt_project_ref, monitored_app_url"
@@ -55,10 +66,14 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
     .eq("id", userId)
     .maybeSingle();
 
-  if (!row?.supabase_mgmt_token_encrypted || !row.supabase_mgmt_project_ref) {
+  if (profileError || typeof row?.supabase_mgmt_token_encrypted !== "string" ||
+      !row.supabase_mgmt_token_encrypted.trim() || typeof row.supabase_mgmt_project_ref !== "string" ||
+      !row.supabase_mgmt_project_ref.trim()) {
     return { ok: false, findings: 0, reason: "not_connected" };
   }
 
+  const projectRef = row.supabase_mgmt_project_ref;
+  let connectionCiphertext = row.supabase_mgmt_token_encrypted;
   let token;
   try {
     const usable = await getUsableToken(row);
@@ -67,16 +82,28 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
 
     // Persist a refreshed token so the next pass doesn't have to refresh again.
     if (usable.refreshed) {
-      await admin
+      const refreshedCiphertext = encrypt(token.accessToken);
+      const { data: persisted, error: refreshError } = await admin
         .from("user_profiles")
         .update({
-          supabase_mgmt_token_encrypted: encrypt(token.accessToken),
+          supabase_mgmt_token_encrypted: refreshedCiphertext,
           supabase_mgmt_refresh_encrypted: token.refreshToken
             ? encrypt(token.refreshToken)
             : row.supabase_mgmt_refresh_encrypted,
           supabase_mgmt_expires_at: token.expiresAt,
         })
-        .eq("id", userId);
+        .eq("id", userId)
+        .eq("supabase_mgmt_project_ref", projectRef)
+        .eq("supabase_mgmt_token_encrypted", connectionCiphertext)
+        .select("supabase_mgmt_token_encrypted")
+        .maybeSingle();
+      // A disconnect/reconnect or failed write must not publish a fingerprint
+      // for a credential we only intended to store. This guards refresh only;
+      // in-flight collection still needs current-connection admission later.
+      if (refreshError || persisted?.supabase_mgmt_token_encrypted !== refreshedCiphertext) {
+        return { ok: false, findings: 0, reason: "auth_failed" };
+      }
+      connectionCiphertext = refreshedCiphertext;
     }
   } catch {
     // A revoked or expired connection is a normal state, not an error worth
@@ -84,7 +111,7 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
     return { ok: false, findings: 0, reason: "auth_failed" };
   }
 
-  const projectRef = row.supabase_mgmt_project_ref as string;
+  const connectionFingerprint = providerConnectionFingerprint(connectionCiphertext);
 
   let findings;
   try {
@@ -136,18 +163,22 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
       ...scanRealtimeAndHooks(await fetchRealtimeAndHooks(token.accessToken, projectRef)),
     ];
 
-    // Feed the graph's database collector with the raw facts, not our verdicts.
-    // The reasoner combines them with route facts to produce paths neither
-    // source can see alone.
-    // `advisors` is written ONLY when the fetch succeeded. Writing `[]` after a
-    // failure would tell the graph "we ran the advisors and they flagged
-    // nothing" — the precise false statement this whole change is about. Omitted
-    // instead, so a previously-stored advisor set survives the merge and the
-    // absence is honest.
+    // Capture one self-contained project/credential observation. Do not fill
+    // failed reads from legacy merged facts or another database transport.
+    const storedAuthConfig = graphAuthConfig(authConfig);
+    const supabaseManagementSnapshot: SupabaseManagementSnapshot = {
+      collector: "supabase-management", authzProvider: "postgres-rls",
+      projectRef, connectionFingerprint, recordedAt: new Date().toISOString(),
+      completeness: "unknown", policies, authConfig: storedAuthConfig,
+      ...(advisorsOk ? { advisors } : {}),
+    };
+    // Keep legacy flat observations for compatibility, but never persist the
+    // loose auth config. Failed advisors remain omitted in the snapshot even
+    // though the existing merge may retain an older flat advisor set.
     await saveFacts(
       userId,
       "db",
-      { policies, authConfig, ...(advisorsOk ? { advisors } : {}) },
+      { policies, authConfig: storedAuthConfig, ...(advisorsOk ? { advisors } : {}), supabaseManagementSnapshot },
       { merge: true }
     );
 

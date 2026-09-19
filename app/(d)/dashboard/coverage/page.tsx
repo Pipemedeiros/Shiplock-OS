@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireDashboardSession } from "@/lib/dashboard";
 import { getRuns } from "@/lib/agent/dashboardData";
+import { getEvidenceCoverage } from "@/lib/graph/evidenceCoverage";
 
 /**
  * What the last audit did not reach.
@@ -12,7 +13,7 @@ import { getRuns } from "@/lib/agent/dashboardData";
  */
 export default async function Coverage() {
   const { userId } = await requireDashboardSession();
-  const runs = await getRuns(userId, 1);
+  const [runs, evidence] = await Promise.all([getRuns(userId, 1), getEvidenceCoverage(userId)]);
   const latest = runs[0];
 
   return (
@@ -21,6 +22,35 @@ export default async function Coverage() {
         <div>
           <p className="v3-eyebrow">What we read, and what we did not</p>
           <h1 className="v3-serif">Coverage</h1>
+        </div>
+      </div>
+
+      <div className="v3-card" style={{ marginBottom: 24 }}>
+        <div className="v3-hd">
+          <h2 className="v3-eyebrow">Stored evidence</h2>
+        </div>
+        <div className="v3-card-p">
+          <p className="v3-small" style={{ marginBottom: 16 }}>
+            Evidence across this account, separate from the repository audit below.
+            Dates show when information was recorded, not when your provider last changed it.
+            A complete collection does not mean the application is secure.
+          </p>
+          {!evidence.available ? (
+            <p>We could not load evidence history. Its age and completeness are unknown.</p>
+          ) : evidence.items.length === 0 ? (
+            <p>No stored collector evidence is available yet.</p>
+          ) : (
+            <ul className="v3-small">
+              {evidence.items.map((item) => (
+                <li key={item.label} style={{ marginBottom: 12 }}>
+                  <strong>{item.label}</strong>{" — "}
+                  {item.completeness === "complete" ? "Collection complete" : item.completeness === "partial" ? "Partial collection" : "Completeness unknown"}
+                  <br />
+                  {item.recordedAt ? <time dateTime={item.recordedAt}>Recorded {item.recordedAt.replace("T", " ").replace(".000Z", " UTC").replace("Z", " UTC")}</time> : "Recording date unknown"}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
 

@@ -16,6 +16,7 @@
 
 import { useState } from "react";
 import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
+import { DirectRepositoryAssociation } from "./DirectRepositoryAssociation";
 
 const SETUP_SQL = `create role shiplock_reader login password '<a strong password>';
 grant connect on database <your_db> to shiplock_reader;
@@ -30,6 +31,7 @@ export function PostgresPanel({
   display: string | null;
 }) {
   const [busy, setBusy] = useState(false);
+  const [associationBusy, setAssociationBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState(false);
   const [isConnected, setIsConnected] = useState(connected);
@@ -113,7 +115,7 @@ export function PostgresPanel({
             type="button"
             className="dxd-btn"
             onClick={() => post({ action: "scan" })}
-            disabled={busy}
+            disabled={busy || associationBusy}
             style={{ fontSize: 12, padding: "6px 12px" }}
           >
             {busy ? "…" : "Check policies now"}
@@ -122,7 +124,7 @@ export function PostgresPanel({
             type="button"
             className="dxd-btn dxd-btn-ghost"
             onClick={() => post({ action: "disconnect" })}
-            disabled={busy}
+            disabled={busy || associationBusy}
             style={{ fontSize: 12, padding: "6px 12px" }}
           >
             Disconnect
@@ -226,6 +228,7 @@ export function PostgresPanel({
           {message}
         </p>
       )}
+      {isConnected && <DirectRepositoryAssociation disabled={busy} onMutationBusyChange={setAssociationBusy} />}
     </div>
   );
 }

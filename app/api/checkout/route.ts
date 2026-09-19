@@ -4,6 +4,7 @@ import { getStripe } from "@/lib/stripe";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { checkCheckoutRateLimit } from "@/lib/rateLimit";
 import { getPlan } from "@/lib/plans";
+import { BILLING_ENABLED } from "@/lib/access";
 
 const schema = z.object({
   summary: z.string().max(300).optional(),
@@ -13,6 +14,13 @@ const schema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  if (!BILLING_ENABLED) {
+    return NextResponse.json(
+      { error: "Billing is not available during the preview." },
+      { status: 503 }
+    );
+  }
+
   // Checkout requires an authenticated user — the email used for billing
   // comes from the verified session, never from the request body.
   const token = req.headers.get("authorization")?.replace("Bearer ", "");
@@ -64,17 +72,10 @@ export async function POST(req: NextRequest) {
   let session;
   try {
     session = await getStripe().checkout.sessions.create({
-      // Prepaid terms are one-time charges, not subscriptions — nothing
-      // auto-renews, so there is no cancellation to fee. See lib/plans.ts.
       mode: plan.mode,
       payment_method_types: ["card"],
       customer_email: email,
       line_items: [{ price: priceId, quantity: 1 }],
-      // The 7-day trial belongs to the monthly subscription only; Stripe
-      // rejects subscription_data on a one-time payment session.
-      ...(plan.mode === "subscription"
-        ? { subscription_data: { trial_period_days: 7 } }
-        : {}),
       metadata: {
         userId,
         summary: summary ?? "",

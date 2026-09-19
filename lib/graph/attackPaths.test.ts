@@ -334,6 +334,46 @@ describe("traffic corroboration", () => {
   });
 });
 
+describe("runtime evidence admission", () => {
+  const base = {
+    routes: anonReadsInvoices,
+    scanTables: [{ name: "invoices", rlsEnabled: false }],
+  };
+  const runtimeEnvVars = [{
+    key: "DATABASE_PASSWORD",
+    target: ["production"],
+    provider: "vercel",
+    projectId: "project-1",
+  }];
+
+  it("does not strengthen a repository path with unmapped provider evidence", () => {
+    const without = findAttackPaths(base);
+    const withUnmapped = findAttackPaths({ ...base, repositoryId: "repo-a", runtimeEnvVars });
+    expect(withUnmapped[0].score).toBe(without[0].score);
+    expect(withUnmapped[0].surfaces).not.toContain("runtime");
+  });
+
+  it("does not strengthen a path with another repository's provider evidence", () => {
+    const paths = findAttackPaths({
+      ...base,
+      repositoryId: "repo-a",
+      runtimeEnvVars: [{ ...runtimeEnvVars[0], repositoryId: "repo-b" }],
+    });
+    expect(paths[0].surfaces).not.toContain("runtime");
+  });
+
+  it("admits explicitly associated provider evidence", () => {
+    const without = findAttackPaths(base);
+    const mapped = findAttackPaths({
+      ...base,
+      repositoryId: "repo-a",
+      runtimeEnvVars: [{ ...runtimeEnvVars[0], repositoryId: "repo-a" }],
+    });
+    expect(mapped[0].score).toBeGreaterThan(without[0].score);
+    expect(mapped[0].surfaces).toContain("runtime");
+  });
+});
+
 describe("ranking and structure", () => {
   it("ranks a reachable path above an unreachable-but-sensitive one", () => {
     const routes = collectRoutes([

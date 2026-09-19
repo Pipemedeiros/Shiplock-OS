@@ -8,6 +8,7 @@
 
 import { useState } from "react";
 import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
+import { SupabaseRepositoryAssociations } from "./SupabaseRepositoryAssociations";
 
 export function SupabasePanel({
   connected,
@@ -19,6 +20,7 @@ export function SupabasePanel({
   configured: boolean;
 }) {
   const [busy, setBusy] = useState(false);
+  const [associationBusy, setAssociationBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [isConnected, setIsConnected] = useState(connected);
 
@@ -73,7 +75,7 @@ export function SupabasePanel({
 
       {!configured ? (
         <p className="dxd-mono" style={{ fontSize: 11.5, color: "var(--d-muted-light)" }}>
-          Not available yet. This connection is being finished.
+          Management API connection is not available yet.
         </p>
       ) : (
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
@@ -83,7 +85,7 @@ export function SupabasePanel({
                 type="button"
                 className="dxd-btn"
                 onClick={() => post("/api/deep/supabase/scan")}
-                disabled={busy}
+                disabled={busy || associationBusy}
                 style={{ fontSize: 12, padding: "6px 12px" }}
               >
                 {busy ? "…" : "Check policies now"}
@@ -92,7 +94,7 @@ export function SupabasePanel({
                 type="button"
                 className="dxd-btn dxd-btn-ghost"
                 onClick={() => post("/api/deep/supabase/disconnect")}
-                disabled={busy}
+                disabled={busy || associationBusy}
                 style={{ fontSize: 12, padding: "6px 12px" }}
               >
                 Disconnect
@@ -103,13 +105,19 @@ export function SupabasePanel({
             </>
           ) : (
             <>
-              <a
-                href="/api/deep/supabase/connect"
-                className="dxd-btn"
-                style={{ fontSize: 12, padding: "6px 12px" }}
-              >
-                Connect read-only access
-              </a>
+              {associationBusy ? (
+                <button type="button" className="dxd-btn" disabled style={{ fontSize: 12, padding: "6px 12px" }}>
+                  Connect read-only access
+                </button>
+              ) : (
+                <a
+                  href="/api/deep/supabase/connect"
+                  className="dxd-btn"
+                  style={{ fontSize: 12, padding: "6px 12px" }}
+                >
+                  Connect read-only access
+                </a>
+              )}
               <span className="dxd-mono" style={{ fontSize: 11, color: "var(--d-muted-light)" }}>
                 ○ Not connected
               </span>
@@ -121,6 +129,7 @@ export function SupabasePanel({
       {message && (
         <p style={{ fontSize: 12, color: "var(--d-muted)", marginTop: 10 }}>{message}</p>
       )}
+      <SupabaseRepositoryAssociations disabled={busy} onMutationBusyChange={setAssociationBusy} />
     </div>
   );
 }

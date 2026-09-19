@@ -5,7 +5,14 @@ const listProjectsMock = vi.fn();
 const listProjectEnvMock = vi.fn();
 const selectChainMock = vi.fn();
 const insertMock = vi.fn();
+const saveFactsMock = vi.fn();
+const syncVercelRepositoryLinksMock = vi.fn();
 
+vi.mock("@/lib/graph/graphRun", () => ({ saveFacts: saveFactsMock }));
+vi.mock("./providerRepositoryMap", () => ({
+  syncVercelRepositoryLinks: syncVercelRepositoryLinksMock,
+  providerConnectionFingerprint: () => "connection-1",
+}));
 vi.mock("@/lib/crypto", () => ({ decrypt: decryptMock }));
 vi.mock("./vercel", () => ({
   listProjects: listProjectsMock,
@@ -38,6 +45,8 @@ describe("runVercelEnvAudit", () => {
     listProjectEnvMock.mockReset();
     selectChainMock.mockReset().mockResolvedValue({ data: [] });
     insertMock.mockReset().mockResolvedValue({ data: null, error: null });
+    saveFactsMock.mockReset().mockResolvedValue(undefined);
+    syncVercelRepositoryLinksMock.mockReset().mockResolvedValue(new Map());
   });
 
   it("decrypts the stored token before calling the Vercel API", async () => {
@@ -109,6 +118,57 @@ describe("runVercelEnvAudit", () => {
     await runVercelEnvAudit("user-1", "cipher", null);
 
     expect(listProjectEnvMock).toHaveBeenCalledTimes(20);
+  });
+
+  it("preserves project identity without saving environment values", async () => {
+    listProjectsMock.mockResolvedValue([
+      { id: "p1", name: "one" },
+      { id: "p2", name: "two" },
+    ]);
+    listProjectEnvMock.mockResolvedValue([
+      { key: "API_KEY", target: ["production"], value: "private-test-value" },
+    ]);
+
+    await runVercelEnvAudit("user-1", "cipher", null);
+
+    expect(listProjectEnvMock).toHaveBeenCalledTimes(2);
+    expect(saveFactsMock).toHaveBeenCalledWith("user-1", "runtime", {
+      envVars: [
+        { key: "API_KEY", target: ["production"], provider: "vercel", projectId: "p1", connectionFingerprint: "connection-1" },
+        { key: "API_KEY", target: ["production"], provider: "vercel", projectId: "p2", connectionFingerprint: "connection-1" },
+      ],
+      providersRead: ["vercel"],
+    }, expect.anything());
+    expect(JSON.stringify(saveFactsMock.mock.calls)).not.toContain("private-test-value");
+  });
+
+  it("adds repository identity only for a persisted provider link", async () => {
+    listProjectsMock.mockResolvedValue([
+      { id: "p1", name: "one", gitRepository: { type: "github", fullName: "acme/app", repoId: "7" } },
+      { id: "p2", name: "two" },
+    ]);
+    syncVercelRepositoryLinksMock.mockResolvedValue(new Map([["p1", "repo-a"]]));
+    listProjectEnvMock.mockResolvedValue([{ key: "API_KEY", target: ["production"], value: "not-saved" }]);
+
+    await runVercelEnvAudit("user-1", "cipher", null);
+
+    expect(syncVercelRepositoryLinksMock).toHaveBeenCalledWith("user-1", expect.any(Array), "cipher");
+    expect(saveFactsMock.mock.calls[0][2].envVars).toEqual([
+      { key: "API_KEY", target: ["production"], provider: "vercel", projectId: "p1", repositoryId: "repo-a", connectionFingerprint: "connection-1" },
+      { key: "API_KEY", target: ["production"], provider: "vercel", projectId: "p2", connectionFingerprint: "connection-1" },
+    ]);
+  });
+
+  it("keeps provider checks running but excludes repository attribution on mapping failure", async () => {
+    listProjectsMock.mockResolvedValue([{ id: "p1", name: "one" }]);
+    syncVercelRepositoryLinksMock.mockRejectedValue(new Error("mapping write failed"));
+    listProjectEnvMock.mockResolvedValue([{ key: "API_KEY", target: ["production"], value: "not-saved" }]);
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      await runVercelEnvAudit("user-1", "cipher", null);
+      expect(saveFactsMock.mock.calls[0][2].envVars[0]).not.toHaveProperty("repositoryId");
+      expect(listProjectEnvMock).toHaveBeenCalledTimes(1);
+    } finally { log.mockRestore(); }
   });
 
   it("returns zero counts and does not call insert when there are no findings", async () => {

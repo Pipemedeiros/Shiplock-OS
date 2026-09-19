@@ -88,7 +88,7 @@ describe("lib/deep/vercel", () => {
       expect(fetchMock.mock.calls[0][0]).toBe("https://api.vercel.com/v9/projects?teamId=team_9");
     });
 
-    it("sends the bearer auth header and maps id/name only", async () => {
+    it("sends the bearer auth header and ignores unsupported extra fields", async () => {
       const fetchMock = vi.fn().mockResolvedValue(
         jsonResponse({ projects: [{ id: "p1", name: "site-one", extraField: "ignored" }] })
       );
@@ -98,9 +98,37 @@ describe("lib/deep/vercel", () => {
       expect(projects).toEqual([{ id: "p1", name: "site-one" }]);
     });
 
+    it("retains an explicit GitHub repository link as provenance", async () => {
+      global.fetch = vi.fn().mockResolvedValue(jsonResponse({ projects: [{
+        id: "p1", name: "site-one",
+        link: { type: "github", org: "Acme", repo: "Web", repoId: 42 },
+      }] })) as unknown as typeof fetch;
+      expect(await listProjects("token", null)).toEqual([{
+        id: "p1", name: "site-one",
+        gitRepository: { type: "github", fullName: "Acme/Web", repoId: "42" },
+      }]);
+    });
+
+    it("does not infer a GitHub link from malformed or non-GitHub metadata", async () => {
+      global.fetch = vi.fn().mockResolvedValue(jsonResponse({ projects: [
+        { id: "p1", name: "gitlab", link: { type: "gitlab", org: "Acme", repo: "Web" } },
+        { id: "p2", name: "bad", link: { type: "github", org: "Acme/Other", repo: "Web" } },
+      ] })) as unknown as typeof fetch;
+      expect(await listProjects("token", null)).toEqual([
+        { id: "p1", name: "gitlab" }, { id: "p2", name: "bad" },
+      ]);
+    });
+
     it("returns an empty array when the response has no projects field", async () => {
       global.fetch = vi.fn().mockResolvedValue(jsonResponse({})) as unknown as typeof fetch;
       expect(await listProjects("token", null)).toEqual([]);
+    });
+
+    it.each(["not-an-id", 0, -1, Number.MAX_SAFE_INTEGER + 1, {}])("refuses malformed GitHub repository id %s", async (repoId) => {
+      global.fetch = vi.fn().mockResolvedValue(jsonResponse({ projects: [{
+        id: "p1", name: "site", link: { type: "github", org: "Acme", repo: "Web", repoId },
+      }] })) as unknown as typeof fetch;
+      expect(await listProjects("token", null)).toEqual([{ id: "p1", name: "site" }]);
     });
 
     it("throws with the HTTP status on a non-ok response", async () => {

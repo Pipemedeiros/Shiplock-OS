@@ -12,7 +12,7 @@ import { TENANT_A, TENANT_B } from "./tenantProbe";
 // permissive policy is worth something; writing a replacement policy and
 // applying it to a live database on the strength of our own reasoning is worth
 // rather less, because the failure mode is locking every one of a paying
-// customer's users out of their own data. On a $49/month product that is an
+// customer's users out of their own data. For a founder-facing product that is an
 // asymmetric bet: five saved minutes against an outage we caused.
 //
 // The loop removes the bet. Every fix is demonstrated on a replica first, and it

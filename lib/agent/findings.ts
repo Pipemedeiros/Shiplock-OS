@@ -2,6 +2,7 @@ import type { Severity } from "@/lib/types";
 import type { GithubFinding } from "@/lib/deep/githubScan";
 import type { RouteFact } from "@/lib/graph/routeInventory";
 import type { AttackClass, Hypothesis } from "./attackGuard";
+import { renderPossessionGate, type PossessionGate } from "./possessionGate";
 import type { StackReport } from "./stack";
 
 /**
@@ -71,6 +72,10 @@ const SEVERITY: Record<string, Severity> = {
   injection: "WARNING",
   mass_assignment: "WARNING",
   unsafe_redirect: "WARNING",
+  // A description of a share-link design, not a defect we can assert. What
+  // would make it one -- the id being shown to someone who should not hold it
+  // -- is exactly what we did not read, and the finding says so.
+  possession_gated: "INFO",
 };
 
 /**
@@ -89,6 +94,9 @@ const FIX_KIND: Record<string, FixKind> = {
   secret_exposure: "manual",
   server_boundary_crossed: "manual",
   mass_assignment: "manual",
+  // Whether a share link should exist is a product decision, and no
+  // authorization logic is machine-authored here.
+  possession_gated: "manual",
 };
 
 /**
@@ -193,14 +201,47 @@ export interface BuildFindingsInput {
    * read it from the provider rather than taking the model's word for it.
    */
   liveFacts?: { id: string; statement: string }[];
+  /**
+   * Possession gates read this run, keyed by route path. A `possession_gated`
+   * finding is rendered from its gate, never from the model's prose, which was
+   * written for a missing login.
+   */
+  possessionGates?: ReadonlyMap<string, PossessionGate>;
 }
 
 export function buildFindings(input: BuildFindingsInput): AgentFinding[] {
   const byPath = new Map(input.routes.map((r) => [r.path, r]));
   const findings: AgentFinding[] = [];
 
-  for (const h of input.admitted) {
-    const route = byPath.get(h.entry);
+  for (const admitted of input.admitted) {
+    const route = byPath.get(admitted.entry);
+
+    // Rendered from what we read, and nothing else. The guard only produces
+    // this class where a gate was read, so a missing gate here is a wiring
+    // fault on our side. It must not make a finding vanish: it falls back to
+    // the claim the guard reworded, which keeps the critical standing.
+    const gate = admitted.attackClass === "possession_gated" ? input.possessionGates?.get(admitted.entry) : undefined;
+    const h =
+      admitted.attackClass === "possession_gated" && !gate
+        ? { ...admitted, attackClass: "missing_authentication" as const }
+        : admitted;
+    if (gate) {
+      const rendered = renderPossessionGate(gate);
+      findings.push({
+        id: `agent:${h.attackClass}:${h.entry}`,
+        title: rendered.title,
+        consequence: rendered.consequence,
+        severity: SEVERITY.possession_gated,
+        confidence: confidenceFrom(rendered.claims),
+        attackClass: h.attackClass,
+        entry: h.entry,
+        file: gate.file,
+        blastRadius: route && route.tables.length ? route.tables.join(", ") : null,
+        fixKind: FIX_KIND.possession_gated,
+        claims: rendered.claims,
+      });
+      continue;
+    }
     // A cited fact becomes a claim of its own, marked verified: we read it from
     // the provider, so it is evidence rather than the model's assertion. This
     // is what lets a live connection raise a finding from inferred to

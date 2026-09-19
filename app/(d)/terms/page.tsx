@@ -2,42 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LockMark } from "@/components/d/Brand";
 
-// Real, product-accurate Terms of Service — matches what's actually built
-// (self-serve cancellation via /api/portal + the dashboard Billing button)
-// rather than promising features that don't exist.
-//
-// Revised 2026-07-27 for the prepaid 6/12-month terms and to close four gaps a
-// research pass surfaced. NOT legal advice and NOT a substitute for review by a
-// qualified lawyer before this handles real money — the clauses below are
-// drafted to be a sound starting point for that review, not a replacement:
-//
-//  1. AUTHORISATION TO SCAN. We point automated requests at a customer's live
-//     infrastructure. Documented, explicit customer authorisation is what
-//     separates that from unauthorised access under the CFAA, and the customer
-//     must actually have authority to grant it (their Supabase project, their
-//     app). Previously implied, now explicit.
-//  2. LIMITATION OF LIABILITY + WARRANTY DISCLAIMER. There was no cap at all.
-//     Standard SaaS practice is a cap tied to fees paid, with carve-outs for
-//     gross negligence and wilful misconduct (which are commonly unenforceable
-//     to disclaim anyway).
-//  3. THE VERIFIED REPORT. It is published for third parties to read, which is
-//     exactly the fact pattern for a negligent-misrepresentation claim by
-//     someone who relied on it. It now states what it does and does not
-//     attest, and disclaims third-party reliance.
-//  4. CONSUMER WITHDRAWAL RIGHTS. CJEU C-234/25 (Sky Österreich, 9 July 2026)
-//     classifies a subscription to a dynamic service as a "digital service",
-//     which is NOT in the CRD's list of withdrawal-right exceptions — so an EU
-//     consumer cannot waive the 14-day withdrawal right, and a prepaid annual
-//     term must honour it (pro-rata for use). Also note the FTC's
-//     click-to-cancel rule was vacated by the Eighth Circuit in July 2025 and
-//     is being re-proposed; ROSCA still applies regardless, which is a further
-//     reason the prepaid terms deliberately do not auto-renew.
+// Product-accurate preview terms. These are a working draft, not legal advice;
+// obtain qualified review before charging customers or running active tests.
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Terms of service",
   description:
-    "Plain-language terms: $49/month or a prepaid 6- or 12-month term, 7-day free trial, self-serve cancellation, what the audit covers and what it can't promise.",
+    "Plain-language preview terms: authorization, what ShipLock reads, approval boundaries, and what an audit cannot guarantee.",
 };
 
 
@@ -66,7 +38,7 @@ export default function TermsPage() {
               <h1 className="dxd-display" style={{ fontSize: "clamp(30px,4.5vw,44px)" }}>
                 Terms of Service
               </h1>
-              <p className="dxd-lede">Last updated 2026-07-27.</p>
+              <p className="dxd-lede">Last updated 2026-09-19.</p>
             </div>
           </header>
         </div>
@@ -76,43 +48,16 @@ export default function TermsPage() {
         <section className="dxd-section" style={{ maxWidth: 720 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 28, fontSize: 15, lineHeight: 1.75 }}>
             <div>
-              <h2 className="dxd-h2" style={{ fontSize: 22 }}>The subscription</h2>
+              <h2 className="dxd-h2" style={{ fontSize: 22 }}>Preview access and pricing</h2>
               <p>
-                One product, three ways to pay for it, all billed by Stripe. Nothing is held back
-                on the cheaper terms, a longer term is simply less money.
-              </p>
-              <ul style={{ paddingLeft: 20, display: "grid", gap: 6, margin: "12px 0" }}>
-                <li>
-                  <b>$49/month</b>, a recurring subscription. New subscriptions include 7 days
-                  free; you aren&apos;t charged until the trial ends, and cancelling during the
-                  trial costs nothing. After the trial it renews monthly until you cancel.
-                </li>
-                <li>
-                  <b>$265 for six months</b> and <b>$470 for twelve months</b>, a single charge
-                  that buys a fixed window of access. <b>These do not auto-renew.</b> When the
-                  window ends, access simply stops until you choose to buy another.
-                </li>
-              </ul>
-              <p>
-                <b>Cancelling the monthly plan:</b> self-serve, any time, open <b>Billing</b>{" "}
-                from your dashboard to manage or cancel through Stripe&apos;s billing portal (or
-                email <a href="mailto:support@shiplock.dev">support@shiplock.dev</a> and
-                we&apos;ll do it for you). You keep access through the end of the period
-                you&apos;ve already paid for; we don&apos;t offer partial-month refunds.
+                ShipLock is free during the current preview. Billing is disabled and we do not
+                offer a paid subscription or prepaid term today. Previous prices and trials are
+                withdrawn.
               </p>
               <p>
-                <b>Prepaid terms carry no cancellation fee</b>, because there is nothing to
-                cancel, you bought a window, not a commitment. We don&apos;t charge an early
-                termination fee under any plan, ever.
-              </p>
-              <p>
-                <b>Refunds and withdrawal.</b> If you&apos;re a consumer in the EU, UK, or
-                another jurisdiction with a statutory cooling-off period, you keep that right and
-                nothing here waives it: you may withdraw within 14 days of purchase, and
-                we&apos;ll refund what you paid, less a proportionate amount for the period you
-                actually had access. Outside that, prepaid terms are non-refundable, but if a
-                prepaid term isn&apos;t working out for you, email us. We&apos;d rather refund
-                you than keep money you feel you shouldn&apos;t have spent.
+                If pricing is introduced, the price, renewal terms, included usage, cancellation,
+                and refund rules will be shown before you make an affirmative purchase. Preview
+                access does not authorize ShipLock to charge a stored payment method later.
               </p>
             </div>
 
@@ -132,7 +77,7 @@ export default function TermsPage() {
                 configured and what it will answer to an anonymous request. We do not attempt to
                 exploit, damage, degrade, or persist in anything we find, and we do not attempt
                 to access other customers&apos; data. You can revoke this permission at any time
-                by disconnecting the project or cancelling.
+                by disconnecting the project or deleting your account.
               </p>
               <p>
                 Your infrastructure providers have their own acceptable-use terms governing
@@ -145,15 +90,12 @@ export default function TermsPage() {
             <div>
               <h2 className="dxd-h2" style={{ fontSize: 22 }}>What you get</h2>
               <p>
-                A 16-check audit of your connected database and application and, while your
-                subscription is active, the fix for every finding, delivered as a reviewable
-                pull request or handed to your coding agent. Continuous monitoring is genuinely
-                live for the pieces we say are live: a re-scan on every pull request, an hourly
-                lightweight critical-check pass, and a full deep scan every 48 hours. GitHub
-                source scanning and the coding-agent integration activate when you connect them;
-                anything we haven&apos;t shipped yet is labeled
-                &ldquo;coming soon&rdquo; in the product itself, and we won&apos;t bill you
-                differently based on roadmap features landing.
+                A repository audit with findings, inspectable evidence, and explicit coverage of
+                what ShipLock could not read. Optional provider connections can add live
+                configuration evidence. Where a mechanical remedy is supported, ShipLock may
+                prepare a reviewable pull request; it never approves, merges, deploys, or changes
+                provider configuration for you. Scheduled coverage is reported from actual run
+                state, not promised merely because a collector exists.
               </p>
             </div>
 

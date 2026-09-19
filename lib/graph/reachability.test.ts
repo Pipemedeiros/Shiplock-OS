@@ -24,6 +24,43 @@ const app = [
 
 const index = () => buildReachabilityIndex({ files: app, routes: collectRoutes(app) });
 
+describe("repository-bound and partial reachability", () => {
+  it("does not promote a repository's finding from another repository's file", () => {
+    const scoped = {
+      liveFiles: new Set(["lib/fmt.ts"]), hasEntryPoints: true, exposedTables: new Set<string>(),
+      repositoryIndices: new Map([
+        ["acme/app", { liveFiles: new Set(["lib/fmt.ts"]), hasEntryPoints: true, exposedTables: new Set<string>(), coverage: "partial" as const }],
+        ["acme/other", { liveFiles: new Set<string>(), hasEntryPoints: true, exposedTables: new Set<string>(), coverage: "partial" as const }],
+      ]),
+    };
+    expect(assessReachability("acme/app::github:credential:x:lib/fmt.ts", scoped).state).toBe("reachable");
+    expect(assessReachability("acme/other::github:credential:x:lib/fmt.ts", scoped).state).toBe("unknown");
+  });
+
+  it("does not demote an unseen file when source coverage is partial", () => {
+    const partial = { ...index(), coverage: "partial" as const };
+    expect(assessReachability("acme/app::github:credential:x:lib/orphan.ts", partial))
+      .toMatchObject({ state: "unknown", scoreDelta: 0 });
+  });
+
+  it("does not promote a database finding from unbound repository table names", () => {
+    const scoped = { ...index(), repositoryIndices: new Map() };
+    expect(assessReachability("policy:public.invoices:p:unrestricted_read", scoped).state).toBe("unknown");
+  });
+
+  it("never promotes paths from unknown coverage", () => {
+    expect(assessReachability("acme/app::github:credential:x:lib/fmt.ts", { ...index(), coverage: "unknown" }))
+      .toMatchObject({ state: "unknown", scoreDelta: 0 });
+  });
+
+  it("neither promotes nor demotes database findings from partial coverage", () => {
+    for (const table of ["invoices", "audit_log"]) {
+      expect(assessReachability(`advisor:rls_policy_always_true:public.${table}`, { ...index(), coverage: "partial" }))
+        .toMatchObject({ state: "unknown", scoreDelta: 0 });
+    }
+  });
+});
+
 describe("entry points", () => {
   it("recognises the ways a Next.js app starts executing", () => {
     for (const p of [

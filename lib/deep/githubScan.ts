@@ -113,6 +113,14 @@ export function hasParseablePrivateKey(content: string): boolean {
   const normalized = content.replace(/\\r\\n|\\n|\\r/g, "\n");
   const blocks = normalized.matchAll(/-----BEGIN ((?:RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY)-----([\s\S]*?)-----END \1-----/g);
   for (const [, label, rawBody] of blocks) {
+    // Try the untouched PEM first: base64 can legitimately begin with //,
+    // which comment cleanup would otherwise remove and corrupt the key.
+    try {
+      createPrivateKey(`-----BEGIN ${label}-----${rawBody}-----END ${label}-----`);
+      return true;
+    } catch {
+      // Wrapped/commented PEM still uses the normalization below.
+    }
     const cleanBody = rawBody.replace(/^\s*(?:\/\/|\*|#) ?/gm, "").trim();
     // Traditional PEM encryption leaves this envelope visible; the private
     // parameters cannot be parsed without the passphrase. Require the known

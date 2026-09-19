@@ -46,7 +46,7 @@ const { runMonitoringPass } = await import("./run");
 const cleanScan = { tables: [], checks: [] } as unknown as Awaited<ReturnType<typeof scanProjectMock>>;
 
 /** A clean scan with one RLS-disabled table, i.e. one CRITICAL finding. */
-const scanWithFinding = { tables: [{ name: "orders", rlsEnabled: false }], checks: [] } as unknown as typeof cleanScan;
+const scanWithFinding = { tables: [{ name: "orders", rlsEnabled: false, rlsReadable: true }], checks: [] } as unknown as typeof cleanScan;
 
 const profile = (over: Record<string, unknown> = {}) => ({
   id: "u1",

@@ -1,8 +1,10 @@
 # ShipLock
 
-ShipLock reads a GitHub repository, reports how an attacker could reach user
-data, and opens the fix as a pull request. One connection: the GitHub App.
-Everything else is inferred from the code.
+ShipLock is a founder-first security operating system. It starts with one GitHub
+App connection, infers the stack from the selected repository, reports how an
+attacker could reach user data, and opens a reviewable fix pull request. Optional
+provider connections add live configuration evidence; they are not required for
+an honest first result.
 
 ## How it works
 
@@ -15,10 +17,11 @@ Everything else is inferred from the code.
    observe (`attackGuard.ts`).
 4. **Report** — findings with a claims ledger, plus a Coverage page built from
    what actually happened in the run. Absent is never presented as clean.
-5. **Fix** — a pull request on its own branch, never merged by us.
+5. **Fix** — a pull request on its own branch, never approved or merged by us.
 
-We never attack the customer's application. Anything reproducible is reproduced
-on a disposable replica (`lib/proving/`). We never read customer users' data.
+Customer traffic never passes through ShipLock. Authorized attack proofs run
+only on a disposable replica or an explicitly approved test environment, with
+synthetic data (`lib/proving/`). We never read customer users' data.
 
 ## Development
 
@@ -26,12 +29,13 @@ on a disposable replica (`lib/proving/`). We never read customer users' data.
 npm run dev      # local dev server
 npm run build    # must pass before commit
 npm run lint     # must pass before commit
-npm test         # vitest — 1807 tests as of 2026-09-02
+npm test         # vitest
 ```
 
 ## Docs
 
+- `AGENTS.md` — binding product, architecture, safety and workflow contract.
 - `CLAUDE.md` — what the code does. Canonical.
+- `docs/MASTER-PLAN-PROGRESS.md` — current execution status.
 - `docs/STATE.md` — current work, withdrawn findings, standing list. Read first.
 - `MVP-SPEC.md` — MVP shape and the verified gap list.
-- `PRODUCT-DESIGN.md` — rationale of record, not status.

@@ -1,0 +1,55 @@
+import { beforeEach, expect, it, vi } from "vitest";
+const rpc = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ rpc }) }));
+import { enqueueAuditJob, enqueueJob, claimJob, executeClaimedJob, type ClaimedJob } from "./queue";
+const id = "11111111-1111-4111-8111-111111111111";
+const job: ClaimedJob = { id, user_id: id, repository_id: id, kind: "audit", status: "running", attempts: 1,
+  audit_run_id: "33333333-3333-4333-8333-333333333333",
+  lease_token: "22222222-2222-4222-8222-222222222222", lease_until: "2099-01-01T00:00:00Z", checkpoint: 0 };
+beforeEach(() => { rpc.mockReset().mockResolvedValue({ data: true, error: null }); });
+it("queues only bounded identity fields and requires a persisted receipt", async () => {
+  rpc.mockResolvedValue({ data: id, error: null });
+  expect(await enqueueJob(id,id,"monitor","scheduled:window")).toBe(id);
+  expect(rpc).toHaveBeenCalledWith("enqueue_execution_job", { p_user:id,p_repository:id,p_kind:"monitor",p_key:"scheduled:window" });
+  rpc.mockResolvedValue({ data: null, error: { message: "private" } });
+  await expect(enqueueJob(id,id,"monitor","next")).rejects.toThrow("Work could not be queued");
+  await expect(enqueueJob(id,id,"audit","wrong-entrypoint")).rejects.toThrow("enqueueAuditJob");
+});
+it("queues the audit and customer-visible run as one receipt", async () => {
+  const run="33333333-3333-4333-8333-333333333333";
+  rpc.mockResolvedValue({ data: [{ job_id:id, run_id:run }], error:null });
+  expect(await enqueueAuditJob(id,id,"manual:request-id")).toEqual({job_id:id,run_id:run});
+  expect(rpc).toHaveBeenCalledWith("enqueue_repository_audit",{p_user:id,p_repository:id,p_key:"manual:request-id"});
+});
+it.each([[], [job], [{ ...job, lease_token: null }], [{ ...job, kind:"source" }], [job,job]].map((data) => ({ data })))("validates claimed work", async ({ data }) => {
+  rpc.mockResolvedValue({ data, error:null });
+  if (!data.length) expect(await claimJob("audit")).toBeNull();
+  else if (data.length===1 && data[0]===job) expect(await claimJob("audit")).toEqual(job);
+  else await expect(claimJob("audit")).rejects.toThrow();
+});
+it("resumes at the durable checkpoint without rerunning earlier stages", async () => {
+  const first=vi.fn(), second=vi.fn().mockResolvedValue(undefined);
+  await executeClaimedJob({ ...job,checkpoint:1 },[first,second]);
+  expect(first).not.toHaveBeenCalled(); expect(second).toHaveBeenCalledOnce();
+  expect(rpc.mock.calls.map(([,args])=>[args.p_checkpoint,args.p_outcome])).toEqual([[1,"heartbeat"],[2,"checkpoint"],[2,"succeeded"]]);
+});
+it("a failed stage retries without advancing its checkpoint or running later work", async () => {
+  const later=vi.fn();
+  await expect(executeClaimedJob(job,[async()=>{throw new Error("stage");},later])).rejects.toThrow("stage");
+  expect(later).not.toHaveBeenCalled();
+  expect(rpc.mock.calls.map(([,args])=>args.p_outcome)).toEqual(["heartbeat","retry"]);
+});
+it("permanent context failures become dead jobs rather than repeated retries", async () => {
+  const { PermanentJobError } = await import("./queue");
+  await expect(executeClaimedJob(job,[async()=>{throw new PermanentJobError("changed");}])).rejects.toThrow("changed");
+  expect(rpc.mock.calls.map(([,args])=>args.p_outcome)).toEqual(["heartbeat","dead"]);
+});
+it("lease rejection prevents stage entry", async () => {
+  rpc.mockResolvedValue({data:false,error:null}); const stage=vi.fn();
+  await expect(executeClaimedJob(job,[stage])).rejects.toThrow("Work lease lost"); expect(stage).not.toHaveBeenCalled();
+});
+it("uncertain checkpoint acknowledgement cannot complete or start the next stage", async () => {
+  rpc.mockResolvedValueOnce({data:true,error:null}).mockResolvedValue({data:null,error:{message:"lost reply"}});
+  const next=vi.fn(); await expect(executeClaimedJob(job,[async()=>{},next])).rejects.toThrow();
+  expect(next).not.toHaveBeenCalled(); expect(rpc.mock.calls.some(([,args])=>args.p_outcome==="succeeded")).toBe(false);
+});

@@ -7,6 +7,23 @@ import {
   type Finding,
 } from "./findings";
 import type { CollectorSpec } from "./registry";
+import type { SupabaseEndpointSnapshot } from "@/lib/graph/graphRun";
+import { providerConnectionFingerprint } from "@/lib/deep/providerRepositoryMap";
+import { validateSupabaseUrl } from "@/lib/sanitize";
+
+function endpointOrigin(rawUrl: string, encryptedKey: string): Pick<SupabaseEndpointSnapshot,
+  "endpointUrl" | "projectRef" | "identitySource" | "connectionFingerprint"> | undefined {
+  if (typeof encryptedKey !== "string" || !encryptedKey.trim()) return undefined;
+  try {
+    // Match the scanner's accepted target, not a raw URL containing credentials
+    // or query parameters. This identifies the input endpoint, not its database.
+    const endpointUrl = validateSupabaseUrl(rawUrl);
+    return {
+      endpointUrl, projectRef: new URL(endpointUrl).hostname.split(".")[0],
+      identitySource: "validated-input", connectionFingerprint: providerConnectionFingerprint(encryptedKey),
+    };
+  } catch { return undefined; }
+}
 
 // The collectors themselves. Each one is the body of what used to be an inline
 // branch in runMonitoringPass, moved here unchanged in behaviour so the
@@ -41,20 +58,46 @@ export const supabaseScanCollector: CollectorSpec = {
       return { snapshotFindings: [...carriedForward, ...fresh] };
     }
 
+    // Capture the supplied origin before any asynchronous collection. Later
+    // profile changes must not relabel observations from the old target/key.
+    const origin = endpointOrigin(ctx.profile.monitored_project_url, ctx.profile.monitored_anon_key_encrypted);
     const scan = await scanProject(ctx.profile.monitored_project_url, ctx.anonKey);
-    const scanTables = (scan.tables ?? []).map((t) => ({
+    const tableReports = (scan.tables ?? []).map((t) => ({
       name: t.name,
       rlsEnabled: t.rlsEnabled,
+      rlsReadable: t.rlsReadable === true,
     }));
+    // Legacy flat control facts must contain observations only. A compatibility
+    // fallback of `true` is coverage, never evidence that RLS is enabled.
+    const scanTables = tableReports
+      .filter((table) => table.rlsReadable)
+      .map(({ name, rlsEnabled }) => ({ name, rlsEnabled }));
+    const readableCount = tableReports.filter((table) => table.rlsReadable).length;
+    const rlsReadability = readableCount === 0
+      ? "unknown" as const
+      : readableCount === tableReports.length
+        ? "complete" as const
+        : "partial" as const;
+    const supabaseEndpointSnapshot: SupabaseEndpointSnapshot | undefined = origin ? {
+      ...origin, collector: "supabase-scan", authzProvider: "postgres-rls",
+      recordedAt: new Date().toISOString(), completeness: "unknown",
+      rlsReadability, tableReports,
+    } : undefined;
 
     return {
       snapshotFindings: extractFindings(scan),
-      // Per-table RLS state for the graph's database collector. Full scans only —
-      // the hourly subset does not enumerate tables, so writing from there would
-      // replace a complete picture with a partial one. Merged, because the
-      // Management API scan owns the other half of this namespace.
-      ...(scanTables.length > 0
-        ? { facts: { collector: "db" as const, facts: { scanTables }, merge: true } }
+      // Replace legacy flat reports with observed values only. The
+      // self-contained endpoint snapshot is replaced even for zero reports,
+      // without borrowing other transports' facts or claiming that zero means
+      // complete enumeration.
+      // The hourly subset contributes neither because it does not enumerate.
+      ...(scanTables.length > 0 || supabaseEndpointSnapshot
+        ? { facts: { collector: "db" as const, facts: {
+          // A valid full endpoint pass owns this legacy key, including an empty
+          // readable set. Otherwise stale controls survive an unread pass.
+          ...(supabaseEndpointSnapshot || scanTables.length > 0 ? { scanTables } : {}),
+          ...(supabaseEndpointSnapshot ? { supabaseEndpointSnapshot } : {}),
+        }, merge: true } }
         : {}),
     };
   },

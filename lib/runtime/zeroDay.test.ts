@@ -1,129 +1,57 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-
-const factsMock = vi.fn();
-const osvMock = vi.fn();
-const findingsSelectMock = vi.fn();
-const insertMock = vi.fn();
-const updateInMock = vi.fn();
-
-vi.mock("@/lib/deep/github", () => ({ queryOsv: osvMock }));
-vi.mock("@/lib/graph/graphRun", () => ({ loadGraphInput: vi.fn() }));
-vi.mock("@/lib/supabase", () => ({
-  getSupabaseAdmin: () => ({
-    from: (table: string) => {
-      if (table === "graph_facts") {
-        return { select: () => ({ eq: () => ({ eq: () => ({ maybeSingle: factsMock }) }) }) };
-      }
-      return {
-        select: () => ({ eq: () => ({ eq: () => ({ is: findingsSelectMock }) }) }),
-        insert: insertMock,
-        update: () => ({ eq: () => ({ eq: () => ({ is: () => ({ in: updateInMock }) }) }) }),
-      };
-    },
-  }),
-}));
-
-const { runZeroDayCheck, stripRepoPrefix } = await import("./zeroDay");
-
-const withDeps = { data: { facts: { dependencies: [{ name: "left-pad", version: "1.0.0" }] } } };
-const vuln = {
-  dep: { name: "left-pad", version: "1.0.0" },
-  vulns: [{ id: "GHSA-x", cveId: "CVE-2026-1", summary: "RCE", severity: "CRITICAL", fixedVersion: "1.0.1" }],
-};
-
-describe("runZeroDayCheck", () => {
-  beforeEach(() => {
-    factsMock.mockReset().mockResolvedValue({ data: null });
-    osvMock.mockReset().mockResolvedValue([]);
-    findingsSelectMock.mockReset().mockResolvedValue({ data: [] });
-    insertMock.mockReset().mockResolvedValue({ error: null });
-    updateInMock.mockReset().mockResolvedValue({ error: null });
-  });
-
-  // The whole point: no push required.
-  it("re-checks stored dependencies without a source scan", async () => {
-    factsMock.mockResolvedValue(withDeps);
-    osvMock.mockResolvedValue([vuln]);
-    const result = await runZeroDayCheck("u1");
-    expect(osvMock).toHaveBeenCalledWith([{ name: "left-pad", version: "1.0.0" }]);
-    expect(result.newCount).toBe(1);
-  });
-
-  it("explains that the code did not change — the advisory is new", async () => {
-    factsMock.mockResolvedValue(withDeps);
-    osvMock.mockResolvedValue([vuln]);
-    await runZeroDayCheck("u1");
-    expect(insertMock.mock.calls[0][0][0].consequence).toContain("Your code did not change");
-  });
-
-  it("does nothing when no source scan has ever recorded dependencies", async () => {
-    const result = await runZeroDayCheck("u1");
-    expect(result).toEqual({ total: 0, newCount: 0, resolvedCount: 0 });
-    expect(osvMock).not.toHaveBeenCalled();
-    expect(updateInMock).not.toHaveBeenCalled();
-  });
-
-  // An OSV outage must not mark every real CVE as fixed.
-  it("does NOT archive anything when OSV is unreachable", async () => {
-    factsMock.mockResolvedValue(withDeps);
-    osvMock.mockRejectedValue(new Error("network"));
-    findingsSelectMock.mockResolvedValue({ data: [{ finding_id: "github:dep:left-pad:GHSA-x" }] });
-    const result = await runZeroDayCheck("u1");
-    expect(result.resolvedCount).toBe(0);
-    expect(updateInMock).not.toHaveBeenCalled();
-  });
-
-  it("closes a finding once the dependency is upgraded", async () => {
-    factsMock.mockResolvedValue(withDeps);
-    osvMock.mockResolvedValue([]);
-    findingsSelectMock.mockResolvedValue({ data: [{ finding_id: "github:dep:left-pad:GHSA-x" }] });
-    const result = await runZeroDayCheck("u1");
-    expect(result.resolvedCount).toBe(1);
-  });
-
-  it("does not re-insert a CVE already open", async () => {
-    factsMock.mockResolvedValue(withDeps);
-    osvMock.mockResolvedValue([vuln]);
-    findingsSelectMock.mockResolvedValue({ data: [{ finding_id: "github:dep:left-pad:GHSA-x" }] });
-    const result = await runZeroDayCheck("u1");
-    expect(result.newCount).toBe(0);
-    expect(insertMock).not.toHaveBeenCalled();
-  });
+import { beforeEach, expect, it, vi } from "vitest";
+const mocks = vi.hoisted(() => ({ inventories: vi.fn(), osv: vi.fn(), read: vi.fn(), insert: vi.fn(), update: vi.fn() }));
+vi.mock("@/lib/deep/github", () => ({ queryOsv: mocks.osv }));
+vi.mock("@/lib/graph/repositorySource", () => ({ loadRepositoryDependencies: mocks.inventories }));
+vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ from: () => {
+  const query = { select: () => query, eq: () => query, is: mocks.read, insert: mocks.insert, update: mocks.update };
+  return query;
+} }) }));
+import { runZeroDayCheck, stripRepoPrefix } from "./zeroDay";
+const deps = [{ name: "left-pad", version: "1.0.0" }];
+const inventory = { repositoryId: "r1", repositoryFullName: "acme/one", dependencies: deps, completeness: "partial" };
+const vuln = { dep: deps[0], vulns: [{ id: "GHSA-x", cveId: "CVE-2026-1", summary: "RCE", severity: "CRITICAL", fixedVersion: "1.0.1" }] };
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.inventories.mockResolvedValue([inventory]); mocks.osv.mockResolvedValue([vuln]);
+  mocks.read.mockResolvedValue({ data: [], error: null }); mocks.insert.mockResolvedValue({ error: null });
 });
-
-// The bug found in verification: zero-day findings reuse the `github:dep:` id
-// shape, and findings.ts skipped ALL such ids on the assumption they appear in
-// the GitHub panel — which filters source='github'. They appeared nowhere.
-describe("visibility and de-duplication", () => {
-  beforeEach(() => {
-    factsMock.mockReset().mockResolvedValue({ data: null });
-    osvMock.mockReset().mockResolvedValue([]);
-    findingsSelectMock.mockReset().mockResolvedValue({ data: [] });
-    insertMock.mockReset().mockResolvedValue({ error: null });
-    updateInMock.mockReset().mockResolvedValue({ error: null });
-  });
-
-  it("does not re-report a CVE already open from a pull-request scan", async () => {
-    factsMock.mockResolvedValue(withDeps);
-    osvMock.mockResolvedValue([vuln]);
-    // Both the zero-day query and the source-scan query return the same id.
-    findingsSelectMock.mockResolvedValue({ data: [{ finding_id: "github:dep:left-pad:GHSA-x" }] });
-    const result = await runZeroDayCheck("u1");
-    expect(result.newCount).toBe(0);
-    expect(insertMock).not.toHaveBeenCalled();
-  });
+it("uses admitted per-repository dependencies and namespaces the result", async () => {
+  expect(await runZeroDayCheck("owner")).toEqual({ total: 1, newCount: 1, resolvedCount: 0 });
+  expect(mocks.osv).toHaveBeenCalledWith(deps);
+  expect(mocks.insert.mock.calls[0][0][0]).toMatchObject({ user_id: "owner", repository_id: "r1", finding_id: "acme/one::github:dep:left-pad:GHSA-x" });
 });
-
-describe("the dedup that matched nothing", () => {
-  it("strips the repository namespace runGithubScan adds", () => {
-    expect(stripRepoPrefix("acme/app::github:dep:hono:GHSA-x")).toBe("github:dep:hono:GHSA-x");
-  });
-
-  it("leaves an id that was never namespaced alone", () => {
-    expect(stripRepoPrefix("github:dep:hono:GHSA-x")).toBe("github:dep:hono:GHSA-x");
-  });
-
-  it("keeps a `::` that appears later in the id", () => {
-    expect(stripRepoPrefix("acme/app::github:dep:a::b")).toBe("github:dep:a::b");
-  });
+it("never suppresses repository two because repository one has the same advisory", async () => {
+  mocks.inventories.mockResolvedValue([inventory, { ...inventory, repositoryId: "r2", repositoryFullName: "acme/two" }]);
+  mocks.read.mockResolvedValue({ data: [{ finding_id: "acme/one::github:dep:left-pad:GHSA-x" }] });
+  expect((await runZeroDayCheck("owner")).newCount).toBe(1);
+  expect(mocks.insert.mock.calls[0][0][0].repository_id).toBe("r2");
+});
+it("deduplicates an existing advisory only in the same repository", async () => {
+  mocks.read.mockResolvedValue({ data: [{ finding_id: "acme/one::github:dep:left-pad:GHSA-x" }] });
+  expect((await runZeroDayCheck("owner")).newCount).toBe(0); expect(mocks.insert).not.toHaveBeenCalled();
+});
+it("preserves independent versions of the same package across repositories", async () => {
+  mocks.inventories.mockResolvedValue([inventory, { ...inventory, repositoryId: "r2", repositoryFullName: "acme/two", dependencies: [{ name: "left-pad", version: "2.0.0" }] }]);
+  await runZeroDayCheck("owner");
+  expect(mocks.osv.mock.calls.map(([values]) => values[0].version)).toEqual(["1.0.0", "2.0.0"]);
+});
+it.each(["empty", "unread", "outage", "no-advisory"])("never archives on partial %s inventory/results", async (kind) => {
+  if (kind === "empty") mocks.inventories.mockResolvedValue([{ ...inventory, dependencies: [] }]);
+  if (kind === "unread") mocks.inventories.mockResolvedValue([]);
+  if (kind === "outage") mocks.osv.mockRejectedValue(new Error("outage"));
+  if (kind === "no-advisory") mocks.osv.mockResolvedValue([]);
+  expect((await runZeroDayCheck("owner")).resolvedCount).toBe(0);
+  expect(mocks.update).not.toHaveBeenCalled(); expect(mocks.insert).not.toHaveBeenCalled();
+});
+it("propagates a findings read failure before persistence", async () => {
+  mocks.read.mockResolvedValue({ data: null, error: { message: "secret" } });
+  await expect(runZeroDayCheck("owner")).rejects.toThrow("Dependency findings unavailable"); expect(mocks.insert).not.toHaveBeenCalled();
+});
+it("does not report successful persistence when insert fails", async () => {
+  mocks.insert.mockResolvedValue({ error: { message: "secret" } });
+  await expect(runZeroDayCheck("owner")).rejects.toThrow("Dependency findings could not be saved");
+});
+it("retains the historical prefix helper without using it for cross-repository dedup", () => {
+  expect(stripRepoPrefix("acme/app::github:dep:a::b")).toBe("github:dep:a::b");
+  expect(stripRepoPrefix("github:dep:a")).toBe("github:dep:a");
 });

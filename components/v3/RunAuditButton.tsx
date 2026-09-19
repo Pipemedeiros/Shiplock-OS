@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
+import { startAndWaitForAudit } from "./auditClient";
 
 /**
  * Runs an audit now.
@@ -26,13 +27,7 @@ export function RunAuditButton({ repository }: { repository: string }) {
           setRunning(true);
           setError(null);
           try {
-            const res = await fetch("/api/audit", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ repository }),
-            });
-            const json = (await res.json()) as { error?: string };
-            if (!res.ok) throw new Error(json.error ?? "The audit could not finish.");
+            await startAndWaitForAudit(repository);
             router.refresh();
           } catch (err) {
             setError(err instanceof Error ? err.message : "Something went wrong.");

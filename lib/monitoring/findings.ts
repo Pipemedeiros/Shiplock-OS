@@ -57,7 +57,7 @@ export function extractFindings(scan: ScanResult): Finding[] {
   }
 
   for (const t of scan.tables) {
-    if (!t.rlsEnabled) {
+    if (t.rlsReadable && !t.rlsEnabled) {
       findings.push({
         id: `rls:${t.name}`,
         severity: "CRITICAL",
@@ -231,7 +231,7 @@ export function extractCriticalFindings(scan: FastScanResult): Finding[] {
   }
 
   for (const t of scan.tables) {
-    if (!t.rlsEnabled) {
+    if (t.rlsReadable && !t.rlsEnabled) {
       findings.push({
         id: `rls:${t.name}`,
         severity: "CRITICAL",

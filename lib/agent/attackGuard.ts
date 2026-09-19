@@ -19,6 +19,7 @@
  */
 
 import type { RouteFact } from "@/lib/graph/routeInventory";
+import type { PossessionGate } from "./possessionGate";
 
 /** The classes we are prepared to report. A hypothesis outside this is refused. */
 export const ATTACK_CLASSES = [
@@ -30,6 +31,15 @@ export const ATTACK_CLASSES = [
   "injection",
   "unsafe_redirect",
   "mass_assignment",
+  /**
+   * Informational. The route admits whoever presents a row id and checks that
+   * row against another resource the request names: access by possession,
+   * described without a judgement on whether possession should be enough.
+   * NEVER proposed on the model's word: admitted only where
+   * lib/agent/possessionGate.ts read the gate, and otherwise refused. Not in
+   * the prompt's class list, so the reasoner's input is unchanged by it.
+   */
+  "possession_gated",
 ] as const;
 
 export type AttackClass = (typeof ATTACK_CLASSES)[number];
@@ -76,6 +86,15 @@ export interface ReconIndex {
    * may cite no facts at all rather than that it may cite any.
    */
   facts?: Set<string>;
+  /**
+   * Possession gates READ this run, keyed by route path
+   * (lib/agent/possessionGate.ts).
+   *
+   * Optional, and absent means none: nothing is reworded and
+   * `possession_gated` is refused everywhere. That is the status quo, which is
+   * the safe direction -- a missing map can only leave a critical a critical.
+   */
+  possessionGates?: ReadonlyMap<string, PossessionGate>;
 }
 
 export type GuardVerdict =
@@ -135,6 +154,9 @@ const UNSAFE_PROSE = /[<>\u0000-\u001F]/;
  *                           interpreter unsanitised
  * mass_assignment           the request body is spread       -- NOTHING --
  *                           into a write
+ * possession_gated          the route admits a holder of a    a possession gate
+ *                           row id, bound to another          READ on the route
+ *                           resource the request names        (never inferred)
  * unsafe_redirect           a user-controlled value reaches  -- NOTHING --
  *                           a redirect target
  * ─────────────────────────────────────────────────────────────────────────────
@@ -151,7 +173,13 @@ const UNSAFE_PROSE = /[<>\u0000-\u001F]/;
 function compatibility(
   attackClass: AttackClass,
   route: RouteFact | undefined,
+  gate: PossessionGate | undefined,
 ): { ok: true } | { ok: false; reason: string; unassessed: boolean } {
+  // A description of a gate nobody read is a model's reassurance. Checked
+  // before the route-less early return: this class is ABOUT a route.
+  if (attackClass === "possession_gated" && (!route || !gate)) {
+    return { ok: false, reason: "no possession gate was read on this route", unassessed: false };
+  }
   // A hypothesis with no route -- a leaked credential citing a live fact -- has
   // no route facts to contradict. Nothing to check.
   if (!route) return { ok: true };
@@ -185,6 +213,12 @@ function compatibility(
           reason: `we could not read what verifies this route: ${route.machineGateGap ?? route.identityGap}`,
           unassessed: true,
         };
+      }
+      return { ok: true };
+
+    case "possession_gated":
+      if (route.authenticated || route.machineGated || !route.identityReadable) {
+        return { ok: false, reason: "a possession gate is only described on a route we read as anonymous", unassessed: false };
       }
       return { ok: true };
 
@@ -295,7 +329,8 @@ export function judgeHypothesis(h: Hypothesis, recon: ReconIndex): GuardVerdict 
   // `?.` is crash-safety, not permissiveness: the field is required by the type,
   // and an entry with no matching route fact is the same case as a hypothesis
   // with no route at all -- there is nothing of ours for it to contradict.
-  const compat = compatibility(h.attackClass as AttackClass, recon.routes?.get(h.entry));
+  const gate = recon.possessionGates?.get(h.entry);
+  const compat = compatibility(h.attackClass as AttackClass, recon.routes?.get(h.entry), gate);
   if (!compat.ok) {
     return {
       allowed: false,
@@ -304,6 +339,18 @@ export function judgeHypothesis(h: Hypothesis, recon: ReconIndex): GuardVerdict 
       // first can reach Coverage and the second is simply discarded.
       unassessed: compat.unassessed ? h.entry : undefined,
     };
+  }
+
+  // THE ONE REWORDING THIS GUARD DOES, and only in one direction.
+  //
+  // `missing_authentication` asserts that no credential of any kind is required.
+  // On a route where we READ a possession gate, a row id bound to another
+  // resource IS what is required, so the claim is wrong in its own terms and the
+  // true sentence is `possession_gated`. Nothing is removed: the finding stays,
+  // re-worded and at informational severity, with the gate named. A route with
+  // no gate read keeps the critical, whatever the model or the shape suggests.
+  if (h.attackClass === "missing_authentication" && gate) {
+    return { allowed: true, attackClass: "possession_gated", citedFacts: verifiedFacts };
   }
 
   return { allowed: true, attackClass: h.attackClass as AttackClass, citedFacts: verifiedFacts };

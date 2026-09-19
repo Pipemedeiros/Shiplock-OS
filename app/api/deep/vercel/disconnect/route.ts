@@ -27,6 +27,17 @@ export async function POST() {
     return NextResponse.json({ error: "Disconnect failed. Try again." }, { status: 500 });
   }
 
+  // Purge the evidence relationship as well as the credential. Admission also
+  // checks the current credential/installation, so failed cleanup cannot make
+  // a disconnected installation's retained context admissible again.
+  const [{ error: linksError }, { error: factsError }] = await Promise.all([
+    admin.from("provider_repository_links").delete().eq("user_id", pro.userId).eq("provider", "vercel"),
+    admin.from("graph_facts").delete().eq("user_id", pro.userId).eq("collector", "runtime"),
+  ]);
+  if (linksError || factsError) {
+    return NextResponse.json({ error: "Disconnected, but evidence cleanup failed. Try again." }, { status: 500 });
+  }
+
   // Archive (not delete) the source's currently-active findings.
   await admin
     .from("deep_findings")

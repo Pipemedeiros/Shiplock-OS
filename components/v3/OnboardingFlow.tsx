@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { CONNECTION_CATEGORIES } from "@/lib/connections/categories";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Check, GitPullRequest, LockKeyhole, ShieldCheck } from "lucide-react";
+import { startAndWaitForAudit } from "./auditClient";
 
 /**
  * Onboarding: connect GitHub, choose repositories, see the stack we read, run
@@ -427,17 +428,9 @@ function FirstAudit({ repository, onDone }: { repository: string | undefined; on
 
     void (async () => {
       try {
-        const res = await fetch("/api/audit", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ repository }),
-        });
-        const json = (await res.json()) as {
-          trace?: TraceStep[]; findings?: number; entries?: number; error?: string;
-        };
-        if (!res.ok) throw new Error(json.error ?? "The audit could not finish.");
-        setTrace(json.trace ?? []);
-        setSummary({ findings: json.findings ?? 0, entries: json.entries ?? 0 });
+        const run = await startAndWaitForAudit(repository, (progress) => setTrace(progress.trace ?? []));
+        setTrace(run.trace ?? []);
+        setSummary({ findings: run.findings_count ?? 0, entries: run.entries_found ?? 0 });
         setStatus("done");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Something went wrong.");

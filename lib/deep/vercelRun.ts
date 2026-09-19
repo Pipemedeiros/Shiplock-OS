@@ -3,6 +3,8 @@ import { decrypt } from "@/lib/crypto";
 import { saveFacts } from "@/lib/graph/graphRun";
 import { listProjects, listProjectEnv } from "./vercel";
 import { auditEnv, type EnvFinding } from "./envaudit";
+import type { RuntimeEnvFact } from "@/lib/graph/graph";
+import { syncVercelRepositoryLinks, providerConnectionFingerprint } from "./providerRepositoryMap";
 
 const MAX_PROJECTS = 20;
 
@@ -20,8 +22,19 @@ export async function runVercelEnvAudit(
   const accessToken = decrypt(encryptedToken);
 
   const projects = (await listProjects(accessToken, teamId)).slice(0, MAX_PROJECTS);
+  let repositoryByProject = new Map<string, string>();
+  try {
+    repositoryByProject = await syncVercelRepositoryLinks(userId, projects, encryptedToken);
+  } catch (err) {
+    // Provider-only checks may still run, but repository attribution fails
+    // closed. A persistence/read failure never becomes an in-memory mapping.
+    console.error(
+      "[vercel] provider repository mapping failed:",
+      err instanceof Error ? err.message : "unknown error",
+    );
+  }
   const all: EnvFinding[] = [];
-  const graphEnvVars: { key: string; target: string[]; provider: string }[] = [];
+  const graphEnvVars: RuntimeEnvFact[] = [];
   let reachedAnyProject = false;
 
   for (const project of projects) {
@@ -34,20 +47,25 @@ export async function runVercelEnvAudit(
     reachedAnyProject = true;
     all.push(...auditEnv(project.name, envs));
 
-    // Names and scopes only. A value never enters the graph, and never enters
+    // Names, scopes and project identity only. A value never enters the graph, and never enters
     // a log: "ShipLock never reads your users' data" covers their secrets too.
     for (const env of envs) {
       graphEnvVars.push({
         key: env.key,
         target: Array.isArray(env.target) ? env.target : [],
         provider: "vercel",
+        projectId: project.id,
+        connectionFingerprint: providerConnectionFingerprint(encryptedToken),
+        ...(repositoryByProject.get(project.id)
+          ? { repositoryId: repositoryByProject.get(project.id) }
+          : {}),
       });
     }
   }
 
   // The graph half. Findings above are what Vercel alone can say; these facts
-  // are what the reasoner combines with the code half, so a variable the host
-  // reports in production can corroborate a path found in the repository.
+  // retain provider project and installation provenance. Only successfully
+  // persisted, explicit provider Git links supply a repository association.
   //
   // providersRead is written only when we actually reached a project. An empty
   // list after a failed read would tell the reasoner we looked and found

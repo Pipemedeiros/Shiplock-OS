@@ -62,7 +62,32 @@ export async function exchangeCodeForToken(code: string): Promise<VercelToken> {
   };
 }
 
-export interface VercelProject { id: string; name: string; }
+export interface VercelProject {
+  id: string;
+  name: string;
+  /** Explicit Git link returned by Vercel. Missing/other providers stay unmapped. */
+  gitRepository?: { type: "github"; fullName: string; repoId: string | null };
+}
+
+function githubRepository(link: unknown): VercelProject["gitRepository"] {
+  if (!link || typeof link !== "object") return undefined;
+  const value = link as { type?: unknown; org?: unknown; repo?: unknown; repoId?: unknown };
+  if (value.type !== "github" || typeof value.org !== "string" || typeof value.repo !== "string") {
+    return undefined;
+  }
+  const fullName = `${value.org.trim()}/${value.repo.trim()}`;
+  if (!/^[\w.-]+\/[\w.-]+$/.test(fullName)) return undefined;
+  if (value.repoId != null && !(
+    (typeof value.repoId === "string" && /^[1-9]\d*$/.test(value.repoId)) ||
+    (typeof value.repoId === "number" && Number.isSafeInteger(value.repoId) && value.repoId > 0)
+  )) return undefined;
+  return {
+    type: "github",
+    fullName,
+    repoId: typeof value.repoId === "string" || typeof value.repoId === "number"
+      ? String(value.repoId) : null,
+  };
+}
 
 export async function listProjects(accessToken: string, teamId: string | null): Promise<VercelProject[]> {
   const res = await fetch(`${API}/v9/projects${teamQs(teamId)}`, {
@@ -70,8 +95,11 @@ export async function listProjects(accessToken: string, teamId: string | null): 
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   if (!res.ok) throw new Error(`Vercel list projects HTTP ${res.status}`);
-  const json = await res.json() as { projects?: Array<{ id: string; name: string }> };
-  return (json.projects ?? []).map((p) => ({ id: p.id, name: p.name }));
+  const json = await res.json() as { projects?: Array<{ id: string; name: string; link?: unknown }> };
+  return (json.projects ?? []).map((p) => {
+    const gitRepository = githubRepository(p.link);
+    return { id: p.id, name: p.name, ...(gitRepository ? { gitRepository } : {}) };
+  });
 }
 
 // Read a project's env vars. decrypt=true returns plaintext values for

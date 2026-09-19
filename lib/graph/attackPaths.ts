@@ -131,6 +131,9 @@ function storeProtects(asset: AuthzFacts): boolean | null {
 }
 
 export function findAttackPaths(input: GraphInput): AttackPath[] {
+  // Repository-local source without verified provider bindings is not a
+  // multi-surface observation, even when the source mentions a table name.
+  if (input.correlationScope === "source-only") return [];
   const graph: AssetGraph = buildGraph(input);
   const posture = readAuthPosture(input.authConfig);
   const paths: AttackPath[] = [];
@@ -307,7 +310,8 @@ export function findAttackPaths(input: GraphInput): AttackPath[] {
   // observation, so it raises the finding's standing as evidence rather than
   // only its urgency.
   const exposedServerVars = (input.runtimeEnvVars ?? []).filter(
-    (v) => !PUBLIC_PREFIX.test(v.key) && SECRETISH.test(v.key) && v.target.includes("production"),
+    (v) => input.repositoryId !== undefined && v.repositoryId === input.repositoryId &&
+      !PUBLIC_PREFIX.test(v.key) && SECRETISH.test(v.key) && v.target.includes("production"),
   );
 
   if (exposedServerVars.length > 0 && paths.length > 0) {

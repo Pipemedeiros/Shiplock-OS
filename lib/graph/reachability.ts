@@ -83,6 +83,10 @@ export interface ReachabilityIndex {
   hasEntryPoints: boolean;
   /** Tables referenced by at least one route. */
   exposedTables: Set<string>;
+  /** Stored bounded snapshots cannot justify absence-based demotion. */
+  coverage?: "complete" | "partial" | "unknown";
+  /** Presence means repository-only lookup; never fall back to flat fields. */
+  repositoryIndices?: Map<string, ReachabilityIndex>;
 }
 
 /**
@@ -145,10 +149,28 @@ export function assessReachability(
   findingId: string,
   index: ReachabilityIndex
 ): ReachabilityVerdict {
-  if (!index.hasEntryPoints) return UNKNOWN;
+  if (index.repositoryIndices !== undefined) {
+    const separator = findingId.indexOf("::");
+    if (separator <= 0) return UNKNOWN;
+    const scoped = index.repositoryIndices.get(findingId.slice(0, separator).toLowerCase());
+    return scoped ? assessReachability(findingId, scoped) : UNKNOWN;
+  }
+  if (!index.hasEntryPoints || index.coverage === "unknown") return UNKNOWN;
 
   const file = fileFromFindingId(findingId);
   if (file) {
+    if (index.coverage === "partial") {
+      if (index.liveFiles.has(file)) {
+        return {
+          state: "reachable", scoreDelta: 20,
+          reason: `${file} was reached from an entry point in this repository's source snapshot. This does not prove the file is currently deployed.`,
+        };
+      }
+      return {
+        state: "unknown", scoreDelta: 0,
+        reason: "Repository source collection is partial; an unobserved path cannot establish that this file is unused.",
+      };
+    }
     if (isNonProductionPath(file)) {
       return {
         state: "no_path_found",
@@ -172,6 +194,9 @@ export function assessReachability(
 
   const table = tableFromFindingId(findingId);
   if (table) {
+    // A table name is not a verified binding to the customer's database.
+    // Partial source observations cannot establish absence either.
+    if (index.coverage === "partial") return UNKNOWN;
     if (index.exposedTables.has(table)) {
       return {
         state: "reachable",

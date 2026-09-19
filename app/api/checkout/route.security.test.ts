@@ -10,6 +10,7 @@ vi.mock("@/lib/stripe", () => ({
 }));
 vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ auth: { getUser: getUserMock } }) }));
 vi.mock("@/lib/rateLimit", () => ({ checkCheckoutRateLimit: checkCheckoutRateLimitMock }));
+vi.mock("@/lib/access", () => ({ BILLING_ENABLED: true }));
 
 const { POST } = await import("./route");
 

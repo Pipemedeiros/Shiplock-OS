@@ -69,7 +69,7 @@ export default function OpengraphImage() {
             display: "flex",
           }}
         >
-          Continuous security monitoring for AI-built apps · 16 checks · $49/mo
+          GitHub-first security evidence · reviewable fixes · explicit coverage
         </div>
       </div>
     ),

@@ -3,9 +3,10 @@
  *
  * The MVP is open: anyone with an account gets the full product, because the
  * thing we need right now is people using it, not revenue from the ten of them.
- * Stripe, the billing portal and the monitoring emails are PARKED — the code is
- * intact and untouched, and flipping BILLING_ENABLED back to true restores the
- * paywall everywhere at once.
+ * Stripe, the billing portal and the monitoring emails are PARKED. Pricing is
+ * undecided, so flipping this flag alone is not authorization to charge anyone:
+ * the offer, terms, plan migration and checkout path need a separately approved
+ * review first.
  *
  * Why a flag rather than deleting the checks: the paywall has regressed twice in
  * this codebase's history (v1 blurred a full response in CSS; column grants on
@@ -19,7 +20,7 @@
  * reintroduce a second one.
  */
 
-/** Flip to true to switch billing back on. Nothing else needs to change. */
+/** Keep false until an approved pricing/billing migration is ready. */
 export const BILLING_ENABLED = false;
 
 /** Email alerts are parked with billing — see MVP scope in MVP-SPEC.md §4. */

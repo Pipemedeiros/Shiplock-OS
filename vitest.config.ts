@@ -1,11 +1,12 @@
 import { configDefaults, defineConfig } from "vitest/config";
-import tsconfigPaths from "vite-tsconfig-paths";
 
 // lib/env.ts parses process.env at import time — every required key needs a
 // syntactically-valid dummy value here or any test that transitively imports
 // it (most of lib/deep/*) fails before the test body even runs.
 export default defineConfig({
-  plugins: [tsconfigPaths()],
+  resolve: {
+    tsconfigPaths: true,
+  },
   test: {
     environment: "node",
     // docs/audit/ holds vendored copies of customer-corpus repositories (63MB,

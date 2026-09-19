@@ -1,16 +1,14 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireProUser } from "@/lib/deep/proGate";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { runRepositoryAudit } from "@/lib/agent/audit";
+import { enqueueAuditJob } from "@/lib/jobs/queue";
+import { runNextAuditJob } from "@/lib/jobs/auditWorker";
 
 /**
- * Starts an audit of one selected repository and returns when it is done.
- *
- * Deliberately synchronous. A queue is the right answer past a handful of
- * customers (MVP-SPEC.md §7.11) and the wrong thing to build before there are
- * any: the run already writes its progress to audit_runs, so the client can
- * poll that if the request outlives its connection.
+ * Durably queues an audit of one selected repository and returns its run id.
+ * The client polls the existing run endpoint; execution continues after the
+ * response and a lost worker is reclaimed by a later worker invocation.
  */
 // 60, not 300. The plan this project runs on stops a function at 60 seconds, so
 // declaring 300 bought nothing and hid the real ceiling: a large repository
@@ -22,7 +20,7 @@ import { runRepositoryAudit } from "@/lib/agent/audit";
 // audit that says on Coverage exactly what it skipped.
 export const maxDuration = 60;
 
-const Body = z.object({ repository: z.string().regex(/^[\w.-]+\/[\w.-]+$/) });
+const Body = z.object({ repository: z.string().regex(/^[\w.-]+\/[\w.-]+$/), requestId: z.uuid().optional() });
 
 export async function POST(request: Request) {
   const user = await requireProUser();
@@ -37,7 +35,7 @@ export async function POST(request: Request) {
 
   const { data: profile } = await admin
     .from("user_profiles")
-    .select("github_installation_id, supabase_mgmt_token_encrypted, postgres_dsn_encrypted")
+    .select("github_installation_id")
     .eq("id", user.userId)
     .single();
 
@@ -62,30 +60,14 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await runRepositoryAudit({
-      userId: user.userId,
-      installationId,
-      repositoryId: repo.id as string,
-      fullName: repo.full_name as string,
-      trigger: "manual",
-      hasDatabase: Boolean(
-        profile?.supabase_mgmt_token_encrypted || profile?.postgres_dsn_encrypted,
-      ),
+    const receipt = await enqueueAuditJob(user.userId, repo.id as string, `manual:${parsed.data.requestId ?? crypto.randomUUID()}`);
+    after(async () => {
+      try { await runNextAuditJob(); }
+      catch (err) { console.error("[api/audit] queued worker stopped:", err instanceof Error ? err.message : "unknown error"); }
     });
-
-    return NextResponse.json({
-      runId: result.runId,
-      findings: result.findings.length,
-      entries: result.entriesFound,
-      tables: result.tablesFound,
-      filesRead: result.filesRead,
-      trace: result.trace,
-      coverage: result.coverage,
-    });
+    return NextResponse.json({ runId: receipt.run_id, status: "queued" }, { status: 202 });
   } catch (err) {
-    console.error("[api/audit] run failed:", err instanceof Error ? err.message : err);
-    // The run row is already marked failed with its trace by runRepositoryAudit.
-    // Generic message to the client (security.md); the detail is in the run.
-    return NextResponse.json({ error: "The audit could not finish." }, { status: 500 });
+    console.error("[api/audit] enqueue failed:", err instanceof Error ? err.message : "unknown error");
+    return NextResponse.json({ error: "The audit could not be queued." }, { status: 503 });
   }
 }

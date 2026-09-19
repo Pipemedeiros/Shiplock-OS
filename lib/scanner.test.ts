@@ -76,6 +76,15 @@ describe("scanProject — RLS mapping + appUrlChecked + unauth access", () => {
     const byName = Object.fromEntries(r.tables.map((t) => [t.name, t.rlsEnabled]));
     expect(byName.profiles).toBe(true);
     expect(byName.orders).toBe(false);
+    expect(r.tables.every((table) => table.rlsReadable)).toBe(true);
+  });
+  it("marks fallback RLS values unread instead of presenting them as observed", async () => {
+    installFetch([]);
+    const r = await scanProject(SUPA, ANON_JWT);
+    expect(r.tables).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "profiles", rlsEnabled: true, rlsReadable: false }),
+      expect.objectContaining({ name: "orders", rlsEnabled: true, rlsReadable: false }),
+    ]));
   });
   it("reports appUrlChecked based on whether an app URL was supplied", async () => {
     installFetch();
@@ -99,6 +108,7 @@ describe("scanCriticalChecks — hourly lightweight pass", () => {
     const byName = Object.fromEntries(r.tables.map((t) => [t.name, t.rlsEnabled]));
     expect(byName.orders).toBe(false);
     expect(byName.profiles).toBe(true);
+    expect(r.tables.every((table) => table.rlsReadable)).toBe(true);
   });
 });
 

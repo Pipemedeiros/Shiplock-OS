@@ -72,9 +72,9 @@ export async function getFixFindings(userId: string): Promise<FixableFinding[]> 
     });
   }
 
-  // C6 reachability triage. Reorders by severity ADJUSTED for whether the
-  // vulnerable code is actually reachable, so a live WARNING outranks a CRITICAL
-  // that exists only in a build script.
+  // C6 reachability triage. Admitted repository snapshots can promote observed
+  // source paths, but bounded coverage never demotes an unobserved path and
+  // does not establish current deployment or a database/provider binding.
   //
   // Nothing is ever removed — triageByReachability returns exactly what it was
   // given — and if the source collector has not run, every verdict is `unknown`

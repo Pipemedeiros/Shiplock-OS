@@ -20,6 +20,8 @@ export interface RLSPolicy {
 export interface TableResult {
   name: string;
   rlsEnabled:        boolean;
+  /** False when rlsEnabled is only the conservative compatibility fallback. */
+  rlsReadable:       boolean;
   policies:          RLSPolicy[];
   policiesRetrieved: boolean;
 }
@@ -817,9 +819,10 @@ export async function scanProject(
         // A 200 response with rows does NOT mean RLS is off — the table may have
         // policies that intentionally permit anon SELECT (e.g. a public feedback table).
         // Fall back to true (safe default) if pg_tables was not accessible for this table.
-        const rlsEnabled = rlsStatusMap.has(r.name) ? rlsStatusMap.get(r.name)! : true;
+        const rlsReadable = rlsStatusMap.has(r.name);
+        const rlsEnabled = rlsReadable ? rlsStatusMap.get(r.name)! : true;
         const { policies, retrieved } = await fetchTablePolicies(restBase, r.name, anonKey);
-        return { name: r.name, rlsEnabled, policies, policiesRetrieved: retrieved };
+        return { name: r.name, rlsEnabled, rlsReadable, policies, policiesRetrieved: retrieved };
       })
   );
 
@@ -1030,6 +1033,7 @@ export async function scanCriticalChecks(rawUrl: string, rawAnonKey: string): Pr
   const tables: TableResult[] = tableNames.map((name) => ({
     name,
     rlsEnabled:        rlsStatusMap.has(name) ? rlsStatusMap.get(name)! : true,
+    rlsReadable:       rlsStatusMap.has(name),
     policies:           [],
     policiesRetrieved: false,
   }));

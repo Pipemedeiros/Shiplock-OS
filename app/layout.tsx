@@ -21,9 +21,10 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ShipLock — Continuous security monitoring for vibe-coded apps",
+  metadataBase: new URL("https://shiplock.dev"),
+  title: "ShipLock — Security monitoring that opens the pull request",
   description:
-    "Enterprise-grade application security monitoring, continuously, for $49/month. Built for small teams shipping AI-written code on Postgres — Supabase, Neon, Railway, RDS or your own.",
+    "Connect GitHub. ShipLock infers your stack, follows the paths to customer data, and opens reviewable fixes while showing exactly what it could not verify.",
 };
 
 export default function RootLayout({

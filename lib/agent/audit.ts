@@ -10,6 +10,7 @@ import { proposeAttacks, riskyRoutesOmitted, routesOmitted } from "./attack";
 import { crossTenantNotes, renderCrossTenantNote } from "./crossTenantNotes";
 import { detectStack, type StackReport } from "./stack";
 import { buildFindings, type AgentFinding } from "./findings";
+import { possessionGates } from "./possessionGate";
 import { extractTables, extractColumns } from "./schema";
 import { inferDomain } from "./domain";
 import { loadLiveFacts } from "./liveFacts";
@@ -79,6 +80,7 @@ export function buildCoverage(
   routes: RouteFact[] = [],
   wholesaleRejected = false,
   crossTenant: string[] = [],
+  reasoningParseFailed = false,
 ): CoverageNote[] {
   const notes: CoverageNote[] = [];
 
@@ -108,10 +110,10 @@ export function buildCoverage(
   if (liveProvidersRead.length === 0) {
     notes.push({
       name: "Live configuration on your other services",
-      why: "No provider is connected, so we read what your code expects rather than what your host, auth provider or payment processor actually has set.",
+      why: "No connected provider is mapped to this repository, so we read what its code expects rather than attributing account-wide provider data to it.",
       effect:
         "A setting that exists only in a provider's dashboard is outside this audit. We can say a variable is expected, not that it is scoped correctly.",
-      upgrade: "Connect a service from the Stack page",
+      upgrade: "Connect and map a service from the Stack page",
     });
   }
 
@@ -167,6 +169,15 @@ export function buildCoverage(
       why: "The reasoning step reached its output limit while writing this run's findings.",
       effect:
         "What is reported was completed and checked. Anything it had not finished writing is missing, so this list is a floor rather than the whole picture.",
+      upgrade: "Run the audit again",
+    });
+  }
+
+  if (reasoningParseFailed) {
+    notes.push({
+      name: "Part of this audit could not be completed",
+      why: "The reasoning response was not in a readable format.",
+      effect: "Any recovered findings were checked against the collected evidence, but reasoning coverage is incomplete. No findings from this step is not a clean result.",
       upgrade: "Run the audit again",
     });
   }
@@ -243,6 +254,11 @@ export interface RunAuditOptions {
   trigger?: string;
   /** True when this account also has a database connected. Changes coverage. */
   hasDatabase?: boolean;
+  /** Durable queue-created run. When present, execution claims this row rather
+   * than creating a second customer-visible run. */
+  runId?: string;
+  /** Queue fencing identity. Required with a queue-created runId. */
+  jobLease?: { jobId: string; token: string };
 }
 
 /**
@@ -261,6 +277,7 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
   const step = (label: string, note?: string, found?: boolean) => {
     trace.push({ time: clock(startedAt), label, ...(note ? { note } : {}), ...(found ? { found } : {}) });
   };
+  if (Boolean(options.runId) !== Boolean(options.jobLease)) throw new Error("Invalid durable audit context");
 
   // THE RUN ROW IS A PRECONDITION, NOT BOOKKEEPING.
   //
@@ -270,17 +287,21 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
   // findings still persisted with a null run_id -- a dashboard showing findings
   // with no run behind them, and no error anywhere. Failing here is loud and
   // recoverable; succeeding into an empty id is silent and is not.
-  const { data: run, error: runError } = await admin
-    .from("audit_runs")
-    .insert({
-      user_id: userId,
-      repository_id: repositoryId,
-      full_name: fullName,
-      status: "running",
-      trigger: options.trigger ?? "manual",
-    })
-    .select("id")
-    .single();
+  const runWrite = options.runId
+    ? admin.from("audit_runs").update({
+        status: "running", started_at: new Date(startedAt).toISOString(), finished_at: null,
+        trace: [], coverage: [], error: null,
+      }).eq("id", options.runId).eq("user_id", userId).eq("repository_id", repositoryId)
+        .eq("full_name", fullName).eq("audit_execution_token", options.jobLease!.token)
+        .in("status", ["queued", "running", "failed"]).select("id").maybeSingle()
+    : admin.from("audit_runs").insert({
+        user_id: userId,
+        repository_id: repositoryId,
+        full_name: fullName,
+        status: "running",
+        trigger: options.trigger ?? "manual",
+      }).select("id").single();
+  const { data: run, error: runError } = await runWrite;
 
   if (runError || !run?.id) {
     // Thrown before any work begins, so there is nothing to roll back and no
@@ -343,7 +364,7 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
     // The live half. Facts a provider reported about itself, which the
     // repository cannot show. Absent when nothing is connected, and absent is
     // the honest state: the audit runs on the code alone and says so.
-    const liveFacts = await loadLiveFacts(userId);
+    const liveFacts = await loadLiveFacts(userId, repositoryId);
     if (liveFacts.length > 0) {
       step(
         `${liveFacts.length} live configuration fact${liveFacts.length === 1 ? "" : "s"} from your connected services`,
@@ -383,6 +404,15 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
     const noted = new Set(notes.map((n) => n.path));
     const reasonedRoutes = routes.filter((r) => !noted.has(r.path));
 
+    // POSSESSION GATES REWORD A FINDING; THEY REMOVE NOTHING.
+    //
+    // Read after the notes and handed to the guard alone. Every route stays in
+    // reasonedRoutes and the prompt is unchanged: a missing_authentication the
+    // guard admits on a route whose gate we READ is reported as
+    // possession_gated, at informational severity, naming the lookup, the
+    // binding and the mint. An unreadable gate leaves the critical standing.
+    const gates = possessionGates(routes, new Map(archive.files.map((f) => [f.path, f])));
+
     if (canReason) step("Reasoning about who can reach what");
     const agent = canReason
       ? await proposeAttacks({
@@ -391,6 +421,7 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       tables,
       domain,
       liveFacts,
+      possessionGates: gates,
       files: archive.files.map((f) => f.path),
       // Whatever is left of the budget, less a margin to persist the findings
       // and finish the run. Reasoning is the step we give up, so it is the step
@@ -410,6 +441,9 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
     if (agent.skipped) {
       step("Attack reasoning did not run", agent.skipReason);
     } else {
+      if (agent.parseFailed) {
+        step("Reasoning response could not be fully read", "Recovered findings still pass the evidence guard. This run's reasoning coverage is incomplete.");
+      }
       if (agent.truncated) {
         step(
           "Reasoning hit its output limit",
@@ -451,6 +485,7 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       repositoryId,
       hasDatabase: options.hasDatabase ?? false,
       liveFacts,
+      possessionGates: gates,
     });
 
     for (const finding of findings.filter((f) => f.severity === "CRITICAL")) {
@@ -476,11 +511,26 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       routes,
       agent.admitted.length === 0 && (agent.unmatchedEntries ?? []).length > 0,
       notes.map(renderCrossTenantNote),
+      agent.parseFailed === true,
     );
 
     step("Audit complete", `${findings.length} open ${findings.length === 1 ? "path" : "paths"}`);
 
-    await persistFindings(userId, repositoryId, runId, findings);
+    const preserveExisting = agent.skipped || agent.parseFailed === true ||
+      agent.truncated === true || archive.truncated || archive.skipped > 0 ||
+      routes.some((route) => !route.identityReadable || !route.ownershipReadable ||
+        !route.dataReadable || !route.machineGateReadable || !route.serviceRoleReadable) ||
+      routesOmitted({ routes, stack, tables, domain, files: [] }) > 0 ||
+      (agent.unassessed ?? []).length > 0 || (agent.unmatchedEntries ?? []).length > 0;
+    if (preserveExisting) {
+      step("Previous findings retained", "This run was incomplete. Earlier findings remain open until they can be reassessed.");
+      coverage.push({
+        name: "Previous findings remain open",
+        why: "This run could not fully reassess the repository.",
+        effect: "New findings were saved, but earlier findings were not marked resolved just because they were missing from this run.",
+      });
+    }
+    await persistFindings(userId, repositoryId, runId, findings, null, preserveExisting, options.jobLease);
 
     // Open the pull requests ourselves. The customer's job is to approve, not
     // to go and press a button per finding -- a queue of security homework is
@@ -514,10 +564,11 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       step("Fix pull requests could not be opened", err instanceof Error ? err.message : "unknown error");
     }
 
-    const { error: completeError } = await admin
+    let completeWrite = admin
       .from("audit_runs")
       .update({
         status: "complete",
+        audit_execution_token: null,
         finished_at: new Date().toISOString(),
         trace,
         coverage,
@@ -532,21 +583,21 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
         // OVER rather than a fresh guess made at page-load time.
         stack,
         domain,
-      })
-      .eq("id", runId);
+      }).eq("id", runId);
+    if (options.jobLease) completeWrite = completeWrite.eq("audit_execution_token", options.jobLease.token);
+    const { data: completedRun, error: completeError } = await completeWrite.select("id").maybeSingle();
 
     // A run that finished but could not be MARKED finished is the stuck-in-
     // "running" spinner, and it is invisible unless we say so here.
-    // Logged, NOT thrown. The findings are already persisted and correct;
-    // throwing here would fall into the catch below and mark a successful audit
-    // "failed", which contradicts the rows we just wrote. What is left is a run
-    // stuck on "running" with its results intact -- a monitoring problem, and
-    // now a visible one rather than a silent one.
-    if (completeError) {
+    // A direct run keeps the historical fail-soft behavior because findings are
+    // already durable. A queued run throws: its fenced retry can safely converge
+    // the visible run state without letting a stale worker finalize it.
+    if (completeError || (options.jobLease && !completedRun)) {
       console.error(
         `[audit] run ${runId} completed but could not be marked complete:`,
-        completeError.message,
+        completeError?.message ?? "work lease changed",
       );
+      if (options.jobLease) throw new Error("Audit completion could not be recorded");
     }
 
     const { error: repoError } = await admin
@@ -574,12 +625,18 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
     const message = err instanceof Error ? err.message : "unknown error";
     step("Audit failed", message);
 
-    // The run is marked failed and KEPT. Nothing is archived and no findings are
-    // written, so a broken run can never resolve a real finding by omission.
-    const { error: failError } = await admin
+    // Direct work is marked failed and kept. Durable work returns to queued so
+    // the client does not mistake a retryable attempt for a terminal result;
+    // the queue marks it failed only when attempts are exhausted/permanent.
+    let failWrite = admin
       .from("audit_runs")
-      .update({ status: "failed", finished_at: new Date().toISOString(), trace, error: message })
+      .update(options.jobLease
+        ? { status: "queued", finished_at: null, trace,
+            error: "The audit attempt stopped and will be retried." }
+        : { status: "failed", audit_execution_token: null, finished_at: new Date().toISOString(), trace, error: message })
       .eq("id", runId);
+    if (options.jobLease) failWrite = failWrite.eq("audit_execution_token", options.jobLease.token);
+    const { error: failError } = await failWrite;
 
     // Both halves matter and only one is recoverable, so both are logged: the
     // original failure is what the customer needs, and a failure to RECORD the
@@ -593,89 +650,26 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
 }
 
 /**
- * Writes findings, archiving anything from a previous run on this repository
- * that no longer reproduces.
+ * Atomically writes findings and, only after that succeeds, archives agent
+ * findings from this repository that a complete run did not reproduce.
  *
- * Archiving happens only after a SUCCESSFUL run reaches this point -- the
- * caller's catch never gets here -- so a failed audit cannot mark a customer's
- * real problems as resolved.
+ * The database RPC owns both operations and validates the tenant/repository/run
+ * relationship. A failed statement rolls the entire replacement back, so a
+ * partial write can never render a false-clean dashboard.
  */
 export async function persistFindings(
   userId: string,
   repositoryId: string,
   runId: string,
   findings: AgentFinding[],
-  client: { from: (t: string) => never } | null = null,
+  client: Pick<ReturnType<typeof getSupabaseAdmin>, "rpc"> | null = null,
+  preserveExisting = false,
+  jobLease?: { jobId: string; token: string },
 ): Promise<void> {
-  const admin = (client ?? getSupabaseAdmin()) as ReturnType<typeof getSupabaseAdmin>;
-  const activeIds = findings.map((f) => f.id);
-
-  // ── 1. INSERT FIRST. ────────────────────────────────────────────────────
-  //
-  // The order is the whole fix. This used to archive first and insert second,
-  // and a death between the two left the previous findings archived with
-  // nothing written in their place -- a dashboard showing ZERO, which reads as
-  // clean. Inverting it means a crash here leaves the OLD findings intact and
-  // simply adds nothing: too much or unchanged, never absent.
-  //
-  // `upsert` with ignoreDuplicates makes the statement re-runnable against
-  // migration 051's partial unique index, so a retry after a partial write
-  // converges instead of duplicating.
-  if (findings.length > 0) {
-    const { error: insertError } = await admin
-      .from("deep_findings")
-      .upsert(
-        findings.map((f) => ({
-          user_id: userId,
-          repository_id: repositoryId,
-          run_id: runId || null,
-          source: "agent",
-          finding_id: f.id,
-          severity: f.severity,
-          title: f.title,
-          consequence: f.consequence,
-          attack_class: f.attackClass,
-          entry: f.entry,
-          file: f.file,
-          confidence: f.confidence,
-          fix_kind: f.fixKind,
-          claims: f.claims,
-          blast_radius: f.blastRadius,
-        })),
-        { onConflict: "repository_id,finding_id", ignoreDuplicates: true },
-      );
-
-    // Checked, where both writes previously discarded their error. If the
-    // insert failed we must NOT proceed to archive -- archiving on the strength
-    // of a run whose findings were never written is exactly the zero-findings
-    // failure, arrived at by a different route.
-    if (insertError) {
-      throw new Error(`Findings could not be saved: ${insertError.message}`);
-    }
-  }
-
-  // ── 2. ARCHIVE SECOND, keyed on what this run reproduced. ───────────────
-  //
-  // Anything still open for this repository that this run did not produce is
-  // resolved. Reached only after the insert succeeded, so the replacement set
-  // is already durable before anything is retired.
-  const archive = admin
-    .from("deep_findings")
-    .update({ archived_at: new Date().toISOString() })
-    .eq("repository_id", repositoryId)
-    .is("archived_at", null);
-
-  const { error: archiveError } = await (activeIds.length > 0
-    ? archive.not("finding_id", "in", `(${activeIds.map((id) => `"${id}"`).join(",")})`)
-    : archive);
-
-  // Not thrown. The new findings are written and correct; failing here leaves
-  // stale rows visible alongside them, which is the safe direction and self-
-  // corrects on the next successful run.
-  if (archiveError) {
-    console.error(
-      `[audit] findings for ${repositoryId} were written but stale ones could not be archived:`,
-      archiveError.message,
-    );
-  }
+  const { error } = await (client ?? getSupabaseAdmin()).rpc("persist_repository_findings", {
+    p_user: userId, p_repository: repositoryId, p_run: runId,
+    p_findings: findings, p_preserve: preserveExisting,
+    p_job: jobLease?.jobId ?? null, p_token: jobLease?.token ?? null,
+  });
+  if (error) throw new Error("Findings could not be saved");
 }

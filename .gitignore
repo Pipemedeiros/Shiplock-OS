@@ -53,3 +53,8 @@ mcp/node_modules/
 # archives in docs/STATE.md "Corpus provenance"; the markdown beside them is committed.
 docs/audit/source/
 docs/audit/gate-census-witnesses.json
+
+# Reacquirable checksum-verified evaluation archives and raw per-run inputs.
+.cache/shiplock-corpus/
+.cache/step23-sql/
+docs/evaluation/runs/

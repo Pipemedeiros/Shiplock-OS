@@ -10,7 +10,7 @@ import { buildReachabilityIndex } from "@/lib/graph/reachability";
 import { scanRouteFacts } from "@/lib/graph/routeChecks";
 import { scanWorkflows } from "./workflowScan";
 import { historyFindings, scanPatches, MAX_COMMITS } from "./historyScan";
-import { saveFacts } from "@/lib/graph/graphRun";
+import { saveFacts, type RepositorySourceSnapshot } from "@/lib/graph/graphRun";
 import type { RouteFact } from "@/lib/graph/routeInventory";
 
 // Full source scan for a connected GitHub App installation: read-only repo
@@ -50,7 +50,8 @@ async function scanRepo(
   repo: Repo,
   routeSink?: RouteFact[],
   liveFileSink?: Set<string>,
-  depSink?: Map<string, string>
+  depSink?: Map<string, string>,
+  readStats?: { filesAttempted: number; filesRead: number }
 ): Promise<GithubFinding[]> {
   const { fullName, defaultBranch: branch } = repo;
   const tree = await listTree(token, fullName, branch);
@@ -73,6 +74,10 @@ async function scanRepo(
     files.push({ path: c.path, content });
     if (/(^|\/)package\.json$/.test(c.path) && !packageJson) packageJson = content;
     if (/(^|\/)package-lock\.json$/.test(c.path) && !packageLock) packageLock = content;
+  }
+  if (readStats) {
+    readStats.filesAttempted = candidates.length;
+    readStats.filesRead = files.length;
   }
 
   const findings: GithubFinding[] = [
@@ -155,10 +160,32 @@ export async function runGithubScan(
   const routes: RouteFact[] = [];
   const liveFiles = new Set<string>();
   const deps = new Map<string, string>();
+  const repositories: RepositorySourceSnapshot[] = [];
   for (const repo of repos) {
+    // Repository-local sinks prevent identical paths/dependency names from
+    // erasing provenance, and never publish a failed scan's mutated sinks.
+    const repoRoutes: RouteFact[] = [];
+    const repoLiveFiles = new Set<string>();
+    const repoDeps = new Map<string, string>();
+    const stats = { filesAttempted: 0, filesRead: 0 };
     try {
-      all.push(...(await scanRepo(token, repo, routes, liveFiles, deps)));
+      all.push(...(await scanRepo(token, repo, repoRoutes, repoLiveFiles, repoDeps, stats)));
       scannedRepos.push(repo.fullName);
+      routes.push(...repoRoutes);
+      for (const file of repoLiveFiles) liveFiles.add(file);
+      for (const [name, version] of repoDeps) deps.set(name, version);
+      repositories.push({
+        repositoryFullName: repo.fullName,
+        installationId: String(installationId),
+        ref: repo.defaultBranch,
+        recordedAt: new Date().toISOString(),
+        completeness: "partial",
+        ...stats,
+        routes: repoRoutes,
+        liveFiles: [...repoLiveFiles],
+        hasEntryPoints: repoLiveFiles.size > 0,
+        dependencies: [...repoDeps].map(([name, version]) => ({ name, version })),
+      });
     } catch {
       continue; // one bad repo shouldn't fail the pass
     }
@@ -170,11 +197,15 @@ export async function runGithubScan(
   if (scannedRepos.length > 0) {
     await saveFacts(userId, "source", {
       routes,
+      repositories,
       liveFiles: [...liveFiles],
       // False when no repo yielded an entry point, which makes every
       // reachability verdict `unknown` rather than demoting everything at once.
       hasEntryPoints: liveFiles.size > 0,
       dependencies: [...deps].map(([name, version]) => ({ name, version })),
+    }, {
+      completeness: "partial",
+      reason: "Source collection uses repository, file, and history limits; complete coverage is not established.",
     });
   }
 

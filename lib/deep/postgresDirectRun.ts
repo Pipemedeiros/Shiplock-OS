@@ -1,6 +1,7 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { decrypt } from "@/lib/crypto";
 import { saveFacts } from "@/lib/graph/graphRun";
+import { providerConnectionFingerprint } from "./providerRepositoryMap";
 import { analyzePolicies } from "./policyScan";
 import { analyzeGrants } from "./grantScan";
 import {
@@ -47,16 +48,18 @@ interface ProfileRow {
  * Returns null rather than throwing when absent, because "this customer is on
  * Supabase instead" is the common case, not an error.
  */
-async function loadConnection(userId: string): Promise<string | null> {
-  const { data } = await getSupabaseAdmin()
+async function loadConnection(userId: string): Promise<{ raw: string; fingerprint: string } | null> {
+  const { data, error } = await getSupabaseAdmin()
     .from("user_profiles")
     .select("postgres_dsn_encrypted")
     .eq("id", userId)
     .maybeSingle<ProfileRow>();
 
-  if (!data?.postgres_dsn_encrypted) return null;
+  if (error || typeof data?.postgres_dsn_encrypted !== "string" || !data.postgres_dsn_encrypted) return null;
   try {
-    return decrypt(data.postgres_dsn_encrypted);
+    const raw = decrypt(data.postgres_dsn_encrypted);
+    if (!raw) return null;
+    return { raw, fingerprint: providerConnectionFingerprint(data.postgres_dsn_encrypted) };
   } catch {
     // A key rotation that left an undecryptable value must not look like a clean
     // scan. Treat it as not connected so the customer is prompted to reconnect.
@@ -78,12 +81,12 @@ async function loadConnection(userId: string): Promise<string | null> {
 export async function runDirectPostgresScan(userId: string): Promise<DirectScanOutcome> {
   const admin = getSupabaseAdmin();
 
-  const raw = await loadConnection(userId);
-  if (!raw) return { ok: false, findings: 0, reason: "not_connected" };
+  const loaded = await loadConnection(userId);
+  if (!loaded) return { ok: false, findings: 0, reason: "not_connected" };
 
   let findings: GithubFinding[];
   try {
-    const connection = parseConnectionString(raw);
+    const connection = parseConnectionString(loaded.raw);
     const facts = await collectDirectFacts(connection);
 
     findings = [
@@ -104,6 +107,13 @@ export async function runDirectPostgresScan(userId: string): Promise<DirectScanO
         authzProvider: "postgres-rls",
         policies: facts.policies,
         scanTables: facts.scanTables,
+        // Replaced as one transport-local object. It cannot borrow old advisors,
+        // auth config or table observations from another database producer.
+        directPostgresSnapshot: {
+          collector: "postgres-direct", authzProvider: "postgres-rls",
+          connectionFingerprint: loaded.fingerprint, recordedAt: new Date().toISOString(),
+          completeness: "unknown", policies: facts.policies, scanTables: facts.scanTables,
+        },
       },
       { merge: true }
     );

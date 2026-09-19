@@ -1,5 +1,6 @@
 import type { RouteFact } from "./routeInventory";
 import type { SupabaseAuthConfig } from "@/lib/deep/supabaseMgmt";
+import type { DatabaseEvidence } from "./databaseSource";
 import { normaliseLintName, type PgPolicy, type SupabaseAdvisor } from "@/lib/deep/policyScan";
 import { isProvable, vocabulary, type AuthzProvider } from "./providers";
 
@@ -18,6 +19,18 @@ import { isProvable, vocabulary, type AuthzProvider } from "./providers";
 // mis-assembles its inputs produces confident nonsense.
 
 export type NodeKind = "table" | "route" | "policy" | "config" | "bucket";
+
+/** Provider project identity is observation provenance, not a repository link. */
+export interface RuntimeEnvFact {
+  key: string;
+  target: string[];
+  provider: string;
+  projectId?: string;
+  /** Explicit ShipLock repository association. Absent means not admissible. */
+  repositoryId?: string;
+  /** Installation identity prevents pre-disconnect facts surviving reconnect. */
+  connectionFingerprint?: string;
+}
 
 export interface GraphNode {
   id: string; // "table:public.invoices", "route:/api/invoices"
@@ -133,6 +146,16 @@ export function isPermissiveExpression(expr: string | null | undefined): boolean
 }
 
 export interface GraphInput {
+  /** Connection-matched, transport-separated evidence. It remains available as
+   * provenance even when one explicitly repository-bound transport is projected
+   * into the flat reasoner fields below. */
+  databaseEvidence?: DatabaseEvidence;
+  /** Repository whose source facts are being reasoned over. */
+  repositoryId?: string;
+  /** Admission/coverage of the source half; partial/unknown cannot retire paths. */
+  sourceCoverage?: "complete" | "partial" | "unknown";
+  /** Only an explicit repository binding authorizes a cross-surface claim. */
+  correlationScope?: "source-only" | "repository-bound";
   routes?: RouteFact[];
   policies?: PgPolicy[];
   advisors?: SupabaseAdvisor[];
@@ -158,7 +181,7 @@ export interface GraphInput {
    */
   runtimeProvidersRead?: string[];
   /** Environment variables the host reports, by name and scope. Never values. */
-  runtimeEnvVars?: { key: string; target: string[]; provider: string }[];
+  runtimeEnvVars?: RuntimeEnvFact[];
 }
 
 export interface AuthPosture {

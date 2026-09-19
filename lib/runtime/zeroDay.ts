@@ -1,123 +1,42 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { queryOsv } from "@/lib/deep/github";
 import { depFindings } from "@/lib/deep/githubScan";
-import type { SourceFacts } from "@/lib/graph/graphRun";
+import { loadRepositoryDependencies } from "@/lib/graph/repositorySource";
 
-// F1 — zero-day response.
-//
-// The gap this closes is easy to miss and completely real: dependency CVEs are
-// only checked when a pull request fires the source scan. A customer who ships
-// nothing for a month therefore gets NO new-CVE detection for a month — and the
-// dangerous case is precisely that one, because the vulnerability arrives from
-// the outside world rather than from their own code. Their app did not change;
-// the world's knowledge about it did.
-//
-// So: keep the dependency inventory from the last source scan, and re-query OSV
-// on the scheduled pass. Nothing needs to be pushed for a newly-published CVE in
-// a package they already depend on to reach them.
-
-/**
- * `owner/name::github:dep:hono:GHSA-x` -> `github:dep:hono:GHSA-x`.
- *
- * Only the repository namespace runGithubScan adds is removed; an id that was
- * never namespaced is returned unchanged.
- */
+/** Historical helper. Deduplication must also compare repository identity. */
 export function stripRepoPrefix(id: string): string {
   const at = id.indexOf("::");
   return at === -1 ? id : id.slice(at + 2);
 }
 
-export async function runZeroDayCheck(
-  userId: string
-): Promise<{ total: number; newCount: number; resolvedCount: number }> {
+/** Partial inventories can add findings but never resolve absent advisories. */
+export async function runZeroDayCheck(userId: string): Promise<{ total: number; newCount: number; resolvedCount: number }> {
   const admin = getSupabaseAdmin();
-
-  const { data } = await admin
-    .from("graph_facts")
-    .select("facts")
-    .eq("user_id", userId)
-    .eq("collector", "source")
-    .maybeSingle();
-
-  const deps = ((data?.facts ?? {}) as SourceFacts).dependencies ?? [];
-  // No inventory means the source scan has never run. That is "we don't know",
-  // and must not archive existing dependency findings.
-  if (deps.length === 0) return { total: 0, newCount: 0, resolvedCount: 0 };
-
-  let findings;
-  try {
-    findings = depFindings(await queryOsv(deps));
-  } catch {
-    // OSV unreachable. Silence, not a clean bill of health — and critically, no
-    // archiving, or an outage at OSV would mark every real CVE as resolved.
-    return { total: 0, newCount: 0, resolvedCount: 0 };
+  let total = 0, newCount = 0;
+  for (const inventory of await loadRepositoryDependencies(userId)) {
+    if (!inventory.dependencies.length) continue;
+    let findings;
+    try { findings = depFindings(await queryOsv(inventory.dependencies)); }
+    catch { continue; }
+    const [existing, source] = await Promise.all([
+      admin.from("deep_findings").select("finding_id").eq("user_id", userId).eq("source", "zero-day").is("archived_at", null),
+      admin.from("deep_findings").select("finding_id").eq("user_id", userId).eq("source", "github").is("archived_at", null),
+    ]);
+    if (existing.error || source.error) throw new Error("Dependency findings unavailable");
+    const active = new Set([...(existing.data ?? []), ...(source.data ?? [])].map((row) => String(row.finding_id).toLowerCase()));
+    const prefix = inventory.repositoryFullName + "::";
+    const fresh = findings.filter((finding) => !active.has((prefix + finding.id).toLowerCase()));
+    if (fresh.length) {
+      const { error } = await admin.from("deep_findings").insert(fresh.map((finding) => ({
+        user_id: userId, repository_id: inventory.repositoryId, source: "zero-day", finding_id: prefix + finding.id,
+        severity: finding.severity, title: finding.title,
+        consequence: finding.consequence + "\n\nFound by re-checking recorded dependencies for " + inventory.repositoryFullName +
+          ". Source coverage is partial; absent advisories do not resolve earlier findings.",
+        package_name: finding.packageName, version: finding.version, vuln_id: finding.vulnId, cve_id: finding.cveId,
+      })));
+      if (error) throw new Error("Dependency findings could not be saved");
+    }
+    total += findings.length; newCount += fresh.length;
   }
-
-  const { data: existing } = await admin
-    .from("deep_findings")
-    .select("finding_id")
-    .eq("user_id", userId)
-    .eq("source", "zero-day")
-    .is("archived_at", null);
-
-  // The same CVE can already be open from a pull-request scan. Both carry the
-  // same finding_id under different sources, so without this the customer would
-  // see one problem twice — once in the GitHub panel and once in the fix list.
-  //
-  // THE COMPARISON HAS TO STRIP THE REPOSITORY PREFIX. runGithubScan namespaces
-  // every id it writes as `owner/name::<id>` (githubRun.ts, so archiving stays
-  // scoped to the repos a pass actually read), and this check compared those
-  // against bare ids. It therefore matched nothing, ever: the live database
-  // carried ten dependency advisories twice, three of them CRITICAL, which is
-  // the whole finding count of that account doubled. The dedup was written,
-  // shipped, and silently did nothing — the same shape as the three collectors
-  // in this repo that existed and were never called.
-  const { data: fromSourceScan } = await admin
-    .from("deep_findings")
-    .select("finding_id")
-    .eq("user_id", userId)
-    .eq("source", "github")
-    .is("archived_at", null);
-  const alreadyReported = new Set(
-    (fromSourceScan ?? []).map((r) => stripRepoPrefix(r.finding_id as string))
-  );
-
-  const active = new Set((existing ?? []).map((r) => r.finding_id as string));
-  const current = new Set(findings.map((f) => f.id));
-
-  // A CVE that no longer applies means they upgraded. Worth closing promptly:
-  // the customer did the work and should see it land.
-  const resolved = [...active].filter((id) => !current.has(id));
-  if (resolved.length > 0) {
-    await admin
-      .from("deep_findings")
-      .update({ archived_at: new Date().toISOString() })
-      .eq("user_id", userId)
-      .eq("source", "zero-day")
-      .is("archived_at", null)
-      .in("finding_id", resolved);
-  }
-
-  const fresh = findings.filter((f) => !active.has(f.id) && !alreadyReported.has(f.id));
-  if (fresh.length > 0) {
-    await admin.from("deep_findings").insert(
-      fresh.map((f) => ({
-        user_id: userId,
-        source: "zero-day",
-        finding_id: f.id,
-        severity: f.severity,
-        title: f.title,
-        consequence:
-          `${f.consequence}\n\n` +
-          `This was found by re-checking the dependencies from your last source scan against newly-published advisories. ` +
-          `Your code did not change — what changed is that this vulnerability is now public, which also means it is now being looked for.`,
-        package_name: f.packageName,
-        version: f.version,
-        vuln_id: f.vulnId,
-        cve_id: f.cveId,
-      }))
-    );
-  }
-
-  return { total: findings.length, newCount: fresh.length, resolvedCount: resolved.length };
+  return { total, newCount, resolvedCount: 0 };
 }

@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { RouteFact } from "@/lib/graph/routeInventory";
 import { guardHypotheses, type GuardResult, type ReconIndex } from "./attackGuard";
 import { domainPromptLines, type DomainModel } from "./domain";
+import type { PossessionGate } from "./possessionGate";
 import type { StackReport } from "./stack";
 
 /**
@@ -122,6 +123,13 @@ export interface AgentInput {
    * way a file is.
    */
   liveFacts?: { id: string; statement: string }[];
+
+  /**
+   * Possession gates read this run (lib/agent/possessionGate.ts). Handed to the
+   * guard only. buildPrompt does not read it: the model's input is unchanged,
+   * and the gate changes what an admitted finding is called, not what is found.
+   */
+  possessionGates?: ReadonlyMap<string, PossessionGate>;
 }
 
 export interface AgentOutcome extends GuardResult {
@@ -138,6 +146,9 @@ export interface AgentOutcome extends GuardResult {
    * for the same reason a skipped reasoning step is surfaced there.
    */
   truncated?: boolean;
+  /** A complete JSON array could not be read. Recovered objects remain guarded,
+   * but the caller must disclose that reasoning coverage is incomplete. */
+  parseFailed?: boolean;
 }
 
 /**
@@ -397,6 +408,7 @@ export async function proposeAttacks(input: AgentInput): Promise<AgentOutcome> {
     tables: new Set(input.tables),
     facts: new Set((input.liveFacts ?? []).map((f) => f.id)),
     routes: new Map(input.routes.map((r) => [r.path, r])),
+    possessionGates: input.possessionGates,
   };
 
   const interesting = input.routes.filter((r) => r.tables.length > 0);
@@ -442,8 +454,9 @@ export async function proposeAttacks(input: AgentInput): Promise<AgentOutcome> {
     // were paid for and are still judged by the guard.
     const parsed = extractJsonArray(text);
     const hypotheses = parsed !== null ? parsed : salvageJsonObjects(text);
+    const parseFailed = parsed === null && !truncated;
 
-    if (!Array.isArray(hypotheses) || hypotheses.length === 0) {
+    if (!Array.isArray(hypotheses) || (hypotheses.length === 0 && parsed === null)) {
       return {
         admitted: [],
         rejected: [{ hypothesis: text.slice(0, 200), reason: truncated ? "response was cut off before any finding was complete" : "response was not JSON" }],
@@ -452,10 +465,11 @@ export async function proposeAttacks(input: AgentInput): Promise<AgentOutcome> {
         model,
         skipped: false,
         truncated,
+        parseFailed,
       };
     }
 
-    return { ...guardHypotheses(hypotheses, recon), model, skipped: false, truncated };
+    return { ...guardHypotheses(hypotheses, recon), model, skipped: false, truncated, parseFailed };
   } catch (err) {
     const message = err instanceof Error ? err.message : "unknown";
     const timedOut = err instanceof Anthropic.APIConnectionTimeoutError || /timeout/i.test(message);

@@ -23,7 +23,7 @@ export default async function SettingsPage() {
     admin
       .from("user_profiles")
       .select(
-        "github_installation_id, supabase_mgmt_token_encrypted, postgres_dsn_encrypted, postgres_display, verified_report_enabled, verified_report_token, monitored_app_url"
+        "github_installation_id, supabase_mgmt_token_encrypted, supabase_mgmt_project_ref, monitored_project_url, monitored_anon_key_encrypted, postgres_dsn_encrypted, postgres_display, verified_report_enabled, verified_report_token, monitored_app_url"
       )
       .eq("id", userId)
       .single(),
@@ -32,8 +32,12 @@ export default async function SettingsPage() {
 
   const githubConnected = Boolean(profile?.github_installation_id);
   const supabaseConnected = Boolean(profile?.supabase_mgmt_token_encrypted);
+  const supabaseProjectRef = typeof profile?.supabase_mgmt_project_ref === "string" ? profile.supabase_mgmt_project_ref : null;
   const postgresConnected = Boolean(profile?.postgres_dsn_encrypted);
-  const databaseConnected = supabaseConnected || postgresConnected;
+  const endpointConnected = typeof profile?.monitored_project_url === "string" && profile.monitored_project_url.length > 0 &&
+    typeof profile?.monitored_anon_key_encrypted === "string" && profile.monitored_anon_key_encrypted.length > 0;
+  const databaseConnected = supabaseConnected || endpointConnected || postgresConnected;
+  const showSupabase = !postgresConnected && (isSupabaseMgmtConfigured() || supabaseConnected || endpointConnected);
 
   return (
     <>
@@ -84,8 +88,8 @@ export default async function SettingsPage() {
               instead of reading it from code alone, which is the difference between an inferred
               finding and a proven one. It is not required, and nothing is withheld without it.
             </p>
-            {isSupabaseMgmtConfigured() && !postgresConnected ? (
-              <SupabasePanel connected={supabaseConnected} projectRef={null} configured={isSupabaseMgmtConfigured()} />
+            {showSupabase ? (
+              <SupabasePanel connected={supabaseConnected} projectRef={supabaseProjectRef} configured={isSupabaseMgmtConfigured()} />
             ) : (
               <PostgresPanel connected={postgresConnected} display={profile?.postgres_display ?? null} />
             )}

@@ -130,6 +130,24 @@ describe("checks that must keep firing — the evidence decides the claim", () =
     expect(ids([{ path: "config/key.pem", content: rsa }])).toContain("github:secret:private_key:config/key.pem");
   });
 
+  it("does not strip a base64 line beginning with // as a comment", () => {
+    // Generate test-only material, then wrap at a base64 // sequence. No key
+    // is persisted. The normal PEM parser accepts arbitrary line lengths.
+    let body = "";
+    for (let attempt = 0; attempt < 256 && !body.includes("//"); attempt++) {
+      const key = generateKeyPairSync("rsa", {
+        modulusLength: 512,
+        privateKeyEncoding: { type: "pkcs8", format: "pem" },
+        publicKeyEncoding: { type: "spki", format: "pem" },
+      }).privateKey;
+      body = key.replace(/-----[^\n]+-----/g, "").replace(/\s/g, "");
+    }
+    expect(body).toContain("//");
+    const wrapped = body.replace("//", "\n//");
+    const pem = `-----BEGIN PRIVATE KEY-----\n${wrapped}\n-----END PRIVATE KEY-----`;
+    expect(ids([{ path: "config/key.pem", content: pem }])).toContain("github:secret:private_key:config/key.pem");
+  });
+
   it("does not report a PEM header with no usable key body", () => {
     // corpus-ag's helm values.yaml carried a commented-out example header and was
     // reported CRITICAL before the parse guard.
