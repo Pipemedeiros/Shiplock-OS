@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { runRepositoryAudit } from "@/lib/agent/audit";
-import { claimJob, executeClaimedJob, PermanentJobError, type ClaimedJob } from "./queue";
+import { AuditTrigger, claimJob, executeClaimedJob, PermanentJobError, type ClaimedJob } from "./queue";
 
 const profileSchema = z.object({
   github_installation_id: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
@@ -9,7 +9,11 @@ const profileSchema = z.object({
   postgres_dsn_encrypted: z.unknown().nullable().optional(),
 });
 const repositorySchema = z.object({ full_name: z.string().regex(/^[\w.-]+\/[\w.-]+$/), selected: z.literal(true) });
-const runSchema = z.object({ status: z.enum(["queued", "running", "complete", "failed"]), full_name: z.string() });
+const runSchema = z.object({
+  status: z.enum(["queued", "running", "complete", "failed"]),
+  full_name: z.string(),
+  trigger: AuditTrigger,
+});
 
 /** Execute one claimed audit from current tenant-owned context. The job stores
  * identities only; credentials and repository state are re-read at execution. */
@@ -21,7 +25,7 @@ export async function executeAuditJob(job: ClaimedJob): Promise<void> {
       .eq("id", job.user_id).maybeSingle(),
     admin.from("repositories").select("full_name, selected").eq("id", job.repository_id)
       .eq("user_id", job.user_id).maybeSingle(),
-    admin.from("audit_runs").select("status, full_name").eq("id", job.audit_run_id)
+    admin.from("audit_runs").select("status, full_name, trigger").eq("id", job.audit_run_id)
       .eq("user_id", job.user_id).eq("repository_id", job.repository_id).maybeSingle(),
   ]);
   if (profileRead.error || repositoryRead.error || runRead.error) throw new Error("Audit context could not be read");
@@ -39,7 +43,7 @@ export async function executeAuditJob(job: ClaimedJob): Promise<void> {
     installationId: profile.data.github_installation_id,
     repositoryId: job.repository_id,
     fullName: repository.data.full_name,
-    trigger: "manual",
+    trigger: run.data.trigger,
     hasDatabase: Boolean(profile.data.supabase_mgmt_token_encrypted || profile.data.postgres_dsn_encrypted),
     runId: job.audit_run_id,
     jobLease: { jobId: job.id, token: job.lease_token },

@@ -3,6 +3,8 @@ import { createHmac } from "crypto";
 import { NextRequest } from "next/server";
 
 const runGithubScanMock = vi.fn();
+const enqueueAuditJobMock = vi.fn();
+const runNextAuditJobMock = vi.fn();
 const maybeSingleMock = vi.fn();
 const updateEqMock = vi.fn();
 
@@ -25,6 +27,8 @@ vi.mock("next/server", async () => {
 });
 
 vi.mock("@/lib/deep/githubRun", () => ({ runGithubScan: runGithubScanMock }));
+vi.mock("@/lib/jobs/queue", () => ({ enqueueAuditJob: enqueueAuditJobMock }));
+vi.mock("@/lib/jobs/auditWorker", () => ({ runNextAuditJob: runNextAuditJobMock }));
 vi.mock("@/lib/supabase", () => ({
   getSupabaseAdmin: () => ({
     from: () => ({
@@ -57,7 +61,10 @@ describe("POST /api/monitor/github — HMAC-forged webhook payloads must not tri
 
   beforeEach(() => {
     process.env.GITHUB_WEBHOOK_SECRET = SECRET;
+    afterWork.splice(0);
     runGithubScanMock.mockReset();
+    enqueueAuditJobMock.mockReset();
+    runNextAuditJobMock.mockReset();
     maybeSingleMock.mockReset();
     updateEqMock.mockReset();
   });

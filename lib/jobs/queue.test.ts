@@ -19,7 +19,10 @@ it("queues the audit and customer-visible run as one receipt", async () => {
   const run="33333333-3333-4333-8333-333333333333";
   rpc.mockResolvedValue({ data: [{ job_id:id, run_id:run }], error:null });
   expect(await enqueueAuditJob(id,id,"manual:request-id")).toEqual({job_id:id,run_id:run});
-  expect(rpc).toHaveBeenCalledWith("enqueue_repository_audit",{p_user:id,p_repository:id,p_key:"manual:request-id"});
+  expect(rpc).toHaveBeenCalledWith("enqueue_repository_audit",{p_user:id,p_repository:id,p_key:"manual:request-id",p_trigger:"manual"});
+  await enqueueAuditJob(id,id,"pull-request:sha","pull_request");
+  expect(rpc).toHaveBeenLastCalledWith("enqueue_repository_audit",{p_user:id,p_repository:id,p_key:"pull-request:sha",p_trigger:"pull_request"});
+  await expect(enqueueAuditJob(id,id,"bad","deploy" as never)).rejects.toThrow();
 });
 it.each([[], [job], [{ ...job, lease_token: null }], [{ ...job, kind:"source" }], [job,job]].map((data) => ({ data })))("validates claimed work", async ({ data }) => {
   rpc.mockResolvedValue({ data, error:null });

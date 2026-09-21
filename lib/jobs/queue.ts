@@ -3,6 +3,8 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 
 export const JobKind = z.enum(["audit", "source", "monitor", "dependency", "graph", "pr-check"]);
 export type JobKind = z.infer<typeof JobKind>;
+export const AuditTrigger = z.enum(["manual", "pull_request", "scheduled"]);
+export type AuditTrigger = z.infer<typeof AuditTrigger>;
 const claimed = z.object({ id: z.uuid(), user_id: z.uuid(), repository_id: z.uuid().nullable(), kind: JobKind,
   audit_run_id: z.uuid().nullable(),
   status: z.literal("running"), attempts: z.number().int().min(1).max(5), lease_token: z.uuid(),
@@ -16,10 +18,15 @@ export class PermanentJobError extends Error {}
 
 const auditReceipt = z.object({ job_id: z.uuid(), run_id: z.uuid() });
 
-export async function enqueueAuditJob(userId: string, repositoryId: string, key: string) {
-  z.uuid().parse(userId); z.uuid().parse(repositoryId); z.string().min(1).max(256).parse(key);
+export async function enqueueAuditJob(
+  userId: string,
+  repositoryId: string,
+  key: string,
+  trigger: AuditTrigger = "manual",
+) {
+  z.uuid().parse(userId); z.uuid().parse(repositoryId); z.string().min(1).max(256).parse(key); AuditTrigger.parse(trigger);
   const { data, error } = await getSupabaseAdmin().rpc("enqueue_repository_audit", {
-    p_user: userId, p_repository: repositoryId, p_key: key,
+    p_user: userId, p_repository: repositoryId, p_key: key, p_trigger: trigger,
   });
   if (error) throw new Error("Audit could not be queued");
   return auditReceipt.parse(z.array(auditReceipt).length(1).parse(data)[0]);

@@ -18,7 +18,7 @@ try {
     create function auth.uid() returns uuid language sql stable as 'select null::uuid';
     create role anon; create role authenticated; create role service_role bypassrls;
     grant usage on schema public to anon,authenticated,service_role;`);
-  for (const file of ["021_phase2_github_deep_access.sql", "046_mvp_repos_and_runs.sql", "047_agent_findings.sql", "051_findings_idempotent_persist.sql", "053_provider_repository_links.sql", "054_database_repository_bindings.sql", "055_supabase_repository_bindings.sql", "056_durable_jobs.sql", "057_atomic_audit_findings.sql", "058_repository_scoped_finding_identity.sql"]) {
+  for (const file of ["021_phase2_github_deep_access.sql", "046_mvp_repos_and_runs.sql", "047_agent_findings.sql", "051_findings_idempotent_persist.sql", "053_provider_repository_links.sql", "054_database_repository_bindings.sql", "055_supabase_repository_bindings.sql", "056_durable_jobs.sql", "057_atomic_audit_findings.sql", "058_repository_scoped_finding_identity.sql", "059_audit_job_triggers.sql"]) {
     await db.exec(await readFile(new URL(`../supabase/migrations/${file}`, import.meta.url), "utf8"));
   }
   await db.query("insert into auth.users values ($1),($2)", [u1,u2]);
@@ -82,8 +82,13 @@ try {
     const two=(await db.query("select * from public.enqueue_repository_audit($1,$2,'manual-one')",[u1,r1])).rows[0];
     assert.deepEqual(two,one);
     await db.exec("reset role");
-    const linked=(await db.query("select j.audit_run_id,r.status,r.full_name from public.execution_jobs j join public.audit_runs r on r.id=j.audit_run_id where j.id=$1",[one.job_id])).rows[0];
-    assert.deepEqual(linked,{audit_run_id:one.run_id,status:"queued",full_name:"acme/one"});
+    const linked=(await db.query("select j.audit_run_id,r.status,r.full_name,r.trigger from public.execution_jobs j join public.audit_runs r on r.id=j.audit_run_id where j.id=$1",[one.job_id])).rows[0];
+    assert.deepEqual(linked,{audit_run_id:one.run_id,status:"queued",full_name:"acme/one",trigger:"manual"});
+    const pr=(await db.query("select * from public.enqueue_repository_audit($1,$2,'pr-head-one','pull_request')",[u1,r1])).rows[0];
+    const prTrigger=(await db.query("select trigger from public.audit_runs where id=$1",[pr.run_id])).rows[0].trigger;
+    assert.equal(prTrigger,"pull_request");
+    await assert.rejects(db.query("select * from public.enqueue_repository_audit($1,$2,'pr-head-one','manual')",[u1,r1]));
+    await assert.rejects(db.query("select * from public.enqueue_repository_audit($1,$2,'bad-trigger','deploy')",[u1,r1]));
     await db.exec("set role service_role");
     await assert.rejects(db.query("select * from public.enqueue_repository_audit($1,$2,'cross')",[u1,r2]));
     await assert.rejects(db.query("select public.enqueue_execution_job($1,$2,'audit','generic')",[u1,r1]));
