@@ -8,7 +8,7 @@ import { AttackAnimation } from "@/components/v3/AttackAnimation";
 export const metadata = {
   title: "ShipLock: security monitoring that opens the pull request",
   description:
-    "Connect GitHub. ShipLock reads your code, finds the paths that reach customer data, and opens the fix as a pull request for you to approve.",
+    "Connect GitHub. ShipLock checks supported application paths, shows its evidence and unknowns, and can prepare a mechanical fix for you to approve.",
 };
 
 /**
@@ -43,10 +43,10 @@ export default function Landing() {
                 Security monitoring that opens the pull request.
               </h1>
               <p style={{ fontSize: 17.5, color: "var(--muted-navy)", maxWidth: 560 }}>
-                Connect GitHub. ShipLock reads your code, follows each entry point through to the
-                data it can reach, and opens a fix for you to approve. Connect the rest of your
-                stack when you want its live configuration checked too. No checklist to work
-                through, and nothing to copy and paste.
+                Connect GitHub. ShipLock inventories your stack, checks supported paths from route
+                to data, and can prepare a mechanical fix for you to approve. It shows what it could
+                not verify. Connect the rest of your stack only when you want its live configuration
+                checked too.
               </p>
               <div className="v3-row" style={{ marginTop: 30 }}>
                 <Link href="/onboarding" className="v3-btn v3-primary">
@@ -67,24 +67,24 @@ export default function Landing() {
       <div className="v3-shell v3-section" id="how">
         <div className="v3-section-hd">
           <p className="v3-eyebrow">How it works</p>
-          <h2 className="v3-serif">Three steps, then it keeps going on its own.</h2>
+          <h2 className="v3-serif">Three steps, then it rechecks supported changes.</h2>
         </div>
         <div className="v3-argument">
           {[
             {
               n: "01",
               h: "It reads the repository",
-              b: "Every route handler, the schema, the imports. Your code already names your auth provider, your database and your payment webhooks, so we know what to check without asking you to describe it.",
+              b: "Supported Next.js route handlers, schema definitions, imports and deployment clues. Your code names likely auth, database and hosting providers, so ShipLock can inventory the stack without asking you to describe it.",
             },
             {
               n: "02",
               h: "It works out what an attacker reaches",
-              b: "Starting at each entry point and following the guard: who can call this, what does it resolve about them, and does anything narrow the result to that person. Findings are paths, not line numbers.",
+              b: "For supported route shapes, it follows the guard: who can call this, what identity is resolved, and what narrows the result to that tenant. Findings retain the path and coverage gaps, not just a line number.",
             },
             {
               n: "03",
               h: "It opens the pull request",
-              b: "On its own branch, never merged by us, and only after the change has been tested against the problem it fixes. Where the answer is a decision about your product, we say so instead of guessing.",
+              b: "For an allowlisted mechanical fix, it prepares a separate branch and pull request for your review. ShipLock never merges or deploys it. Where the answer is a product decision, it says so instead of guessing.",
             },
           ].map((c) => (
             <div key={c.n}>
@@ -119,7 +119,7 @@ export default function Landing() {
                   "A pull request for the ones with a mechanical fix",
                   "The reasoning behind every finding, with the file it came from",
                   "A record of what each audit did not cover",
-                  "A re-audit on every pull request you open",
+                  "Rechecks on supported pull-request changes",
                 ].map((line) => (
                   <div key={line} className="v3-row" style={{ gap: 10, flexWrap: "nowrap", alignItems: "flex-start" }}>
                     <Check size={15} style={{ color: "var(--ok)", marginTop: 3 }} />
@@ -139,17 +139,18 @@ export default function Landing() {
         <div className="v3-shell v3-section">
           <div className="v3-section-hd">
             <p className="v3-eyebrow">What it actually does</p>
-            <h2 className="v3-serif">Two halves: read everything, then prove one thing.</h2>
+            <h2 className="v3-serif">Two levels: infer from code, then deepen with evidence.</h2>
             <p className="v3-sub" style={{ marginTop: 10, maxWidth: 640 }}>
-              The first half runs on your repository alone. The second is what separates a finding
-              you have to believe from one you can watch happen.
+              The repository audit works first and marks what it could not read. Optional provider
+              connections can corroborate live configuration. Safe reproduction is the next proof
+              level and is not enabled in the preview today.
             </p>
           </div>
 
           <div className="v3-grid-2" style={{ gap: 40, alignItems: "start" }}>
             <div>
               <h3 style={{ fontSize: 16, fontWeight: 500, marginBottom: 4 }}>
-                1 · It reads every layer, and joins them
+                1 · It joins the supported layers it can read
               </h3>
               <p className="v3-sub" style={{ fontSize: 14, marginBottom: 18 }}>
                 One connection. None of these layers is a finding on its own. The join is.
@@ -159,10 +160,11 @@ export default function Landing() {
 
             <div>
               <h3 style={{ fontSize: 16, fontWeight: 500, marginBottom: 4 }}>
-                2 · It attacks a copy, never your app
+                2 · In development: reproduce safely on a copy
               </h3>
               <p className="v3-sub" style={{ fontSize: 14, marginBottom: 18 }}>
-                A disposable replica with synthetic tenants and none of your data.
+                The planned proof runner uses a disposable replica, synthetic tenants and none of
+                your production data. This workflow is shown here as the target, not a shipped claim.
               </p>
               <AttackAnimation />
             </div>
@@ -233,7 +235,7 @@ export default function Landing() {
           Point it at a repository.
         </h2>
         <p className="v3-sub" style={{ maxWidth: 480, margin: "0 auto 26px" }}>
-          The first audit takes a few minutes and tells you where you stand.
+          The first audit shows what ShipLock found, the evidence behind it, and what remains unread.
         </p>
         <Link href="/onboarding" className="v3-btn v3-primary">
           Get started <ArrowRight size={15} />

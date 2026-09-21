@@ -1,5 +1,18 @@
-import { describe, expect, it } from "vitest";
-import { safeNext, jsonForScript } from "./route";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { NextRequest } from "next/server";
+import { AUTH_NEXT_COOKIE, encodeAuthNext } from "@/lib/authRedirect";
+import { GET, safeNext, jsonForScript } from "./route";
+
+const authMocks = vi.hoisted(() => ({ exchangeCodeForSession: vi.fn() }));
+vi.mock("@/lib/supabaseServer", () => ({
+  getSupabaseServer: vi.fn(async () => ({
+    auth: { exchangeCodeForSession: authMocks.exchangeCodeForSession },
+  })),
+}));
+
+beforeEach(() => {
+  authMocks.exchangeCodeForSession.mockReset().mockResolvedValue({ error: null });
+});
 
 /**
  * The sign-in window renders a page carrying `next`, and `next` comes from the
@@ -67,5 +80,37 @@ describe("jsonForScript", () => {
       ok: true,
       next: "/onboarding",
     });
+  });
+});
+
+describe("OAuth return-path cookie", () => {
+  it("uses and clears the validated short-lived path after a successful exchange", async () => {
+    const request = new NextRequest("https://shiplock.dev/auth/callback?code=test-code", {
+      headers: {
+        cookie: `${AUTH_NEXT_COOKIE}=${encodeAuthNext("/onboarding?from=home")}`,
+      },
+    });
+
+    const response = await GET(request);
+
+    expect(authMocks.exchangeCodeForSession).toHaveBeenCalledWith("test-code");
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("https://shiplock.dev/onboarding?from=home");
+    expect(response.headers.get("set-cookie")).toContain(`${AUTH_NEXT_COOKIE}=;`);
+    expect(response.headers.get("set-cookie")).toContain("Max-Age=0");
+  });
+
+  it("preserves the safe destination when full-page OAuth fails", async () => {
+    authMocks.exchangeCodeForSession.mockResolvedValueOnce({ error: { message: "rejected" } });
+    const request = new NextRequest("https://shiplock.dev/auth/callback?code=bad-code", {
+      headers: { cookie: `${AUTH_NEXT_COOKIE}=${encodeAuthNext("/onboarding")}` },
+    });
+
+    const response = await GET(request);
+
+    expect(response.headers.get("location")).toBe(
+      "https://shiplock.dev/auth?error=oauth_failed&next=%2Fonboarding",
+    );
+    expect(response.headers.get("set-cookie")).toContain(`${AUTH_NEXT_COOKIE}=;`);
   });
 });

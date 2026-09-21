@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
+import { AUTH_NEXT_COOKIE, encodeAuthNext, safeNext } from "@/lib/authRedirect";
 
 type Mode = "sign-in" | "sign-up";
 type OAuthProvider = "google" | "github";
@@ -98,7 +99,14 @@ function watchSignInWindow(popup: Window, { onDone, onFailed, onDismissed }: Sig
   window.addEventListener("message", onMessage);
 }
 
-export function AuthForm({ oauthError = false }: { oauthError?: boolean }) {
+export function AuthForm({
+  oauthError = false,
+  nextPath = "/dashboard",
+}: {
+  oauthError?: boolean;
+  nextPath?: string;
+}) {
+  const safeNextPath = safeNext(nextPath, "/dashboard");
   const [mode, setMode] = useState<Mode>("sign-in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -127,7 +135,7 @@ export function AuthForm({ oauthError = false }: { oauthError?: boolean }) {
           );
           return;
         }
-        window.location.href = "/dashboard";
+        window.location.href = safeNextPath;
       } else {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) {
@@ -149,6 +157,10 @@ export function AuthForm({ oauthError = false }: { oauthError?: boolean }) {
     setOauthLoading(provider);
     const supabase = getSupabaseBrowser();
     const redirectTo = `${window.location.origin}/auth/callback`;
+
+    document.cookie = `${AUTH_NEXT_COOKIE}=${encodeAuthNext(safeNextPath)}; path=/; max-age=300; samesite=lax${
+      window.location.protocol === "https:" ? "; secure" : ""
+    }`;
 
     // OPEN THE WINDOW FIRST, BEFORE ANY await.
     //
@@ -188,7 +200,7 @@ export function AuthForm({ oauthError = false }: { oauthError?: boolean }) {
     popup.location.href = data!.url;
     watchSignInWindow(popup, {
       onDone: (next) => {
-        window.location.href = next;
+        window.location.href = safeNext(next, safeNextPath);
       },
       onFailed: () => {
         setError("Sign-in with that provider didn't go through. Try again.");

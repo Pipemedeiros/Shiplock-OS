@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabaseServer";
+import { AUTH_NEXT_COOKIE, decodeAuthNext, safeNext } from "@/lib/authRedirect";
+
+export { safeNext } from "@/lib/authRedirect";
 
 // OAuth (and email-link) callback. Supabase Auth handles the state
 // parameter itself as part of the PKCE flow — this route only exchanges
@@ -20,7 +23,8 @@ import { getSupabaseServer } from "@/lib/supabaseServer";
 const POPUP_COOKIE = "sl_oauth_popup";
 
 /**
- * `next` arrives in the query string, so it is attacker-supplied.
+ * `next` can arrive in the query string or a client-written short-lived cookie,
+ * so it is attacker-supplied either way.
  *
  * Only a path on this site is allowed. Rejected: an absolute URL
  * (`https://evil.example`), a protocol-relative one (`//evil.example`), the
@@ -28,13 +32,6 @@ const POPUP_COOKIE = "sl_oauth_popup";
  * scheme at all (`javascript:...`), which would otherwise run when the
  * completion page navigates itself.
  */
-export function safeNext(raw: string | null): string {
-  const fallback = "/onboarding";
-  if (!raw || raw[0] !== "/") return fallback;
-  if (raw.startsWith("//") || raw.startsWith("/\\")) return fallback;
-  return raw;
-}
-
 /**
  * JSON safe to embed inside a <script> block.
  *
@@ -64,6 +61,7 @@ export function jsonForScript(value: unknown): string {
  */
 function popupCompletionPage(origin: string, nonce: string, ok: boolean, next: string): string {
   const payload = jsonForScript({ source: "shiplock-auth", ok, next });
+  const failurePath = jsonForScript(`/auth?error=oauth_failed&next=${encodeURIComponent(next)}`);
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -92,7 +90,7 @@ function popupCompletionPage(origin: string, nonce: string, ok: boolean, next: s
     // Opener gone or unreachable: fall through and navigate this window
     // instead, so the person is never stranded on a blank page.
   }
-  window.location.replace(payload.ok ? payload.next : "/auth?error=oauth_failed");
+  window.location.replace(payload.ok ? payload.next : ${failurePath});
 })();
 </script>
 </body>
@@ -102,7 +100,8 @@ function popupCompletionPage(origin: string, nonce: string, ok: boolean, next: s
 export async function GET(req: NextRequest) {
   const { searchParams, origin } = new URL(req.url);
   const code = searchParams.get("code");
-  const next = safeNext(searchParams.get("next"));
+  const cookieNext = decodeAuthNext(req.cookies.get(AUTH_NEXT_COOKIE)?.value);
+  const next = safeNext(searchParams.get("next") ?? cookieNext);
   const inPopup = req.cookies.get(POPUP_COOKIE)?.value === "1";
 
   let ok = false;
@@ -116,16 +115,18 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  const failurePath = `/auth?error=oauth_failed&next=${encodeURIComponent(next)}`;
   const response = inPopup
     ? new NextResponse(
         popupCompletionPage(origin, req.headers.get("x-nonce") ?? "", ok, next),
         { headers: { "content-type": "text/html; charset=utf-8" } },
       )
-    : NextResponse.redirect(`${origin}${ok ? next : "/auth?error=oauth_failed"}`);
+    : NextResponse.redirect(`${origin}${ok ? next : failurePath}`);
 
   // Whichever way it went, the flag has served its purpose. Leaving it set
   // would make the NEXT sign-in render a completion page inside the main tab.
   if (inPopup) response.cookies.set(POPUP_COOKIE, "", { path: "/", maxAge: 0 });
+  response.cookies.set(AUTH_NEXT_COOKIE, "", { path: "/", maxAge: 0 });
 
   return response;
 }

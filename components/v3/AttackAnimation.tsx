@@ -3,16 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 
 /**
- * What the agent does, and — just as important — where it does it.
+ * The planned proof workflow, and — just as important — where it will run.
  *
  * A security product that says "our AI attacks your app" has said something
  * alarming, and a founder is right to be alarmed. The honest version is the
- * more impressive one: we never touch the running application. We rebuild the
- * table and its rules in a disposable copy with NO real data, seed it with two
- * synthetic tenants, and let the agent attack that.
+ * more impressive one: the target design never touches the running
+ * application. It rebuilds the table and its rules in a disposable copy with
+ * NO real data, seeds it with two synthetic tenants, and runs the proof there.
  *
  * The control query is the step nobody expects and the one that makes the
- * result mean anything. A replica that was built wrong answers "no leak" to
+ * result mean anything. A replica built wrong answers "no leak" to
  * every attack, and a broken setup would otherwise report as a clean bill of
  * health. So the run signs in as tenant A and reads A's own row first: if that
  * comes back empty, the replica is not trustworthy and we report nothing at
@@ -20,8 +20,8 @@ import { useEffect, useRef, useState } from "react";
  *
  * Honesty constraint this component is under: reproducing a finding needs the
  * customer's row policies, which live in the database rather than the
- * repository. The label says so. Overstating it here would trade the one thing
- * a security product cannot get back.
+ * repository. The visible label says this is in development. Overstating it
+ * here would trade the one thing a security product cannot get back.
  */
 
 interface Beat {
@@ -31,10 +31,10 @@ interface Beat {
 }
 
 const BEATS: Beat[] = [
-  { kind: "setup", label: "Disposable copy built", detail: "your table and its rules, none of your data" },
-  { kind: "setup", label: "Two synthetic tenants seeded", detail: "rows we invented, so nothing real is at risk" },
-  { kind: "control", label: "Signed in as tenant A, read A", detail: "1 row returned, so the copy is trustworthy" },
-  { kind: "attack", label: "Signed in as tenant A, read B", detail: "the query a real attacker would send" },
+  { kind: "setup", label: "Build a disposable copy", detail: "table and rules, never production rows" },
+  { kind: "setup", label: "Seed two synthetic tenants", detail: "invented records only" },
+  { kind: "control", label: "As tenant A, read A", detail: "control query validates the replica" },
+  { kind: "attack", label: "As tenant A, try to read B", detail: "bounded proof against synthetic data" },
 ];
 
 export function AttackAnimation() {
@@ -65,11 +65,11 @@ export function AttackAnimation() {
       className="v3-attack"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
-      aria-label="How ShipLock proves a finding on a disposable copy instead of your live application"
+      aria-label="Planned ShipLock proof workflow on a disposable copy, currently in development"
     >
       <div className="v3-attack-hd">
-        <span className="v3-attack-chip">sandbox</span>
-        <span className="v3-small">never your production app</span>
+        <span className="v3-attack-chip">in development</span>
+        <span className="v3-small">planned sandbox · never production</span>
       </div>
 
       <div className="v3-attack-track">
@@ -86,10 +86,10 @@ export function AttackAnimation() {
 
       <div className={`v3-attack-out${proven ? " on" : ""}`} aria-live="polite">
         <p>
-          <b>1 row returned that should not exist.</b> The leak is reproduced rather than inferred, and the
-          fix is re-run against the same copy before it reaches you.
+          <b>A cross-tenant row would make the proof reproducible.</b> The planned runner will re-run
+          the approved fix against the same disposable copy.
         </p>
-        <span className="v3-small">Reproduction needs your database connected. Reading the code does not.</span>
+        <span className="v3-small">Not enabled in preview. Repository analysis does not require this step.</span>
       </div>
     </div>
   );

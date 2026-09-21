@@ -27,7 +27,7 @@ const STAGES: Stage[] = [
   { kind: "entry", label: "GET /api/invoices/:id", detail: "an entry point in your code" },
   { kind: "identity", label: "auth() resolves a user", detail: "we know who is calling" },
   { kind: "gap", label: "no workspace check", detail: "nothing narrows it to them" },
-  { kind: "asset", label: "invoices", detail: "1,140 workspaces of billing data" },
+  { kind: "asset", label: "invoices", detail: "workspace-scoped billing records" },
 ];
 
 export function ReasoningAnimation() {
@@ -77,8 +77,8 @@ export function ReasoningAnimation() {
 
       <div className={`v3-reason-out${complete ? " on" : ""}`} aria-live="polite">
         <span className="v3-sev critical"><i />critical</span>
-        <p>Any signed-in user can read every workspace&rsquo;s invoices.</p>
-        <span className="v3-reason-pr">Pull request opened, waiting for your approval</span>
+        <p>Potential cross-workspace access: the query is not narrowed to the caller&rsquo;s workspace.</p>
+        <span className="v3-reason-pr">Mechanical fix available for your review</span>
       </div>
     </div>
   );

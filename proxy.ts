@@ -70,7 +70,7 @@ function hasSessionCookie(request: NextRequest): boolean {
 // middleware sits in front of all of them. The landing page had the most,
 // since it takes the most anonymous traffic and every one of those was asking
 // the auth server to refresh a session that did not exist.
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const csp = buildCsp(nonce);
 
@@ -119,7 +119,7 @@ export async function middleware(request: NextRequest) {
       // Never fatal. The page's own server-side getUser is the authority on
       // whether this caller is signed in; this is only the refresh.
       console.warn(
-        "[middleware] session refresh skipped:",
+        "[proxy] session refresh skipped:",
         err instanceof Error ? err.message : err,
       );
     }

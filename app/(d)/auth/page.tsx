@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { getSupabaseServer } from "@/lib/supabaseServer";
 import { AuthForm } from "@/components/auth-form";
 import { LockMark } from "@/components/d/Brand";
+import { safeNext } from "@/lib/authRedirect";
 
 export const metadata: Metadata = {
   title: "Sign in",
@@ -15,18 +16,19 @@ export const metadata: Metadata = {
 export default async function AuthPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string | string[]; next?: string | string[] }>;
 }) {
+  const params = await searchParams;
+  const requestedNext = typeof params.next === "string" ? params.next : undefined;
+  const nextPath = safeNext(requestedNext, "/dashboard");
   const supabase = await getSupabaseServer();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (user) {
-    redirect("/dashboard");
+    redirect(nextPath);
   }
-
-  const { error } = await searchParams;
 
   return (
     <main
@@ -50,7 +52,7 @@ export default async function AuthPage({
         </span>
         ShipLock
       </Link>
-      <AuthForm oauthError={error === "oauth_failed"} />
+      <AuthForm oauthError={params.error === "oauth_failed"} nextPath={nextPath} />
     </main>
   );
 }
