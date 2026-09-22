@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   admitDueRepositoryAudits,
+  admitDueMonitoringPasses,
   admitDueRepositoryDependencyChecks,
   admitDueRepositorySourceScans,
 } from "@/lib/jobs/scheduler";
@@ -16,15 +17,16 @@ export async function POST(request: Request) {
   }
   try {
     const now = new Date();
-    const [audits, sources, dependencies] = await Promise.all([
+    const [audits, sources, dependencies, monitoring] = await Promise.all([
       admitDueRepositoryAudits(now, 1_000),
       admitDueRepositorySourceScans(now, 1_000),
       admitDueRepositoryDependencyChecks(now, 1_000),
+      admitDueMonitoringPasses("scheduled_48h", now, 1_000),
     ]);
     return NextResponse.json({
-      admitted: audits.admitted + sources.admitted + dependencies.admitted,
-      failed: audits.failed + sources.failed + dependencies.failed,
-      more: audits.limited || sources.limited || dependencies.limited,
+      admitted: audits.admitted + sources.admitted + dependencies.admitted + monitoring.admitted,
+      failed: audits.failed + sources.failed + dependencies.failed + monitoring.failed,
+      more: audits.limited || sources.limited || dependencies.limited || monitoring.limited,
     });
   } catch {
     console.error("[jobs/schedule] admission failed");

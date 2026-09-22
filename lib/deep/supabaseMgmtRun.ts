@@ -38,10 +38,12 @@ import { findAttackPaths } from "@/lib/graph/attackPaths";
 import { loadGraphInput } from "@/lib/graph/graphRun";
 import { buildAuthzFacts } from "@/lib/graph/graph";
 import { CollectorShapeError } from "./apiSchemas";
+import type { GithubFinding } from "./githubScan";
 
 export interface PolicyScanOutcome {
   ok: boolean;
   findings: number;
+  newFindings?: GithubFinding[];
   reason?: string;
 }
 
@@ -386,5 +388,5 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
     );
   }
 
-  return { ok: true, findings: findings.length };
+  return { ok: true, findings: findings.length, newFindings: fresh };
 }

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({audits:vi.fn(),sources:vi.fn(),dependencies:vi.fn()}));
-vi.mock("@/lib/jobs/scheduler", () => ({ admitDueRepositoryAudits: mocks.audits,admitDueRepositorySourceScans:mocks.sources,admitDueRepositoryDependencyChecks:mocks.dependencies }));
+const mocks = vi.hoisted(() => ({audits:vi.fn(),sources:vi.fn(),dependencies:vi.fn(),monitoring:vi.fn()}));
+vi.mock("@/lib/jobs/scheduler", () => ({ admitDueRepositoryAudits: mocks.audits,admitDueRepositorySourceScans:mocks.sources,admitDueRepositoryDependencyChecks:mocks.dependencies,admitDueMonitoringPasses:mocks.monitoring }));
 import { POST } from "./route";
 
 const request = (secret?: string) => new Request("https://shiplock.dev/api/jobs/schedule", {
@@ -16,13 +16,14 @@ describe("POST /api/jobs/schedule", () => {
     mocks.audits.mockResolvedValue({ eligible: 4, admitted: 3, failed: 1, limited: true });
     mocks.sources.mockResolvedValue({eligible:2,admitted:2,failed:0,limited:false});
     mocks.dependencies.mockResolvedValue({eligible:3,admitted:2,failed:1,limited:false});
+    mocks.monitoring.mockResolvedValue({eligible:5,admitted:4,failed:1,limited:false});
   });
 
   it("authenticates before admitting a bounded batch", async () => {
     expect((await POST(request("wrong"))).status).toBe(401);
     expect(mocks.audits).not.toHaveBeenCalled();
     const response = await POST(request("worker-secret"));
-    await expect(response.json()).resolves.toEqual({ admitted: 7, failed: 2, more: true });
+    await expect(response.json()).resolves.toEqual({ admitted: 11, failed: 3, more: true });
   });
 
   it("returns no tenant details when admission fails", async () => {

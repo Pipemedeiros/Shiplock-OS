@@ -49,7 +49,9 @@ beforeEach(() => {
 
 describe("Step 2C-3-C1: direct-Postgres connection provenance", () => {
   it("persists self-contained facts bound to an opaque encrypted-connection fingerprint", async () => {
-    expect(await runDirectPostgresScan("u")).toMatchObject({ ok: true });
+    const result = await runDirectPostgresScan("u");
+    expect(result).toMatchObject({ ok: true, newFindings: expect.any(Array) });
+    expect(result.newFindings).toHaveLength(1);
     const snapshot = state.facts.directPostgresSnapshot;
     expect(snapshot).toEqual({
       collector: "postgres-direct", authzProvider: "postgres-rls", completeness: "unknown",

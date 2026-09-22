@@ -15,14 +15,14 @@ export async function sendNewFindingsAlert(
   userId: string,
   email: string,
   newFindings: Finding[]
-): Promise<void> {
-  if (newFindings.length === 0) return;
+): Promise<"sent" | "skipped" | "failed"> {
+  if (newFindings.length === 0) return "skipped";
 
   // Parked for the MVP alongside billing (lib/access.ts). The dedup log, the
   // 7-day window and the copy all stay exactly as they are — we simply do not
   // send, because an MVP tester does not want mail from a tool they are still
   // deciding about. Findings still surface in the dashboard on every pass.
-  if (!EMAIL_ALERTS_ENABLED) return;
+  if (!EMAIL_ALERTS_ENABLED) return "skipped";
 
   const admin = getSupabaseAdmin();
   const cutoff = new Date(Date.now() - DEDUP_WINDOW_MS).toISOString();
@@ -35,7 +35,7 @@ export async function sendNewFindingsAlert(
 
   const recentIds = new Set((recentlyAlerted ?? []).map((r) => r.finding_id as string));
   const toAlert = newFindings.filter((f) => !recentIds.has(f.id));
-  if (toAlert.length === 0) return;
+  if (toAlert.length === 0) return "skipped";
 
   const lines = toAlert.map((f) => `- [${f.severity}] ${f.title}\n  ${f.consequence}`).join("\n\n");
 
@@ -64,11 +64,12 @@ export async function sendNewFindingsAlert(
     console.error(
       `[monitoring] not recording dedup for ${toAlert.length} finding(s) for user ${userId} — email did not send, so they stay eligible for the next pass`
     );
-    return;
+    return "failed";
   }
 
   await admin
     .from("monitoring_alert_log")
     .insert(toAlert.map((f) => ({ user_id: userId, finding_id: f.id })))
     .then(() => {}, () => {});
+  return "sent";
 }

@@ -17,7 +17,12 @@ export async function runVercelEnvAudit(
   userId: string,
   encryptedToken: string,
   teamId: string | null
-): Promise<{ total: number; newCount: number; findings: EnvFinding[] }> {
+): Promise<{
+  total: number;
+  newCount: number;
+  findings: EnvFinding[];
+  newFindings: EnvFinding[];
+}> {
   const admin = getSupabaseAdmin();
   const accessToken = decrypt(encryptedToken);
 
@@ -63,6 +68,10 @@ export async function runVercelEnvAudit(
     }
   }
 
+  if (projects.length > 0 && !reachedAnyProject) {
+    throw new Error("No Vercel project environment was readable");
+  }
+
   // The graph half. Findings above are what Vercel alone can say; these facts
   // retain provider project and installation provenance. Only successfully
   // persisted, explicit provider Git links supply a repository association.
@@ -97,5 +106,5 @@ export async function runVercelEnvAudit(
       }))
     );
   }
-  return { total: all.length, newCount: fresh.length, findings: all };
+  return { total: all.length, newCount: fresh.length, findings: all, newFindings: fresh };
 }

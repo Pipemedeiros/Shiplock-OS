@@ -7,8 +7,11 @@
 export interface MonitoredProfile {
   id: string;
   email: string | null;
-  monitored_project_url: string;
-  monitored_anon_key_encrypted: string;
+  /** Legacy endpoint/app watch switch. Explicit provider connections do not
+   * depend on it, but disabled endpoint probing must stay disabled. */
+  monitoring_enabled?: boolean;
+  monitored_project_url: string | null;
+  monitored_anon_key_encrypted: string | null;
   /**
    * The customer's own live app URL, when we have one. Optional because the
    * hourly pass neither needs nor selects it.
@@ -28,6 +31,9 @@ export interface MonitoredProfile {
    */
   vercel_access_token_encrypted?: string | null;
   vercel_team_id?: string | null;
+  /** Read-only Supabase Management connection; the worker rereads the token. */
+  supabase_mgmt_token_encrypted?: string | null;
+  supabase_mgmt_project_ref?: string | null;
 }
 
 export type TriggerSource = "deploy" | "hourly" | "scheduled_48h";

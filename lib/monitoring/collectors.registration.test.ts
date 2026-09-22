@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_COLLECTORS, directPostgresCollector, vercelEnvCollector } from "./collectors";
+import { DEFAULT_COLLECTORS, directPostgresCollector, supabaseManagementCollector, vercelEnvCollector } from "./collectors";
 import type { CollectorContext } from "./registry";
 import type { MonitoredProfile } from "./types";
 
@@ -33,6 +33,15 @@ describe("collector registration", () => {
     // The whole point of the widening: a Neon or RDS customer's database is read
     // on the same schedule as a Supabase customer's, with no separate trigger.
     expect(DEFAULT_COLLECTORS).toContain(directPostgresCollector);
+  });
+
+  it("includes Supabase Management only when its read-only connection exists",()=>{
+    expect(DEFAULT_COLLECTORS).toContain(supabaseManagementCollector);
+    expect(supabaseManagementCollector.appliesTo?.(ctx(profile({
+      supabase_mgmt_token_encrypted:"enc",supabase_mgmt_project_ref:"project-ref",
+    })))).toBe(true);
+    expect(supabaseManagementCollector.appliesTo?.(ctx(profile({supabase_mgmt_token_encrypted:"enc"})))).toBe(false);
+    expect(supabaseManagementCollector.appliesTo?.(ctx(profile()))).toBe(false);
   });
 
   it("gives every collector a unique id", () => {

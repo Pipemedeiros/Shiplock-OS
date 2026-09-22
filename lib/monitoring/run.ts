@@ -21,15 +21,18 @@ export type { MonitoredProfile, TriggerSource } from "./types";
 // produced it — a hurried hourly pass and a full 48h pass write to the same
 // history, so an hourly run correctly sees findings a full scan surfaced two
 // days ago, and vice versa.
-export async function runMonitoringPass(
+async function executeMonitoringPass(
   profile: MonitoredProfile,
   triggerSource: TriggerSource,
   // Injectable for tests, and the seam that makes adding a collector a registry
   // entry rather than an edit to this function.
-  collectors: readonly CollectorSpec[] = DEFAULT_COLLECTORS
-): Promise<{ newFindingsCount: number }> {
+  collectors: readonly CollectorSpec[],
+  sendAlert: boolean,
+): Promise<{ newFindingsCount: number; newFindings: Finding[]; writesSucceeded: boolean }> {
   const admin = getSupabaseAdmin();
-  const anonKey = decrypt(profile.monitored_anon_key_encrypted);
+  const anonKey = profile.monitored_anon_key_encrypted
+    ? decrypt(profile.monitored_anon_key_encrypted)
+    : null;
 
   const { data: lastSnapshot } = await admin
     .from("monitoring_snapshots")
@@ -64,29 +67,31 @@ export async function runMonitoringPass(
   }
 
   // A pass where every snapshot-producing collector failed must not write an
-  // empty snapshot: that would read as "everything got fixed" and, worse, make
-  // every real finding look brand new on the next successful pass — a burst of
-  // duplicate alerts for problems that never went away. Silence beats a wrong
-  // snapshot, and the outcomes are logged either way.
+  // empty CURRENT state: that would read as "everything got fixed" and make
+  // every real finding look new again on recovery. Carrying the prior state
+  // forward preserves finding truth while still appending the collector
+  // outcomes, so a failed/unread pass is visible rather than disappearing.
   const snapshotProduced = results.some((r) => r.snapshotFindings !== undefined);
   const { newFindings } = snapshotProduced
     ? diffSnapshots(previousFindings, currentFindings)
     : { newFindings: [] as Finding[] };
-
-  if (snapshotProduced) {
-    await admin
+  let writesSucceeded = true;
+  try {
+    const snapshotWrite = await admin
       .from("monitoring_snapshots")
       .insert({
         user_id: profile.id,
         trigger_source: triggerSource,
-        findings: currentFindings,
+        findings: snapshotProduced ? currentFindings : previousFindings,
         // Which collectors ran, and how they fared. This is the per-pass record
         // that makes the finding history reconstructable later: without it a
         // snapshot cannot distinguish "this layer reported clean" from "this
         // layer never ran", and those mean opposite things.
         collectors: outcomes,
-      })
-      .then(() => {}, () => {});
+      });
+    if (snapshotWrite.error) writesSucceeded = false;
+  } catch {
+    writesSucceeded = false;
   }
 
   // Only full scans count toward "when was this user last actually checked" for
@@ -94,20 +99,46 @@ export async function runMonitoringPass(
   // refreshed this too, a user with hourly monitoring enabled would never look
   // stale enough for the full scan to run again — the hourly cron ticks far more
   // often than 48h and would keep the timestamp perpetually fresh.
-  if (triggerSource !== "hourly") {
-    await admin
-      .from("user_profiles")
-      .update({ last_monitored_at: new Date().toISOString() })
-      .eq("id", profile.id)
-      .then(() => {}, () => {});
+  const collectedAnything = outcomes.some((outcome) => outcome.status === "ok");
+  if (triggerSource !== "hourly" && collectedAnything) {
+    try {
+      const cursorWrite = await admin
+        .from("user_profiles")
+        .update({ last_monitored_at: new Date().toISOString() })
+        .eq("id", profile.id);
+      if (cursorWrite.error) writesSucceeded = false;
+    } catch {
+      writesSucceeded = false;
+    }
   }
 
   // One email for both lanes. alerts.ts dedups per (user, finding id) over 7
   // days, so a check that flaps cannot turn into a stream of mail.
-  const allNewFindings = [...newFindings, ...preDiffedNewFindings];
-  if (allNewFindings.length > 0 && profile.email) {
+  const allNewFindings = [...new Map(
+    [...newFindings, ...preDiffedNewFindings].map((finding) => [finding.id, finding]),
+  ).values()];
+  if (sendAlert && allNewFindings.length > 0 && profile.email) {
     await sendNewFindingsAlert(profile.id, profile.email, allNewFindings);
   }
 
-  return { newFindingsCount: allNewFindings.length };
+  return { newFindingsCount: allNewFindings.length, newFindings: allNewFindings, writesSucceeded };
+}
+
+/** Compatibility path for explicit synchronous scans. Scheduled workers use
+ * the detailed form so notification delivery gets its own durable job. */
+export async function runMonitoringPass(
+  profile: MonitoredProfile,
+  triggerSource: TriggerSource,
+  collectors: readonly CollectorSpec[] = DEFAULT_COLLECTORS,
+): Promise<{ newFindingsCount: number }> {
+  const result = await executeMonitoringPass(profile,triggerSource,collectors,true);
+  return { newFindingsCount: result.newFindingsCount };
+}
+
+export function runMonitoringPassForWorker(
+  profile: MonitoredProfile,
+  triggerSource: TriggerSource,
+  collectors: readonly CollectorSpec[] = DEFAULT_COLLECTORS,
+) {
+  return executeMonitoringPass(profile,triggerSource,collectors,false);
 }

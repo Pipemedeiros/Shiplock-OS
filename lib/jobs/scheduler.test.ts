@@ -2,7 +2,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 
 const rpc = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ rpc }) }));
-import { admitDueRepositoryAudits,admitDueRepositoryDependencyChecks,admitDueRepositorySourceScans } from "./scheduler";
+import { admitDueMonitoringPasses,admitDueRepositoryAudits,admitDueRepositoryDependencyChecks,admitDueRepositorySourceScans,enqueueMonitoringPass } from "./scheduler";
 
 beforeEach(() => rpc.mockReset().mockResolvedValue({
   data: { eligible: 2, admitted: 2, failed: 0, limited: false }, error: null,
@@ -32,6 +32,16 @@ it("admits bounded daily dependency rechecks",async()=>{
   expect(rpc).toHaveBeenCalledWith("enqueue_due_repository_dependencies",{
     p_day:"2026-09-22",p_limit:250,
   });
+});
+
+it("admits bounded monitoring windows and typed deploy work",async()=>{
+  await admitDueMonitoringPasses("scheduled_48h",new Date("2026-09-22T01:00:00Z"),250);
+  expect(rpc).toHaveBeenCalledWith("enqueue_due_monitoring_passes",{
+    p_trigger:"scheduled_48h",p_cutoff:"2026-09-20T01:00:00.000Z",p_window:"2026-09-22",p_limit:250,
+  });
+  rpc.mockResolvedValueOnce({data:"11111111-1111-4111-8111-111111111111",error:null});
+  await expect(enqueueMonitoringPass("22222222-2222-4222-8222-222222222222","deploy","deploy:key"))
+    .resolves.toBe("11111111-1111-4111-8111-111111111111");
 });
 
 it("rejects malformed receipts and unsafe batch sizes", async () => {

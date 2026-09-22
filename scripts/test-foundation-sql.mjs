@@ -18,7 +18,7 @@ try {
     create function auth.uid() returns uuid language sql stable as 'select null::uuid';
     create role anon; create role authenticated; create role service_role bypassrls;
     grant usage on schema public to anon,authenticated,service_role;`);
-  for (const file of ["021_phase2_github_deep_access.sql", "036_source_scan_coalescing.sql", "039_graph_facts.sql", "043_finding_correlation.sql", "046_mvp_repos_and_runs.sql", "047_agent_findings.sql", "051_findings_idempotent_persist.sql", "053_provider_repository_links.sql", "054_database_repository_bindings.sql", "055_supabase_repository_bindings.sql", "056_durable_jobs.sql", "057_atomic_audit_findings.sql", "058_repository_scoped_finding_identity.sql", "059_audit_job_triggers.sql", "060_atomic_repository_selection.sql", "061_github_install_handshake.sql", "062_scheduled_audit_admission.sql", "063_durable_pull_request_checks.sql", "064_fenced_source_collection.sql", "065_fenced_dependency_rechecks.sql"]) {
+  for (const file of ["008_monitoring.sql", "021_phase2_github_deep_access.sql", "022_phase2_vercel_env_audit.sql", "032_monitored_app_url.sql", "034_supabase_mgmt_connection.sql", "036_source_scan_coalescing.sql", "039_graph_facts.sql", "043_finding_correlation.sql", "044_hourly_pass_fairness.sql", "045_direct_postgres_connection.sql", "046_mvp_repos_and_runs.sql", "047_agent_findings.sql", "051_findings_idempotent_persist.sql", "053_provider_repository_links.sql", "054_database_repository_bindings.sql", "055_supabase_repository_bindings.sql", "056_durable_jobs.sql", "057_atomic_audit_findings.sql", "058_repository_scoped_finding_identity.sql", "059_audit_job_triggers.sql", "060_atomic_repository_selection.sql", "061_github_install_handshake.sql", "062_scheduled_audit_admission.sql", "063_durable_pull_request_checks.sql", "064_fenced_source_collection.sql", "065_fenced_dependency_rechecks.sql", "066_durable_provider_monitoring.sql"]) {
     await db.exec(await readFile(new URL(`../supabase/migrations/${file}`, import.meta.url), "utf8"));
   }
   await db.query("insert into auth.users values ($1),($2)", [u1,u2]);
@@ -349,6 +349,49 @@ try {
     await assert.rejects(db.query("select public.persist_repository_graph($1,$2,$3,$4,'2026-09-22T00:00:00.000Z','[]'::jsonb,false)",[u1,r1,sourceJob,sourceToken]));
     await assert.rejects(db.query("select public.enqueue_due_repository_dependencies('2026-09-23',100)"));
     await assert.rejects(db.query("select public.persist_repository_dependency_findings($1,$2,$3,$4,'2026-09-22T00:00:00.000Z','[]'::jsonb)",[u1,r1,sourceJob,sourceToken]));
+    await db.exec("reset role");
+  });
+  await check("provider-only monitoring admission is bounded, typed, and idempotent", async () => {
+    await db.query("update public.user_profiles set monitoring_enabled=false,postgres_dsn_encrypted='cipher' where id=$1",[u1]);
+    const args=["scheduled_48h","2100-01-01T00:00:00Z","2026-09-22",100];
+    const admitted=(await db.query("select public.enqueue_due_monitoring_passes($1,$2,$3,$4) as result",args)).rows[0].result;
+    const retry=(await db.query("select public.enqueue_due_monitoring_passes($1,$2,$3,$4) as result",args)).rows[0].result;
+    assert.deepEqual(admitted,{eligible:1,admitted:1,failed:0,limited:false});
+    assert.deepEqual(retry,{eligible:0,admitted:0,failed:0,limited:false});
+    const stored=(await db.query("select j.id,j.repository_id,c.user_id,c.trigger_source from public.execution_jobs j join public.monitoring_job_context c on c.job_id=j.id where j.user_id=$1 and j.deduplication_key like 'scheduled-monitor:%'",[u1])).rows[0];
+    assert.deepEqual(stored,{id:stored.id,repository_id:null,user_id:u1,trigger_source:"scheduled_48h"});
+    await assert.rejects(db.query("select public.enqueue_monitoring_job($1,'deploy',$2)",[
+      u1,`scheduled-monitor:scheduled_48h:${u1}:2026-09-22`,
+    ]));
+    await assert.rejects(db.query("select public.enqueue_monitoring_job($1,'deploy','no-provider')",[u2]));
+  });
+  await check("notification admission is fenced to one live monitor result",async()=>{
+    const monitor=(await db.query("select * from public.claim_execution_job('monitor',120)")).rows[0];
+    const findings=[{id:"rls:orders",severity:"CRITICAL",title:"Open orders",consequence:"Anyone can read them."}];
+    await assert.rejects(db.query("select public.enqueue_monitoring_notifications($1,$2,$3,$4::jsonb)",[u1,monitor.id,u2,JSON.stringify(findings)]));
+    const notification=(await db.query("select public.enqueue_monitoring_notifications($1,$2,$3,$4::jsonb) as id",[u1,monitor.id,monitor.lease_token,JSON.stringify(findings)])).rows[0].id;
+    assert.equal((await db.query("select kind from public.execution_jobs where id=$1",[notification])).rows[0].kind,"notification");
+    assert.deepEqual((await db.query("select user_id,findings from public.monitoring_notification_batches where job_id=$1",[notification])).rows[0],{user_id:u1,findings});
+    assert.equal((await db.query("select public.enqueue_monitoring_notifications($1,$2,$3,$4::jsonb) as id",[u1,monitor.id,monitor.lease_token,JSON.stringify(findings)])).rows[0].id,notification);
+    assert.equal((await db.query("select public.advance_execution_job($1,$2,0,'succeeded') as ok",[monitor.id,monitor.lease_token])).rows[0].ok,true);
+  });
+  await check("hourly fairness receipt requires its current live lease",async()=>{
+    await db.query("update public.user_profiles set monitoring_enabled=true,monitored_project_url='https://x.supabase.co',monitored_anon_key_encrypted='cipher' where id=$1",[u1]);
+    await db.query("select public.enqueue_monitoring_job($1,'hourly','hourly-receipt-test')",[u1]);
+    const hourly=(await db.query("select * from public.claim_execution_job('monitor',120)")).rows[0];
+    assert.equal((await db.query("select public.stamp_hourly_monitor_attempt($1,$2,$3) as ok",[u1,hourly.id,u2])).rows[0].ok,false);
+    assert.equal((await db.query("select public.stamp_hourly_monitor_attempt($1,$2,$3) as ok",[u1,hourly.id,hourly.lease_token])).rows[0].ok,true);
+    assert.equal((await db.query("select last_hourly_pass_at is not null as stamped from public.user_profiles where id=$1",[u1])).rows[0].stamped,true);
+    assert.equal((await db.query("select public.advance_execution_job($1,$2,0,'succeeded') as ok",[hourly.id,hourly.lease_token])).rows[0].ok,true);
+  });
+  await check("client roles cannot read or admit monitoring jobs", async () => {
+    await db.exec("set role authenticated");
+    await assert.rejects(db.query("select * from public.monitoring_job_context"));
+    await assert.rejects(db.query("select * from public.monitoring_notification_batches"));
+    await assert.rejects(db.query("select public.enqueue_monitoring_job($1,'deploy','x')",[u1]));
+    await assert.rejects(db.query("select public.enqueue_due_monitoring_passes('scheduled_48h',now(),'x',100)"));
+    await assert.rejects(db.query("select public.enqueue_monitoring_notifications($1,$2,$3,'[]'::jsonb)",[u1,u2,u1]));
+    await assert.rejects(db.query("select public.stamp_hourly_monitor_attempt($1,$2,$3)",[u1,u2,u1]));
     await db.exec("reset role");
   });
   console.log(`${checks} SQL checks passed. Single-connection PostgreSQL WASM; multi-session contention and hosted Supabase remain unverified.`);

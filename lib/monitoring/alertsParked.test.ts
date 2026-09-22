@@ -23,7 +23,7 @@ const finding = {
 
 describe("sendNewFindingsAlert while alerts are parked", () => {
   it("sends nothing and never touches the dedup log", async () => {
-    await expect(sendNewFindingsAlert("u1", "a@b.com", [finding])).resolves.toBeUndefined();
+    await expect(sendNewFindingsAlert("u1", "a@b.com", [finding])).resolves.toBe("skipped");
     expect(sendEmailMock).not.toHaveBeenCalled();
   });
 });

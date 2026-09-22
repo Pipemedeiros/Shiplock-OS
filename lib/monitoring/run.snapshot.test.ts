@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { CollectorSpec } from "./registry";
 
 // Guards the one genuinely new behaviour the registry refactor introduced: a
-// pass where every snapshot-producing collector failed must write NO snapshot.
+// pass where every snapshot-producing collector failed must carry the prior
+// state forward while recording failed coverage.
 //
 // Writing an empty one instead would read as "everything got fixed", and worse,
 // make every real finding look brand new on the next successful pass — a burst
@@ -14,6 +15,8 @@ import type { CollectorSpec } from "./registry";
 const insertMock = vi.fn();
 const alertMock = vi.fn();
 const saveFactsMock = vi.fn();
+const profileUpdateMock = vi.fn();
+let snapshotError: { message: string } | null = null;
 
 vi.mock("@/lib/crypto", () => ({ decrypt: () => "anon-key" }));
 vi.mock("@/lib/graph/graphRun", () => ({ saveFacts: saveFactsMock }));
@@ -30,16 +33,19 @@ vi.mock("@/lib/supabase", () => ({
       }),
       insert: (row: unknown) => {
         if (table === "monitoring_snapshots") insertMock(row);
-        return { then: (r: (v: unknown) => unknown) => r({ error: null }) };
+        return Promise.resolve({ error: snapshotError });
       },
       update: () => ({
-        eq: () => ({ then: (r: (v: unknown) => unknown) => r({ error: null }) }),
+        eq: () => {
+          profileUpdateMock();
+          return { then: (r: (v: unknown) => unknown) => r({ error: null }) };
+        },
       }),
     }),
   }),
 }));
 
-const { runMonitoringPass } = await import("./run");
+const { runMonitoringPass, runMonitoringPassForWorker } = await import("./run");
 
 const profile = {
   id: "u1",
@@ -64,9 +70,11 @@ describe("runMonitoringPass — snapshot integrity", () => {
     insertMock.mockReset();
     alertMock.mockReset();
     saveFactsMock.mockReset();
+    profileUpdateMock.mockReset();
+    snapshotError = null;
   });
 
-  it("writes NO snapshot when every snapshot-producing collector failed", async () => {
+  it("carries the previous snapshot when every snapshot-producing collector failed", async () => {
     const broken = spec({
       id: "broken",
       run: async () => {
@@ -76,7 +84,11 @@ describe("runMonitoringPass — snapshot integrity", () => {
 
     const result = await runMonitoringPass(profile, "scheduled_48h", [broken]);
 
-    expect(insertMock).not.toHaveBeenCalled();
+    expect(insertMock).toHaveBeenCalledWith(expect.objectContaining({
+      findings: [{ id: "old" }],
+      collectors: [expect.objectContaining({ id: "broken", status: "failed" })],
+    }));
+    expect(profileUpdateMock).not.toHaveBeenCalled();
     expect(result.newFindingsCount).toBe(0);
   });
 
@@ -126,6 +138,16 @@ describe("runMonitoringPass — snapshot integrity", () => {
       expect.objectContaining({ id: "ok", status: "ok" }),
       expect.objectContaining({ id: "bad", status: "failed" }),
     ]);
+  });
+
+  it("returns fresh findings before asking the worker to retry a failed coverage write", async () => {
+    snapshotError = { message: "storage unavailable" };
+    const finding = { id: "new", severity: "CRITICAL", title: "New", consequence: "Risk" } as const;
+    const ok = spec({ id: "ok", run: async () => ({ newFindings: [finding] }) });
+    await expect(runMonitoringPassForWorker(profile, "scheduled_48h", [ok])).resolves.toMatchObject({
+      newFindings: [finding],
+      writesSucceeded: false,
+    });
   });
 
   it("persists graph facts a collector contributed", async () => {

@@ -29,6 +29,7 @@ import type { GithubFinding } from "./githubScan";
 export interface DirectScanOutcome {
   ok: boolean;
   findings: number;
+  newFindings?: GithubFinding[];
   reason?:
     | "not_connected"
     | "auth_failed"
@@ -201,7 +202,7 @@ export async function runDirectPostgresScan(userId: string): Promise<DirectScanO
     );
   }
 
-  return { ok: true, findings: findings.length };
+  return { ok: true, findings: findings.length, newFindings: fresh };
 }
 
 /**

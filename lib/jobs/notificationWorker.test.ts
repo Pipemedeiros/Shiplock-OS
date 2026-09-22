@@ -1,0 +1,16 @@
+import {beforeEach,expect,it,vi} from "vitest";
+import {z} from "zod";
+const state=vi.hoisted(()=>({reads:{monitoring_notification_batches:vi.fn(),user_profiles:vi.fn()},send:vi.fn(),claim:vi.fn(),execute:vi.fn()}));
+vi.mock("@/lib/supabase",()=>({getSupabaseAdmin:()=>({from:(table:keyof typeof state.reads)=>{const q={eq:()=>q,maybeSingle:()=>state.reads[table]()};return{select:()=>q};}})}));
+vi.mock("@/lib/monitoring/alerts",()=>({sendNewFindingsAlert:state.send}));
+vi.mock("./queue",()=>{class PermanentJobError extends Error{}return{PermanentJobError,claimJob:state.claim,executeClaimedJob:state.execute,withLeaseHeartbeat:(_j:unknown,w:()=>Promise<unknown>)=>w(),JobKind:z.enum(["audit","source","monitor","dependency","graph","pr-check","notification"])};});
+import{executeNotificationJob,runNextNotificationJob}from"./notificationWorker";
+import{PermanentJobError,type ClaimedJob}from"./queue";
+const job:ClaimedJob={id:"11111111-1111-4111-8111-111111111111",user_id:"22222222-2222-4222-8222-222222222222",repository_id:null,audit_run_id:null,deduplication_key:"notification:test",kind:"notification",status:"running",attempts:1,lease_token:"33333333-3333-4333-8333-333333333333",lease_until:"2099-01-01T00:00:00Z",checkpoint:0};
+const findings=[{id:"rls:orders",severity:"CRITICAL",title:"Open orders",consequence:"Anyone can read them."}];
+beforeEach(()=>{vi.clearAllMocks();state.reads.monitoring_notification_batches.mockResolvedValue({data:{user_id:job.user_id,findings},error:null});state.reads.user_profiles.mockResolvedValue({data:{email:"founder@example.com"},error:null});state.send.mockResolvedValue("sent");});
+it("delivers only the stored tenant-bound batch",async()=>{await executeNotificationJob(job);expect(state.send).toHaveBeenCalledWith(job.user_id,"founder@example.com",findings);});
+it("permanently refuses malformed or cross-tenant batches",async()=>{state.reads.monitoring_notification_batches.mockResolvedValueOnce({data:{user_id:"44444444-4444-4444-8444-444444444444",findings},error:null});await expect(executeNotificationJob(job)).rejects.toBeInstanceOf(PermanentJobError);expect(state.send).not.toHaveBeenCalled();});
+it("retries reads and delivery failures",async()=>{state.reads.user_profiles.mockResolvedValueOnce({data:null,error:{message:"private"}});await expect(executeNotificationJob(job)).rejects.toThrow("could not be read");state.send.mockRejectedValueOnce(new Error("email unavailable"));await expect(executeNotificationJob(job)).rejects.toThrow("email unavailable");});
+it("retries an explicit not-sent delivery result",async()=>{state.send.mockResolvedValueOnce("failed");await expect(executeNotificationJob(job)).rejects.toThrow("delivery failed");});
+it("claims at most one notification",async()=>{state.claim.mockResolvedValueOnce(null);expect(await runNextNotificationJob()).toBe(false);state.claim.mockResolvedValueOnce(job);state.execute.mockResolvedValue(undefined);expect(await runNextNotificationJob()).toBe(true);expect(state.execute).toHaveBeenCalledWith(job,[executeNotificationJob]);});

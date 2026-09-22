@@ -25,7 +25,7 @@ export type GraphCollector = "source" | "db" | "traffic" | "runtime";
 export interface CollectorContext {
   profile: MonitoredProfile;
   /** Decrypted once by the orchestrator; collectors never decrypt. */
-  anonKey: string;
+  anonKey: string | null;
   triggerSource: TriggerSource;
   /** The previous snapshot's findings, for collectors that carry state forward. */
   previousFindings: Finding[];

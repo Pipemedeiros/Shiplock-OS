@@ -191,7 +191,10 @@ describe("Step 2E: endpoint provenance with explicit RLS readability", () => {
       expect(await runMonitoringPass(ctx().profile, "scheduled_48h", [supabaseScanCollector])).toEqual({ newFindingsCount: 0 });
       expect(state.facts.supabaseEndpointSnapshot).toEqual({ old: "preserve" });
       expect(mocks.upsert).not.toHaveBeenCalled();
-      expect(mocks.snapshot).not.toHaveBeenCalled();
+      expect(mocks.snapshot).toHaveBeenCalledWith(expect.objectContaining({
+        findings: [expect.objectContaining({ id: "old" })],
+        collectors: [expect.objectContaining({ id: "supabase-scan", status: "failed" })],
+      }));
       expect(mocks.alert).not.toHaveBeenCalled();
     } finally { log.mockRestore(); }
   });

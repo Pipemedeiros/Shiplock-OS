@@ -59,3 +59,40 @@ export async function admitDueRepositoryDependencyChecks(
   if (error) throw new Error("Scheduled dependency work could not be queued");
   return admission.parse(data);
 }
+
+export async function admitDueMonitoringPasses(
+  trigger: "hourly" | "scheduled_48h",
+  now = new Date(),
+  limit = 1_000,
+): Promise<AuditAdmission> {
+  if (!Number.isInteger(limit) || limit < 1 || limit > 5_000 || !Number.isFinite(now.getTime())) {
+    throw new Error("Invalid monitoring admission window");
+  }
+  const hourly = trigger === "hourly";
+  const cutoff = new Date(now.getTime() - (hourly ? 60 : 48 * 60) * 60 * 1_000).toISOString();
+  const window = hourly ? now.toISOString().slice(0, 13) : now.toISOString().slice(0, 10);
+  const { data, error } = await getSupabaseAdmin().rpc("enqueue_due_monitoring_passes", {
+    p_trigger: trigger,
+    p_cutoff: cutoff,
+    p_window: window,
+    p_limit: limit,
+  });
+  if (error) throw new Error("Scheduled monitoring could not be queued");
+  return admission.parse(data);
+}
+
+export async function enqueueMonitoringPass(
+  userId: string,
+  trigger: "deploy" | "hourly" | "scheduled_48h",
+  key: string,
+): Promise<string> {
+  z.uuid().parse(userId);
+  z.string().min(1).max(256).parse(key);
+  const { data, error } = await getSupabaseAdmin().rpc("enqueue_monitoring_job", {
+    p_user: userId,
+    p_trigger: trigger,
+    p_key: key,
+  });
+  if (error) throw new Error("Monitoring could not be queued");
+  return z.uuid().parse(data);
+}

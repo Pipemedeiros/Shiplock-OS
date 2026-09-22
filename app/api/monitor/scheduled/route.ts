@@ -1,35 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { runMonitoringPass } from "@/lib/monitoring";
 import { pruneOldTraffic } from "@/lib/traffic/prune";
-import { runPolicyScan } from "@/lib/deep/supabaseMgmtRun";
 import { saveFacts } from "@/lib/graph/graphRun";
 import { collectTrafficFacts } from "@/lib/traffic/graphFacts";
 import { sendWeeklyDigest } from "@/lib/monitoring/digest";
 import { withPaidFilter, BILLING_ENABLED } from "@/lib/access";
 import {
   admitDueRepositoryAudits,
+  admitDueMonitoringPasses,
   admitDueRepositoryDependencyChecks,
   admitDueRepositorySourceScans,
 } from "@/lib/jobs/scheduler";
 import { enqueueJob } from "@/lib/jobs/queue";
 
-// This legacy pass iterates every paid user and makes several network calls each
-// (policy scan, schema inventory, auth log, traffic collection). Repository
-// source, dependency, audit, and graph work is admitted into the durable queue. The
-// platform default would cut it off partway through, leaving later users
-// silently unprocessed. 60s is the Hobby ceiling. Work is per-user try/catch, so
-// a timeout costs the remaining users this run, not the whole pass.
+// Provider monitoring and all repository scans are admitted into the durable
+// queue. This route still performs bounded traffic aggregation, graph admission,
+// weekly digests, and the parked-billing expiry sweep; those legacy duties keep
+// the request ceiling relevant until their own worker packages land.
 export const maxDuration = 60;
-
-const FULL_SCAN_INTERVAL_MS = 48 * 60 * 60 * 1000;
 
 // The 48h full deep scan (item 3). Reuses vercel.json's existing daily
 // 9am cron entry — this route was the missing target (the cron config
 // has been pointing at a 404 since before this session). Cron itself
 // runs daily; staleness is checked per user inside the handler rather
 // than trying to express "every 48h" as a cron expression, which is the
-// standard pattern for this (see comment on FULL_SCAN_INTERVAL_MS).
+// standard pattern for this; the scheduler RPC owns the cutoff and fairness.
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization");
   if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -37,104 +32,30 @@ export async function GET(req: NextRequest) {
   }
 
   const admin = getSupabaseAdmin();
-  const cutoff = new Date(Date.now() - FULL_SCAN_INTERVAL_MS).toISOString();
-
   // Admit durable repository work first, before this legacy route performs any
   // notification-bearing or unfenced side effect. A scheduler retry is safe:
   // migration 062 deduplicates by repository and UTC day.
   let auditAdmission;
   let sourceAdmission;
   let dependencyAdmission;
+  let monitoringAdmission;
   try {
     const now = new Date();
-    [auditAdmission, sourceAdmission, dependencyAdmission] = await Promise.all([
+    [auditAdmission, sourceAdmission, dependencyAdmission, monitoringAdmission] = await Promise.all([
       admitDueRepositoryAudits(now, 1_000),
       admitDueRepositorySourceScans(now, 1_000),
       admitDueRepositoryDependencyChecks(now, 1_000),
+      admitDueMonitoringPasses("scheduled_48h", now, 1_000),
     ]);
   } catch {
     console.error("[monitor/scheduled] durable work admission failed");
     return NextResponse.json({ error: "Scheduled work could not be queued." }, { status: 503 });
   }
 
-  const { data: profiles, error } = await admin
-    .from("user_profiles")
-    .select(
-      // vercel_* is selected because vercelEnvCollector.appliesTo reads it. A
-      // collector gated on a column this query does not select never runs, and
-      // never says why.
-      "id, email, monitored_project_url, monitored_anon_key_encrypted, monitored_app_url, postgres_dsn_encrypted, vercel_access_token_encrypted, vercel_team_id, last_monitored_at"
-    )
-    .eq("monitoring_enabled", true)
-    .not("monitored_project_url", "is", null)
-    .not("monitored_anon_key_encrypted", "is", null)
-    .or(`last_monitored_at.is.null,last_monitored_at.lt.${cutoff}`)
-    // Stalest first, for the same reason as the hourly pass: this loop can be
-    // cut off by the 60s ceiling, and without an explicit order the users past
-    // the cutoff are whatever Postgres returned last — in practice the same ones
-    // every run, never scanned, silently. NULLS FIRST puts a never-scanned user
-    // ahead of one merely due for a re-scan.
-    .order("last_monitored_at", { ascending: true, nullsFirst: true });
-
-  if (error) {
-    console.error("[monitor/scheduled] user_profiles query error:", error.message);
-    return NextResponse.json({ error: "Query failed" }, { status: 500 });
-  }
-
-  let succeeded = 0;
-  let failed = 0;
-
-  for (const profile of profiles ?? []) {
-    if (!profile.monitored_project_url || !profile.monitored_anon_key_encrypted) continue;
-    try {
-      await runMonitoringPass(
-        {
-          id: profile.id,
-          email: profile.email,
-          monitored_project_url: profile.monitored_project_url,
-          monitored_anon_key_encrypted: profile.monitored_anon_key_encrypted,
-          // Enables the app-surface half of the pass (exposed paths, source
-          // maps, secrets in the shipped bundle). Null for customers who never
-          // gave us an app URL — the Supabase-side scan still runs.
-          monitored_app_url: profile.monitored_app_url,
-        },
-        "scheduled_48h"
-      );
-      succeeded++;
-    } catch (err) {
-      failed++;
-      console.error(
-        `[monitor/scheduled] runMonitoringPass failed for user ${profile.id}:`,
-        err instanceof Error ? err.message : err
-      );
-    }
-  }
-
   // Piggyback traffic-layer retention on the existing daily cron (Hobby plan
   // allows only daily-frequency crons, so we reuse this entry rather than add
   // one). Fail-soft — never affects the monitoring result.
   const pruned = await pruneOldTraffic();
-
-  // RLS policy pass for anyone with the read-only Supabase connection
-  // (migration 034). Separate from the scan above because it needs a different
-  // credential and reads policy definitions rather than probing endpoints —
-  // this is the check that catches `USING (true)`, which an external scan
-  // structurally cannot see. Fail-soft per user.
-  let policyChecked = 0;
-  const { data: connected } = await withPaidFilter(admin.from("user_profiles").select("id"))
-    .not("supabase_mgmt_token_encrypted", "is", null);
-
-  for (const profile of connected ?? []) {
-    try {
-      const result = await runPolicyScan(profile.id);
-      if (result.ok) policyChecked++;
-    } catch (err) {
-      console.error(
-        `[monitor/scheduled] policy scan failed for user ${profile.id}:`,
-        err instanceof Error ? err.message : err
-      );
-    }
-  }
 
   // Traffic observations run before graph admission. Dependency rechecks were
   // admitted above as separate leased jobs. The graph itself is also leased: a
@@ -216,11 +137,13 @@ export async function GET(req: NextRequest) {
   const expired = await expirePrepaidTerms();
 
   return NextResponse.json({
-    checked: profiles?.length ?? 0,
-    succeeded,
-    failed,
+    checked: monitoringAdmission.eligible,
+    succeeded: monitoringAdmission.admitted,
+    failed: monitoringAdmission.failed,
     pruned: pruned.ok,
-    policyChecked,
+    monitorJobsAdmitted: monitoringAdmission.admitted,
+    monitorAdmissionsFailed: monitoringAdmission.failed,
+    monitorAdmissionLimited: monitoringAdmission.limited,
     sourceJobsAdmitted: sourceAdmission.admitted,
     sourceAdmissionsFailed: sourceAdmission.failed,
     sourceAdmissionLimited: sourceAdmission.limited,

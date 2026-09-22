@@ -11,7 +11,7 @@ import type { SupabaseEndpointSnapshot } from "@/lib/graph/graphRun";
 import { providerConnectionFingerprint } from "@/lib/deep/providerRepositoryMap";
 import { validateSupabaseUrl } from "@/lib/sanitize";
 
-function endpointOrigin(rawUrl: string, encryptedKey: string): Pick<SupabaseEndpointSnapshot,
+function endpointOrigin(rawUrl: string, encryptedKey: string | null): Pick<SupabaseEndpointSnapshot,
   "endpointUrl" | "projectRef" | "identitySource" | "connectionFingerprint"> | undefined {
   if (typeof encryptedKey !== "string" || !encryptedKey.trim()) return undefined;
   try {
@@ -49,7 +49,11 @@ export const supabaseScanCollector: CollectorSpec = {
   // The scan makes many sequential network calls against the customer's project;
   // the full 16-check pass is the single longest thing in a monitoring run.
   timeoutMs: 45_000,
+  appliesTo: (ctx) => ctx.profile.monitoring_enabled !== false
+    && Boolean(ctx.profile.monitored_project_url && ctx.anonKey),
   async run(ctx) {
+    const encryptedKey = ctx.profile.monitored_anon_key_encrypted;
+    if (!ctx.profile.monitored_project_url || !ctx.anonKey) return {};
     if (ctx.triggerSource === "hourly") {
       const fresh = extractCriticalFindings(
         await scanCriticalChecks(ctx.profile.monitored_project_url, ctx.anonKey)
@@ -60,7 +64,7 @@ export const supabaseScanCollector: CollectorSpec = {
 
     // Capture the supplied origin before any asynchronous collection. Later
     // profile changes must not relabel observations from the old target/key.
-    const origin = endpointOrigin(ctx.profile.monitored_project_url, ctx.profile.monitored_anon_key_encrypted);
+    const origin = endpointOrigin(ctx.profile.monitored_project_url, encryptedKey);
     const scan = await scanProject(ctx.profile.monitored_project_url, ctx.anonKey);
     const tableReports = (scan.tables ?? []).map((t) => ({
       name: t.name,
@@ -103,6 +107,25 @@ export const supabaseScanCollector: CollectorSpec = {
   },
 };
 
+/** Supabase Management policy/auth evidence is provider monitoring too. It was
+ * previously a second direct loop in the daily request, which excluded it from
+ * the monitoring job's retry and fairness domain. */
+export const supabaseManagementCollector: CollectorSpec = {
+  id: "supabase-management",
+  layer: "db",
+  eligibleTriggers: ["deploy", "scheduled_48h"],
+  timeoutMs: 30_000,
+  appliesTo: (ctx) => Boolean(
+    ctx.profile.supabase_mgmt_token_encrypted && ctx.profile.supabase_mgmt_project_ref,
+  ),
+  async run(ctx) {
+    const { runPolicyScan } = await import("@/lib/deep/supabaseMgmtRun");
+    const result = await runPolicyScan(ctx.profile.id);
+    if (!result.ok) throw new Error(`Supabase Management collection failed: ${result.reason ?? "unknown"}`);
+    return { newFindings: result.newFindings as Finding[] | undefined };
+  },
+};
+
 /**
  * What the customer's app actually serves the public: exposed paths, source
  * maps, and secrets baked into the shipped JavaScript.
@@ -125,7 +148,8 @@ export const appSurfaceCollector: CollectorSpec = {
   layer: "app-surface",
   eligibleTriggers: ["deploy", "scheduled_48h"],
   timeoutMs: 30_000,
-  appliesTo: (ctx) => Boolean(ctx.profile.monitored_app_url),
+  appliesTo: (ctx) => ctx.profile.monitoring_enabled !== false
+    && Boolean(ctx.profile.monitored_app_url),
   async run(ctx) {
     const result = await runExposedPathScan(ctx.profile.id, ctx.profile.monitored_app_url!);
     return { newFindings: result.newFindings as Finding[] };
@@ -166,12 +190,12 @@ export const vercelEnvCollector: CollectorSpec = {
     // Self-diffing: runVercelEnvAudit owns its rows in deep_findings, so its
     // findings must not also enter the snapshot and be diffed a second time.
     const { runVercelEnvAudit } = await import("@/lib/deep/vercelRun");
-    await runVercelEnvAudit(
+    const result = await runVercelEnvAudit(
       ctx.profile.id,
       ctx.profile.vercel_access_token_encrypted as string,
       ctx.profile.vercel_team_id ?? null,
     );
-    return {};
+    return { newFindings: result.newFindings };
   },
 };
 
@@ -188,8 +212,9 @@ export const directPostgresCollector: CollectorSpec = {
     // deep_findings with their own archive-on-resolve contract, so its findings
     // must not also enter the snapshot and be diffed a second time.
     const { runDirectPostgresScan } = await import("@/lib/deep/postgresDirectRun");
-    await runDirectPostgresScan(ctx.profile.id);
-    return {};
+    const result = await runDirectPostgresScan(ctx.profile.id);
+    if (!result.ok) throw new Error(`Direct Postgres collection failed: ${result.reason ?? "unknown"}`);
+    return { newFindings: result.newFindings as Finding[] | undefined };
   },
 };
 
@@ -201,6 +226,7 @@ export const directPostgresCollector: CollectorSpec = {
  */
 export const DEFAULT_COLLECTORS: readonly CollectorSpec[] = [
   supabaseScanCollector,
+  supabaseManagementCollector,
   directPostgresCollector,
   vercelEnvCollector,
   appSurfaceCollector,

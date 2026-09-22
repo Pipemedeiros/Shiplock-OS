@@ -78,7 +78,9 @@ beforeEach(() => {
 describe("Step 2C-3-C2-A: Supabase Management project and credential provenance", () => {
   it("persists only this pass's facts with project, opaque fingerprint and unknown completeness", async () => {
     state.facts.authConfig = { smtp_pass: "previous-private-smtp", mailer_autoconfirm: false };
-    expect(await runPolicyScan("u")).toMatchObject({ ok: true });
+    const result = await runPolicyScan("u");
+    expect(result).toMatchObject({ ok: true, newFindings: expect.any(Array) });
+    expect(result.newFindings!.length).toBeGreaterThan(0);
     expect(state.facts.supabaseManagementSnapshot).toEqual({
       collector: "supabase-management", authzProvider: "postgres-rls", projectRef: project,
       connectionFingerprint: fingerprint(encrypted), recordedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
@@ -139,7 +141,11 @@ describe("Step 2C-3-C2-A: Supabase Management project and credential provenance"
       disable_signup: false, mailer_autoconfirm: true, site_url: "https://app.example.com",
       uri_allow_list: "**", password_min_length: 4, smtp_pass: "private-smtp",
     });
-    expect(await runPolicyScan("u")).toMatchObject({ ok: true });
+    const result = await runPolicyScan("u");
+    expect(result).toMatchObject({ ok: true, newFindings: expect.any(Array) });
+    expect(result.newFindings?.map((finding) => finding.id)).toEqual(expect.arrayContaining([
+      "auth_redirect:wildcard_any_host", "auth_policy:weak_password_length",
+    ]));
     const inserted = mocks.insert.mock.calls[0][0] as { finding_id: string }[];
     expect(inserted.map((row) => row.finding_id)).toEqual(expect.arrayContaining([
       "auth_redirect:wildcard_any_host", "auth_policy:weak_password_length",

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
-export const JobKind = z.enum(["audit", "source", "monitor", "dependency", "graph", "pr-check"]);
+export const JobKind = z.enum(["audit", "source", "monitor", "dependency", "graph", "pr-check", "notification"]);
 export type JobKind = z.infer<typeof JobKind>;
 export const AuditTrigger = z.enum(["manual", "pull_request", "scheduled"]);
 export type AuditTrigger = z.infer<typeof AuditTrigger>;
@@ -83,9 +83,9 @@ export async function advanceJob(job: ClaimedJob, checkpoint: number, outcome: J
 }
 
 /** Keep a long provider read inside the queue's 120-second lease. This does not
- * authorize writes: every persistence RPC still verifies the same live token.
- * A failed heartbeat is surfaced after the work, and stale writes are rejected
- * independently by SQL. */
+ * authorize writes: repository persistence RPCs verify the same live token.
+ * Legacy provider-monitor writes still need that fence (master Step 3F-C2).
+ * A failed heartbeat is surfaced after the work. */
 export async function withLeaseHeartbeat<T>(
   job: ClaimedJob,
   work: () => Promise<T>,

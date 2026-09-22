@@ -48,7 +48,7 @@ describe("sendNewFindingsAlert — dedup only on confirmed delivery", () => {
   });
 
   it("records dedup rows when the email sent", async () => {
-    await sendNewFindingsAlert("u1", "a@b.com", [finding("rls:orders")]);
+    await expect(sendNewFindingsAlert("u1", "a@b.com", [finding("rls:orders")])).resolves.toBe("sent");
     expect(insertMock).toHaveBeenCalledTimes(1);
     expect(insertMock.mock.calls[0][0]).toEqual([
       { user_id: "u1", finding_id: "rls:orders" },
@@ -57,7 +57,7 @@ describe("sendNewFindingsAlert — dedup only on confirmed delivery", () => {
 
   it("does NOT record dedup rows when the email failed", async () => {
     sendEmailMock.mockResolvedValue(false);
-    await sendNewFindingsAlert("u1", "a@b.com", [finding("service_role_key")]);
+    await expect(sendNewFindingsAlert("u1", "a@b.com", [finding("service_role_key")])).resolves.toBe("failed");
     expect(insertMock).not.toHaveBeenCalled();
   });
 

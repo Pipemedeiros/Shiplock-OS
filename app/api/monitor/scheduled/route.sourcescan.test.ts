@@ -4,9 +4,8 @@ import { NextRequest } from "next/server";
 const admitAuditsMock = vi.fn();
 const admitSourcesMock = vi.fn();
 const admitDependenciesMock = vi.fn();
+const admitMonitoringMock = vi.fn();
 const runGraphReasonerMock = vi.fn();
-const runMonitoringPassMock = vi.fn();
-const runPolicyScanMock = vi.fn();
 const collectTrafficFactsMock = vi.fn();
 const saveFactsMock = vi.fn();
 const sendWeeklyDigestMock = vi.fn();
@@ -19,11 +18,10 @@ vi.mock("@/lib/jobs/scheduler", () => ({
   admitDueRepositoryAudits: admitAuditsMock,
   admitDueRepositorySourceScans: admitSourcesMock,
   admitDueRepositoryDependencyChecks: admitDependenciesMock,
+  admitDueMonitoringPasses: admitMonitoringMock,
 }));
 vi.mock("@/lib/jobs/queue", () => ({ enqueueJob: enqueueJobMock }));
-vi.mock("@/lib/monitoring", () => ({ runMonitoringPass: runMonitoringPassMock }));
 vi.mock("@/lib/traffic/prune", () => ({ pruneOldTraffic: pruneOldTrafficMock }));
-vi.mock("@/lib/deep/supabaseMgmtRun", () => ({ runPolicyScan: runPolicyScanMock }));
 vi.mock("@/lib/graph/graphRun", () => ({
   runGraphReasoner: runGraphReasonerMock,
   saveFacts: saveFactsMock,
@@ -74,9 +72,8 @@ describe("GET /api/monitor/scheduled — durable source admission", () => {
     admitAuditsMock.mockResolvedValue({ eligible: 3, admitted: 2, failed: 1, limited: false });
     admitSourcesMock.mockResolvedValue({ eligible: 4, admitted: 4, failed: 0, limited: true });
     admitDependenciesMock.mockResolvedValue({ eligible: 2, admitted: 2, failed: 0, limited: false });
+    admitMonitoringMock.mockResolvedValue({ eligible: 5, admitted: 4, failed: 1, limited: false });
     runGraphReasonerMock.mockResolvedValue({ total: 0, newCount: 0, resolvedCount: 0 });
-    runMonitoringPassMock.mockResolvedValue({ newFindingsCount: 0 });
-    runPolicyScanMock.mockResolvedValue({ ok: true });
     collectTrafficFactsMock.mockResolvedValue([]);
     sendWeeklyDigestMock.mockResolvedValue(false);
     pruneOldTrafficMock.mockResolvedValue({ ok: true });
@@ -89,7 +86,7 @@ describe("GET /api/monitor/scheduled — durable source admission", () => {
     expect(admitAuditsMock).not.toHaveBeenCalled();
     expect(admitSourcesMock).not.toHaveBeenCalled();
     expect(admitDependenciesMock).not.toHaveBeenCalled();
-    expect(runMonitoringPassMock).not.toHaveBeenCalled();
+    expect(admitMonitoringMock).not.toHaveBeenCalled();
   });
 
   it("admits bounded audit and source batches before legacy scheduled work", async () => {
@@ -99,6 +96,7 @@ describe("GET /api/monitor/scheduled — durable source admission", () => {
     expect(admitAuditsMock).toHaveBeenCalledWith(expect.any(Date), 1_000);
     expect(admitSourcesMock).toHaveBeenCalledWith(expect.any(Date), 1_000);
     expect(admitDependenciesMock).toHaveBeenCalledWith(expect.any(Date), 1_000);
+    expect(admitMonitoringMock).toHaveBeenCalledWith("scheduled_48h",expect.any(Date),1_000);
     expect(body).toMatchObject({
       auditsEligible: 3,
       auditsAdmitted: 2,
@@ -109,6 +107,9 @@ describe("GET /api/monitor/scheduled — durable source admission", () => {
       dependencyJobsAdmitted: 2,
       dependencyAdmissionsFailed: 0,
       dependencyAdmissionLimited: false,
+      monitorJobsAdmitted: 4,
+      monitorAdmissionsFailed: 1,
+      monitorAdmissionLimited: false,
     });
   });
 
@@ -117,7 +118,7 @@ describe("GET /api/monitor/scheduled — durable source admission", () => {
     const response = await GET(request());
 
     expect(response.status).toBe(503);
-    expect(runMonitoringPassMock).not.toHaveBeenCalled();
+    expect(admitMonitoringMock).toHaveBeenCalledOnce();
     expect(runGraphReasonerMock).not.toHaveBeenCalled();
     expect(sendWeeklyDigestMock).not.toHaveBeenCalled();
   });

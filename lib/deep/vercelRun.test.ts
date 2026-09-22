@@ -67,6 +67,7 @@ describe("runVercelEnvAudit", () => {
 
     expect(result.total).toBe(1);
     expect(result.newCount).toBe(1);
+    expect(result.newFindings).toEqual(result.findings);
     expect(insertMock).toHaveBeenCalledTimes(1);
     const inserted = insertMock.mock.calls[0][0];
     expect(inserted).toHaveLength(1);
@@ -91,6 +92,7 @@ describe("runVercelEnvAudit", () => {
 
     expect(result.total).toBe(1);
     expect(result.newCount).toBe(0);
+    expect(result.newFindings).toEqual([]);
     expect(insertMock).not.toHaveBeenCalled();
   });
 
@@ -108,6 +110,16 @@ describe("runVercelEnvAudit", () => {
 
     expect(result.total).toBe(1);
     expect(result.findings[0].id).toContain("healthy-project");
+  });
+
+  it("fails closed when projects exist but none of their environments are readable", async () => {
+    listProjectsMock.mockResolvedValue([{ id: "p1", name: "unreadable" }]);
+    listProjectEnvMock.mockRejectedValue(new Error("Vercel env read HTTP 503"));
+    await expect(runVercelEnvAudit("user-1", "cipher", null)).rejects.toThrow(
+      "No Vercel project environment was readable",
+    );
+    expect(saveFactsMock).not.toHaveBeenCalled();
+    expect(insertMock).not.toHaveBeenCalled();
   });
 
   it("caps processing at the first 20 projects", async () => {
