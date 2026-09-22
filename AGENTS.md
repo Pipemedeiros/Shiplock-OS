@@ -163,13 +163,13 @@ checks, provider collectors, the evidence graph, reviewable fix paths, traffic
 observation, MCP routes, and a durable audit queue foundation. Reuse these; do
 not replace them with a greenfield subsystem.
 
-Migrations 053–063 and the current working packages require deployment-grade
+Migrations 053–064 and the current working packages require deployment-grade
 verification before production use. Remaining master work includes connection
 epochs and traffic binding, a production always-on worker plus migration of all
-producers, provider evidence contracts, safe proof execution, detection quality,
-the approval/repair loop, continuous monitoring, native-agent polish, traffic
-recommendations, and measured scale/economics. Exact status lives only in
-`docs/MASTER-PLAN-PROGRESS.md`.
+remaining producers, provider evidence contracts, safe proof execution,
+detection quality, the approval/repair loop, continuous monitoring, native-agent
+polish, traffic recommendations, and measured scale/economics. Exact status
+lives only in `docs/MASTER-PLAN-PROGRESS.md`.
 
 ## Felipe's working agreement
 

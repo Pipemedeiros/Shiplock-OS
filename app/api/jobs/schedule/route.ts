@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { admitDueRepositoryAudits } from "@/lib/jobs/scheduler";
+import { admitDueRepositoryAudits, admitDueRepositorySourceScans } from "@/lib/jobs/scheduler";
 import { isAuthorizedWorkerRequest } from "@/lib/jobs/workerAuth";
 
 export const maxDuration = 30;
@@ -11,11 +11,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {
-    const result = await admitDueRepositoryAudits(new Date(), 1_000);
+    const now = new Date();
+    const [audits, sources] = await Promise.all([
+      admitDueRepositoryAudits(now, 1_000),
+      admitDueRepositorySourceScans(now, 1_000),
+    ]);
     return NextResponse.json({
-      admitted: result.admitted,
-      failed: result.failed,
-      more: result.limited,
+      admitted: audits.admitted + sources.admitted,
+      failed: audits.failed + sources.failed,
+      more: audits.limited || sources.limited,
     });
   } catch {
     console.error("[jobs/schedule] admission failed");

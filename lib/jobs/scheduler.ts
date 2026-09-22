@@ -28,3 +28,19 @@ export async function admitDueRepositoryAudits(
   if (error) throw new Error("Scheduled work could not be queued");
   return admission.parse(data);
 }
+
+export async function admitDueRepositorySourceScans(
+  now = new Date(),
+  limit = 1_000,
+): Promise<AuditAdmission> {
+  if (!Number.isInteger(limit) || limit < 1 || limit > 5_000 || !Number.isFinite(now.getTime())) {
+    throw new Error("Invalid source admission window");
+  }
+  const { data, error } = await getSupabaseAdmin().rpc("enqueue_due_repository_sources", {
+    p_cutoff: new Date(now.getTime() - 48 * 60 * 60 * 1_000).toISOString(),
+    p_day: now.toISOString().slice(0, 10),
+    p_limit: limit,
+  });
+  if (error) throw new Error("Scheduled source work could not be queued");
+  return admission.parse(data);
+}

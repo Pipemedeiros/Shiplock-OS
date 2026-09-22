@@ -25,8 +25,8 @@ export const metadata: Metadata = {
 // against source. The previous version claimed sandboxed exploitation, verified
 // remediation, a scheduled repository review and Postgres configuration review;
 // on a GitHub-only account none of the four was true (lib/proving is imported by
-// nothing outside itself; the scheduled pass runs runGithubScan and the
-// monitoring collectors, not runRepositoryAudit; no account has a database
+// nothing outside itself; the scheduled pass admits durable source/audit work
+// and runs monitoring collectors; no account has a database
 // connected). A security vendor overstating its own coverage is the failure that
 // makes a buyer never come back, so where the honest statement is unflattering
 // this page says the unflattering thing.
@@ -73,9 +73,9 @@ const AREAS = [
     // lib/deep/githubRun.ts: scanSecrets, scanPublicCredentialValues,
     // scanCredentialHandling, scanNextConfigEnv,
     // scanWorkflows, scanRouteFacts (lib/graph/routeChecks.ts — C12/C13),
-    // historyFindings, depFindings (OSV). Runs on the GitHub webhook and every
-    // 48 hours from app/api/monitor/scheduled/route.ts.
-    lead: "Deterministic checks on the source itself, on every push the App reports and at most every 48 hours from the daily pass.",
+    // historyFindings, depFindings (OSV). Repository-scoped jobs are admitted
+    // from GitHub pull-request events and every 48 hours by the daily pass.
+    lead: "Deterministic checks on the source itself, after qualifying pull-request activity and at most every 48 hours from the daily pass.",
     detail: [
       "Committed and historical credentials in real key shapes, and explicit Next.js environment configuration that makes a value available for client builds. Values whose publicness is unknown are flagged for review. A publishable key in the bundle is not reported, because that is where it belongs; a service-role key is.",
       "Dependencies matched against public vulnerability advisories, and GitHub Actions workflow structure: a pull_request_target workflow that checks out the pull request's own code, a third-party action pinned to a moveable tag rather than a commit, and a workflow with no stated permissions.",

@@ -3,13 +3,13 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { runMonitoringPass } from "@/lib/monitoring";
 import { pruneOldTraffic } from "@/lib/traffic/prune";
 import { runPolicyScan } from "@/lib/deep/supabaseMgmtRun";
-import { runGithubScan } from "@/lib/deep/githubRun";
-import { runGraphReasoner, saveFacts } from "@/lib/graph/graphRun";
+import { saveFacts } from "@/lib/graph/graphRun";
 import { collectTrafficFacts } from "@/lib/traffic/graphFacts";
 import { runZeroDayCheck } from "@/lib/runtime/zeroDay";
 import { sendWeeklyDigest } from "@/lib/monitoring/digest";
 import { withPaidFilter, BILLING_ENABLED } from "@/lib/access";
-import { admitDueRepositoryAudits } from "@/lib/jobs/scheduler";
+import { admitDueRepositoryAudits, admitDueRepositorySourceScans } from "@/lib/jobs/scheduler";
+import { enqueueJob } from "@/lib/jobs/queue";
 
 // This pass iterates every paid user and makes several network calls each
 // (policy scan, schema inventory, auth log, dependency re-check, reasoner). The
@@ -39,8 +39,13 @@ export async function GET(req: NextRequest) {
   // notification-bearing or unfenced side effect. A scheduler retry is safe:
   // migration 062 deduplicates by repository and UTC day.
   let auditAdmission;
+  let sourceAdmission;
   try {
-    auditAdmission = await admitDueRepositoryAudits(new Date(), 1_000);
+    const now = new Date();
+    [auditAdmission, sourceAdmission] = await Promise.all([
+      admitDueRepositoryAudits(now, 1_000),
+      admitDueRepositorySourceScans(now, 1_000),
+    ]);
   } catch {
     console.error("[monitor/scheduled] audit admission failed");
     return NextResponse.json({ error: "Scheduled work could not be queued." }, { status: 503 });
@@ -125,66 +130,14 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // ── Source facts on a schedule, not only on pull-request activity ────────
-  // `runGithubScan` is the ONLY producer of `source` graph facts, and until now
-  // it was reachable from exactly one place: the per-PR webhook
-  // (app/api/monitor/github/route.ts). That made route facts a function of the
-  // customer's commit cadence rather than of ours, with a consequence nobody
-  // would notice from reading either file alone: a customer who connects GitHub
-  // and does not open a pull request never gets route facts at all, so
-  // `findAttackPaths` never sees two surfaces, so correlation — the thing the
-  // graph exists to do — can never fire for them.
-  //
-  // Confirmed against the live database before writing this: one paid user with
-  // github_installation_id set, zero `source` rows in graph_facts, zero findings
-  // with source='graph'. The reasoner had been running on schedule and finding
-  // nothing, correctly, because it was only ever handed one surface.
-  //
-  // Runs BEFORE the reasoner below for the same reason the policy scan does:
-  // every collector writes its facts first, then the reasoner correlates the
-  // freshest picture. Fail-soft per user — a GitHub outage must cost this pass
-  // its route facts, never the rest of the pass.
-  //
-  // Gated on the SAME `last_source_scan_at` stamp the PR webhook already
-  // maintains, so this is a safety net rather than duplicate work: a customer
-  // shipping pull requests is already being scanned per-PR and is skipped here,
-  // while a customer who has not pushed in weeks — precisely the one the per-PR
-  // trigger cannot reach, and the same case runZeroDayCheck below exists for —
-  // gets scanned on our schedule instead of never. Without this gate an active
-  // repo would be re-scanned daily on top of every PR, burning the 5,000/hr
-  // installation budget the webhook's coalescing window was written to protect.
-  let sourceScanned = 0;
-  const sourceCutoff = new Date(Date.now() - FULL_SCAN_INTERVAL_MS).toISOString();
-  const { data: githubUsers } = await withPaidFilter(admin.from("user_profiles").select("id, github_installation_id"))
-    .not("github_installation_id", "is", null)
-    .or(`last_source_scan_at.is.null,last_source_scan_at.lt.${sourceCutoff}`);
-
-  for (const profile of githubUsers ?? []) {
-    try {
-      await runGithubScan(profile.id as string, profile.github_installation_id as number);
-      // Stamp it the same way the PR webhook does, so the two triggers share one
-      // notion of "recently scanned" instead of each keeping its own.
-      await admin
-        .from("user_profiles")
-        .update({ last_source_scan_at: new Date().toISOString() })
-        .eq("id", profile.id as string);
-      sourceScanned++;
-    } catch (err) {
-      console.error(
-        `[monitor/scheduled] source scan failed for user ${profile.id}:`,
-        err instanceof Error ? err.message : err
-      );
-    }
-  }
-
-  // The reasoner runs LAST, after every collector in this pass has written its
-  // facts, so it correlates the freshest picture rather than the previous one.
-  // Runs for every paid user — not only the Supabase-connected ones above —
-  // because route facts from the per-PR source scan can produce paths on their
-  // own, and a user with GitHub connected but not Supabase should still get them.
+  // Dependency and traffic observations run before graph admission. The graph
+  // itself is a leased job: a cron timeout cannot leave a half-written finding
+  // set, and the scheduled request never performs the correlation write.
   const { data: paidUsers } = await withPaidFilter(admin.from("user_profiles").select("id"));
 
-  let pathsFound = 0;
+  let graphJobsAdmitted = 0;
+  let graphAdmissionsFailed = 0;
+  const graphDay = new Date().toISOString().slice(0, 10);
   for (const profile of paidUsers ?? []) {
     try {
       // Traffic facts are collected immediately before reasoning rather than on
@@ -207,17 +160,34 @@ export async function GET(req: NextRequest) {
       const hotPaths = await collectTrafficFacts(profile.id);
       if (hotPaths.length > 0) await saveFacts(profile.id, "traffic", { hotPaths });
 
-      const result = await runGraphReasoner(profile.id);
-      pathsFound += result.newCount;
+      const { data: repositories, error: repositoriesError } = await admin
+        .from("repositories")
+        .select("id")
+        .eq("user_id", profile.id)
+        .eq("selected", true)
+        .limit(50);
+      if (repositoriesError) throw new Error("Selected repositories could not be read");
+      for (const repository of repositories ?? []) {
+        try {
+          await enqueueJob(
+            profile.id as string,
+            repository.id as string,
+            "graph",
+            `scheduled-graph:${repository.id}:${graphDay}`,
+          );
+          graphJobsAdmitted++;
+        } catch {
+          graphAdmissionsFailed++;
+          console.error(`[monitor/scheduled] graph admission failed for user ${profile.id}`);
+        }
+      }
     } catch (err) {
       console.error(
-        `[monitor/scheduled] graph reasoner failed for user ${profile.id}:`,
+        `[monitor/scheduled] graph admission pass failed for user ${profile.id}:`,
         err instanceof Error ? err.message : err
       );
     }
   }
-  if (pathsFound > 0) console.log(`[monitor/scheduled] ${pathsFound} new attack paths`);
-
   // Weekly digest (migration 038). Rides the daily cron and self-limits to once
   // a week per user, so no new schedule is needed — which matters, since the
   // Vercel plan only allows daily-frequency crons. This is the churn
@@ -257,8 +227,11 @@ export async function GET(req: NextRequest) {
     failed,
     pruned: pruned.ok,
     policyChecked,
-    sourceScanned,
-    pathsFound,
+    sourceJobsAdmitted: sourceAdmission.admitted,
+    sourceAdmissionsFailed: sourceAdmission.failed,
+    sourceAdmissionLimited: sourceAdmission.limited,
+    graphJobsAdmitted,
+    graphAdmissionsFailed,
     digestsSent,
     // -1 means the sweep is switched off with billing, not that it found nobody.
     expired,

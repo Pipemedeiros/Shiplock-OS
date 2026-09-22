@@ -59,6 +59,10 @@ export interface SourceFacts {
 
 /** GitHub-issued identity, not yet a selected ShipLock-repository association. */
 export interface RepositorySourceSnapshot {
+  /** ShipLock tenant-bound repository identity. New fenced producers include it. */
+  repositoryId?: string;
+  /** GitHub-issued immutable repository identity when the installation reports it. */
+  providerRepositoryId?: string;
   repositoryFullName: string;
   installationId: string;
   /** Mutable branch name, not a claim that a particular commit was read/deployed. */

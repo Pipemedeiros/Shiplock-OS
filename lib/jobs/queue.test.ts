@@ -1,7 +1,7 @@
 import { beforeEach, expect, it, vi } from "vitest";
 const rpc = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ rpc }) }));
-import { enqueueAuditJob, enqueueJob, enqueuePullRequestCheck, claimJob, executeClaimedJob, type ClaimedJob } from "./queue";
+import { enqueueAuditJob, enqueueJob, enqueuePullRequestCheck, claimJob, executeClaimedJob, withLeaseHeartbeat, type ClaimedJob } from "./queue";
 const id = "11111111-1111-4111-8111-111111111111";
 const job: ClaimedJob = { id, user_id: id, repository_id: id, kind: "audit", status: "running", attempts: 1,
   audit_run_id: "33333333-3333-4333-8333-333333333333",
@@ -63,4 +63,23 @@ it("uncertain checkpoint acknowledgement cannot complete or start the next stage
   rpc.mockResolvedValueOnce({data:true,error:null}).mockResolvedValue({data:null,error:{message:"lost reply"}});
   const next=vi.fn(); await expect(executeClaimedJob(job,[async()=>{},next])).rejects.toThrow();
   expect(next).not.toHaveBeenCalled(); expect(rpc.mock.calls.some(([,args])=>args.p_outcome==="succeeded")).toBe(false);
+});
+it("keeps a long provider read inside the live lease", async () => {
+  vi.useFakeTimers();
+  try {
+    let release!: () => void;
+    const work = new Promise<void>((resolve) => { release = resolve; });
+    const running = withLeaseHeartbeat(job, () => work);
+    await vi.advanceTimersByTimeAsync(45_000);
+    expect(rpc).toHaveBeenCalledWith("advance_execution_job", {
+      p_id: job.id,
+      p_token: job.lease_token,
+      p_checkpoint: job.checkpoint,
+      p_outcome: "heartbeat",
+    });
+    release();
+    await running;
+  } finally {
+    vi.useRealTimers();
+  }
 });

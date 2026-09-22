@@ -25,10 +25,12 @@ export function GitHubPanel({ connected, findings }: { connected: boolean; findi
   const router = useRouter();
   const [busy, setBusy] = useState<"scan" | "disconnect" | "fix" | null>(null);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [fixResult, setFixResult] = useState<{ prs: FixPr[] } | null>(null);
 
   async function post(path: string, kind: "scan" | "disconnect") {
     setError("");
+    setNotice("");
     setBusy(kind);
     try {
       const res = await fetch(path, { method: "POST" });
@@ -38,7 +40,11 @@ export function GitHubPanel({ connected, findings }: { connected: boolean; findi
         setBusy(null);
         return;
       }
-      router.refresh();
+      if (kind === "scan") {
+        setNotice("Source scan queued. Results will appear when the worker finishes.");
+      } else {
+        router.refresh();
+      }
     } catch {
       setError("Couldn't reach the server. Try again.");
     }
@@ -98,7 +104,7 @@ export function GitHubPanel({ connected, findings }: { connected: boolean; findi
                 disabled={busy !== null}
                 style={{ fontSize: 12, padding: "6px 14px" }}
               >
-                {busy === "scan" ? "Scanning…" : "Scan now"}
+                {busy === "scan" ? "Queueing…" : "Queue source scan"}
               </button>
               <button
                 type="button"
@@ -121,6 +127,7 @@ export function GitHubPanel({ connected, findings }: { connected: boolean; findi
             </>
           )}
           {error && <span style={{ fontSize: 12, color: "var(--d-signal)", alignSelf: "center" }}>{error}</span>}
+          {notice && <span style={{ fontSize: 12, color: "var(--d-muted)", alignSelf: "center" }}>{notice}</span>}
         </div>
 
         {fixResult && (

@@ -8,10 +8,17 @@ const installationId = z.union([
   z.string().regex(/^[1-9]\d*$/), z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
 ]).transform(String);
 const profileSchema = z.object({ github_installation_id: installationId, github_connected_at: z.string() });
-const selectedSchema = z.array(z.object({ id: z.string().min(1), full_name: repositoryName, default_branch: z.string().min(1) }));
+const selectedSchema = z.array(z.object({
+  id: z.string().min(1),
+  full_name: repositoryName,
+  github_repo_id: installationId.nullable(),
+  default_branch: z.string().min(1),
+}));
 const pathSchema = z.string().min(1).max(1024).refine((value) =>
   !value.startsWith("/") && !/[\x00-\x1f]/.test(value) && !value.split("/").includes(".."));
 const snapshotSchema = z.object({
+  repositoryId: z.uuid().optional(),
+  providerRepositoryId: installationId.optional(),
   repositoryFullName: repositoryName,
   installationId,
   ref: z.string().min(1),
@@ -20,7 +27,7 @@ const snapshotSchema = z.object({
   // invented 'complete' flag in stored JSON to enable negative conclusions.
   completeness: z.literal("partial"),
   filesAttempted: z.number().int().nonnegative().max(60),
-  filesRead: z.number().int().positive().max(60),
+  filesRead: z.number().int().nonnegative().max(60),
   hasEntryPoints: z.boolean(),
   liveFiles: z.array(pathSchema).max(60),
   // Each consumer validates only the payload it actually uses.
@@ -45,7 +52,7 @@ export async function loadSelectedRepositorySources(userId: string, now = Date.n
     const admin = getSupabaseAdmin();
     const [profileRead, selectedRead, sourceRead] = await Promise.all([
       admin.from("user_profiles").select("github_installation_id, github_connected_at").eq("id", userId).maybeSingle(),
-      admin.from("repositories").select("id, full_name, default_branch").eq("user_id", userId).eq("selected", true),
+      admin.from("repositories").select("id, full_name, github_repo_id, default_branch").eq("user_id", userId).eq("selected", true),
       admin.from("graph_facts").select("facts").eq("user_id", userId).eq("collector", "source").maybeSingle(),
     ]);
     if (profileRead.error || selectedRead.error || sourceRead.error) throw new Error("Scoped source read unavailable");
@@ -55,7 +62,7 @@ export async function loadSelectedRepositorySources(userId: string, now = Date.n
     const connectedAt = timestamp(profile.data.github_connected_at);
     if (!Number.isFinite(connectedAt) || connectedAt > now) return result;
     const raw: unknown = sourceRead.data?.facts?.repositories;
-    if (!Array.isArray(raw) || raw.length > 10) return result;
+    if (!Array.isArray(raw) || raw.length > 50) return result;
 
     // Count raw names before parsing: even a malformed duplicate must not
     // allow us to choose whichever apparently valid observation is convenient.
@@ -83,6 +90,8 @@ export async function loadSelectedRepositorySources(userId: string, now = Date.n
       const repository = selectedByName.get(name);
       const recordedAt = timestamp(snapshot.recordedAt);
       if (!repository || ambiguous.has(name) || idCounts.get(repository.id) !== 1 || snapshotNames.get(name) !== 1 ||
+          (snapshot.repositoryId !== undefined && snapshot.repositoryId !== repository.id) ||
+          (repository.github_repo_id !== null && snapshot.providerRepositoryId !== repository.github_repo_id) ||
           snapshot.installationId !== profile.data.github_installation_id || snapshot.ref !== repository.default_branch ||
           !Number.isFinite(recordedAt) || recordedAt < connectedAt || recordedAt > now) continue;
       result.set(repository.id, { repositoryFullName: name, snapshot });

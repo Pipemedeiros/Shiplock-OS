@@ -18,7 +18,7 @@ try {
     create function auth.uid() returns uuid language sql stable as 'select null::uuid';
     create role anon; create role authenticated; create role service_role bypassrls;
     grant usage on schema public to anon,authenticated,service_role;`);
-  for (const file of ["021_phase2_github_deep_access.sql", "046_mvp_repos_and_runs.sql", "047_agent_findings.sql", "051_findings_idempotent_persist.sql", "053_provider_repository_links.sql", "054_database_repository_bindings.sql", "055_supabase_repository_bindings.sql", "056_durable_jobs.sql", "057_atomic_audit_findings.sql", "058_repository_scoped_finding_identity.sql", "059_audit_job_triggers.sql", "060_atomic_repository_selection.sql", "061_github_install_handshake.sql", "062_scheduled_audit_admission.sql", "063_durable_pull_request_checks.sql"]) {
+  for (const file of ["021_phase2_github_deep_access.sql", "036_source_scan_coalescing.sql", "039_graph_facts.sql", "043_finding_correlation.sql", "046_mvp_repos_and_runs.sql", "047_agent_findings.sql", "051_findings_idempotent_persist.sql", "053_provider_repository_links.sql", "054_database_repository_bindings.sql", "055_supabase_repository_bindings.sql", "056_durable_jobs.sql", "057_atomic_audit_findings.sql", "058_repository_scoped_finding_identity.sql", "059_audit_job_triggers.sql", "060_atomic_repository_selection.sql", "061_github_install_handshake.sql", "062_scheduled_audit_admission.sql", "063_durable_pull_request_checks.sql", "064_fenced_source_collection.sql"]) {
     await db.exec(await readFile(new URL(`../supabase/migrations/${file}`, import.meta.url), "utf8"));
   }
   await db.query("insert into auth.users values ($1),($2)", [u1,u2]);
@@ -235,6 +235,81 @@ try {
     await db.exec("set role authenticated");
     await assert.rejects(db.query("select * from public.pull_request_jobs"));
     await assert.rejects(db.query("select public.enqueue_pull_request_check($1,$2,'x',7,$3)",[u1,r1,"a".repeat(40)]));
+    await db.exec("reset role");
+  });
+  let sourceJob, sourceToken;
+  const sourceSnapshot = () => ({
+    repositoryId:r1,providerRepositoryId:"123456",repositoryFullName:"acme/one",installationId:"42",ref:"develop",
+    recordedAt:new Date().toISOString(),completeness:"partial",filesAttempted:1,filesRead:1,
+    routes:[],liveFiles:[],hasEntryPoints:false,dependencies:[],
+  });
+  const sourceFinding = [{finding_id:"acme/one::github:test",severity:"WARNING",title:"Source evidence",consequence:"Review it."}];
+  await check("scheduled source admission is repository-scoped and idempotent", async () => {
+    const args=["2100-01-01T00:00:00Z","2026-09-22",100];
+    const admitted=(await db.query("select public.enqueue_due_repository_sources($1,$2,$3) as result",args)).rows[0].result;
+    const retry=(await db.query("select public.enqueue_due_repository_sources($1,$2,$3) as result",args)).rows[0].result;
+    assert.deepEqual(admitted,{eligible:1,admitted:1,failed:0,limited:false});
+    assert.deepEqual(retry,{eligible:0,admitted:0,failed:0,limited:false});
+    const claimed=(await db.query("select * from public.claim_execution_job('source',120)")).rows[0];
+    sourceJob=claimed.id;sourceToken=claimed.lease_token;
+    assert.equal(claimed.repository_id,r1);
+  });
+  await check("source facts and findings commit atomically under the current lease", async () => {
+    const result=(await db.query("select public.persist_repository_source($1,$2,$3,$4,$5::jsonb,$6::jsonb) as result",[
+      u1,r1,sourceJob,sourceToken,JSON.stringify(sourceSnapshot()),JSON.stringify(sourceFinding),
+    ])).rows[0].result;
+    assert.deepEqual(result,{total:1,newCount:1,resolvedCount:0});
+    const stored=(await db.query("select facts->'repositories'->0->>'repositoryId' as repository_id from public.graph_facts where user_id=$1 and collector='source'",[u1])).rows[0];
+    assert.equal(stored.repository_id,r1);
+    const findingRow=(await db.query("select repository_id from public.deep_findings where source='github' and finding_id=$1 and archived_at is null",[sourceFinding[0].finding_id])).rows[0];
+    assert.equal(findingRow.repository_id,r1);
+    assert.ok((await db.query("select last_source_scan_at is not null as stamped from public.repositories where id=$1",[r1])).rows[0].stamped);
+    await assert.rejects(db.query("select public.persist_repository_source($1,$2,$3,$4,$5::jsonb,'[]'::jsonb)",[
+      u1,r1,sourceJob,u2,JSON.stringify(sourceSnapshot()),
+    ]));
+  });
+  await check("partial source absence never retires prior evidence", async () => {
+    assert.equal((await db.query("select public.advance_execution_job($1,$2,0,'succeeded') as ok",[sourceJob,sourceToken])).rows[0].ok,true);
+    const next=(await db.query("select public.enqueue_execution_job($1,$2,'source','source-recheck') as id",[u1,r1])).rows[0].id;
+    const claimed=(await db.query("select * from public.claim_execution_job('source',120)")).rows[0];
+    assert.equal(claimed.id,next);
+    await db.query("select public.persist_repository_source($1,$2,$3,$4,$5::jsonb,'[]'::jsonb)",[
+      u1,r1,claimed.id,claimed.lease_token,JSON.stringify(sourceSnapshot()),
+    ]);
+    assert.equal((await db.query("select count(*)::int as count from public.deep_findings where source='github' and finding_id=$1 and archived_at is null",[sourceFinding[0].finding_id])).rows[0].count,1);
+    assert.equal((await db.query("select public.advance_execution_job($1,$2,0,'succeeded') as ok",[claimed.id,claimed.lease_token])).rows[0].ok,true);
+  });
+  await check("graph findings are repository-scoped and fenced", async () => {
+    const graphId=(await db.query("select public.enqueue_execution_job($1,$2,'graph','graph-test') as id",[u1,r1])).rows[0].id;
+    const graph=(await db.query("select * from public.claim_execution_job('graph',120)")).rows[0];
+    assert.equal(graph.id,graphId);
+    const sourceRevision=(await db.query("select snapshot->>'recordedAt' as revision from public.graph_facts facts cross join lateral jsonb_array_elements(facts.facts->'repositories') snapshot where facts.user_id=$1 and snapshot->>'repositoryId'=$2",[u1,r1])).rows[0].revision;
+    const finding=[{finding_id:"path:test",severity:"CRITICAL",title:"Attack path",consequence:"Close either side.",surfaces:["source","db"]}];
+    await assert.rejects(db.query("select public.persist_repository_graph($1,$2,$3,$4,$5,$6::jsonb,false)",[
+      u1,r1,graph.id,u2,sourceRevision,JSON.stringify(finding),
+    ]));
+    await assert.rejects(db.query("select public.persist_repository_graph($1,$2,$3,$4,$5,$6::jsonb,false)",[
+      u1,r1,graph.id,graph.lease_token,"2026-09-22T00:00:00.000Z",JSON.stringify(finding),
+    ]));
+    const result=(await db.query("select public.persist_repository_graph($1,$2,$3,$4,$5,$6::jsonb,false) as result",[
+      u1,r1,graph.id,graph.lease_token,sourceRevision,JSON.stringify(finding),
+    ])).rows[0].result;
+    assert.deepEqual(result,{total:1,newCount:1,resolvedCount:0});
+    const stored=(await db.query("select repository_id,correlation from public.deep_findings where source='graph' and finding_id='path:test' and archived_at is null")).rows[0];
+    assert.equal(stored.repository_id,r1);assert.deepEqual(stored.correlation,{surfaces:["source","db"],proven:false});
+  });
+  await check("repository reselection invalidates source freshness", async () => {
+    assert.ok((await db.query("select last_source_scan_at is not null as fresh from public.repositories where id=$1",[r1])).rows[0].fresh);
+    await db.query("select * from public.replace_selected_repositories($1,$2::jsonb)",[u1,JSON.stringify([
+      {full_name:"acme/one",github_repo_id:"123456",default_branch:"develop",private:false},
+    ])]);
+    assert.equal((await db.query("select last_source_scan_at is null as stale from public.repositories where id=$1",[r1])).rows[0].stale,true);
+  });
+  await check("client roles cannot invoke source or graph persistence", async () => {
+    await db.exec("set role authenticated");
+    await assert.rejects(db.query("select public.enqueue_due_repository_sources(now(),'2026-09-22',100)"));
+    await assert.rejects(db.query("select public.persist_repository_source($1,$2,$3,$4,'{}'::jsonb,'[]'::jsonb)",[u1,r1,sourceJob,sourceToken]));
+    await assert.rejects(db.query("select public.persist_repository_graph($1,$2,$3,$4,'2026-09-22T00:00:00.000Z','[]'::jsonb,false)",[u1,r1,sourceJob,sourceToken]));
     await db.exec("reset role");
   });
   console.log(`${checks} SQL checks passed. Single-connection PostgreSQL WASM; multi-session contention and hosted Supabase remain unverified.`);

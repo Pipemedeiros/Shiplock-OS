@@ -2,22 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { runGithubScan } from "@/lib/deep/githubRun";
 import { hasProductAccess } from "@/lib/access";
-import { enqueueAuditJob, enqueuePullRequestCheck } from "@/lib/jobs/queue";
+import { enqueueAuditJob, enqueueJob, enqueuePullRequestCheck } from "@/lib/jobs/queue";
 import { runNextJob } from "@/lib/jobs/worker";
 
-// GitHub App webhook — re-scans a repo's source on every pull request, so the
-// watch re-audits "every PR" (replacing the old deploy-webhook trigger). The
+// GitHub App webhook — durably admits repository work for qualifying pull
+// request events (replacing the old deploy-webhook trigger). The
 // GitHub App's webhook URL points here; auth is the App's signed payload
 // (X-Hub-Signature-256, HMAC over the raw body with GITHUB_WEBHOOK_SECRET).
 // Inert until the secret is set. Durable audit/check admission happens before
 // acknowledgement and returns 503 on failure so GitHub can retry. Repository +
-// head-SHA idempotency makes that retry safe. The legacy source refresh remains
-// deferred until its multi-table writes have a fenced persistence contract.
+// head-SHA idempotency makes that retry safe. Source collection is also durable;
+// its multi-table write is accepted only under the worker's current lease.
 //
-// The queue worker and legacy source refresh run after acknowledgement. GitHub
-// allows a webhook TEN SECONDS to
+// The opportunistic queue worker runs after acknowledgement. GitHub allows a
+// webhook TEN SECONDS to
 // return headers, and the first real delivery this handler ever received blew
 // straight through it:
 //
@@ -81,7 +80,7 @@ export async function POST(req: NextRequest) {
     const admin = getSupabaseAdmin();
     const { data: profile, error: profileError } = await admin
       .from("user_profiles")
-      .select("id, is_paid, last_source_scan_at")
+      .select("id, is_paid")
       .eq("github_installation_id", installationId)
       .maybeSingle();
 
@@ -103,18 +102,16 @@ export async function POST(req: NextRequest) {
     const headSha = payload.pull_request?.head?.sha;
     const fullName = payload.repository?.full_name;
     const burstable = payload.action === "synchronize" || payload.action === "ready_for_review";
-    const last = profile.last_source_scan_at ? Date.parse(profile.last_source_scan_at as string) : 0;
-    const coalesced = burstable && Date.now() - last < COALESCE_WINDOW_MS;
 
     // Admit the expensive repository audit before acknowledging the webhook.
     // Only the repository named by GitHub is eligible, and only while it is
     // still selected by the installation owner. A repeated delivery for the
     // same head SHA receives the existing receipt transactionally.
-    let repository: { id: string } | null = null;
+    let repository: { id: string; lastSourceScanAt: string | null } | null = null;
     if (headSha && fullName) {
       const { data, error: repositoryError } = await admin
         .from("repositories")
-        .select("id")
+        .select("id, last_source_scan_at")
         .eq("user_id", ownerId)
         .eq("full_name", fullName)
         .eq("selected", true)
@@ -124,8 +121,14 @@ export async function POST(req: NextRequest) {
         console.error("[monitor/github] repository lookup failed");
         return NextResponse.json({ error: "webhook temporarily unavailable" }, { status: 503 });
       }
-      repository = data ? { id: data.id as string } : null;
+      repository = data ? {
+        id: data.id as string,
+        lastSourceScanAt: (data.last_source_scan_at as string | null) ?? null,
+      } : null;
     }
+
+    const last = repository?.lastSourceScanAt ? Date.parse(repository.lastSourceScanAt) : 0;
+    const coalesced = burstable && Date.now() - last < COALESCE_WINDOW_MS;
 
     let workQueued = false;
     if (!coalesced && repository && headSha && fullName) {
@@ -159,6 +162,22 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    if (!coalesced && repository) {
+      try {
+        const bucket = Math.floor(Date.now() / COALESCE_WINDOW_MS);
+        await enqueueJob(
+          ownerId,
+          repository.id,
+          "source",
+          `webhook-source:${repository.id}:${bucket}`,
+        );
+        workQueued = true;
+      } catch {
+        console.error("[monitor/github] source admission failed");
+        return NextResponse.json({ error: "webhook temporarily unavailable" }, { status: 503 });
+      }
+    }
+
     if (workQueued) {
       after(async () => {
         try {
@@ -171,31 +190,6 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // The legacy source refresh is still best-effort and deferred. Its writes
-    // do not yet have the fencing needed for automatic durable retries.
-    if (!coalesced) {
-      after(async () => {
-        try {
-          // `synchronize` fires on every push to an open pull request. A short
-          // window prevents burst traffic from repeatedly refreshing every
-          // selected repository. `opened` and `reopened` bypass the window.
-          await runGithubScan(ownerId, installationId);
-
-          const { error: stampError } = await admin
-            .from("user_profiles")
-            .update({ last_source_scan_at: new Date().toISOString() })
-            .eq("id", ownerId);
-          if (stampError) {
-            console.error("[monitor/github] source scan timestamp failed");
-          }
-        } catch (err) {
-          console.error(
-            "[monitor/github] deferred scan failed:",
-            err instanceof Error ? err.message : err,
-          );
-        }
-      });
-    }
   } catch {
     console.error("[monitor/github] webhook admission failed");
     return NextResponse.json({ error: "webhook temporarily unavailable" }, { status: 503 });

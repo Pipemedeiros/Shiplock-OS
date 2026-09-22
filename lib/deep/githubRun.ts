@@ -1,6 +1,5 @@
 import { scanPublicCredentialValues } from "./clientExposure";
-import { getSupabaseAdmin } from "@/lib/supabase";
-import { getInstallationToken, listRepos, listTree, getFile, queryOsv, listRecentCommitPatches, type Repo } from "./github";
+import { listTree, getFile, queryOsv, listRecentCommitPatches, type Repo } from "./github";
 import { scanSecrets, extractDependencies, depFindings, type RepoFile, type GithubFinding } from "./githubScan";
 import { scanCredentialHandling } from "./credentialHandling";
 import { scanNextConfigEnv } from "./nextConfigEnv";
@@ -10,7 +9,7 @@ import { buildReachabilityIndex } from "@/lib/graph/reachability";
 import { scanRouteFacts } from "@/lib/graph/routeChecks";
 import { scanWorkflows } from "./workflowScan";
 import { historyFindings, scanPatches, MAX_COMMITS } from "./historyScan";
-import { saveFacts, type RepositorySourceSnapshot } from "@/lib/graph/graphRun";
+import type { RepositorySourceSnapshot } from "@/lib/graph/graphRun";
 import type { RouteFact } from "@/lib/graph/routeInventory";
 
 // Full source scan for a connected GitHub App installation: read-only repo
@@ -22,7 +21,6 @@ import type { RouteFact } from "@/lib/graph/routeInventory";
 // repo/file never fails the whole pass.
 // Persisted finding IDs retain their remediation routes in lib/fixes.
 
-const MAX_REPOS = 10;
 const MAX_FILES_PER_REPO = 60;
 const MAX_FILE_BYTES = 200_000; // skip large/binary blobs
 
@@ -144,122 +142,39 @@ async function scanRepo(
   return findings.map((f) => ({ ...f, id: `${fullName}::${f.id}` }));
 }
 
-export async function runGithubScan(
-  userId: string,
-  installationId: string | number
-): Promise<{ total: number; newCount: number; resolvedCount: number }> {
-  const admin = getSupabaseAdmin();
-  const token = await getInstallationToken(installationId);
-  // Installation visibility is broader than customer selection. Collection is
-  // authorized only for repositories the customer explicitly selected.
-  const { data: selectedRows, error: selectedError } = await admin
-    .from("repositories")
-    .select("full_name")
-    .eq("user_id", userId)
-    .eq("selected", true)
-    .limit(MAX_REPOS);
-  if (selectedError) throw new Error("Selected repositories could not be read");
-  const selected = new Set((selectedRows ?? []).map((row) => row.full_name as string));
-  const repos = (await listRepos(token)).filter((repo) => selected.has(repo.fullName)).slice(0, MAX_REPOS);
+export interface CollectedRepositorySource {
+  snapshot: RepositorySourceSnapshot;
+  findings: GithubFinding[];
+}
 
-  const all: GithubFinding[] = [];
-  // Which repos we actually finished reading. Load-bearing for archiving below:
-  // a repo that threw produced ZERO findings, and treating that as "everything in
-  // it is fixed" would silently close real open issues.
-  const scannedRepos: string[] = [];
+/** Pure collection boundary for one selected repository. Persistence and job
+ * fencing belong to the caller. A failed collection returns no empty snapshot. */
+export async function collectRepositorySource(
+  token: string,
+  repo: Repo,
+  repositoryId: string,
+  installationId: string | number,
+): Promise<CollectedRepositorySource> {
   const routes: RouteFact[] = [];
   const liveFiles = new Set<string>();
-  const deps = new Map<string, string>();
-  const repositories: RepositorySourceSnapshot[] = [];
-  for (const repo of repos) {
-    // Repository-local sinks prevent identical paths/dependency names from
-    // erasing provenance, and never publish a failed scan's mutated sinks.
-    const repoRoutes: RouteFact[] = [];
-    const repoLiveFiles = new Set<string>();
-    const repoDeps = new Map<string, string>();
-    const stats = { filesAttempted: 0, filesRead: 0 };
-    try {
-      all.push(...(await scanRepo(token, repo, repoRoutes, repoLiveFiles, repoDeps, stats)));
-      scannedRepos.push(repo.fullName);
-      routes.push(...repoRoutes);
-      for (const file of repoLiveFiles) liveFiles.add(file);
-      for (const [name, version] of repoDeps) deps.set(name, version);
-      repositories.push({
-        repositoryFullName: repo.fullName,
-        installationId: String(installationId),
-        ref: repo.defaultBranch,
-        recordedAt: new Date().toISOString(),
-        completeness: "partial",
-        ...stats,
-        routes: repoRoutes,
-        liveFiles: [...repoLiveFiles],
-        hasEntryPoints: repoLiveFiles.size > 0,
-        dependencies: [...repoDeps].map(([name, version]) => ({ name, version })),
-      });
-    } catch {
-      continue; // one bad repo shouldn't fail the pass
-    }
-  }
-
-  // Only record routes when at least one repo was actually read. Saving an
-  // empty inventory after a failed pass would tell the reasoner the customer has
-  // no API at all, silently closing every path that runs through one.
-  if (scannedRepos.length > 0) {
-    await saveFacts(userId, "source", {
-      routes,
-      repositories,
-      liveFiles: [...liveFiles],
-      // False when no repo yielded an entry point, which makes every
-      // reachability verdict `unknown` rather than demoting everything at once.
-      hasEntryPoints: liveFiles.size > 0,
-      dependencies: [...deps].map(([name, version]) => ({ name, version })),
-    }, {
+  const dependencies = new Map<string,string>();
+  const stats = { filesAttempted: 0, filesRead: 0 };
+  const findings = await scanRepo(token,repo,routes,liveFiles,dependencies,stats);
+  return {
+    findings,
+    snapshot: {
+      repositoryId,
+      ...(repo.id ? { providerRepositoryId: repo.id } : {}),
+      repositoryFullName: repo.fullName,
+      installationId: String(installationId),
+      ref: repo.defaultBranch,
+      recordedAt: new Date().toISOString(),
       completeness: "partial",
-      reason: "Source collection uses repository, file, and history limits; complete coverage is not established.",
-    });
-  }
-
-  const { data: existing } = await admin
-    .from("deep_findings")
-    .select("finding_id")
-    .eq("user_id", userId)
-    .eq("source", "github")
-    .is("archived_at", null);
-  const activeIds = new Set((existing ?? []).map((r) => r.finding_id as string));
-
-  // Re-verify after merge. Without this, a customer merges the fix PR we opened
-  // and the finding stays CRITICAL forever — the dashboard and the weekly digest
-  // both keep counting work that is already done, which teaches people our
-  // findings don't track reality. The per-PR webhook already re-runs this scan on
-  // every pull request, so merging a fix is itself the re-check; all that was
-  // missing is closing what no longer reproduces.
-  //
-  // Scoped to repos we SUCCESSFULLY scanned, for the reason above. Finding ids
-  // are namespaced `owner/name::…` by scanRepo, which is what makes this
-  // scoping possible.
-  const currentIds = new Set(all.map((f) => f.id));
-  const resolved = [...activeIds].filter(
-    (id) => !currentIds.has(id) && scannedRepos.some((fullName) => id.startsWith(`${fullName}::`))
-  );
-  if (resolved.length > 0) {
-    await admin
-      .from("deep_findings")
-      .update({ archived_at: new Date().toISOString() })
-      .eq("user_id", userId)
-      .eq("source", "github")
-      .is("archived_at", null)
-      .in("finding_id", resolved);
-  }
-
-  const fresh = all.filter((f) => !activeIds.has(f.id));
-  if (fresh.length > 0) {
-    await admin.from("deep_findings").insert(
-      fresh.map((f) => ({
-        user_id: userId, source: "github", finding_id: f.id,
-        severity: f.severity, title: f.title, consequence: f.consequence,
-        package_name: f.packageName, version: f.version, vuln_id: f.vulnId, cve_id: f.cveId,
-      }))
-    );
-  }
-  return { total: all.length, newCount: fresh.length, resolvedCount: resolved.length };
+      ...stats,
+      routes,
+      liveFiles: [...liveFiles],
+      hasEntryPoints: liveFiles.size > 0,
+      dependencies: [...dependencies].map(([name,version]) => ({name,version})),
+    },
+  };
 }

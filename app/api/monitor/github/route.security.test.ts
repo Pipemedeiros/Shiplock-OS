@@ -2,12 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createHmac } from "crypto";
 import { NextRequest } from "next/server";
 
-const runGithubScanMock = vi.fn();
 const enqueueAuditJobMock = vi.fn();
+const enqueueJobMock = vi.fn();
 const enqueuePullRequestCheckMock = vi.fn();
 const runNextJobMock = vi.fn();
 const maybeSingleMock = vi.fn();
-const updateEqMock = vi.fn();
 
 // `after()` defers work until the response is sent, which is the whole point:
 // GitHub allows a webhook ten seconds and a real scan takes longer. Nothing
@@ -27,14 +26,16 @@ vi.mock("next/server", async () => {
   };
 });
 
-vi.mock("@/lib/deep/githubRun", () => ({ runGithubScan: runGithubScanMock }));
-vi.mock("@/lib/jobs/queue", () => ({ enqueueAuditJob: enqueueAuditJobMock, enqueuePullRequestCheck: enqueuePullRequestCheckMock }));
+vi.mock("@/lib/jobs/queue", () => ({
+  enqueueAuditJob: enqueueAuditJobMock,
+  enqueueJob: enqueueJobMock,
+  enqueuePullRequestCheck: enqueuePullRequestCheckMock,
+}));
 vi.mock("@/lib/jobs/worker", () => ({ runNextJob: runNextJobMock }));
 vi.mock("@/lib/supabase", () => ({
   getSupabaseAdmin: () => ({
     from: () => ({
       select: () => ({ eq: () => ({ maybeSingle: maybeSingleMock }) }),
-      update: (patch: unknown) => ({ eq: (...args: unknown[]) => { updateEqMock(patch, ...args); return Promise.resolve({ error: null }); } }),
     }),
   }),
 }));
@@ -63,12 +64,11 @@ describe("POST /api/monitor/github — HMAC-forged webhook payloads must not tri
   beforeEach(() => {
     process.env.GITHUB_WEBHOOK_SECRET = SECRET;
     afterWork.splice(0);
-    runGithubScanMock.mockReset();
     enqueueAuditJobMock.mockReset();
+    enqueueJobMock.mockReset();
     enqueuePullRequestCheckMock.mockReset();
     runNextJobMock.mockReset();
     maybeSingleMock.mockReset();
-    updateEqMock.mockReset();
   });
 
   afterEach(() => {
@@ -79,14 +79,14 @@ describe("POST /api/monitor/github — HMAC-forged webhook payloads must not tri
     const raw = JSON.stringify({ action: "opened", installation: { id: 1 } });
     const res = await POST(req(raw, null));
     expect(res.status).toBe(401);
-    expect(runGithubScanMock).not.toHaveBeenCalled();
+    expect(enqueueJobMock).not.toHaveBeenCalled();
   });
 
   it("401s a FORGED signature — proves an attacker can't trigger a rescan (or DoS the scan budget) for someone else's installation", async () => {
     const raw = JSON.stringify({ action: "opened", installation: { id: 1 } });
     const res = await POST(req(raw, "sha256=" + "0".repeat(64)));
     expect(res.status).toBe(401);
-    expect(runGithubScanMock).not.toHaveBeenCalled();
+    expect(enqueueJobMock).not.toHaveBeenCalled();
   });
 
   it("401s when the signature was computed over a DIFFERENT body than the one delivered (tamper-after-sign)", async () => {
@@ -95,18 +95,22 @@ describe("POST /api/monitor/github — HMAC-forged webhook payloads must not tri
     const tamperedBody = JSON.stringify({ action: "opened", installation: { id: 999 } });
     const res = await POST(req(tamperedBody, sig));
     expect(res.status).toBe(401);
-    expect(runGithubScanMock).not.toHaveBeenCalled();
+    expect(enqueueJobMock).not.toHaveBeenCalled();
   });
 
-  it("accepts a correctly signed payload and scans only the mapped, paid installation owner", async () => {
+  it("accepts a correctly signed but incomplete payload without admitting work", async () => {
     const raw = JSON.stringify({ action: "opened", installation: { id: 42 } });
-    maybeSingleMock.mockResolvedValue({ data: { id: "owner-1", is_paid: true, last_source_scan_at: null } });
-    runGithubScanMock.mockResolvedValue(undefined);
+    maybeSingleMock.mockResolvedValue({
+      data: { id: "22222222-2222-4222-8222-222222222222", is_paid: true },
+      error: null,
+    });
 
     const res = await POST(req(raw, sign(raw)));
     await flushAfter();
     expect(res.status).toBe(200);
-    expect(runGithubScanMock).toHaveBeenCalledWith("owner-1", 42);
+    expect(enqueueAuditJobMock).not.toHaveBeenCalled();
+    expect(enqueuePullRequestCheckMock).not.toHaveBeenCalled();
+    expect(enqueueJobMock).not.toHaveBeenCalled();
   });
 
   it("never scans for an installation with no matching account, even with a validly signed payload", async () => {
@@ -118,7 +122,7 @@ describe("POST /api/monitor/github — HMAC-forged webhook payloads must not tri
 
     await POST(req(raw, sign(raw)));
     await flushAfter();
-    expect(runGithubScanMock).not.toHaveBeenCalled();
+    expect(enqueueJobMock).not.toHaveBeenCalled();
   });
 
   it("is inert (200, no processing) when the secret isn't configured, rather than accepting anything as valid", async () => {
@@ -126,6 +130,6 @@ describe("POST /api/monitor/github — HMAC-forged webhook payloads must not tri
     const raw = JSON.stringify({ action: "opened", installation: { id: 42 } });
     const res = await POST(req(raw, "sha256=anything"));
     expect(res.status).toBe(200);
-    expect(runGithubScanMock).not.toHaveBeenCalled();
+    expect(enqueueJobMock).not.toHaveBeenCalled();
   });
 });

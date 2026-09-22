@@ -1,10 +1,11 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { requireProUser } from "@/lib/deep/proGate";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { runGithubScan } from "@/lib/deep/githubRun";
+import { enqueueJob } from "@/lib/jobs/queue";
+import { runNextJob } from "@/lib/jobs/worker";
 
-// Run (or re-run) the GitHub source scan for the caller's connected
-// installation. Pro-gated server-side. Persists only new deep_findings.
+// Admit a re-scan for every selected repository. The request never performs
+// provider I/O or writes evidence; a leased worker owns both.
 export async function POST() {
   const pro = await requireProUser();
   if (!pro) {
@@ -24,9 +25,32 @@ export async function POST() {
   }
 
   try {
-    const { total, newCount } = await runGithubScan(pro.userId, installationId);
-    return NextResponse.json({ ok: true, total, newCount }, { headers: { "Cache-Control": "no-store" } });
+    const { data: repositories, error } = await admin
+      .from("repositories")
+      .select("id")
+      .eq("user_id", pro.userId)
+      .eq("selected", true)
+      .limit(50);
+    if (error) throw new Error("selection unavailable");
+    const hour = new Date().toISOString().slice(0, 13);
+    for (const repository of repositories ?? []) {
+      await enqueueJob(
+        pro.userId,
+        repository.id as string,
+        "source",
+        `manual-source:${repository.id}:${hour}`,
+      );
+    }
+    if ((repositories ?? []).length > 0) {
+      after(async () => {
+        await runNextJob().catch(() => {});
+      });
+    }
+    return NextResponse.json(
+      { ok: true, queued: (repositories ?? []).length },
+      { status: 202, headers: { "Cache-Control": "no-store" } },
+    );
   } catch {
-    return NextResponse.json({ error: "Scan failed. Try again." }, { status: 502 });
+    return NextResponse.json({ error: "Scan could not be queued. Try again." }, { status: 503 });
   }
 }

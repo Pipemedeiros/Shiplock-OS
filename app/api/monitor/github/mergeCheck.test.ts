@@ -8,13 +8,12 @@ import crypto from "node:crypto";
 // second push to a branch silently inherits the first push's verdict — a green
 // check on code nobody looked at.
 
-const runGithubScanMock = vi.fn();
 const enqueueAuditJobMock = vi.fn();
+const enqueueJobMock = vi.fn();
 const enqueuePullRequestCheckMock = vi.fn();
 const runNextJobMock = vi.fn();
 const profileMaybeSingleMock = vi.fn();
 const repositoryMaybeSingleMock = vi.fn();
-const updateEqMock = vi.fn();
 
 // `after()` defers work until the response is sent, which is the whole point:
 // GitHub allows a webhook ten seconds and a real scan takes longer. Nothing
@@ -34,8 +33,11 @@ vi.mock("next/server", async () => {
   };
 });
 
-vi.mock("@/lib/deep/githubRun", () => ({ runGithubScan: runGithubScanMock }));
-vi.mock("@/lib/jobs/queue", () => ({ enqueueAuditJob: enqueueAuditJobMock, enqueuePullRequestCheck: enqueuePullRequestCheckMock }));
+vi.mock("@/lib/jobs/queue", () => ({
+  enqueueAuditJob: enqueueAuditJobMock,
+  enqueueJob: enqueueJobMock,
+  enqueuePullRequestCheck: enqueuePullRequestCheckMock,
+}));
 vi.mock("@/lib/jobs/worker", () => ({ runNextJob: runNextJobMock }));
 vi.mock("@/lib/supabase", () => ({
   getSupabaseAdmin: () => ({
@@ -46,12 +48,6 @@ vi.mock("@/lib/supabase", () => ({
       };
       return {
         select: () => query,
-        update: (patch: unknown) => ({
-          eq: (...args: unknown[]) => {
-            updateEqMock(patch, ...args);
-            return Promise.resolve({ error: null });
-          },
-        }),
       };
     },
   }),
@@ -92,11 +88,14 @@ describe("the merge check and the coalescing window", () => {
     afterWork.splice(0);
     // Inside the coalescing window: a full re-scan was done seconds ago.
     profileMaybeSingleMock.mockResolvedValue({
-      data: { id: "22222222-2222-4222-8222-222222222222", is_paid: true, last_source_scan_at: new Date().toISOString() },
+      data: { id: "22222222-2222-4222-8222-222222222222", is_paid: true },
       error: null,
     });
     repositoryMaybeSingleMock.mockResolvedValue({
-      data: { id: "33333333-3333-4333-8333-333333333333" },
+      data: {
+        id: "33333333-3333-4333-8333-333333333333",
+        last_source_scan_at: new Date().toISOString(),
+      },
       error: null,
     });
     enqueueAuditJobMock.mockResolvedValue({
@@ -104,8 +103,8 @@ describe("the merge check and the coalescing window", () => {
       run_id: "55555555-5555-4555-8555-555555555555",
     });
     enqueuePullRequestCheckMock.mockResolvedValue("66666666-6666-4666-8666-666666666666");
+    enqueueJobMock.mockResolvedValue("77777777-7777-4777-8777-777777777777");
     runNextJobMock.mockResolvedValue(true);
-    runGithubScanMock.mockResolvedValue(undefined);
   });
 
   it("still durably queues the check when the full re-scan is coalesced away", async () => {
@@ -117,30 +116,30 @@ describe("the merge check and the coalescing window", () => {
       "pr-check:acme/app:7:abc1234", 7, "abc1234",
     );
     // The expensive pass is the one that gets skipped.
-    expect(runGithubScanMock).not.toHaveBeenCalled();
+    expect(enqueueJobMock).not.toHaveBeenCalled();
     expect(enqueueAuditJobMock).not.toHaveBeenCalled();
   });
 
-  it("admits durable work before running the deferred source refresh", async () => {
-    profileMaybeSingleMock.mockResolvedValue({
-      data: { id: "22222222-2222-4222-8222-222222222222", is_paid: true, last_source_scan_at: null },
+  it("durably admits source work before waking the worker", async () => {
+    repositoryMaybeSingleMock.mockResolvedValue({
+      data: { id: "33333333-3333-4333-8333-333333333333", last_source_scan_at: null },
       error: null,
     });
     const res = await POST(req(payload));
     await flushAfter();
     await flushAfter();
 
-    // 200 regardless, or GitHub retries the delivery and we do the work twice.
     expect(res.status).toBe(200);
-    expect(runGithubScanMock).toHaveBeenCalled();
+    expect(enqueueJobMock).toHaveBeenCalledWith(
+      "22222222-2222-4222-8222-222222222222",
+      "33333333-3333-4333-8333-333333333333",
+      "source",
+      expect.stringMatching(/^webhook-source:33333333-3333-4333-8333-333333333333:/),
+    );
     expect(runNextJobMock).toHaveBeenCalledOnce();
   });
 
   it("durably admits only the event repository with a repository and head-SHA key", async () => {
-    profileMaybeSingleMock.mockResolvedValue({
-      data: { id: "22222222-2222-4222-8222-222222222222", is_paid: true, last_source_scan_at: null },
-      error: null,
-    });
     const opened = payload.replace('"synchronize"', '"opened"');
 
     const res = await POST(req(opened));
@@ -156,10 +155,6 @@ describe("the merge check and the coalescing window", () => {
   });
 
   it("returns a retryable response before scheduling side effects when admission fails", async () => {
-    profileMaybeSingleMock.mockResolvedValue({
-      data: { id: "22222222-2222-4222-8222-222222222222", is_paid: true, last_source_scan_at: null },
-      error: null,
-    });
     enqueueAuditJobMock.mockRejectedValue(new Error("private database detail"));
     const opened = payload.replace('"synchronize"', '"opened"');
 
@@ -167,7 +162,7 @@ describe("the merge check and the coalescing window", () => {
     expect(res.status).toBe(503);
     expect(afterWork).toHaveLength(0);
     expect(enqueuePullRequestCheckMock).not.toHaveBeenCalled();
-    expect(runGithubScanMock).not.toHaveBeenCalled();
+    expect(enqueueJobMock).not.toHaveBeenCalled();
     expect(runNextJobMock).not.toHaveBeenCalled();
   });
 
@@ -176,7 +171,16 @@ describe("the merge check and the coalescing window", () => {
     const res = await POST(req(payload));
     expect(res.status).toBe(503);
     expect(afterWork).toHaveLength(0);
-    expect(runGithubScanMock).not.toHaveBeenCalled();
+    expect(enqueueJobMock).not.toHaveBeenCalled();
+    expect(runNextJobMock).not.toHaveBeenCalled();
+  });
+
+  it("returns a retryable response when durable source admission fails", async () => {
+    enqueueJobMock.mockRejectedValue(new Error("private database detail"));
+
+    const res = await POST(req(payload.replace('"synchronize"', '"opened"')));
+    expect(res.status).toBe(503);
+    expect(afterWork).toHaveLength(0);
     expect(runNextJobMock).not.toHaveBeenCalled();
   });
 
@@ -188,19 +192,7 @@ describe("the merge check and the coalescing window", () => {
     expect(res.status).toBe(200);
     expect(enqueueAuditJobMock).not.toHaveBeenCalled();
     expect(enqueuePullRequestCheckMock).not.toHaveBeenCalled();
-  });
-
-  it("stamps source freshness only after a successful refresh", async () => {
-    profileMaybeSingleMock.mockResolvedValue({
-      data: { id: "22222222-2222-4222-8222-222222222222", is_paid: true, last_source_scan_at: null },
-      error: null,
-    });
-    runGithubScanMock.mockRejectedValue(new Error("temporary GitHub failure"));
-
-    const res = await POST(req(payload));
-    await flushAfter();
-    expect(res.status).toBe(200);
-    expect(updateEqMock).not.toHaveBeenCalled();
+    expect(enqueueJobMock).not.toHaveBeenCalled();
   });
 
   it("posts no check for an event with no pull request attached", async () => {

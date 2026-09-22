@@ -82,6 +82,33 @@ export async function advanceJob(job: ClaimedJob, checkpoint: number, outcome: J
   if (error || data !== true) throw new Error("Work lease lost or transition unavailable");
 }
 
+/** Keep a long provider read inside the queue's 120-second lease. This does not
+ * authorize writes: every persistence RPC still verifies the same live token.
+ * A failed heartbeat is surfaced after the work, and stale writes are rejected
+ * independently by SQL. */
+export async function withLeaseHeartbeat<T>(
+  job: ClaimedJob,
+  work: () => Promise<T>,
+): Promise<T> {
+  let heartbeat: Promise<void> | null = null;
+  let heartbeatError: unknown;
+  const timer = setInterval(() => {
+    if (heartbeat || heartbeatError) return;
+    heartbeat = advanceJob(job, job.checkpoint, "heartbeat")
+      .catch((error) => { heartbeatError = error; })
+      .finally(() => { heartbeat = null; });
+  }, 45_000);
+
+  try {
+    const result = await work();
+    if (heartbeat) await heartbeat;
+    if (heartbeatError) throw heartbeatError;
+    return result;
+  } finally {
+    clearInterval(timer);
+  }
+}
+
 /** A worker supplies restartable stages. Each stage must fence its own writes
  * with the lease token: the queue checkpoint alone cannot make side effects
  * exactly-once. No provider work is registered implicitly here. */

@@ -1,20 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-// Regression test for the bug that made cross-layer correlation impossible.
-//
-// `runGithubScan` is the only producer of `source` graph facts, and it used to
-// be reachable ONLY from the per-PR webhook. A customer who connected GitHub
-// and did not open a pull request therefore never got route facts, so
-// findAttackPaths never saw two surfaces, so the graph could never produce a
-// finding. Verified against the live database at the time of the fix: one paid
-// user with github_installation_id set, zero `source` rows, zero graph findings.
-//
-// These tests assert the scheduled pass now collects source facts on its own
-// schedule, and that it does so BEFORE the reasoner runs — ordering is the whole
-// point, since facts written after correlation would be a pass too late.
-
-const runGithubScanMock = vi.fn();
+const admitAuditsMock = vi.fn();
+const admitSourcesMock = vi.fn();
 const runGraphReasonerMock = vi.fn();
 const runMonitoringPassMock = vi.fn();
 const runPolicyScanMock = vi.fn();
@@ -23,19 +11,18 @@ const collectTrafficFactsMock = vi.fn();
 const saveFactsMock = vi.fn();
 const sendWeeklyDigestMock = vi.fn();
 const pruneOldTrafficMock = vi.fn();
-const updateEqMock = vi.fn();
-const rpcMock = vi.fn();
+const enqueueJobMock = vi.fn();
 
-// Records call order across mocked collectors so ordering can be asserted.
-const callOrder: string[] = [];
-
-/** Rows returned per table, settable per test. */
 let tableRows: Record<string, unknown[]> = {};
 
+vi.mock("@/lib/jobs/scheduler", () => ({
+  admitDueRepositoryAudits: admitAuditsMock,
+  admitDueRepositorySourceScans: admitSourcesMock,
+}));
+vi.mock("@/lib/jobs/queue", () => ({ enqueueJob: enqueueJobMock }));
 vi.mock("@/lib/monitoring", () => ({ runMonitoringPass: runMonitoringPassMock }));
 vi.mock("@/lib/traffic/prune", () => ({ pruneOldTraffic: pruneOldTrafficMock }));
 vi.mock("@/lib/deep/supabaseMgmtRun", () => ({ runPolicyScan: runPolicyScanMock }));
-vi.mock("@/lib/deep/githubRun", () => ({ runGithubScan: runGithubScanMock }));
 vi.mock("@/lib/graph/graphRun", () => ({
   runGraphReasoner: runGraphReasonerMock,
   saveFacts: saveFactsMock,
@@ -46,10 +33,7 @@ vi.mock("@/lib/monitoring/digest", () => ({ sendWeeklyDigest: sendWeeklyDigestMo
 
 vi.mock("@/lib/supabase", () => ({
   getSupabaseAdmin: () => ({
-    rpc: rpcMock,
     from: (table: string) => {
-      // Every select chain in this route ends in an awaitable thenable; model it
-      // as a promise-like that resolves to the rows configured for that table.
       const rows = tableRows[table] ?? [];
       const chain: Record<string, unknown> = {};
       const self = () => chain;
@@ -59,23 +43,16 @@ vi.mock("@/lib/supabase", () => ({
       chain.lt = self;
       chain.or = self;
       chain.order = self;
-      chain.then = (resolve: (v: unknown) => unknown) => resolve({ data: rows, error: null });
-      // update() chains vary in length across call sites (a plain
-      // `.update().eq()` for the scan stamp, `.update().eq().not().lt().select()`
-      // for the prepaid-expiry sweep), so make every link both chainable and
-      // awaitable rather than modelling each shape separately.
+      chain.limit = self;
+      chain.then = (resolve: (value: unknown) => unknown) => resolve({ data: rows, error: null });
       chain.update = () => {
-        const upd: Record<string, unknown> = {};
-        const link = (...args: unknown[]) => {
-          if (args.length > 0) updateEqMock(table, ...args);
-          return upd;
-        };
-        upd.eq = link;
-        upd.not = () => upd;
-        upd.lt = () => upd;
-        upd.select = () => Promise.resolve({ data: [], error: null });
-        upd.then = (resolve: (v: unknown) => unknown) => resolve({ data: [], error: null });
-        return upd;
+        const update: Record<string, unknown> = {};
+        update.eq = () => update;
+        update.not = () => update;
+        update.lt = () => update;
+        update.select = () => Promise.resolve({ data: [], error: null });
+        update.then = (resolve: (value: unknown) => unknown) => resolve({ data: [], error: null });
+        return update;
       };
       return chain;
     },
@@ -84,110 +61,69 @@ vi.mock("@/lib/supabase", () => ({
 
 const { GET } = await import("./route");
 
-function req() {
+function request(secret = "cron-dummy") {
   return new NextRequest("https://shiplock.dev/api/monitor/scheduled", {
-    headers: { authorization: "Bearer cron-dummy" },
+    headers: { authorization: `Bearer ${secret}` },
   });
 }
 
-describe("GET /api/monitor/scheduled — source facts land without PR activity", () => {
+describe("GET /api/monitor/scheduled — durable source admission", () => {
   beforeEach(() => {
-    callOrder.length = 0;
+    vi.clearAllMocks();
     tableRows = {};
-    runGithubScanMock.mockReset().mockImplementation(async () => {
-      callOrder.push("github");
-      return { total: 0, newCount: 0, resolvedCount: 0 };
-    });
-    runGraphReasonerMock.mockReset().mockImplementation(async () => {
-      callOrder.push("reasoner");
-      return { total: 0, newCount: 0, resolvedCount: 0 };
-    });
-    runMonitoringPassMock.mockReset().mockResolvedValue({ newFindingsCount: 0 });
-    runPolicyScanMock.mockReset().mockResolvedValue({ ok: true });
-    runZeroDayCheckMock.mockReset().mockResolvedValue(undefined);
-    collectTrafficFactsMock.mockReset().mockResolvedValue([]);
-    saveFactsMock.mockReset();
-    sendWeeklyDigestMock.mockReset().mockResolvedValue(false);
-    pruneOldTrafficMock.mockReset().mockResolvedValue({ ok: true });
-    updateEqMock.mockReset();
-    rpcMock.mockReset().mockResolvedValue({
-      data: { eligible: 0, admitted: 0, failed: 0, limited: false },
-      error: null,
+    admitAuditsMock.mockResolvedValue({ eligible: 3, admitted: 2, failed: 1, limited: false });
+    admitSourcesMock.mockResolvedValue({ eligible: 4, admitted: 4, failed: 0, limited: true });
+    runGraphReasonerMock.mockResolvedValue({ total: 0, newCount: 0, resolvedCount: 0 });
+    runMonitoringPassMock.mockResolvedValue({ newFindingsCount: 0 });
+    runPolicyScanMock.mockResolvedValue({ ok: true });
+    runZeroDayCheckMock.mockResolvedValue(undefined);
+    collectTrafficFactsMock.mockResolvedValue([]);
+    sendWeeklyDigestMock.mockResolvedValue(false);
+    pruneOldTrafficMock.mockResolvedValue({ ok: true });
+    enqueueJobMock.mockResolvedValue("11111111-1111-4111-8111-111111111111");
+  });
+
+  it("authenticates before any admission or legacy side effect", async () => {
+    const response = await GET(request("wrong"));
+    expect(response.status).toBe(401);
+    expect(admitAuditsMock).not.toHaveBeenCalled();
+    expect(admitSourcesMock).not.toHaveBeenCalled();
+    expect(runMonitoringPassMock).not.toHaveBeenCalled();
+  });
+
+  it("admits bounded audit and source batches before legacy scheduled work", async () => {
+    const response = await GET(request());
+    const body = await response.json();
+
+    expect(admitAuditsMock).toHaveBeenCalledWith(expect.any(Date), 1_000);
+    expect(admitSourcesMock).toHaveBeenCalledWith(expect.any(Date), 1_000);
+    expect(body).toMatchObject({
+      auditsEligible: 3,
+      auditsAdmitted: 2,
+      auditAdmissionsFailed: 1,
+      sourceJobsAdmitted: 4,
+      sourceAdmissionsFailed: 0,
+      sourceAdmissionLimited: true,
     });
   });
 
-  it("401s without the cron secret, before doing any work", async () => {
-    const res = await GET(
-      new NextRequest("https://shiplock.dev/api/monitor/scheduled", {
-        headers: { authorization: "Bearer wrong" },
-      })
-    );
-    expect(res.status).toBe(401);
-    expect(runGithubScanMock).not.toHaveBeenCalled();
-    expect(rpcMock).not.toHaveBeenCalled();
-  });
+  it("returns a retryable failure before side effects when either admission fails", async () => {
+    admitSourcesMock.mockRejectedValue(new Error("private storage detail"));
+    const response = await GET(request());
 
-  it("durably admits bounded stale audits before legacy scheduled work", async () => {
-    rpcMock.mockResolvedValue({
-      data: { eligible: 3, admitted: 2, failed: 1, limited: false },
-      error: null,
-    });
-    const res = await GET(req());
-    const body = await res.json();
-    expect(rpcMock).toHaveBeenCalledWith("enqueue_due_repository_audits", expect.objectContaining({
-      p_require_paid: false,
-      p_limit: 1_000,
-    }));
-    expect(body).toMatchObject({ auditsEligible: 3, auditsAdmitted: 2, auditAdmissionsFailed: 1 });
-  });
-
-  it("returns retryable failure before legacy side effects when admission is unavailable", async () => {
-    rpcMock.mockResolvedValue({ data: null, error: { message: "private storage detail" } });
-    const res = await GET(req());
-    expect(res.status).toBe(503);
-    expect(runGithubScanMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(503);
+    expect(runMonitoringPassMock).not.toHaveBeenCalled();
+    expect(runGraphReasonerMock).not.toHaveBeenCalled();
     expect(sendWeeklyDigestMock).not.toHaveBeenCalled();
   });
 
-  it("runs the source scan for a GitHub-connected paid user who has opened no PRs", async () => {
+  it("does not perform GitHub collection inside the cron request", async () => {
     tableRows = { user_profiles: [{ id: "u1", github_installation_id: 42 }] };
+    const response = await GET(request());
+    const body = await response.json();
 
-    const res = await GET(req());
-    const body = await res.json();
-
-    expect(runGithubScanMock).toHaveBeenCalledWith("u1", 42);
-    expect(body.sourceScanned).toBe(1);
-  });
-
-  it("stamps last_source_scan_at so the PR webhook and this pass share one notion of recency", async () => {
-    tableRows = { user_profiles: [{ id: "u1", github_installation_id: 42 }] };
-
-    await GET(req());
-
-    expect(updateEqMock).toHaveBeenCalledWith("user_profiles", "id", "u1");
-  });
-
-  it("collects source facts BEFORE running the reasoner — facts written after correlation are a pass too late", async () => {
-    tableRows = { user_profiles: [{ id: "u1", github_installation_id: 42 }] };
-
-    await GET(req());
-
-    const firstGithub = callOrder.indexOf("github");
-    const firstReasoner = callOrder.indexOf("reasoner");
-    expect(firstGithub).toBeGreaterThanOrEqual(0);
-    expect(firstReasoner).toBeGreaterThanOrEqual(0);
-    expect(firstGithub).toBeLessThan(firstReasoner);
-  });
-
-  it("a failing source scan does not stop the reasoner or the rest of the pass", async () => {
-    tableRows = { user_profiles: [{ id: "u1", github_installation_id: 42 }] };
-    runGithubScanMock.mockRejectedValue(new Error("GitHub is down"));
-
-    const res = await GET(req());
-    const body = await res.json();
-
-    expect(res.status).toBe(200);
-    expect(body.sourceScanned).toBe(0);
-    expect(runGraphReasonerMock).toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(body.sourceJobsAdmitted).toBe(4);
+    expect(admitSourcesMock).toHaveBeenCalledOnce();
   });
 });
