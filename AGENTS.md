@@ -10,14 +10,18 @@ deprecation notices.
 # ShipLock product and architecture contract
 
 This is the sole living product, architecture, and agent-work contract for both
-Claude Code and Codex. Codex discovers this file; when using Claude Code, start
-the task by explicitly asking it to read this file because this repository does
-not keep a `CLAUDE.md`. Before any implementation, read this file completely,
-then `docs/MASTER-PLAN-PROGRESS.md` completely, then inspect the current code and
-tests. After every implemented package, update the master ledger with its exact
-step/item, evidence, and remaining gaps. Do not create a parallel agent guide,
-phase handoff, or alternative product spec. Code and executable tests outrank
-prose when they disagree; correct this file in the same change.
+Claude Code and Codex. Claude Code v2.1.277+ reads `AGENTS.md` in supported
+sessions when this project has no `CLAUDE.md`; older or unsupported sessions
+must be pointed here explicitly. Before any implementation, read this file and
+`docs/MASTER-PLAN-PROGRESS.md` completely, then read the Ponytail and
+Superpowers skills and inspect the relevant code and tests. For every coherent
+repository change, including a partial or documentation-only package, record
+progress in the dynamic master ledger before handoff or commit: exact
+step/item, evidence, and remaining gaps. Do not create another agent guide,
+phase handoff, or alternative product spec. Code and executable tests decide
+implementation truth; if they conflict with this
+contract, report the mismatch and seek Felipe's approval before editing
+`AGENTS.md`.
 
 ## Product
 
@@ -271,8 +275,15 @@ lives only in `docs/MASTER-PLAN-PROGRESS.md`.
   or deploy billable infrastructure without Felipe's explicit approval. Prefer
   local tests, fixtures, emulators, and mocked providers.
 - Make changes reviewable and cohesive. Report the master section, step, and
-  item; update `docs/MASTER-PLAN-PROGRESS.md` after every implementation. A
-  package is not a finished phase. Preserve unrelated working-tree changes.
+  item; update `docs/MASTER-PLAN-PROGRESS.md` for every coherent repository
+  change before handoff or commit, even if the step remains partial or the
+  change is documentation-only. Include the date, changed behavior,
+  verification, unfinished sibling items, and next reviewable action. This is
+  the only project Markdown file an agent is required to change per step.
+  A package is not a finished phase. Preserve unrelated working-tree changes.
+- Keep `AGENTS.md` as deep, stable product/architecture/implementation context.
+  Do not edit it for routine progress, and do not change it at all without
+  Felipe's explicit approval.
 - Before editing: read this file and the master ledger fully; run `git status`,
   inspect relevant code, callers, tests, migrations, and current framework docs.
   Before handing off: inspect `git diff`, check for stale cross-references and
@@ -287,10 +298,15 @@ lives only in `docs/MASTER-PLAN-PROGRESS.md`.
 ## Skill routing for Claude Code and Codex
 
 The four checked-in, self-contained skill entry points live only in
-`.agents/skills/`. Codex discovers them; Claude Code does not document automatic
-discovery of this directory, so ask Claude to read the applicable `SKILL.md`
-explicitly at task start. Both agents must read the whole selected skill before
-using it. No repo-local `.claude` directory or duplicate skill tree is needed.
+`.agents/skills/`. Read and apply both Ponytail and Superpowers on **every
+implementation**, including cleanup and documentation changes. Read their full
+`SKILL.md` files, not just their names. Use GStack for security-sensitive diff
+review, higher-risk QA, or an explicit review request; use Ruflo only for
+explicitly authorized parallel-agent coordination. Codex discovers this skill
+directory; Claude Code's new `AGENTS.md` support does not by itself establish
+automatic discovery of
+`.agents/skills/`, so Claude must follow these paths and read the selected
+skill files. No repo-local `.claude` directory or duplicate tree is needed.
 
 - Ponytail (`.agents/skills/ponytail/SKILL.md`): scoped cleanup after tracing
   callers; preserve security boundaries.
@@ -312,9 +328,10 @@ not proof its CLI is installed, and neither agent may silently activate it.
 
 `AGENTS.md` is stable policy and code orientation; the master ledger is dynamic
 status and the exact next package. These are the only two non-skill Markdown
-files in the repo. Change this file only when product/architecture or working
-rules truly change. Date every master-ledger update; identify the exact
-section/step/item finished, evidence/tests, incomplete sibling items, and next
+files in the repo. Change this file only with Felipe's explicit approval;
+write all ordinary implementation progress to the master ledger. Date every
+master-ledger update; identify the exact section/step/item finished,
+evidence/tests, incomplete sibling items, and next
 reviewable action. A locally completed package does not close a step with live
 acceptance still open. Keep older measurement inputs as JSON/source and, for
 retired narrative, use Git history rather than a parallel README/spec/handoff.
