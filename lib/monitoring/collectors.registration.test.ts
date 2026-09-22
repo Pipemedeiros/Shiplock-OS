@@ -5,7 +5,7 @@ import type { MonitoredProfile } from "./types";
 
 // This file exists because of a bug class, not a feature.
 //
-// CLAUDE.md records three separate occasions where a collector was written,
+// This repository has had collectors written without being registered,
 // tested, and never reached a customer because nothing called it. The code was
 // fine every time; the wiring was missing, and unit tests of the collector
 // itself could not have caught it. So the registration is asserted directly.

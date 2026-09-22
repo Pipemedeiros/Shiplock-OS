@@ -1,7 +1,7 @@
 -- 020_monitoring_infrastructure.sql
 -- Backs items 1-3 of the monitoring stack (deploy-triggered re-scan, hourly
 -- fast pass, 48h deep scan): snapshot storage for the diff engine, an
--- alert-dedup log (7-day window per finding, per CLAUDE.md), and a
+-- alert-dedup log (7-day window per finding, per AGENTS.md), and a
 -- per-user webhook token so the deploy-triggered route can identify which
 -- ShipLock account a Vercel/GitHub deploy webhook belongs to without
 -- exposing anything guessable (a raw user_id in a public webhook URL is

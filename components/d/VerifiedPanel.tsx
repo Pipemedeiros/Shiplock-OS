@@ -2,7 +2,7 @@
 
 // Owner control for the public "ShipLock Verified" report. Enable/disable
 // sharing, copy the live report link + the embeddable badge snippet, preview.
-// Same bearer-token pattern as ManageBillingButton. Token/link are only ever
+// Bearer token and link are only ever
 // shown here to the paid owner.
 
 import { useState } from "react";

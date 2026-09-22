@@ -15,7 +15,7 @@ import type { FixableFinding } from "./lane";
 // judgement about what the application is supposed to do. Adding a security
 // header is mechanical. Rewriting an authorization check is not, because the
 // right answer depends on intent that lives in the customer's head and nowhere
-// in the code. CLAUDE.md is explicit that application logic is never
+// in the code. AGENTS.md is explicit that application logic is never
 // machine-authored, and this module does not weaken that — it takes the
 // mechanical cases OFF the human's plate so the judgement cases get their
 // attention.
@@ -53,7 +53,7 @@ const HEADERS_BLOCK = `          { key: "X-Frame-Options", value: "DENY" },
  *
  * Mechanical: the correct set does not depend on what the app does. Deliberately
  * does NOT touch Content-Security-Policy — CSP needs a per-request nonce and
- * belongs in middleware (see CLAUDE.md; a static CSP silently breaks every
+ * belongs in middleware (see AGENTS.md; a static CSP silently breaks every
  * button on the site). A codemod that "helpfully" added one here would take an
  * app down.
  */

@@ -1,5 +1,5 @@
 -- 040_proving_ground.sql
--- Opt-in and kill switch for autonomous behaviour (CLAUDE.md autonomy doctrine).
+-- Opt-in and kill switch for autonomous behaviour (AGENTS.md autonomy doctrine).
 --
 -- Both default to the safe value. The proving ground stands up a branch on the
 -- customer's Supabase account and runs an adversarial probe against it, which is

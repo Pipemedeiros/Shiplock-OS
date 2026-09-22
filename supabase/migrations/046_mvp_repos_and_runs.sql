@@ -1,6 +1,6 @@
 -- 046 — repositories and audit runs, for the GitHub-first MVP.
 --
--- Two gaps this closes, both recorded in MVP-SPEC.md §7:
+-- Two historical MVP gaps this closes:
 --
 --   · One repository per account. `user_profiles.github_installation_id` is a
 --     single column, so there was nowhere to record WHICH repositories a

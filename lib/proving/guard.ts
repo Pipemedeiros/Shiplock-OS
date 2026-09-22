@@ -1,6 +1,6 @@
 // The guard that makes the proving ground defensible.
 //
-// CLAUDE.md's doctrine is explicit and this module is its enforcement: "we never
+// AGENTS.md's doctrine is explicit and this module is its enforcement: "we never
 // attack the customer's production app. We attack a copy of it, on their behalf,
 // and report what happened." Everything else in the proving ground — branches,
 // seeding, probes — is ordinary engineering. THIS is the part that must be

@@ -5,7 +5,7 @@ import type { OsvVuln } from "./githubScan";
 // edited package.json. The GitHub write flow (branch + PR) lives in
 // lib/deep/github.ts; this stays pure and unit-tested. Scope is DELIBERATELY
 // narrow: dependency version bumps only. Never edits app code, DB, RLS, or auth
-// (CLAUDE.md permanent boundary) — those remain copy-paste findings.
+// (AGENTS.md permanent boundary) — those remain copy-paste findings.
 
 // Compare two semver "core" versions (major.minor.patch), ignoring any
 // pre-release/build suffix. Returns -1 | 0 | 1.

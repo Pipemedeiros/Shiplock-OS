@@ -3,7 +3,7 @@
 // Deliberately in their own module with NO imports: layerStatus.ts pulls in
 // getSupabaseAdmin (service-role), and these helpers are needed by client
 // components like FixCard. Importing them from layerStatus.ts would drag the
-// service-role client into the browser bundle — the exact thing CLAUDE.md's
+// service-role client into the browser bundle — the exact thing AGENTS.md's
 // "never import supabase.ts in a client component" rule exists to prevent, and
 // the kind of leak that is invisible until someone reads a bundle.
 

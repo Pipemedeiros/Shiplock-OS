@@ -9,9 +9,9 @@ const envSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
-  STRIPE_SECRET_KEY: z.string().min(1),
-  STRIPE_WEBHOOK_SECRET: z.string().min(1),
-  STRIPE_PRICE_ID: z.string().min(1),
+  // Legacy subscriber portal/webhook only; checkout is parked.
+  STRIPE_SECRET_KEY: optionalSecret,
+  STRIPE_WEBHOOK_SECRET: optionalSecret,
   RESEND_API_KEY: z.string().min(1),
   RESEND_FROM_EMAIL: z.string().email(),
   NEXT_PUBLIC_APP_URL: z.string().url(),
@@ -34,9 +34,8 @@ const envSchema = z.object({
   SUPABASE_OAUTH_CLIENT_SECRET: optionalSecret,
   // Optional: the GitHub App (source scanning) may not be registered yet.
   // lib/deep/github.ts throws a clear error at call time if these are unset.
-  // See CLAUDE.md for how to create the App and obtain these.
-  // ShipLock's own proving project — enables the free proving path for
-  // customers whose plan does not include Supabase Branching.
+  // Optional disposable proof-replica host. No customer provider upgrade is
+  // required for this path, but it is not a launched free-tier promise.
   SHIPLOCK_PROVING_TOKEN: optionalSecret,
   SHIPLOCK_PROVING_PROJECT_REF: optionalSecret,
   GITHUB_APP_ID: optionalSecret,
@@ -45,7 +44,7 @@ const envSchema = z.object({
   GITHUB_WEBHOOK_SECRET: optionalSecret,
   // Optional: Better Auth 2FA (layered on Supabase Auth). lib/betterAuth.ts is
   // only instantiated when BOTH are present. DATABASE_URL is a direct Postgres
-  // connection (Supabase) used only by the 2FA layer. See CLAUDE.md.
+  // connection (Supabase) used only by the 2FA layer.
   BETTER_AUTH_SECRET: optionalSecret,
   DATABASE_URL: optionalSecret,
 });

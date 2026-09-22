@@ -87,7 +87,7 @@ function lane(method: FixMethod, label: string, editable: boolean, external?: Fi
  * GitHub source finding fell through to the code-pr fallback. The consequences
  * were not cosmetic — dependency bumps lost their automated non-editable lane,
  * and injection/XSS/crypto findings were routed to an ordinary fix PR instead of
- * a DRAFT one, which contradicts the rule in CLAUDE.md that application logic is
+ * a DRAFT one, which contradicts the rule in AGENTS.md that application logic is
  * never machine-authored.
  */
 export function stripRepoNamespace(id: string): string {

@@ -32,7 +32,7 @@ describe("security headers", () => {
     expect(out.content).toContain("reactStrictMode: true"); // preserved
   });
 
-  // A static CSP silently breaks every button on the site (CLAUDE.md).
+  // A static CSP silently breaks every button on the site (AGENTS.md).
   it("NEVER adds a Content-Security-Policy — that needs a per-request nonce", () => {
     const out = addSecurityHeaders({ path: "next.config.ts", content: NEXT_CONFIG }, f("scan:x"))!;
     expect(out.content).not.toContain("Content-Security-Policy");
@@ -102,7 +102,7 @@ describe("dispatch — null is the correct answer for judgement cases", () => {
     expect(hasCodemod(f("acme/app::github:public_prefixed_secret:NEXT_PUBLIC_X_SECRET:.env"))).toBe(true);
   });
 
-  // Application logic is never machine-authored (CLAUDE.md).
+  // Application logic is never machine-authored (AGENTS.md).
   it("has NO codemod for anything requiring judgement about intent", () => {
     for (const id of [
       "acme/app::github:injection:sql_injection:a.ts",

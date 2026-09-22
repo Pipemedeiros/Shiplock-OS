@@ -26,8 +26,7 @@ import {
 //
 // Cost, following narrative.ts: one batched call per pass, Haiku, and only for
 // paths that survive to publication. A pass with no inferred paths calls Claude
-// zero times, which preserves CLAUDE.md's guarantee that routine monitoring does
-// not carry per-run AI cost.
+// zero times. This module is not wired into the production monitoring path.
 //
 // FAILURE POSTURE, and it is the opposite of most of this codebase: everything
 // here fails toward KEEPING findings. A timeout, a malformed response, an
@@ -40,7 +39,7 @@ const MODEL = "claude-haiku-4-5-20251001";
 const TIMEOUT_MS = 20_000;
 const MAX_PATHS_PER_CALL = 8;
 
-// Within CLAUDE.md's 300-token system-prompt budget. The claim vocabulary is
+// Within the intended 300-token system-prompt budget. The claim vocabulary is
 // stated as an enumeration because that IS the interface — anything outside it
 // is discarded by parseClaims before a verifier ever sees it.
 const SYSTEM_PROMPT = `You look for reasons a reported security finding might NOT be exploitable.

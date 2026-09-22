@@ -60,7 +60,7 @@ export async function checkScanRateLimit(req: NextRequest): Promise<RateLimitRes
   const ipHash = getClientIpHash(req);
   return checkDbRateLimit("scan_logs", ipHash, 60 * 60 * 1000, 1, () =>
     NextResponse.json(
-      { error: "RATE LIMIT EXCEEDED — 1 scan per hour. Upgrade to paid for priority scanning." },
+      { error: "Rate limit exceeded — one scan per hour. Please retry later." },
       {
         status: 429,
         headers: {
@@ -72,25 +72,4 @@ export async function checkScanRateLimit(req: NextRequest): Promise<RateLimitRes
       }
     )
   );
-}
-
-export async function checkCheckoutRateLimit(req: NextRequest): Promise<RateLimitResult> {
-  const ipHash = getClientIpHash(req);
-  const result = await checkDbRateLimit("checkout_attempts", ipHash, 60 * 60 * 1000, 5, () =>
-    NextResponse.json(
-      { error: "Too many checkout attempts. Please try again later." },
-      {
-        status: 429,
-        headers: { "Cache-Control": "no-store", "Retry-After": "3600" },
-      }
-    )
-  );
-
-  if (!result.limited) {
-    // Awaited, not fire-and-forget — same race as scan_logs (see scan/route.ts):
-    // this row gates the next request's count check.
-    await getSupabaseAdmin().from("checkout_attempts").insert({ ip_hash: result.ipHash });
-  }
-
-  return result;
 }

@@ -13,9 +13,8 @@ import { z } from "zod";
 // codebase points at false POSITIVES — don't claim a leak you didn't reproduce,
 // don't say RLS is off when you only saw a permissive policy. This one points
 // the other way, at a false negative that is indistinguishable from good news
-// and unfalsifiable from outside. "Silence means everything is clean" is a
-// promise in CLAUDE.md, and it is only true if silence cannot also mean "our
-// parser fell off".
+// and unfalsifiable from outside. AGENTS.md prohibits reading silence as clean;
+// silence cannot mean "our parser fell off".
 //
 // It has happened here before: two advisor lint slugs in the old allow-list did
 // not exist, silently discarding the `USING (true)` finding the product story is

@@ -1,5 +1,5 @@
 // Supabase RLS policy-logic detector — closes the #1 coverage gap
-// (CLAUDE.md): the external anon-key scan sees "RLS enabled = good" but
+// (AGENTS.md): the external anon-key scan sees "RLS enabled = good" but
 // cannot read policy LOGIC, so a table with RLS on but a broken policy passes as
 // safe. This reads the actual policy definitions (pg_policies, via the read-only
 // Management API) and flags the permissive/bypassable ones — the single most

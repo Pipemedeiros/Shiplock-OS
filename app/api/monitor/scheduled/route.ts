@@ -132,7 +132,7 @@ export async function GET(req: NextRequest) {
   // NULL and are governed by Stripe's own cancel event, so they're untouched.
   // Sweeping here rather than checking an expiry at every is_paid read site
   // keeps the paywall on the single is_paid gate — the paywall has regressed
-  // before when read paths diverged (see CLAUDE.md), so we don't add a second
+  // before when read paths diverged (see AGENTS.md), so we don't add a second
   // source of truth. Cost is up to ~24h of grace past the end date.
   const expired = await expirePrepaidTerms();
 

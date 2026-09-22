@@ -32,7 +32,7 @@ const MAX_ROUNDS = 3;
 const MAX_QUERIES_PER_ROUND = 4;
 const TIMEOUT_MS = 30_000;
 
-// Haiku by default, per the token-efficiency doctrine in CLAUDE.md. The task is
+// Haiku by default to keep optional proof reasoning bounded. The task is
 // generating candidate SQL against a described schema, not deep reasoning, and
 // the guard means a weaker proposal is cheap rather than dangerous.
 const MODEL = "claude-haiku-4-5-20251001";

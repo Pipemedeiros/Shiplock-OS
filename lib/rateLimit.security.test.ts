@@ -1,51 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { NextRequest } from "next/server";
 
-const countMock = vi.fn();
-const insertMock = vi.fn();
-
-vi.mock("@/lib/supabase", () => ({
-  getSupabaseAdmin: () => ({
-    from: () => ({
-      select: () => ({ eq: () => ({ gte: countMock }) }),
-      insert: insertMock,
-    }),
-  }),
-}));
-
-const { checkCheckoutRateLimit, getClientIpHash } = await import("./rateLimit");
+const { getClientIpHash } = await import("./rateLimit");
 
 function req(headers: Record<string, string> = {}) {
-  return new NextRequest("https://shiplock.dev/api/checkout", { headers });
+  return new NextRequest("https://shiplock.dev/api/scan", { headers });
 }
-
-describe("checkCheckoutRateLimit — the limit must actually trigger under a burst, not just be configured", () => {
-  beforeEach(() => {
-    countMock.mockReset();
-    insertMock.mockReset().mockResolvedValue({ error: null });
-  });
-
-  it("allows a request under the 5/hour threshold", async () => {
-    countMock.mockResolvedValue({ count: 4, error: null });
-    const result = await checkCheckoutRateLimit(req());
-    expect(result.limited).toBe(false);
-  });
-
-  it("BLOCKS the 6th request within the window — a burst of 6 must not all succeed", async () => {
-    countMock.mockResolvedValue({ count: 5, error: null });
-    const result = await checkCheckoutRateLimit(req());
-    expect(result.limited).toBe(true);
-    if (result.limited) {
-      expect(result.response.status).toBe(429);
-    }
-  });
-
-  it("does not record a new attempt row when the caller is already over the limit", async () => {
-    countMock.mockResolvedValue({ count: 10, error: null });
-    await checkCheckoutRateLimit(req());
-    expect(insertMock).not.toHaveBeenCalled();
-  });
-});
 
 describe("getClientIpHash — never crashes or produces a predictable/empty hash on a hostile header", () => {
   it("hashes a completely absent IP to a stable non-empty value rather than throwing", () => {

@@ -4,7 +4,7 @@
 //
 // Paywall rule is unchanged and still enforced here, not in the UI: full_issues
 // is only ever read through the service-role client and only ever returned when
-// the CURRENT caller is paid — see lib/scanHistory.ts and CLAUDE.md.
+// the CURRENT caller is paid — see lib/scanHistory.ts and AGENTS.md.
 
 import { redirect } from "next/navigation";
 import { getSupabaseServer } from "@/lib/supabaseServer";

@@ -10,7 +10,6 @@ export default function robots(): MetadataRoute.Robots {
         "/dashboard",
         "/onboarding",
         "/api/",
-        "/design/", // disposable design sandbox — not product pages
         "/dashboard-preview", // investor concept preview, sample data
       ],
     },

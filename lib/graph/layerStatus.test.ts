@@ -41,7 +41,7 @@ describe("describeLayerStatus", () => {
     );
   });
 
-  // Guards CLAUDE.md's "no letter grade anywhere in the product" rule against
+  // Guards the product's "no letter grade" rule against
   // this surface quietly reintroducing a score.
   it("never emits a grade or a score", () => {
     for (const combo of [[], ["code"], ["code", "database"], ["code", "database", "traffic"]]) {

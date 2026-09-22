@@ -368,8 +368,7 @@ export async function persistGraphPaths(
   if (fresh.length > 0) {
     // The ONE LLM call in the monitoring path, and it is gated to fire only on
     // genuinely new correlated findings — never on a routine pass, which keeps
-    // CLAUDE.md's "monitoring never calls Claude" guarantee true for the case it
-    // was written about (a scheduled poll running thousands of times). Batched
+    // routine scheduled polls at zero model calls. Batched
     // into a single call for the whole set: prompt caching does not help across
     // 48h passes, so batching is the lever that does.
     //

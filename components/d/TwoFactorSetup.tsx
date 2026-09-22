@@ -4,7 +4,7 @@
 // SCAFFOLD — build/type-verified against the real SDK, but NOT yet wired into
 // the dashboard: enabling 2FA needs a Better Auth session for the user, and our
 // users authenticate via Supabase. The Supabase->Better Auth identity bridge is
-// the remaining must-be-tested piece (see CLAUDE.md). Rendered only where
+// the remaining must-be-tested piece. Rendered only where
 // deliberately mounted, and clearly labeled beta.
 import { useState } from "react";
 import { authClient } from "@/lib/betterAuthClient";

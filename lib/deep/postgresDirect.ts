@@ -22,7 +22,7 @@ import type { ColumnGrant } from "./grantScan";
 //
 // This is NOT a third connection. It is the same "your database" slot the
 // Supabase OAuth fills, for customers who are not on Supabase. The friction
-// budget (CLAUDE.md) is two connections and stays two.
+// budget for this journey is two connections and stays two.
 //
 // WHAT THIS PATH CANNOT DO, stated so it is never oversold: the Supabase
 // Management API also exposes advisors, auth configuration, storage, Realtime

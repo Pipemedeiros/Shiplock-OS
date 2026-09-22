@@ -1,8 +1,8 @@
 // A21 — PII inventory and the exposure model (PRODUCT-DESIGN.md §13.5).
 //
 // The most useful screen in the product at the buying moment, and the most
-// dangerous one if done carelessly. LEGAL-MEMO.md §2 flags negligent
-// misrepresentation as our highest legal exposure, and a number like this is
+// dangerous one if done carelessly. A misleading exposure estimate is a
+// trust and legal risk, and a number like this is
 // exactly where that bites. So the guardrails are code, not guidance:
 //
 //   1. Never "you will be sued for $X" — it is an exposure estimate from

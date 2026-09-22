@@ -3,7 +3,7 @@ import { sendEmail } from "@/lib/email";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { EMAIL_ALERTS_ENABLED } from "@/lib/access";
 
-const DEDUP_WINDOW_MS = 7 * 24 * 60 * 60 * 1000; // 7 days, per CLAUDE.md
+const DEDUP_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 // Sends one email per new-finding batch, and never re-alerts the same
 // finding id for the same user within 7 days — covers the case where a

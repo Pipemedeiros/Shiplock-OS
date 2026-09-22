@@ -62,10 +62,9 @@ export function isEntitlementColumn(column: string): boolean {
 /**
  * SQL for the grant inventory. A single SELECT, so it passes assertReadOnly.
  *
- * information_schema.column_privileges is the authoritative view, and querying
- * it is precisely what CLAUDE.md tells us to do after any migration — "verify
- * against information_schema.column_privileges after applying, not just that the
- * migration succeeded without error".
+ * information_schema.column_privileges is the authoritative view, and grants
+ * must be checked there after applying a migration, not inferred merely because
+ * that migration succeeded without error.
  */
 export const GRANT_INVENTORY_SQL = `
 select grantee, table_name, column_name, privilege_type

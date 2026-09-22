@@ -1,7 +1,7 @@
 -- 035 — lock down user_profiles column grants
 --
 -- FOUND 2026-07-27 while verifying migrations 033/034 against the live database
--- (exactly the check CLAUDE.md tells you to run: query
+-- (verify the grant boundary by querying
 -- information_schema.column_privileges after applying, not just "the migration
 -- succeeded").
 --

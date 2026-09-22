@@ -4,7 +4,7 @@ import { TENANT_A, TENANT_B } from "./tenantProbe";
 // Proving without Supabase Branching.
 //
 // Branching is Pro-only, and the customer pays for ShipLock and nothing else
-// (CLAUDE.md). So instead of copying THEIR database, we reconstruct the one
+// (AGENTS.md). So instead of copying THEIR database, we reconstruct the one
 // thing under test — a table and the policies governing it — inside a schema on
 // ShipLock's own proving project, seed two synthetic tenants, and ask the same
 // question: signed in as tenant A, can I read tenant B's rows?

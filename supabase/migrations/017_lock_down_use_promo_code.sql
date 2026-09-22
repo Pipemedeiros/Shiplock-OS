@@ -5,7 +5,7 @@
 -- /rest/v1/rpc/use_promo_code, and this was confirmed live during the
 -- 2026-07-01 follow-up audit: anyone holding the public anon key can call it
 -- directly, with zero application-layer guard, since /api/promo (the route
--- meant to gate this) is not built yet (CLAUDE.md: Phase 2).
+-- meant to gate this) was not built at this migration's creation.
 --
 -- Not privilege escalation by itself (it never touches is_paid), but it lets
 -- an unauthenticated caller burn through the finite max_uses on real promo

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { assertReadOnly, buildRowCountSql, quoteIdent } from "./supabaseMgmt";
 
-// The guard that keeps CLAUDE.md's non-negotiable true: ShipLock never writes a
+// The guard that keeps AGENTS.md's non-negotiable true: ShipLock never writes a
 // customer's production database. The Management API query endpoint would
 // happily run a write, so anything that isn't a single read is refused before
 // it leaves us.

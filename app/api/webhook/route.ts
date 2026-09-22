@@ -107,8 +107,8 @@ export async function POST(req: NextRequest) {
         await sendEmail(
           {
             to: email,
-            subject: "ShipLock Pro — access granted",
-            text: "Your ShipLock Pro subscription is active. All fixes are now unlocked, and ShipLock is monitoring your app for changes.",
+            subject: "ShipLock payment recorded",
+            text: "Your existing ShipLock payment was recorded. Billing for new customers is currently unavailable; contact support if you need help with your subscription.",
           },
           "webhook"
         );

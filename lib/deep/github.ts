@@ -195,7 +195,7 @@ export async function queryOsv(deps: Dep[]): Promise<{ dep: Dep; vulns: OsvVuln[
 // ── Write flow (fix PRs) ───────────────────────────────────────────────────
 // Used ONLY to open pull requests for dependency bumps. Never pushes to the
 // default branch and never merges. Requires the App's Contents + Pull requests
-// write permissions (see CLAUDE.md).
+// write permissions (see AGENTS.md).
 
 async function ghWrite(token: string, path: string, method: string, body: unknown) {
   const res = await fetch(`${API}${path}`, {

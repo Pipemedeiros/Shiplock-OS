@@ -9,10 +9,13 @@ deprecation notices.
 
 # ShipLock product and architecture contract
 
-This file is the short, binding product contract. `CLAUDE.md` describes verified
-implementation detail. `docs/MASTER-PLAN-PROGRESS.md` records execution status.
-Current code and executable tests outrank prose when they disagree; fix the
-prose in the same change rather than preserving two stories.
+This is the sole living product, architecture, and agent-work contract for both
+Claude Code and Codex. Before any implementation, read this file completely,
+then `docs/MASTER-PLAN-PROGRESS.md` completely, then inspect the current code and
+tests. After every implemented package, update the master ledger with its exact
+step/item, evidence, and remaining gaps. Do not create a parallel agent guide,
+phase handoff, or alternative product spec. Code and executable tests outrank
+prose when they disagree; correct this file in the same change.
 
 ## Product
 
@@ -41,7 +44,9 @@ Pricing is undecided. Billing is parked while unit costs are measured. Do not
 publish or restore a price, trial, paid tier, Stripe Checkout entry point, or
 margin claim until Felipe approves a cost model based on measured model tokens,
 provider calls, storage, queue execution, support, and target gross margin. The
-old $49/$265/$470 offer and later prototype tiers are superseded.
+old $49/$265/$470 offer and later prototype tiers are superseded. A
+customer-supplied model/free harness is a discussion, not an approved feature
+or claim of zero ShipLock cost.
 
 ## Customer journey
 
@@ -161,7 +166,70 @@ Other detected stacks are inventory unless a tested collector says otherwise.
 The repository contains existing deterministic checks, GitHub onboarding and PR
 checks, provider collectors, the evidence graph, reviewable fix paths, traffic
 observation, MCP routes, and a durable audit queue foundation. Reuse these; do
-not replace them with a greenfield subsystem.
+not replace them with a greenfield subsystem. A file's existence is not proof
+that a production path calls it: trace registration, producer, worker, UI, and
+consumer before claiming a capability. `lib/graph/defender.ts` remains unused;
+the proving ground and native-agent distribution are not launch-proven.
+
+### Source map and actual flow
+
+- `app/(d)/` is the live founder-facing UI. `/onboarding` installs the GitHub
+  App and selects repositories; `/dashboard/{risks,activity,prs,coverage,stack,settings}`
+  reads tenant-scoped state through `lib/dashboard.ts`. `/verified/[token]` is
+  the shareable report. Static prototype routes were removed; build on the real
+  UI, not mock data.
+- `app/api/audit/route.ts` enqueues a `repository_audit`; `lib/jobs/` owns typed
+  leases, heartbeats, checkpoints, fencing, retries, and workers. The API
+  request is not the durable executor. `app/api/monitor/github/route.ts` verifies
+  the raw webhook signature, admits selected-repository audit/source/PR-check
+  work, and must fail for a safe retry if admission fails.
+- `lib/deep/repoArchive.ts` reads a bounded GitHub archive for
+  `lib/agent/audit.ts`; the older `lib/deep/githubRun.ts` uses a smaller bounded
+  per-file path for source monitoring. Truncation is coverage, not a clean scan.
+  `lib/agent/stack.ts` infers providers; `lib/graph/routeInventory.ts`,
+  `callPath.ts`, and `declarations.ts` derive Next.js route facts from executed
+  handler paths. Current route facts are route-wide, not per HTTP method or CFG.
+- `lib/agent/attack.ts` may call a model for hypotheses; `attackGuard.ts`
+  checks class and observed citations, `findings.ts` computes confidence and
+  severity ceilings, and `lib/proving/` alone may earn `proven`. A model skip or
+  malformed response is shown in Coverage and cannot resolve an old finding.
+- `lib/monitoring/{registry,collectors,run,findings,diff}.ts` collects provider
+  evidence through registered adapters. `lib/graph/{repositorySource,
+  databaseSource,repositoryDatabase,graphRun,attackPaths}.ts` admits scoped
+  facts and correlates them. Vercel links and Postgres/Supabase associations
+  require current explicit repository bindings; partial source cannot retire
+  findings. The endpoint scanner's fallback RLS value is unread, not a control.
+- `lib/agent/prCheck.ts` and `diffScan.ts` make deterministic PR verdicts;
+  partial input must not yield green. `app/api/fix/pr/route.ts` and
+  `lib/fixes/prRun.ts` open reviewable branches/PRs only on a customer action.
+  Some PRs contain a fix-request document, not a tested code fix; do not blur
+  those lanes. No machine-authored business authorization policy.
+- `lib/traffic/` and `/api/traffic/*` are optional customer-side metadata
+  observation, not a ShipLock proxy. `mcp/` and `/api/mcp/*` are native-agent
+  surfaces but their distribution and live setup remain unverified. The same
+  backend facts and approval boundary apply to dashboard and MCP.
+- `supabase/migrations/` is the schema/RLS source. 053–066 are local and
+  unapplied. `docs/CORPUS.json`, `scripts/corpus.cjs`, and dated evaluation JSON
+  are reproducibility data, not current accuracy marketing claims.
+
+### Security and quality invariants
+
+Use `lib/access.ts` as the central signed-in access gate; `BILLING_ENABLED=false`
+does not make anonymous source access okay. Supabase admin stays server-only;
+tokens are encrypted (`lib/crypto.ts`) or one-way hashed (`lib/apiTokens.ts`).
+Provider SQL is read-only (`lib/deep/supabaseMgmt.ts`, `postgresDirect.ts`),
+customer-supplied hosts pass `lib/security/ssrfGuard.ts`, and GitHub/Stripe
+webhooks verify signatures and idempotency. Preserve per-request CSP in
+`proxy.ts`. Do not weaken a guard, access boundary, RLS policy, finding
+continuity, or no-merge rule to make a test pass.
+
+Before changing a security fact, identify every consumer and the false-positive
+and false-negative direction; freeze the affected route census; add negative
+fixtures; and rerun the offline corpus where relevant. The historical 54-route
+candidate baseline and 2 true positives of 8 admitted corpus-b criticals are
+dated, narrow evidence, not product-wide precision. Any route/parser/ranking
+change invalidates comparisons unless the population is remeasured. No paid
+model runs without Felipe's approval.
 
 Migrations 053–066 and the current working packages require deployment-grade
 verification before production use. Remaining master work includes connection
@@ -178,10 +246,13 @@ lives only in `docs/MASTER-PLAN-PROGRESS.md`.
 - Never spend money, purchase or activate a subscription, call a paid model/API,
   or deploy billable infrastructure without Felipe's explicit approval. Prefer
   local tests, fixtures, emulators, and mocked providers.
-- Keep changes small and reviewable. Report the master section, step, and item;
-  update `docs/MASTER-PLAN-PROGRESS.md`. A package is not a finished phase.
-- Read `CODEX.md` and the relevant current code before editing. Preserve
-  unrelated working-tree changes and review the diff before every handoff.
+- Make changes reviewable and cohesive. Report the master section, step, and
+  item; update `docs/MASTER-PLAN-PROGRESS.md` after every implementation. A
+  package is not a finished phase. Preserve unrelated working-tree changes.
+- Before editing: read this file and the master ledger fully; run `git status`,
+  inspect relevant code, callers, tests, migrations, and current framework docs.
+  Before handing off: inspect `git diff`, check for stale cross-references and
+  leaked secrets, and report skipped verification honestly.
 - Before a commit, run focused tests and then the proportional full gate:
   `npx vitest run`, `npm run lint`, `npx tsc --noEmit`, and `npm run build`.
   Database changes also require the local SQL suite. Do not commit a failing
@@ -189,11 +260,35 @@ lives only in `docs/MASTER-PLAN-PROGRESS.md`.
 - Do not deploy, apply migrations remotely, alter GitHub/provider settings,
   merge PRs, or push to a remote unless Felipe explicitly requests it.
 
-## Documentation hygiene
+## Skill routing for Claude Code and Codex
 
-Do not create a handoff Markdown file for every substep. Put durable product and
-architecture decisions here, implementation facts in `CLAUDE.md`, dated research
-or measurement under `docs/`, and progress in
-`docs/MASTER-PLAN-PROGRESS.md`. Pricing experiments, prototypes, and superseded
-plans must be clearly marked as historical or removed; they are not alternative
-specifications.
+The checked-in canonical skill text is under `.claude/skills/`; Codex discovers
+thin adapters under `.agents/skills/`. Read the relevant `SKILL.md` completely
+before using it. Do not infer that an installed summary is an executable skill.
+
+- Ponytail (`.claude/skills/ponytail/SKILL.md`): default for scoped code cleanup
+  and changes. Trace the flow first, then delete dead paths rather than adding
+  abstractions; never simplify a safety boundary away.
+- Superpowers (`.claude/skills/using-superpowers/SKILL.md`): use its applicable
+  planning, debugging, and verification discipline. This repo's two-document
+  rule overrides any instruction to create another design/plan Markdown file.
+- GStack-style review (`.claude/skills/shiplock-gstack-review/SKILL.md`): the
+  checked-in, repo-safe review subset works in both agents. Full GStack is a
+  machine-local absolute symlink here, not portable or required; do not run its
+  auto-updates, telemetry, network setup, or `CLAUDE.md` injection. No paid
+  tests or external state changes by default.
+- Ruflo (`.claude/skills/swarm-orchestration/SKILL.md`): optional orchestration
+  only when Felipe explicitly asks for parallel agents and the CLI already
+  exists. Do not `npx`-install packages or add a swarm dependency merely for
+  this repo. The historical `ruvnet__ruflo.md` summary correctly warns that
+  autonomous swarm infrastructure is not a ShipLock product requirement.
+
+## Documentation hygiene and handoff
+
+`AGENTS.md` is stable policy and code orientation; the master ledger is dynamic
+status and the exact next package. Change this file only when product/architecture
+or working rules truly change. Update the master ledger after each implementation
+with what changed, what tests actually ran, what remains unknown, and the next
+reviewable item. Older dated research/evaluation material is evidence, not
+current instructions; do not resurrect its prices or stale status. Do not
+create another README, `CLAUDE.md`, `CODEX.md`, or per-step handoff document.

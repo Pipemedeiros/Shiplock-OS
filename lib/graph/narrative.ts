@@ -10,7 +10,7 @@ import { checkNarrative, type NarrativeProposal } from "./narrativeGuard";
 // severity, or add a fact; narrativeGuard.ts rejects anything that tries, and a
 // rejection falls back to the template attackPaths.ts already wrote.
 //
-// Two cost decisions, both from the model in BUILD-PLAN-V1.md §3:
+// Two historical cost decisions in this optional narrative path:
 //
 //  - ONE call per pass, not one per path. Prompt caching does not help here the
 //    way it first appears to: the cache TTL is an hour and passes are 48 hours
@@ -18,8 +18,7 @@ import { checkNarrative, type NarrativeProposal } from "./narrativeGuard";
 //    the lever that actually works, and it sidesteps the TTL mismatch instead of
 //    fighting it.
 //  - Called only when the diff engine reports a genuinely NEW correlated
-//    finding. Routine passes stay at zero tokens, which preserves the guarantee
-//    in CLAUDE.md that monitoring never calls Claude — that rule exists because
+//    finding. Routine passes stay at zero tokens; that rule exists because
 //    a scheduled background poll running thousands of times should not carry
 //    per-run AI cost, and a narrative for a finding the customer already read is
 //    exactly the kind of spend that buys nothing.
@@ -28,7 +27,7 @@ const MODEL = "claude-haiku-4-5-20251001";
 const TIMEOUT_MS = 20_000;
 const MAX_PATHS_PER_CALL = 6;
 
-// Under CLAUDE.md's 300-token system-prompt budget. The constraints are stated
+// Under the intended 300-token system-prompt budget. The constraints are stated
 // as rules rather than examples on purpose: examples are the expensive way to
 // convey a format, and the guard enforces the rules anyway.
 const SYSTEM_PROMPT = `You explain security findings to a busy technical founder.

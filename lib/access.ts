@@ -23,7 +23,7 @@
 /** Keep false until an approved pricing/billing migration is ready. */
 export const BILLING_ENABLED = false;
 
-/** Email alerts are parked with billing — see MVP scope in MVP-SPEC.md §4. */
+/** Email alerts remain parked until delivery and cost are approved. */
 export const EMAIL_ALERTS_ENABLED = false;
 
 export interface AccessProfile {

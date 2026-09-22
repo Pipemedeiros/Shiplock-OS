@@ -6,7 +6,7 @@ export interface DiffResult {
   unchanged: Finding[];
 }
 
-// Per CLAUDE.md: only newFindings should ever trigger an alert; unchanged
+// Per AGENTS.md: only newFindings should ever trigger an alert; unchanged
 // is always silent. Findings are matched by their stable `id` (see
 // findings.ts), not by array position or object equality.
 export function diffSnapshots(previous: Finding[], current: Finding[]): DiffResult {

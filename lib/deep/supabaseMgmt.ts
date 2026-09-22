@@ -7,7 +7,7 @@
 //
 // THE BOUNDARY. The Management API's query endpoint executes arbitrary SQL,
 // including writes. ShipLock never writes a customer's production database
-// (CLAUDE.md, non-negotiable), so `runReadQuery` refuses to send anything that
+// (AGENTS.md, non-negotiable), so `runReadQuery` refuses to send anything that
 // isn't a single read statement. That guard is defence-in-depth, not the only
 // control — we also simply never call it with anything else — but a guard that
 // lives next to the transport is the one that survives a future refactor.

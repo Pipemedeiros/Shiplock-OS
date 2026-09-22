@@ -6,7 +6,7 @@
 -- Railway, Render, RDS, Fly or their own hardware fill the same "your database"
 -- slot the Supabase OAuth fills.
 --
--- This is NOT a third connection. The friction budget stays two (CLAUDE.md).
+-- This is NOT a third connection. The historical onboarding friction budget stayed two.
 --
 -- The credential is stored AES-256-GCM-encrypted by lib/crypto.ts, the same way
 -- monitoring anon keys are, and is never written to logs. It is deliberately a
@@ -31,7 +31,7 @@ comment on column public.user_profiles.postgres_display is
 
 -- user_profiles already denies all column access to anon/authenticated
 -- (migration 041 locked public grants). These columns inherit that, but the
--- paywall/grant regression noted in CLAUDE.md happened on exactly this table
+-- historical paywall/grant regression happened on exactly this table
 -- before, so assert it rather than assume it.
 revoke all (postgres_dsn_encrypted, postgres_display, postgres_connected_at, postgres_last_scan_at)
   on public.user_profiles from anon, authenticated;

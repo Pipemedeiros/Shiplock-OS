@@ -63,7 +63,7 @@ const AREAS = [
       // diffScan.ts: `if (!route.identityReadable) continue; if (!route.ownershipReadable) continue;`
       "A route whose gate or scope we could not read never blocks a merge. The check fails closed toward passing, because a wrong block stops your pull request rather than producing a report you can argue with.",
     ],
-    // Whether GitHub actually delivers the webhook is an external fact (CLAUDE.md).
+    // Whether GitHub actually delivers the webhook is an external fact (AGENTS.md).
     limit:
       "The check depends on the GitHub App being installed on the repository and its webhook reaching us; we cannot see that configuration from your code. Endpoints that are public by design, such as an SDK ingest route, read as anonymous and unscoped, because that is what they are; whether such a route should block a merge is a policy we have not yet let you set.",
   },

@@ -5,8 +5,7 @@ import type { Severity } from "@/lib/types";
 // a JWKS endpoint; a token signed that way can't be forged without the private
 // key. Older projects use the legacy shared HS256 secret — forgeable if that
 // secret ever leaks. This is surfaced as guidance in the dashboard guardrail
-// panel, NOT wedged into lib/scanner.ts's 16 checks (CLAUDE.md: don't modify
-// the scanner without instruction).
+// panel, NOT wedged into lib/scanner.ts's 16 checks.
 
 export interface JwtSigningPosture {
   severity: Severity; // INFO = asymmetric/safe, WARNING = legacy/forgeable-if-secret-leaks, INFO+unknown on error

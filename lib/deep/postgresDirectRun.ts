@@ -22,8 +22,8 @@ import type { GithubFinding } from "./githubScan";
 //
 // THE THING THAT MAKES THIS ACTUALLY WORK: it is registered as a monitoring
 // collector (lib/monitoring/collectors.ts) rather than being reachable only from
-// a settings button. CLAUDE.md records three separate instances of a collector
-// that existed but was never called; the fix each time was scheduling, not code.
+// a settings button. This repository has had collectors that existed but were
+// never called; the fix each time was scheduling, not more collector code.
 // Do not remove it from the registry and leave the route.
 
 export interface DirectScanOutcome {

@@ -7,7 +7,7 @@
 -- is the single most common real Supabase critical in AI-built apps, and today
 -- we pass it as safe.
 --
--- Scope boundary, non-negotiable (CLAUDE.md): this connection is READ-ONLY.
+-- Scope boundary, non-negotiable (AGENTS.md): this connection is READ-ONLY.
 -- ShipLock never writes a customer's production database. The Management API's
 -- query endpoint can execute arbitrary SQL, so lib/deep/supabaseMgmt.ts guards
 -- every statement and refuses anything that isn't a read. DB/RLS fixes stay

@@ -1,6 +1,6 @@
 -- Phase 2 (started 2026-07-05): opt-in GitHub deep access (A03 dependency/CVE
--- scanning). Pro-only, additive. Supabase Management API piece deferred (see
--- CLAUDE.md Phase 2). Everything here is new — no existing column/table/policy
+-- scanning). Historically Pro-only, additive. Supabase Management API was
+-- deferred at this migration's creation. Everything here is new — no existing column/table/policy
 -- is modified.
 
 -- Per-user GitHub App installation. installation_id is not itself a secret

@@ -10,14 +10,13 @@ import type { PgPolicy } from "./policyTypes";
 //
 //   branch   A Supabase preview branch of the customer's own project. Highest
 //            fidelity — real schema, real policies, real extensions — and
-//            Pro-only, because Supabase gates Branching behind it.
+//            availability depends on the customer's provider plan.
 //   replica  The table and its policies rebuilt in a throwaway schema on
-//            ShipLock's own project. Works on every plan, costs the customer
-//            nothing, and is lower fidelity: it can only reconstruct policies
+//            ShipLock's own project when configured. Lower fidelity: it can only reconstruct policies
 //            that depend on the row and the caller.
 //
-// The customer pays for ShipLock and nothing else (CLAUDE.md), so `replica` is
-// the path that must always work and `branch` is the upgrade. Expressing both as
+// The customer should not need a provider upgrade for a core claim, so `replica`
+// is the preferred proof path when configured. Expressing both as
 // one interface is what keeps that from turning into two copies of the probe
 // logic that drift apart.
 //

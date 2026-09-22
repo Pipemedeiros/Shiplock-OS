@@ -156,7 +156,7 @@ describe("repo namespace stripping — the rules must match REAL ids", () => {
     expect(l.editable).toBe(false);
   });
 
-  // CLAUDE.md: injection/XSS/crypto logic is never machine-authored.
+  // AGENTS.md: injection/XSS/crypto logic is never machine-authored.
   it("routes NAMESPACED logic findings to a DRAFT pr, as the doctrine requires", () => {
     for (const id of [
       "acme/app::github:injection:sql_injection:a.ts",

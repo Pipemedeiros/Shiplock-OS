@@ -13,7 +13,7 @@ import {
 // App's public install page; GitHub sends the user to our callback with an
 // installation_id once they pick which repos to grant. Repository collection
 // is read-only; separately approved fix actions need branch/PR write scope. Returns 400
-// if the App isn't registered yet (GITHUB_APP_SLUG unset — see CLAUDE.md).
+// if the App isn't registered yet (GITHUB_APP_SLUG unset — see AGENTS.md).
 export async function GET() {
   const base = env.NEXT_PUBLIC_APP_URL;
   const pro = await requireProUser();

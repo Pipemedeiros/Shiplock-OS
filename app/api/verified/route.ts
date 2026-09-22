@@ -4,7 +4,7 @@ import { checkBadgeInstalled } from "@/lib/verified/badgeCheck";
 import { hasProductAccess } from "@/lib/access";
 
 // Owner control for the public "ShipLock Verified" report. Bearer auth (mirrors
-// /api/portal), paid-only. Actions: enable (mint token + turn on), disable (turn
+// /api/portal). Actions: enable (mint token + turn on), disable (turn
 // off, keep token), rotate (mint a fresh token — invalidates the old link).
 // Generic errors; never leaks DB internals.
 

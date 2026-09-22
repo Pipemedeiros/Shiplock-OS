@@ -2,7 +2,7 @@ import type { PgPolicy } from "@/lib/deep/policyScan";
 import { ident, buildReplicaPlan } from "./replica";
 import { TENANT_A, TENANT_B } from "./tenantProbe";
 
-// Fix pre-validation on the proving ground (CLAUDE.md autonomy doctrine).
+// Fix pre-validation on the proving ground (AGENTS.md autonomy doctrine).
 //
 //   "apply the candidate fix to the branch, re-run the attack (must now fail),
 //    re-run the app's known query patterns (must still succeed) — and only then
