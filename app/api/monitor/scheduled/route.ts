@@ -5,14 +5,18 @@ import { pruneOldTraffic } from "@/lib/traffic/prune";
 import { runPolicyScan } from "@/lib/deep/supabaseMgmtRun";
 import { saveFacts } from "@/lib/graph/graphRun";
 import { collectTrafficFacts } from "@/lib/traffic/graphFacts";
-import { runZeroDayCheck } from "@/lib/runtime/zeroDay";
 import { sendWeeklyDigest } from "@/lib/monitoring/digest";
 import { withPaidFilter, BILLING_ENABLED } from "@/lib/access";
-import { admitDueRepositoryAudits, admitDueRepositorySourceScans } from "@/lib/jobs/scheduler";
+import {
+  admitDueRepositoryAudits,
+  admitDueRepositoryDependencyChecks,
+  admitDueRepositorySourceScans,
+} from "@/lib/jobs/scheduler";
 import { enqueueJob } from "@/lib/jobs/queue";
 
-// This pass iterates every paid user and makes several network calls each
-// (policy scan, schema inventory, auth log, dependency re-check, reasoner). The
+// This legacy pass iterates every paid user and makes several network calls each
+// (policy scan, schema inventory, auth log, traffic collection). Repository
+// source, dependency, audit, and graph work is admitted into the durable queue. The
 // platform default would cut it off partway through, leaving later users
 // silently unprocessed. 60s is the Hobby ceiling. Work is per-user try/catch, so
 // a timeout costs the remaining users this run, not the whole pass.
@@ -35,19 +39,21 @@ export async function GET(req: NextRequest) {
   const admin = getSupabaseAdmin();
   const cutoff = new Date(Date.now() - FULL_SCAN_INTERVAL_MS).toISOString();
 
-  // Admit full repository audits first, before this legacy route performs any
+  // Admit durable repository work first, before this legacy route performs any
   // notification-bearing or unfenced side effect. A scheduler retry is safe:
   // migration 062 deduplicates by repository and UTC day.
   let auditAdmission;
   let sourceAdmission;
+  let dependencyAdmission;
   try {
     const now = new Date();
-    [auditAdmission, sourceAdmission] = await Promise.all([
+    [auditAdmission, sourceAdmission, dependencyAdmission] = await Promise.all([
       admitDueRepositoryAudits(now, 1_000),
       admitDueRepositorySourceScans(now, 1_000),
+      admitDueRepositoryDependencyChecks(now, 1_000),
     ]);
   } catch {
-    console.error("[monitor/scheduled] audit admission failed");
+    console.error("[monitor/scheduled] durable work admission failed");
     return NextResponse.json({ error: "Scheduled work could not be queued." }, { status: 503 });
   }
 
@@ -130,9 +136,10 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Dependency and traffic observations run before graph admission. The graph
-  // itself is a leased job: a cron timeout cannot leave a half-written finding
-  // set, and the scheduled request never performs the correlation write.
+  // Traffic observations run before graph admission. Dependency rechecks were
+  // admitted above as separate leased jobs. The graph itself is also leased: a
+  // cron timeout cannot leave a half-written finding set, and this request never
+  // performs the correlation write.
   const { data: paidUsers } = await withPaidFilter(admin.from("user_profiles").select("id"));
 
   let graphJobsAdmitted = 0;
@@ -144,19 +151,6 @@ export async function GET(req: NextRequest) {
       // their own schedule: they are the one input that changes by the minute,
       // and a stale "under attack" signal is worse than none — it would keep a
       // path marked urgent long after the attack stopped.
-      // F1: re-check known dependencies against newly-published advisories.
-      // Runs on the schedule rather than on push, because the dangerous case is
-      // the customer who has not shipped in a month — their code did not change,
-      // the world's knowledge about it did.
-      try {
-        await runZeroDayCheck(profile.id);
-      } catch (err) {
-        console.error(
-          `[monitor/scheduled] zero-day check failed for user ${profile.id}:`,
-          err instanceof Error ? err.message : err
-        );
-      }
-
       const hotPaths = await collectTrafficFacts(profile.id);
       if (hotPaths.length > 0) await saveFacts(profile.id, "traffic", { hotPaths });
 
@@ -230,6 +224,9 @@ export async function GET(req: NextRequest) {
     sourceJobsAdmitted: sourceAdmission.admitted,
     sourceAdmissionsFailed: sourceAdmission.failed,
     sourceAdmissionLimited: sourceAdmission.limited,
+    dependencyJobsAdmitted: dependencyAdmission.admitted,
+    dependencyAdmissionsFailed: dependencyAdmission.failed,
+    dependencyAdmissionLimited: dependencyAdmission.limited,
     graphJobsAdmitted,
     graphAdmissionsFailed,
     digestsSent,

@@ -24,6 +24,7 @@ const snapshot = {
   liveFiles: ["app/page.tsx", "lib/shared.ts"], routes: [], dependencies: [],
 };
 const now = Date.parse("2026-09-16T11:00:00Z");
+const lastSourceScanAt = "2026-09-16T10:05:00Z";
 const finding = (repo: string, path = "lib/shared.ts") => `${repo}::github:credential:example:${path}`;
 const route = {
   path: "/api/invoices", file: "app/api/invoices/route.ts", methods: ["GET"], tables: ["invoices"],
@@ -43,8 +44,8 @@ beforeEach(() => {
     github_installation_id: 42, github_connected_at: "2026-09-16T09:00:00Z",
   }, error: null });
   reads.repositories.mockReset().mockResolvedValue({ data: [
-    { id: "repo-one", full_name: "Acme/One", github_repo_id: null, default_branch: "main" },
-    { id: "repo-two", full_name: "acme/two", github_repo_id: null, default_branch: "main" },
+    { id: "repo-one", full_name: "Acme/One", github_repo_id: null, default_branch: "main", last_source_scan_at: lastSourceScanAt },
+    { id: "repo-two", full_name: "acme/two", github_repo_id: null, default_branch: "main", last_source_scan_at: lastSourceScanAt },
   ], error: null });
   reads.graph_facts.mockReset().mockResolvedValue({ data: { facts: { repositories: [snapshot] } }, error: null });
 });
@@ -59,6 +60,8 @@ describe("Step 2: repository-scoped dependency admission", () => {
       ] } } });
       const result = await loadRepositoryDependencies("u");
       expect(result.map((item) => [item.repositoryId, item.dependencies[0].version])).toEqual([["repo-one", "1"], ["repo-two", "2"]]);
+      expect(result[0].repositoryFullName).toBe("Acme/One");
+      expect(result.every((item) => item.sourceRevision === snapshot.recordedAt)).toBe(true);
     } finally { clock.mockRestore(); }
   });
   it.each([undefined, null, [{ name: "hono", version: 1 }], [{ name: "hono", version: "1" }, { name: "hono", version: "2" }]])(
@@ -114,8 +117,8 @@ describe("Step 2C-3-B: repository-scoped graph source", () => {
 
   it("refuses ambiguous selected repository IDs even when full names differ", async () => {
     reads.repositories.mockResolvedValue({ data: [
-      { id: "repo-one", full_name: "acme/one", github_repo_id: null, default_branch: "main" },
-      { id: "repo-one", full_name: "acme/two", github_repo_id: null, default_branch: "main" },
+      { id: "repo-one", full_name: "acme/one", github_repo_id: null, default_branch: "main", last_source_scan_at: lastSourceScanAt },
+      { id: "repo-one", full_name: "acme/two", github_repo_id: null, default_branch: "main", last_source_scan_at: lastSourceScanAt },
     ], error: null });
     expect((await scoped("repo-one")).sourceCoverage).toBe("unknown");
   });
@@ -189,6 +192,15 @@ describe("Step 2C-3-A: selected-repository source admission", () => {
     expect(assessReachability(finding("acme/one"), await loadRepositoryReachability("u", now)).state).toBe("unknown");
   });
 
+  it("keeps an invalidated source snapshot unknown until collection refreshes it", async () => {
+    reads.repositories.mockResolvedValue({ data: [{
+      id: "repo-one", full_name: "acme/one", github_repo_id: null,
+      default_branch: "main", last_source_scan_at: null,
+    }], error: null });
+    expect(await loadRepositoryDependencies("u")).toEqual([]);
+    expect(assessReachability(finding("acme/one"), await loadRepositoryReachability("u", now)).state).toBe("unknown");
+  });
+
   it("rejects duplicate snapshot identities instead of picking the last writer", async () => {
     reads.graph_facts.mockResolvedValue({ data: { facts: { repositories: [snapshot, { ...snapshot, repositoryFullName: "Acme/One" }] } }, error: null });
     expect(assessReachability(finding("acme/one"), await loadRepositoryReachability("u", now)).state).toBe("unknown");
@@ -196,7 +208,7 @@ describe("Step 2C-3-A: selected-repository source admission", () => {
 
   it("rejects a snapshot from a different GitHub repository identity", async () => {
     reads.repositories.mockResolvedValue({ data: [
-      { id: "repo-one", full_name: "acme/one", github_repo_id: "101", default_branch: "main" },
+      { id: "repo-one", full_name: "acme/one", github_repo_id: "101", default_branch: "main", last_source_scan_at: lastSourceScanAt },
     ], error: null });
     reads.graph_facts.mockResolvedValue({ data: { facts: { repositories: [{
       ...snapshot,
@@ -210,8 +222,8 @@ describe("Step 2C-3-A: selected-repository source admission", () => {
 
   it("rejects ambiguous selected identities", async () => {
     reads.repositories.mockResolvedValue({ data: [
-      { id: "one", full_name: "acme/one", github_repo_id: null, default_branch: "main" },
-      { id: "two", full_name: "Acme/One", github_repo_id: null, default_branch: "main" },
+      { id: "one", full_name: "acme/one", github_repo_id: null, default_branch: "main", last_source_scan_at: lastSourceScanAt },
+      { id: "two", full_name: "Acme/One", github_repo_id: null, default_branch: "main", last_source_scan_at: lastSourceScanAt },
     ], error: null });
     expect(assessReachability(finding("acme/one"), await loadRepositoryReachability("u", now)).state).toBe("unknown");
   });

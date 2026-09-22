@@ -23,7 +23,7 @@ import { PermanentJobError, type ClaimedJob } from "./queue";
 const job: ClaimedJob = {
   id:"11111111-1111-4111-8111-111111111111", user_id:"22222222-2222-4222-8222-222222222222",
   repository_id:"33333333-3333-4333-8333-333333333333", audit_run_id:null, kind:"pr-check",
-  status:"running",attempts:1,lease_token:"55555555-5555-4555-8555-555555555555",
+  deduplication_key:"pr-check:test",status:"running",attempts:1,lease_token:"55555555-5555-4555-8555-555555555555",
   lease_until:"2099-01-01T00:00:00Z",checkpoint:0,
 };
 

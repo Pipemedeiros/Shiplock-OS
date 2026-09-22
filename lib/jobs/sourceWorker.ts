@@ -90,23 +90,26 @@ export async function executeSourceJob(job: ClaimedJob): Promise<void> {
   });
 }
 
-/** A graph job is a separate retry/fencing domain. Its key binds the follow-up
- * to this exact source attempt without placing source or provider data in jobs. */
-export async function enqueueGraphAfterSource(job: ClaimedJob): Promise<void> {
+/** Downstream jobs are separate retry/fencing domains. Keys bind manual and
+ * webhook follow-ups to this source attempt; scheduled dependency work shares
+ * the repository/day key so concurrent schedulers remain idempotent. */
+export async function enqueueFollowUpsAfterSource(job: ClaimedJob): Promise<void> {
   if (job.kind !== "source" || !job.repository_id || job.audit_run_id) {
-    throw new PermanentJobError("Invalid source graph context");
+    throw new PermanentJobError("Invalid source follow-up context");
   }
-  await enqueueJob(
-    job.user_id,
-    job.repository_id,
-    "graph",
-    `graph-after-source:${job.id}`,
+  const scheduled = /^scheduled-source:([0-9a-f-]{36}):(\d{4}-\d{2}-\d{2})$/i.exec(
+    job.deduplication_key,
   );
+  const dependencyKey = scheduled?.[1]?.toLowerCase() === job.repository_id.toLowerCase()
+    ? `scheduled-dependency:${job.repository_id}:${scheduled[2]}`
+    : `dependency-after-source:${job.id}`;
+  await enqueueJob(job.user_id, job.repository_id, "dependency", dependencyKey);
+  await enqueueJob(job.user_id, job.repository_id, "graph", `graph-after-source:${job.id}`);
 }
 
 export async function runNextSourceJob(): Promise<boolean> {
   const job = await claimJob("source");
   if (!job) return false;
-  await executeClaimedJob(job, [executeSourceJob, enqueueGraphAfterSource]);
+  await executeClaimedJob(job, [executeSourceJob, enqueueFollowUpsAfterSource]);
   return true;
 }

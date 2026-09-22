@@ -44,3 +44,18 @@ export async function admitDueRepositorySourceScans(
   if (error) throw new Error("Scheduled source work could not be queued");
   return admission.parse(data);
 }
+
+export async function admitDueRepositoryDependencyChecks(
+  now = new Date(),
+  limit = 1_000,
+): Promise<AuditAdmission> {
+  if (!Number.isInteger(limit) || limit < 1 || limit > 5_000 || !Number.isFinite(now.getTime())) {
+    throw new Error("Invalid dependency admission window");
+  }
+  const { data, error } = await getSupabaseAdmin().rpc(
+    "enqueue_due_repository_dependencies",
+    { p_day: now.toISOString().slice(0, 10), p_limit: limit },
+  );
+  if (error) throw new Error("Scheduled dependency work could not be queued");
+  return admission.parse(data);
+}

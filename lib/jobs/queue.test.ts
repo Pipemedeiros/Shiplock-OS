@@ -4,7 +4,7 @@ vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ rpc }) }));
 import { enqueueAuditJob, enqueueJob, enqueuePullRequestCheck, claimJob, executeClaimedJob, withLeaseHeartbeat, type ClaimedJob } from "./queue";
 const id = "11111111-1111-4111-8111-111111111111";
 const job: ClaimedJob = { id, user_id: id, repository_id: id, kind: "audit", status: "running", attempts: 1,
-  audit_run_id: "33333333-3333-4333-8333-333333333333",
+  audit_run_id: "33333333-3333-4333-8333-333333333333", deduplication_key: "audit:test",
   lease_token: "22222222-2222-4222-8222-222222222222", lease_until: "2099-01-01T00:00:00Z", checkpoint: 0 };
 beforeEach(() => { rpc.mockReset().mockResolvedValue({ data: true, error: null }); });
 it("queues only bounded identity fields and requires a persisted receipt", async () => {

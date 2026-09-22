@@ -2,7 +2,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 
 const rpc = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ rpc }) }));
-import { admitDueRepositoryAudits,admitDueRepositorySourceScans } from "./scheduler";
+import { admitDueRepositoryAudits,admitDueRepositoryDependencyChecks,admitDueRepositorySourceScans } from "./scheduler";
 
 beforeEach(() => rpc.mockReset().mockResolvedValue({
   data: { eligible: 2, admitted: 2, failed: 0, limited: false }, error: null,
@@ -24,6 +24,13 @@ it("admits bounded source work with the same freshness window",async()=>{
   await expect(admitDueRepositorySourceScans(new Date("2026-09-22T01:00:00Z"),500)).resolves.toMatchObject({admitted:2});
   expect(rpc).toHaveBeenCalledWith("enqueue_due_repository_sources",{
     p_cutoff:"2026-09-20T01:00:00.000Z",p_day:"2026-09-22",p_limit:500,
+  });
+});
+
+it("admits bounded daily dependency rechecks",async()=>{
+  await expect(admitDueRepositoryDependencyChecks(new Date("2026-09-22T01:00:00Z"),250)).resolves.toMatchObject({admitted:2});
+  expect(rpc).toHaveBeenCalledWith("enqueue_due_repository_dependencies",{
+    p_day:"2026-09-22",p_limit:250,
   });
 });
 

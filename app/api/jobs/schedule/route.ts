@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { admitDueRepositoryAudits, admitDueRepositorySourceScans } from "@/lib/jobs/scheduler";
+import {
+  admitDueRepositoryAudits,
+  admitDueRepositoryDependencyChecks,
+  admitDueRepositorySourceScans,
+} from "@/lib/jobs/scheduler";
 import { isAuthorizedWorkerRequest } from "@/lib/jobs/workerAuth";
 
 export const maxDuration = 30;
@@ -12,14 +16,15 @@ export async function POST(request: Request) {
   }
   try {
     const now = new Date();
-    const [audits, sources] = await Promise.all([
+    const [audits, sources, dependencies] = await Promise.all([
       admitDueRepositoryAudits(now, 1_000),
       admitDueRepositorySourceScans(now, 1_000),
+      admitDueRepositoryDependencyChecks(now, 1_000),
     ]);
     return NextResponse.json({
-      admitted: audits.admitted + sources.admitted,
-      failed: audits.failed + sources.failed,
-      more: audits.limited || sources.limited,
+      admitted: audits.admitted + sources.admitted + dependencies.admitted,
+      failed: audits.failed + sources.failed + dependencies.failed,
+      more: audits.limited || sources.limited || dependencies.limited,
     });
   } catch {
     console.error("[jobs/schedule] admission failed");

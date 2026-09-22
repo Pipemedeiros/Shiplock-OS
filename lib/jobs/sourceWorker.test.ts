@@ -10,9 +10,9 @@ vi.mock("@/lib/supabase",()=>({getSupabaseAdmin:()=>({from:(table:keyof typeof s
 vi.mock("@/lib/deep/github",()=>({getInstallationToken:state.token,listRepos:state.repos}));
 vi.mock("@/lib/deep/githubRun",()=>({collectRepositorySource:state.collect}));
 vi.mock("./queue",()=>{class PermanentJobError extends Error{} return {PermanentJobError,claimJob:state.claim,enqueueJob:state.enqueue,executeClaimedJob:state.execute,withLeaseHeartbeat:(_job:unknown,work:()=>Promise<unknown>)=>work(),JobKind:z.enum(["audit","source","monitor","dependency","graph","pr-check"])};});
-import {enqueueGraphAfterSource,executeSourceJob,runNextSourceJob} from "./sourceWorker";
+import {enqueueFollowUpsAfterSource,executeSourceJob,runNextSourceJob} from "./sourceWorker";
 import {PermanentJobError,type ClaimedJob} from "./queue";
-const job:ClaimedJob={id:"11111111-1111-4111-8111-111111111111",user_id:"22222222-2222-4222-8222-222222222222",repository_id:"33333333-3333-4333-8333-333333333333",audit_run_id:null,kind:"source",status:"running",attempts:1,lease_token:"55555555-5555-4555-8555-555555555555",lease_until:"2099-01-01T00:00:00Z",checkpoint:0};
+const job:ClaimedJob={id:"11111111-1111-4111-8111-111111111111",user_id:"22222222-2222-4222-8222-222222222222",repository_id:"33333333-3333-4333-8333-333333333333",audit_run_id:null,deduplication_key:"manual-source:test",kind:"source",status:"running",attempts:1,lease_token:"55555555-5555-4555-8555-555555555555",lease_until:"2099-01-01T00:00:00Z",checkpoint:0};
 
 beforeEach(()=>{
   vi.clearAllMocks();
@@ -48,9 +48,16 @@ it("retries provider and persistence failures",async()=>{
   await expect(executeSourceJob(job)).rejects.toThrow("could not be saved");
 });
 
-it("chains a repository-scoped graph job only after source persistence",async()=>{
-  await enqueueGraphAfterSource(job);
-  expect(state.enqueue).toHaveBeenCalledWith(job.user_id,job.repository_id,"graph",`graph-after-source:${job.id}`);
+it("chains repository-scoped dependency and graph jobs only after source persistence",async()=>{
+  await enqueueFollowUpsAfterSource(job);
+  expect(state.enqueue).toHaveBeenNthCalledWith(1,job.user_id,job.repository_id,"dependency",`dependency-after-source:${job.id}`);
+  expect(state.enqueue).toHaveBeenNthCalledWith(2,job.user_id,job.repository_id,"graph",`graph-after-source:${job.id}`);
+});
+
+it("deduplicates a scheduled source follow-up with the daily dependency admission",async()=>{
+  const scheduled={...job,deduplication_key:`scheduled-source:${job.repository_id}:2026-09-22`};
+  await enqueueFollowUpsAfterSource(scheduled);
+  expect(state.enqueue).toHaveBeenNthCalledWith(1,job.user_id,job.repository_id,"dependency",`scheduled-dependency:${job.repository_id}:2026-09-22`);
 });
 
 it("claims at most one source job",async()=>{
@@ -58,5 +65,5 @@ it("claims at most one source job",async()=>{
   expect(await runNextSourceJob()).toBe(false);
   state.claim.mockResolvedValueOnce(job);state.execute.mockResolvedValue(undefined);
   expect(await runNextSourceJob()).toBe(true);
-  expect(state.execute).toHaveBeenCalledWith(job,[executeSourceJob,enqueueGraphAfterSource]);
+  expect(state.execute).toHaveBeenCalledWith(job,[executeSourceJob,enqueueFollowUpsAfterSource]);
 });

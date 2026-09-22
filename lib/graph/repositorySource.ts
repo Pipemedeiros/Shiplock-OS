@@ -13,6 +13,7 @@ const selectedSchema = z.array(z.object({
   full_name: repositoryName,
   github_repo_id: installationId.nullable(),
   default_branch: z.string().min(1),
+  last_source_scan_at: z.string().nullable(),
 }));
 const pathSchema = z.string().min(1).max(1024).refine((value) =>
   !value.startsWith("/") && !/[\x00-\x1f]/.test(value) && !value.split("/").includes(".."));
@@ -52,7 +53,7 @@ export async function loadSelectedRepositorySources(userId: string, now = Date.n
     const admin = getSupabaseAdmin();
     const [profileRead, selectedRead, sourceRead] = await Promise.all([
       admin.from("user_profiles").select("github_installation_id, github_connected_at").eq("id", userId).maybeSingle(),
-      admin.from("repositories").select("id, full_name, github_repo_id, default_branch").eq("user_id", userId).eq("selected", true),
+      admin.from("repositories").select("id, full_name, github_repo_id, default_branch, last_source_scan_at").eq("user_id", userId).eq("selected", true),
       admin.from("graph_facts").select("facts").eq("user_id", userId).eq("collector", "source").maybeSingle(),
     ]);
     if (profileRead.error || selectedRead.error || sourceRead.error) throw new Error("Scoped source read unavailable");
@@ -89,12 +90,16 @@ export async function loadSelectedRepositorySources(userId: string, now = Date.n
       const name = snapshot.repositoryFullName.toLowerCase();
       const repository = selectedByName.get(name);
       const recordedAt = timestamp(snapshot.recordedAt);
+      const lastSourceScanAt = timestamp(repository?.last_source_scan_at ?? "");
       if (!repository || ambiguous.has(name) || idCounts.get(repository.id) !== 1 || snapshotNames.get(name) !== 1 ||
           (snapshot.repositoryId !== undefined && snapshot.repositoryId !== repository.id) ||
           (repository.github_repo_id !== null && snapshot.providerRepositoryId !== repository.github_repo_id) ||
           snapshot.installationId !== profile.data.github_installation_id || snapshot.ref !== repository.default_branch ||
-          !Number.isFinite(recordedAt) || recordedAt < connectedAt || recordedAt > now) continue;
-      result.set(repository.id, { repositoryFullName: name, snapshot });
+          !Number.isFinite(recordedAt) || recordedAt < connectedAt || recordedAt > now ||
+          !Number.isFinite(lastSourceScanAt) || lastSourceScanAt < recordedAt || lastSourceScanAt > now) continue;
+      // Compare GitHub repository identities case-insensitively, but preserve
+      // the selected provider spelling for finding IDs and SQL fencing.
+      result.set(repository.id, { repositoryFullName: repository.full_name, snapshot });
     }
   } catch {
     // No raw database error, snapshot, identity or credential enters logs.
@@ -106,7 +111,7 @@ export async function loadSelectedRepositorySources(userId: string, now = Date.n
 export async function loadRepositoryReachability(userId: string, now = Date.now()): Promise<ReachabilityIndex> {
   const repositoryIndices = new Map<string, ReachabilityIndex>();
   for (const { repositoryFullName, snapshot } of (await loadSelectedRepositorySources(userId, now)).values()) {
-    repositoryIndices.set(repositoryFullName, {
+    repositoryIndices.set(repositoryFullName.toLowerCase(), {
       liveFiles: new Set(snapshot.liveFiles), hasEntryPoints: snapshot.hasEntryPoints,
       exposedTables: new Set(), coverage: "partial",
     });
@@ -124,8 +129,15 @@ export async function loadRepositoryDependencies(userId: string) {
   const inventories = [];
   for (const [repositoryId, source] of await loadSelectedRepositorySources(userId)) {
     const dependencies = dependenciesSchema.safeParse(source.snapshot.dependencies);
-    if (dependencies.success) inventories.push({ repositoryId, repositoryFullName: source.repositoryFullName,
-      dependencies: dependencies.data, completeness: "partial" as const });
+    if (dependencies.success) {
+      inventories.push({
+        repositoryId,
+        repositoryFullName: source.repositoryFullName,
+        sourceRevision: source.snapshot.recordedAt,
+        dependencies: dependencies.data,
+        completeness: "partial" as const,
+      });
+    }
   }
   return inventories;
 }

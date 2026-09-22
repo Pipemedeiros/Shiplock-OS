@@ -3,10 +3,10 @@ import { NextRequest } from "next/server";
 
 const admitAuditsMock = vi.fn();
 const admitSourcesMock = vi.fn();
+const admitDependenciesMock = vi.fn();
 const runGraphReasonerMock = vi.fn();
 const runMonitoringPassMock = vi.fn();
 const runPolicyScanMock = vi.fn();
-const runZeroDayCheckMock = vi.fn();
 const collectTrafficFactsMock = vi.fn();
 const saveFactsMock = vi.fn();
 const sendWeeklyDigestMock = vi.fn();
@@ -18,6 +18,7 @@ let tableRows: Record<string, unknown[]> = {};
 vi.mock("@/lib/jobs/scheduler", () => ({
   admitDueRepositoryAudits: admitAuditsMock,
   admitDueRepositorySourceScans: admitSourcesMock,
+  admitDueRepositoryDependencyChecks: admitDependenciesMock,
 }));
 vi.mock("@/lib/jobs/queue", () => ({ enqueueJob: enqueueJobMock }));
 vi.mock("@/lib/monitoring", () => ({ runMonitoringPass: runMonitoringPassMock }));
@@ -28,7 +29,6 @@ vi.mock("@/lib/graph/graphRun", () => ({
   saveFacts: saveFactsMock,
 }));
 vi.mock("@/lib/traffic/graphFacts", () => ({ collectTrafficFacts: collectTrafficFactsMock }));
-vi.mock("@/lib/runtime/zeroDay", () => ({ runZeroDayCheck: runZeroDayCheckMock }));
 vi.mock("@/lib/monitoring/digest", () => ({ sendWeeklyDigest: sendWeeklyDigestMock }));
 
 vi.mock("@/lib/supabase", () => ({
@@ -73,10 +73,10 @@ describe("GET /api/monitor/scheduled — durable source admission", () => {
     tableRows = {};
     admitAuditsMock.mockResolvedValue({ eligible: 3, admitted: 2, failed: 1, limited: false });
     admitSourcesMock.mockResolvedValue({ eligible: 4, admitted: 4, failed: 0, limited: true });
+    admitDependenciesMock.mockResolvedValue({ eligible: 2, admitted: 2, failed: 0, limited: false });
     runGraphReasonerMock.mockResolvedValue({ total: 0, newCount: 0, resolvedCount: 0 });
     runMonitoringPassMock.mockResolvedValue({ newFindingsCount: 0 });
     runPolicyScanMock.mockResolvedValue({ ok: true });
-    runZeroDayCheckMock.mockResolvedValue(undefined);
     collectTrafficFactsMock.mockResolvedValue([]);
     sendWeeklyDigestMock.mockResolvedValue(false);
     pruneOldTrafficMock.mockResolvedValue({ ok: true });
@@ -88,6 +88,7 @@ describe("GET /api/monitor/scheduled — durable source admission", () => {
     expect(response.status).toBe(401);
     expect(admitAuditsMock).not.toHaveBeenCalled();
     expect(admitSourcesMock).not.toHaveBeenCalled();
+    expect(admitDependenciesMock).not.toHaveBeenCalled();
     expect(runMonitoringPassMock).not.toHaveBeenCalled();
   });
 
@@ -97,6 +98,7 @@ describe("GET /api/monitor/scheduled — durable source admission", () => {
 
     expect(admitAuditsMock).toHaveBeenCalledWith(expect.any(Date), 1_000);
     expect(admitSourcesMock).toHaveBeenCalledWith(expect.any(Date), 1_000);
+    expect(admitDependenciesMock).toHaveBeenCalledWith(expect.any(Date), 1_000);
     expect(body).toMatchObject({
       auditsEligible: 3,
       auditsAdmitted: 2,
@@ -104,6 +106,9 @@ describe("GET /api/monitor/scheduled — durable source admission", () => {
       sourceJobsAdmitted: 4,
       sourceAdmissionsFailed: 0,
       sourceAdmissionLimited: true,
+      dependencyJobsAdmitted: 2,
+      dependencyAdmissionsFailed: 0,
+      dependencyAdmissionLimited: false,
     });
   });
 

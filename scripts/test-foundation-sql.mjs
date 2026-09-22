@@ -18,7 +18,7 @@ try {
     create function auth.uid() returns uuid language sql stable as 'select null::uuid';
     create role anon; create role authenticated; create role service_role bypassrls;
     grant usage on schema public to anon,authenticated,service_role;`);
-  for (const file of ["021_phase2_github_deep_access.sql", "036_source_scan_coalescing.sql", "039_graph_facts.sql", "043_finding_correlation.sql", "046_mvp_repos_and_runs.sql", "047_agent_findings.sql", "051_findings_idempotent_persist.sql", "053_provider_repository_links.sql", "054_database_repository_bindings.sql", "055_supabase_repository_bindings.sql", "056_durable_jobs.sql", "057_atomic_audit_findings.sql", "058_repository_scoped_finding_identity.sql", "059_audit_job_triggers.sql", "060_atomic_repository_selection.sql", "061_github_install_handshake.sql", "062_scheduled_audit_admission.sql", "063_durable_pull_request_checks.sql", "064_fenced_source_collection.sql"]) {
+  for (const file of ["021_phase2_github_deep_access.sql", "036_source_scan_coalescing.sql", "039_graph_facts.sql", "043_finding_correlation.sql", "046_mvp_repos_and_runs.sql", "047_agent_findings.sql", "051_findings_idempotent_persist.sql", "053_provider_repository_links.sql", "054_database_repository_bindings.sql", "055_supabase_repository_bindings.sql", "056_durable_jobs.sql", "057_atomic_audit_findings.sql", "058_repository_scoped_finding_identity.sql", "059_audit_job_triggers.sql", "060_atomic_repository_selection.sql", "061_github_install_handshake.sql", "062_scheduled_audit_admission.sql", "063_durable_pull_request_checks.sql", "064_fenced_source_collection.sql", "065_fenced_dependency_rechecks.sql"]) {
     await db.exec(await readFile(new URL(`../supabase/migrations/${file}`, import.meta.url), "utf8"));
   }
   await db.query("insert into auth.users values ($1),($2)", [u1,u2]);
@@ -241,7 +241,7 @@ try {
   const sourceSnapshot = () => ({
     repositoryId:r1,providerRepositoryId:"123456",repositoryFullName:"acme/one",installationId:"42",ref:"develop",
     recordedAt:new Date().toISOString(),completeness:"partial",filesAttempted:1,filesRead:1,
-    routes:[],liveFiles:[],hasEntryPoints:false,dependencies:[],
+    routes:[],liveFiles:[],hasEntryPoints:false,dependencies:[{name:"left-pad",version:"1.0.0"}],
   });
   const sourceFinding = [{finding_id:"acme/one::github:test",severity:"WARNING",title:"Source evidence",consequence:"Review it."}];
   await check("scheduled source admission is repository-scoped and idempotent", async () => {
@@ -297,6 +297,43 @@ try {
     assert.deepEqual(result,{total:1,newCount:1,resolvedCount:0});
     const stored=(await db.query("select repository_id,correlation from public.deep_findings where source='graph' and finding_id='path:test' and archived_at is null")).rows[0];
     assert.equal(stored.repository_id,r1);assert.deepEqual(stored.correlation,{surfaces:["source","db"],proven:false});
+    assert.equal((await db.query("select public.advance_execution_job($1,$2,0,'succeeded') as ok",[graph.id,graph.lease_token])).rows[0].ok,true);
+  });
+  await check("daily dependency admission is scoped and idempotent", async () => {
+    const args=["2026-09-23",100];
+    const admitted=(await db.query("select public.enqueue_due_repository_dependencies($1,$2) as result",args)).rows[0].result;
+    const retry=(await db.query("select public.enqueue_due_repository_dependencies($1,$2) as result",args)).rows[0].result;
+    assert.deepEqual(admitted,{eligible:1,admitted:1,failed:0,limited:false});
+    assert.deepEqual(retry,{eligible:0,admitted:0,failed:0,limited:false});
+  });
+  await check("dependency findings commit only under the current source revision and lease", async () => {
+    const dependency=(await db.query("select * from public.claim_execution_job('dependency',120)")).rows[0];
+    const revision=(await db.query("select snapshot->>'recordedAt' as revision from public.graph_facts facts cross join lateral jsonb_array_elements(facts.facts->'repositories') snapshot where facts.user_id=$1 and snapshot->>'repositoryId'=$2",[u1,r1])).rows[0].revision;
+    const finding=[{finding_id:"acme/one::github:dep:left-pad:GHSA-test",severity:"CRITICAL",title:"Dependency RCE",consequence:"Upgrade.",package_name:"left-pad",version:"1.0.0",vuln_id:"GHSA-test",cve_id:"CVE-2026-2"}];
+    await assert.rejects(db.query("select public.persist_repository_dependency_findings($1,$2,$3,$4,$5,$6::jsonb)",[
+      u1,r1,dependency.id,u2,revision,JSON.stringify(finding),
+    ]));
+    await assert.rejects(db.query("select public.persist_repository_dependency_findings($1,$2,$3,$4,$5,$6::jsonb)",[
+      u1,r1,dependency.id,dependency.lease_token,"2026-09-22T00:00:00.000Z",JSON.stringify(finding),
+    ]));
+    await db.query("update public.repositories set default_branch='main' where id=$1",[r1]);
+    await assert.rejects(db.query("select public.persist_repository_dependency_findings($1,$2,$3,$4,$5,$6::jsonb)",[
+      u1,r1,dependency.id,dependency.lease_token,revision,JSON.stringify(finding),
+    ]));
+    await db.query("update public.repositories set default_branch='develop' where id=$1",[r1]);
+    await db.query("update public.user_profiles set github_installation_id=99 where id=$1",[u1]);
+    assert.equal((await db.query("select last_source_scan_at is null as stale from public.repositories where id=$1",[r1])).rows[0].stale,true);
+    await assert.rejects(db.query("select public.persist_repository_dependency_findings($1,$2,$3,$4,$5,$6::jsonb)",[
+      u1,r1,dependency.id,dependency.lease_token,revision,JSON.stringify(finding),
+    ]));
+    await db.query("update public.user_profiles set github_installation_id=42 where id=$1",[u1]);
+    await db.query("update public.repositories set last_source_scan_at=now() where id=$1",[r1]);
+    const result=(await db.query("select public.persist_repository_dependency_findings($1,$2,$3,$4,$5,$6::jsonb) as result",[
+      u1,r1,dependency.id,dependency.lease_token,revision,JSON.stringify(finding),
+    ])).rows[0].result;
+    assert.deepEqual(result,{total:1,newCount:1,resolvedCount:0});
+    assert.equal((await db.query("select count(*)::int as count from public.deep_findings where repository_id=$1 and source='zero-day' and finding_id=$2 and archived_at is null",[r1,finding[0].finding_id])).rows[0].count,1);
+    assert.equal((await db.query("select public.advance_execution_job($1,$2,0,'succeeded') as ok",[dependency.id,dependency.lease_token])).rows[0].ok,true);
   });
   await check("repository reselection invalidates source freshness", async () => {
     assert.ok((await db.query("select last_source_scan_at is not null as fresh from public.repositories where id=$1",[r1])).rows[0].fresh);
@@ -305,11 +342,13 @@ try {
     ])]);
     assert.equal((await db.query("select last_source_scan_at is null as stale from public.repositories where id=$1",[r1])).rows[0].stale,true);
   });
-  await check("client roles cannot invoke source or graph persistence", async () => {
+  await check("client roles cannot invoke source, graph, or dependency persistence", async () => {
     await db.exec("set role authenticated");
     await assert.rejects(db.query("select public.enqueue_due_repository_sources(now(),'2026-09-22',100)"));
     await assert.rejects(db.query("select public.persist_repository_source($1,$2,$3,$4,'{}'::jsonb,'[]'::jsonb)",[u1,r1,sourceJob,sourceToken]));
     await assert.rejects(db.query("select public.persist_repository_graph($1,$2,$3,$4,'2026-09-22T00:00:00.000Z','[]'::jsonb,false)",[u1,r1,sourceJob,sourceToken]));
+    await assert.rejects(db.query("select public.enqueue_due_repository_dependencies('2026-09-23',100)"));
+    await assert.rejects(db.query("select public.persist_repository_dependency_findings($1,$2,$3,$4,'2026-09-22T00:00:00.000Z','[]'::jsonb)",[u1,r1,sourceJob,sourceToken]));
     await db.exec("reset role");
   });
   console.log(`${checks} SQL checks passed. Single-connection PostgreSQL WASM; multi-session contention and hosted Supabase remain unverified.`);

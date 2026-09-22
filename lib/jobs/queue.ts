@@ -6,7 +6,7 @@ export type JobKind = z.infer<typeof JobKind>;
 export const AuditTrigger = z.enum(["manual", "pull_request", "scheduled"]);
 export type AuditTrigger = z.infer<typeof AuditTrigger>;
 const claimed = z.object({ id: z.uuid(), user_id: z.uuid(), repository_id: z.uuid().nullable(), kind: JobKind,
-  audit_run_id: z.uuid().nullable(),
+  audit_run_id: z.uuid().nullable(), deduplication_key: z.string().min(1).max(256),
   status: z.literal("running"), attempts: z.number().int().min(1).max(5), lease_token: z.uuid(),
   lease_until: z.string().refine((value) => Number.isFinite(Date.parse(value))), checkpoint: z.number().int().nonnegative(),
 });
