@@ -206,8 +206,12 @@ the proving ground and native-agent distribution are not launch-proven.
   those lanes. No machine-authored business authorization policy.
 - `lib/traffic/` and `/api/traffic/*` are optional customer-side metadata
   observation, not a ShipLock proxy. `mcp/` and `/api/mcp/*` are native-agent
-  surfaces but their distribution and live setup remain unverified. The same
-  backend facts and approval boundary apply to dashboard and MCP.
+  surfaces but their distribution and live setup remain unverified. The target
+  is one backend fact and approval boundary across dashboard and MCP; current
+  MCP code is not there yet. `lib/mcpAuth.ts`/`app/api/tokens/route.ts` still
+  hard-gate on `is_paid` despite preview access, and token-authenticated MCP
+  scan/PR tools can act without a separate dashboard approval receipt. Do not
+  describe native-agent parity or click-only MCP writes as shipped.
 - `supabase/migrations/` is the schema/RLS source. 053–066 are local and
   unapplied. `docs/CORPUS.json`, `scripts/corpus.cjs`, and dated evaluation JSON
   are reproducibility data, not current accuracy marketing claims.
