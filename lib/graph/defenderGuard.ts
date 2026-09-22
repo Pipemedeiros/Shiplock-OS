@@ -21,8 +21,7 @@ import { SEVERITY_RANK } from "./providers";
 // A defender claim changes nothing about a finding unless a deterministic
 // verifier confirms it from facts a collector already observed. The model cannot
 // introduce a fact, and "I could not check that" never counts in the defence's
-// favour. Stated as the rule this module exists to enforce, from the research in
-// docs/research/sast-evidence-architecture.md:
+// favour. This is the evidence boundary in AGENTS.md:
 //
 //   ABSENCE OF PROOF IS NOT PROOF OF A FALSE POSITIVE.
 //

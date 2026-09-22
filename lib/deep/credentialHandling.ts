@@ -7,7 +7,7 @@ import { isTestPath, isScaffoldPath, type GithubFinding, type RepoFile } from ".
 // fifteen-repository ledger recorded.
 //
 // They are back because they pass the boundary that governs this layer, stated
-// in docs/STATE.md: does the evidence in hand decide the claim made?
+// in AGENTS.md: does the evidence in hand decide the claim made?
 //
 //   `?secret=${process.env.REVALIDATE_TOKEN}` inside a fetch() is a secret in a
 //   URL. Nothing outside the file is needed to know that.
@@ -18,7 +18,7 @@ import { isTestPath, isScaffoldPath, type GithubFinding, type RepoFile } from ".
 // That is what separates them from injection and XSS, which assert a semantic
 // property — is this value attacker-controlled, does this sink receive that
 // source — the file cannot establish. Do not read this module as licence to
-// restore those. See docs/TASK-A-MEASUREMENT-2026-09-07.md.
+// restore those. The dated before/after counts are in the master ledger.
 //
 // Their false positives were a PATH problem, not a taint problem: every one
 // read on the fifteen repositories was test scaffolding. So they take the rule

@@ -9,8 +9,7 @@ import { scanWorkflows } from "./workflowScan";
 /**
  * The source-finding boundary, asserted in both directions.
  *
- * The rule this file enforces is the one recorded in docs/STATE.md under
- * "Why the pattern-check layer was deleted rather than narrowed": a check
+ * The rule this file enforces is recorded in AGENTS.md: a check
  * belongs here only if the evidence in hand decides the claim it makes.
  *
  * The deletion it guards was measured, not guessed — 108 criticals and zero
@@ -201,7 +200,7 @@ describe("restored 2026-09-07 — the file decides its own claim", () => {
   // Deleted as collateral when sourcePatterns.ts went, restored because they
   // pass the boundary: neither needs evidence from outside the file. Their
   // false positives were all test scaffolding, which the shared path
-  // classifier handles. See docs/TASK-A-MEASUREMENT-2026-09-07.md.
+  // classifier handles. The dated counts are in the master ledger.
   const sev = (files: RepoFile[], pattern: RegExp) =>
     scan(files).filter((x) => pattern.test(x.id)).map((x) => x.severity);
 

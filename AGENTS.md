@@ -40,13 +40,27 @@ customer-specific history, explicit bindings, and remediation outcomes are the
 moat. Native use from the dashboard and coding agents (MCP/terminal/Codex/Claude
 Code) must consume the same facts and approval state, never a separate truth.
 
+Felipe's proposed intelligence connector is **not** merely a customer API key
+and is not shipped: ShipLock would own the collectors, deterministic checks,
+evidence graph, prompts, guards, and approval workflow while a customer-run
+coding agent navigates its own authorized checkout and supplies bounded,
+structured reasoning/evidence back to ShipLock. The agent is an optional
+intelligence and local-code navigation surface, never an independent source of
+security truth or a way to bypass provenance and approval. A model-provider API
+key alone does not grant that agent's repository/tool access. A passive MCP
+server alone cannot guarantee ShipLock can start a cloud audit or command a
+desktop agent: the host must support and authorize the interaction and be
+running. Preserve the GitHub-only deterministic path and durable workers when
+the agent is offline. Validate exact host capabilities with a small local
+prototype before claiming this works in Codex, Claude Code, or other clients.
+
 Pricing is undecided. Billing is parked while unit costs are measured. Do not
 publish or restore a price, trial, paid tier, Stripe Checkout entry point, or
 margin claim until Felipe approves a cost model based on measured model tokens,
 provider calls, storage, queue execution, support, and target gross margin. The
-old $49/$265/$470 offer and later prototype tiers are superseded. A
-customer-supplied model/free harness is a discussion, not an approved feature
-or claim of zero ShipLock cost.
+old $49/$265/$470 offer and later prototype tiers are superseded. Customer-
+supplied agent intelligence and a possible free harness remain product proposals,
+not implemented tiers or claims of zero ShipLock cost.
 
 ## Customer journey
 
@@ -212,6 +226,9 @@ the proving ground and native-agent distribution are not launch-proven.
   hard-gate on `is_paid` despite preview access, and token-authenticated MCP
   scan/PR tools can act without a separate dashboard approval receipt. Do not
   describe native-agent parity or click-only MCP writes as shipped.
+- No agent-intelligence connector currently returns bounded code-navigation
+  evidence to the graph. Existing MCP tools expose ShipLock facts/actions to an
+  agent; they do not make the customer's agent ShipLock's autonomous worker.
 - `supabase/migrations/` is the schema/RLS source. 053–066 are local and
   unapplied. `docs/CORPUS.json`, `scripts/corpus.cjs`, and dated evaluation JSON
   are reproducibility data, not current accuracy marketing claims.
@@ -277,22 +294,32 @@ before using it. Do not infer that an installed summary is an executable skill.
   planning, debugging, and verification discipline. This repo's two-document
   rule overrides any instruction to create another design/plan Markdown file.
 - GStack-style review (`.claude/skills/shiplock-gstack-review/SKILL.md`): the
-  checked-in, repo-safe review subset works in both agents. Full GStack is a
-  machine-local absolute symlink here, not portable or required; do not run its
-  auto-updates, telemetry, network setup, or `CLAUDE.md` injection. No paid
-  tests or external state changes by default.
+  checked-in, repo-safe review subset works in both agents. An upstream GStack
+  download is optional and not a ShipLock dependency; do not run its setup,
+  auto-updates, telemetry, network setup, or `CLAUDE.md` injection as part of a
+  ShipLock review. No paid tests or external state changes by default.
 - Ruflo (`.claude/skills/swarm-orchestration/SKILL.md`): optional orchestration
-  only when Felipe explicitly asks for parallel agents and the CLI already
-  exists. Do not `npx`-install packages or add a swarm dependency merely for
-  this repo. The historical `ruvnet__ruflo.md` summary correctly warns that
-  autonomous swarm infrastructure is not a ShipLock product requirement.
+  only when Felipe explicitly asks for parallel agents and its CLI is already
+  installed. A downloaded skill is not an installed CLI. Do not `npx`-install
+  packages, run project initialization, or add a swarm dependency merely for
+  this repo. Autonomous swarm infrastructure is not a ShipLock requirement.
+
+On Felipe's current machine, upstream GitHub GStack and Ruflo skill sources are
+downloaded under `~/.codex/skills/{gstack,ruflo}` and linked into
+`~/.claude/skills/` for Claude Code. These machine-local installs
+are not repo dependencies or a substitute for the checked-in skill adapters.
+Neither upstream setup/CLI nor paid service was run during installation.
 
 ## Documentation hygiene and handoff
 
 `AGENTS.md` is stable policy and code orientation; the master ledger is dynamic
-status and the exact next package. Change this file only when product/architecture
-or working rules truly change. Update the master ledger after each implementation
-with what changed, what tests actually ran, what remains unknown, and the next
-reviewable item. Older dated research/evaluation material is evidence, not
-current instructions; do not resurrect its prices or stale status. Do not
-create another README, `CLAUDE.md`, `CODEX.md`, or per-step handoff document.
+status and the exact next package. These are the only two non-skill Markdown
+files in the repo. Change this file only when product/architecture or working
+rules truly change. Date every master-ledger update; identify the exact
+section/step/item finished, evidence/tests, incomplete sibling items, and next
+reviewable action. A locally completed package does not close a step with live
+acceptance still open. Keep older measurement inputs as JSON/source and, for
+retired narrative, use Git history rather than a parallel README/spec/handoff.
+Completed steps may be compacted out of the active queue only after their key
+proof and remaining caveats are retained in the ledger; do not erase unfinished
+2/3/4 work just because a later step started.

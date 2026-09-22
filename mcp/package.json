@@ -7,8 +7,7 @@
     "shiplock-mcp": "index.mjs"
   },
   "files": [
-    "index.mjs",
-    "README.md"
+    "index.mjs"
   ],
   "engines": {
     "node": ">=18"

@@ -9,7 +9,7 @@ import { mintOf, possessionGates, renderPossessionGate } from "./possessionGate"
  * THE INVARIANT THIS CLASS IS NOT ALLOWED TO BREAK.
  *
  * corpus-b's /api/teams/[teamId]/documents/document-processing-status is a
- * CONFIRMED TRUE POSITIVE (docs/STATE.md, "Crediting fails open"). It takes one
+ * CONFIRMED TRUE POSITIVE (the frozen labels in docs/CORPUS.json). It takes one
  * request id, looks the row up by primary key, answers 404 on null, and does
  * nothing else -- which passes every readable test a possession gate could
  * use. It is a forgotten auth check: its siblings authenticate, its own
