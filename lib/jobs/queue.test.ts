@@ -1,7 +1,7 @@
 import { beforeEach, expect, it, vi } from "vitest";
 const rpc = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ rpc }) }));
-import { enqueueAuditJob, enqueueJob, claimJob, executeClaimedJob, type ClaimedJob } from "./queue";
+import { enqueueAuditJob, enqueueJob, enqueuePullRequestCheck, claimJob, executeClaimedJob, type ClaimedJob } from "./queue";
 const id = "11111111-1111-4111-8111-111111111111";
 const job: ClaimedJob = { id, user_id: id, repository_id: id, kind: "audit", status: "running", attempts: 1,
   audit_run_id: "33333333-3333-4333-8333-333333333333",
@@ -23,6 +23,14 @@ it("queues the audit and customer-visible run as one receipt", async () => {
   await enqueueAuditJob(id,id,"pull-request:sha","pull_request");
   expect(rpc).toHaveBeenLastCalledWith("enqueue_repository_audit",{p_user:id,p_repository:id,p_key:"pull-request:sha",p_trigger:"pull_request"});
   await expect(enqueueAuditJob(id,id,"bad","deploy" as never)).rejects.toThrow();
+});
+it("queues only typed pull-request identity context", async () => {
+  rpc.mockResolvedValue({ data:id,error:null });
+  expect(await enqueuePullRequestCheck(id,id,"pr-check:head",7,"ABC1234")).toBe(id);
+  expect(rpc).toHaveBeenCalledWith("enqueue_pull_request_check",{
+    p_user:id,p_repository:id,p_key:"pr-check:head",p_pull_request_number:7,p_head_sha:"abc1234",
+  });
+  await expect(enqueuePullRequestCheck(id,id,"bad",0,"not-sha")).rejects.toThrow();
 });
 it.each([[], [job], [{ ...job, lease_token: null }], [{ ...job, kind:"source" }], [job,job]].map((data) => ({ data })))("validates claimed work", async ({ data }) => {
   rpc.mockResolvedValue({ data, error:null });

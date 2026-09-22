@@ -6,20 +6,23 @@ const api = vi.hoisted(() => ({
 }));
 const saveFacts = vi.hoisted(() => vi.fn());
 const insert = vi.hoisted(() => vi.fn());
+const selected = vi.hoisted(() => vi.fn());
 const visibilityCheck = vi.hoisted(() => vi.fn());
 vi.mock("./github", () => api);
 vi.mock("@/lib/graph/graphRun", () => ({ saveFacts }));
 vi.mock("./repoVisibility", () => ({ checkRepoVisibility: visibilityCheck }));
 vi.mock("@/lib/supabase", () => ({
-  getSupabaseAdmin: () => ({ from: () => ({
-    select: () => ({ eq: () => ({ eq: () => ({ is: async () => ({ data: [], error: null }) }) }) }),
+  getSupabaseAdmin: () => ({ from: (table: string) => ({
+    select: () => table === "repositories"
+      ? ({ eq: () => ({ eq: () => ({ limit: selected }) }) })
+      : ({ eq: () => ({ eq: () => ({ is: async () => ({ data: [], error: null }) }) }) }),
     insert,
   }) }),
 }));
 
 import { runGithubScan } from "./githubRun";
 const repos = ["acme/one", "acme/two"].map((fullName) => ({
-  fullName, defaultBranch: "main", isPrivate: true, visibility: "private",
+  id: null, fullName, defaultBranch: "main", isPrivate: true, visibility: "private",
 }));
 const routePath = "app/api/data/route.ts";
 
@@ -37,6 +40,7 @@ beforeEach(() => {
   api.queryOsv.mockResolvedValue([]);
   api.listRecentCommitPatches.mockResolvedValue([]);
   saveFacts.mockResolvedValue(undefined);
+  selected.mockResolvedValue({data:repos.map((repo) => ({full_name:repo.fullName})),error:null});
   insert.mockResolvedValue({ error: null });
   visibilityCheck.mockReturnValue([]);
 });
@@ -102,6 +106,14 @@ describe("Step 2C-2: repository source provenance", () => {
     await runGithubScan("u", 42);
     expect(api.getFile).toHaveBeenCalledTimes(60);
     expect(saveFacts.mock.calls[0][2].repositories[0]).toMatchObject({ filesAttempted: 60, filesRead: 60, completeness: "partial" });
+  });
+
+  it("never reads an installation repository the customer did not select", async () => {
+    selected.mockResolvedValue({data:[{full_name:"acme/one"}],error:null});
+    await runGithubScan("u",42);
+    expect(api.listTree).toHaveBeenCalledWith("mock-token","acme/one","main");
+    expect(api.listTree).not.toHaveBeenCalledWith("mock-token","acme/two","main");
+    expect(saveFacts.mock.calls[0][2].repositories).toHaveLength(1);
   });
 
   it("records attempted and successful file counts without calling a partial read complete", async () => {

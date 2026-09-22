@@ -3,8 +3,13 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/deep/github", () => ({
   getInstallationToken: vi.fn(),
   listRepos: vi.fn(),
-  getBranchSha: vi.fn(async () => "basesha"),
+  getBranchSha: vi.fn(async (_token: string, _repo: string, branch: string) => {
+    if (branch === "main") return "basesha";
+    throw new Error("missing");
+  }),
   createBranch: vi.fn(async () => {}),
+  findOpenPullRequestForBranch: vi.fn(async () => null),
+  getFileSha: vi.fn(async () => null),
   putFile: vi.fn(async () => {}),
   openPullRequest: vi.fn(async () => "https://github.com/o/r/pull/1"),
 }));

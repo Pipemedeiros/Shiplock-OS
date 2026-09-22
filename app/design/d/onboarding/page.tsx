@@ -312,7 +312,7 @@ export default function RetainerOnboarding() {
                   className="dxd-btn"
                   onClick={() => setPhase("engaged")}
                 >
-                  Put us on retainer — $49/mo
+                  Join the founder pilot
                 </button>
                 <Link href="/design/d/dashboard" className="dxd-btn-quiet">
                   Preview the board first

@@ -9,7 +9,7 @@ import { runReasoningPass } from "@/lib/deep/reasoningRun";
 export async function POST() {
   const pro = await requireProUser();
   if (!pro) {
-    return NextResponse.json({ error: "Pro subscription required." }, { status: 403 });
+    return NextResponse.json({ error: "Authentication required." }, { status: 403 });
   }
 
   const admin = getSupabaseAdmin();

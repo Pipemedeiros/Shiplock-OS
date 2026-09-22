@@ -53,7 +53,7 @@ export default function Landing() {
                   Get started <ArrowRight size={15} />
                 </Link>
                 <span className="v3-mono" style={{ fontSize: 12.5, color: "var(--muted-navy)" }}>
-                  Free while in preview · read-only on your code
+                  Free while in preview · repository reads only until you approve a fix
                 </span>
               </div>
             </div>

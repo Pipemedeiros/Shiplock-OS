@@ -9,6 +9,7 @@ import { collectTrafficFacts } from "@/lib/traffic/graphFacts";
 import { runZeroDayCheck } from "@/lib/runtime/zeroDay";
 import { sendWeeklyDigest } from "@/lib/monitoring/digest";
 import { withPaidFilter, BILLING_ENABLED } from "@/lib/access";
+import { admitDueRepositoryAudits } from "@/lib/jobs/scheduler";
 
 // This pass iterates every paid user and makes several network calls each
 // (policy scan, schema inventory, auth log, dependency re-check, reasoner). The
@@ -33,6 +34,17 @@ export async function GET(req: NextRequest) {
 
   const admin = getSupabaseAdmin();
   const cutoff = new Date(Date.now() - FULL_SCAN_INTERVAL_MS).toISOString();
+
+  // Admit full repository audits first, before this legacy route performs any
+  // notification-bearing or unfenced side effect. A scheduler retry is safe:
+  // migration 062 deduplicates by repository and UTC day.
+  let auditAdmission;
+  try {
+    auditAdmission = await admitDueRepositoryAudits(new Date(), 1_000);
+  } catch {
+    console.error("[monitor/scheduled] audit admission failed");
+    return NextResponse.json({ error: "Scheduled work could not be queued." }, { status: 503 });
+  }
 
   const { data: profiles, error } = await admin
     .from("user_profiles")
@@ -250,6 +262,10 @@ export async function GET(req: NextRequest) {
     digestsSent,
     // -1 means the sweep is switched off with billing, not that it found nobody.
     expired,
+    auditsEligible: auditAdmission.eligible,
+    auditsAdmitted: auditAdmission.admitted,
+    auditAdmissionsFailed: auditAdmission.failed,
+    auditAdmissionLimited: auditAdmission.limited,
   });
 }
 

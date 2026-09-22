@@ -41,7 +41,7 @@ export async function runPullRequestCheck(options: {
 
   // Only repositories the customer chose. An installation can see more than it
   // was asked to audit, and checking an unselected repo is work nobody wanted.
-  const { data: repo } = await admin
+  const { data: repo, error: repositoryError } = await admin
     .from("repositories")
     .select("id")
     .eq("user_id", userId)
@@ -49,14 +49,12 @@ export async function runPullRequestCheck(options: {
     .eq("selected", true)
     .maybeSingle();
 
+  if (repositoryError) throw new Error("Selected repository could not be read");
   if (!repo) return { posted: false, verdict: "pass", findings: 0, skipped: "repository not selected" };
 
   const token = await getInstallationToken(installationId);
-  const changed = await listPullRequestFiles(token, fullName, prNumber, headSha);
-
-  if (changed.length === 0) {
-    return { posted: false, verdict: "pass", findings: 0, skipped: "no readable files in the diff" };
-  }
+  const diff = await listPullRequestFiles(token, fullName, prNumber, headSha);
+  const changed = diff.files;
 
   // The baseline is the repository as it stands, used ONLY for comparison —
   // "six sibling routes scope this table and yours does not" is the sentence
@@ -71,15 +69,28 @@ export async function runPullRequestCheck(options: {
     stack: detectStack(archive?.files ?? changed),
   });
 
-  const { title, summary } = checkSummary(result);
+  const base = checkSummary(result);
+  const coverageComplete = diff.complete && archive !== null;
+  const title = coverageComplete ? base.title : `Partial review — ${base.title}`;
+  const coverage = [diff.coverage, archive ? "Repository baseline was readable." : "Repository baseline was unreadable; cross-file route context is incomplete."].join("\n\n");
+  const summary = `${base.summary}\n\n### Coverage\n${coverage}`;
+  // A partial read can retain a concrete deterministic failure, but may never
+  // report success. Neutral is the honest state for a clean or warning-only
+  // partial review.
+  const conclusion = result.verdict === "block"
+    ? "failure"
+    : result.verdict === "warn" || !coverageComplete
+      ? "neutral"
+      : "success";
 
   await createCheckRun(
     token,
     fullName,
     headSha,
-    result.verdict === "block" ? "failure" : result.verdict === "warn" ? "neutral" : "success",
+    conclusion,
     title,
     summary,
+    `shiplock:pr:${fullName}:${prNumber}:${headSha.toLowerCase()}`,
   );
 
   return { posted: true, verdict: result.verdict, findings: result.findings.length };

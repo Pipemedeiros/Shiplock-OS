@@ -9,7 +9,7 @@ import { runGithubFix } from "@/lib/deep/githubFixRun";
 export async function POST() {
   const pro = await requireProUser();
   if (!pro) {
-    return NextResponse.json({ error: "Pro subscription required." }, { status: 403 });
+    return NextResponse.json({ error: "Authentication required." }, { status: 403 });
   }
 
   const admin = getSupabaseAdmin();
@@ -25,7 +25,7 @@ export async function POST() {
   }
 
   try {
-    const { prs, repos } = await runGithubFix(installationId);
+    const { prs, repos } = await runGithubFix(pro.userId, installationId);
     return NextResponse.json({ ok: true, prs, repos }, { headers: { "Cache-Control": "no-store" } });
   } catch {
     return NextResponse.json({ error: "Could not open fix PRs. Try again." }, { status: 502 });

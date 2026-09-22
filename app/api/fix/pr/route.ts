@@ -8,6 +8,7 @@ import {
   getInstallationToken,
   openPullRequest,
   putFile,
+  findOpenPullRequestForBranch,
 } from "@/lib/deep/github";
 import { getOpenFindings } from "@/lib/agent/dashboardData";
 import { fixBranchName, fixDocument, fixFilePath, fixTitle } from "@/lib/agent/fixPr";
@@ -63,10 +64,18 @@ export async function POST(request: Request) {
       .select("default_branch")
       .eq("user_id", user.userId)
       .eq("full_name", finding.repository)
+      .eq("selected", true)
       .maybeSingle();
 
-    const base = (repoRow?.default_branch as string) ?? "main";
+    if (!repoRow) {
+      return NextResponse.json({ error: "Select this repository again before opening a pull request." }, { status: 409 });
+    }
+    const base = repoRow.default_branch as string;
     const branch = fixBranchName(finding.id);
+    const recovered = await findOpenPullRequestForBranch(token, finding.repository, branch);
+    if (recovered) {
+      return NextResponse.json({ url: recovered, alreadyOpen: true });
+    }
     const sha = await getBranchSha(token, finding.repository, base);
 
     await createBranch(token, finding.repository, branch, sha);

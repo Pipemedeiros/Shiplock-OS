@@ -156,7 +156,7 @@ export default function Landing() {
           <hr className="v3-rule" style={{ margin: "18px 0 14px" }} />
           <p className="v3-small">
             Nothing security-relevant is held back from a smaller plan. Over a limit we email you
-            before we charge you — extra repository $39/mo, extra 100 pull-request audits $49.
+            before pricing is approved from measured model, provider, queue, and storage costs.
           </p>
         </div>
 

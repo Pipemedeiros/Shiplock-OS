@@ -8,14 +8,12 @@ import { scanNextConfigEnv } from "@/lib/deep/nextConfigEnv";
 import { collectRoutes, type RouteFact } from "@/lib/graph/routeInventory";
 import { proposeAttacks, riskyRoutesOmitted, routesOmitted } from "./attack";
 import { crossTenantNotes, renderCrossTenantNote } from "./crossTenantNotes";
-import { detectStack, type StackReport } from "./stack";
+import { detectStack, routeAnalysisSupport, type StackReport } from "./stack";
 import { buildFindings, type AgentFinding } from "./findings";
 import { possessionGates } from "./possessionGate";
 import { extractTables, extractColumns } from "./schema";
 import { inferDomain } from "./domain";
 import { loadLiveFacts } from "./liveFacts";
-import { openFixPullRequests } from "./autoFixPr";
-import { getOpenFindings } from "./dashboardData";
 import { unassessedNote, summarizeUnassessed } from "./unassessed";
 
 /**
@@ -83,6 +81,7 @@ export function buildCoverage(
   reasoningParseFailed = false,
 ): CoverageNote[] {
   const notes: CoverageNote[] = [];
+  const routeSupport = routeAnalysisSupport(stack);
 
   // WHAT WE COULD NOT JUDGE, FROM THE FACTS. Leads the list, because on a real
   // codebase it is the largest single statement about this audit: on corpus-a it
@@ -131,6 +130,14 @@ export function buildCoverage(
     });
   }
 
+  if (routeSupport.level === "inventory_only") {
+    notes.push({
+      name: "Deep route authorization analysis",
+      why: routeSupport.reason,
+      effect: "Framework-independent credential and configuration checks ran. Application routes and authorization paths for this framework were not assessed, so an empty route result is unknown rather than clean.",
+    });
+  }
+
   if (crossTenant.length > 0) {
     // An inventory statement, not a hedged finding. Every line names the file
     // and the mechanism, and says no action needed -- a maybe-finding here is a
@@ -152,10 +159,12 @@ export function buildCoverage(
       // out of time to reason safely, or the reasoning call itself failed.
       // Naming only the first was accurate until `agent.skipped` started
       // routing here too.
-      why: "The reasoning step did not run — either this repository took long enough to read that there was not enough time left to reason over it safely, or the reasoning call itself failed.",
+      why: routeSupport.level === "inventory_only"
+        ? routeSupport.reason
+        : "The reasoning step did not run — either this repository took long enough to read that there was not enough time left to reason over it safely, or the reasoning call itself failed.",
       effect:
         "Committed credentials and dependency advisories were still checked. Attack paths were not looked for at all, so this run finding none means nothing.",
-      upgrade: "Run the audit again",
+      ...(routeSupport.level === "deep" ? { upgrade: "Run the audit again" } : {}),
     });
   }
 
@@ -324,6 +333,7 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
     );
 
     const stack = detectStack(archive.files);
+    const routeSupport = routeAnalysisSupport(stack);
     step(
       "Stack read from the code",
       stack.tools.length
@@ -383,13 +393,17 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
 
     const elapsed = Date.now() - startedAt;
     const timeLeft = AUDIT_BUDGET_MS - elapsed;
-    const canReason = timeLeft >= REASONING_RESERVE_MS;
+    const canReason = routeSupport.level === "deep" && timeLeft >= REASONING_RESERVE_MS;
 
     if (!canReason) {
-      step(
-        "Reasoning skipped to finish inside the time budget",
-        `${Math.round(elapsed / 1000)}s spent reading this repository, which leaves too little to reason safely`,
-      );
+      if (routeSupport.level === "inventory_only") {
+        step("Deep route reasoning not run", routeSupport.reason);
+      } else {
+        step(
+          "Reasoning skipped to finish inside the time budget",
+          `${Math.round(elapsed / 1000)}s spent reading this repository, which leaves too little to reason safely`,
+        );
+      }
     }
 
     // CROSS-TENANT MACHINE-GATED ENDPOINTS BECOME NOTES, NOT CANDIDATES.
@@ -435,7 +449,9 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
           unmatchedEntries: [],
           model: "none",
           skipped: true,
-          skipReason: "not enough time left in this run",
+          skipReason: routeSupport.level === "inventory_only"
+            ? "the repository framework is inventory-only"
+            : "not enough time left in this run",
         };
 
     if (agent.skipped) {
@@ -532,37 +548,9 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
     }
     await persistFindings(userId, repositoryId, runId, findings, null, preserveExisting, options.jobLease);
 
-    // Open the pull requests ourselves. The customer's job is to approve, not
-    // to go and press a button per finding -- a queue of security homework is
-    // the thing this product exists not to be.
-    //
-    // Deliberately AFTER persistFindings and deliberately wrapped: the findings
-    // are the audit's value and they are already safely written. If GitHub is
-    // down, or the App lost access to the repository, the run still completes
-    // and the dashboard still offers the same pull request on one click.
-    let prsOpened = 0;
-    try {
-      const open = await getOpenFindings(userId);
-      const outcome = await openFixPullRequests(
-        userId,
-        open.filter((f) => f.repository === fullName),
-      );
-      prsOpened = outcome.opened.length;
-      if (prsOpened > 0) {
-        step(
-          `${prsOpened} fix pull request${prsOpened === 1 ? "" : "s"} opened for your approval`,
-          outcome.opened.map((o) => `#${o.number ?? "?"}`).join(" · "),
-        );
-      }
-      if (outcome.failed.length > 0) {
-        step(
-          `${outcome.failed.length} fix pull request${outcome.failed.length === 1 ? "" : "s"} could not be opened`,
-          outcome.failed[0].error,
-        );
-      }
-    } catch (err) {
-      step("Fix pull requests could not be opened", err instanceof Error ? err.message : "unknown error");
-    }
+    // No write follows an audit. Opening a branch/PR is a separate, explicit
+    // customer action through the repair endpoints. Analysis permission is not
+    // repair permission, even when a fix is mechanical.
 
     let completeWrite = admin
       .from("audit_runs")

@@ -14,14 +14,15 @@ const r3 = "66666666-6666-4666-8666-666666666666";
 try {
   await db.exec(`create schema auth;
     create table auth.users(id uuid primary key);
-    create table public.user_profiles(id uuid primary key references auth.users(id));
+    create table public.user_profiles(id uuid primary key references auth.users(id),is_paid boolean not null default false);
     create function auth.uid() returns uuid language sql stable as 'select null::uuid';
     create role anon; create role authenticated; create role service_role bypassrls;
     grant usage on schema public to anon,authenticated,service_role;`);
-  for (const file of ["021_phase2_github_deep_access.sql", "046_mvp_repos_and_runs.sql", "047_agent_findings.sql", "051_findings_idempotent_persist.sql", "053_provider_repository_links.sql", "054_database_repository_bindings.sql", "055_supabase_repository_bindings.sql", "056_durable_jobs.sql", "057_atomic_audit_findings.sql", "058_repository_scoped_finding_identity.sql", "059_audit_job_triggers.sql"]) {
+  for (const file of ["021_phase2_github_deep_access.sql", "046_mvp_repos_and_runs.sql", "047_agent_findings.sql", "051_findings_idempotent_persist.sql", "053_provider_repository_links.sql", "054_database_repository_bindings.sql", "055_supabase_repository_bindings.sql", "056_durable_jobs.sql", "057_atomic_audit_findings.sql", "058_repository_scoped_finding_identity.sql", "059_audit_job_triggers.sql", "060_atomic_repository_selection.sql", "061_github_install_handshake.sql", "062_scheduled_audit_admission.sql", "063_durable_pull_request_checks.sql"]) {
     await db.exec(await readFile(new URL(`../supabase/migrations/${file}`, import.meta.url), "utf8"));
   }
   await db.query("insert into auth.users values ($1),($2)", [u1,u2]);
+  await db.query("insert into public.user_profiles(id) values($1),($2)", [u1,u2]);
   await db.query("insert into public.repositories(id,user_id,full_name,selected) values($1,$2,'acme/one',true),($3,$4,'acme/two',true),($5,$2,'acme/three',true)", [r1,u1,r2,u2,r3]);
   // Match Supabase's service-role base-table privileges in this minimal fixture.
   await db.exec("grant select on public.repositories to service_role; set role service_role");
@@ -165,6 +166,76 @@ try {
     await persist([finding("same-route")],false,u1,r3,otherRun);
     const rows = await db.query("select repository_id from public.deep_findings where source='agent' and finding_id='same-route' and archived_at is null order by repository_id");
     assert.deepEqual(rows.rows.map((row) => row.repository_id),[r1,r3]);
+  });
+  await check("repository selection replacement is atomic and preserves GitHub metadata", async () => {
+    const selection = JSON.stringify([{full_name:"acme/one",github_repo_id:"123456",default_branch:"develop",private:false}]);
+    const rows = await db.query("select * from public.replace_selected_repositories($1,$2::jsonb)",[u1,selection]);
+    assert.deepEqual(rows.rows,[{id:r1,full_name:"acme/one"}]);
+    const stored=(await db.query("select full_name,github_repo_id::text,default_branch,private,selected from public.repositories where user_id=$1 order by full_name",[u1])).rows;
+    assert.deepEqual(stored,[
+      {full_name:"acme/one",github_repo_id:"123456",default_branch:"develop",private:false,selected:true},
+      {full_name:"acme/three",github_repo_id:null,default_branch:"main",private:true,selected:false},
+    ]);
+    await assert.rejects(db.query("select * from public.replace_selected_repositories($1,$2::jsonb)",[u1,JSON.stringify([
+      {full_name:"acme/one",default_branch:"main",private:true},
+      {full_name:"acme/one",default_branch:"main",private:true},
+    ])]));
+    assert.equal((await db.query("select selected from public.repositories where id=$1",[r1])).rows[0].selected,true);
+  });
+  await check("client roles cannot replace repository scope", async () => {
+    await db.exec("set role authenticated");
+    await assert.rejects(db.query("select * from public.replace_selected_repositories($1,'[]'::jsonb)",[u1]));
+    await db.exec("reset role");
+  });
+  await check("GitHub installation completion requires one current tenant handshake", async () => {
+    const nonce="a".repeat(64);
+    assert.equal((await db.query("select public.begin_github_install($1,$2) as ok",[u1,nonce])).rows[0].ok,true);
+    assert.equal((await db.query("select public.complete_github_install($1,$2,42) as ok",[u1,"b".repeat(64)])).rows[0].ok,false);
+    assert.equal((await db.query("select public.complete_github_install($1,$2,42) as ok",[u1,nonce])).rows[0].ok,true);
+    assert.equal((await db.query("select github_installation_id from public.user_profiles where id=$1",[u1])).rows[0].github_installation_id,42);
+    assert.equal((await db.query("select selected from public.repositories where id=$1",[r1])).rows[0].selected,false);
+    assert.equal((await db.query("select public.complete_github_install($1,$2,42) as ok",[u1,nonce])).rows[0].ok,false);
+  });
+  await check("client roles cannot begin or complete a GitHub installation", async () => {
+    await db.exec("set role authenticated");
+    await assert.rejects(db.query("select public.begin_github_install($1,$2)",[u1,"c".repeat(64)]));
+    await assert.rejects(db.query("select public.complete_github_install($1,$2,42)",[u1,"c".repeat(64)]));
+    await db.exec("reset role");
+  });
+  await check("daily scheduled admission is bounded, idempotent, and preserves its trigger", async () => {
+    await db.query("update public.user_profiles set is_paid=true where id=$1",[u1]);
+    await db.query("select * from public.replace_selected_repositories($1,$2::jsonb)",[u1,JSON.stringify([
+      {full_name:"acme/one",github_repo_id:"123456",default_branch:"develop",private:false},
+    ])]);
+    const args=["2100-01-01T00:00:00Z","2026-09-21",true,100];
+    const firstAdmission=(await db.query("select public.enqueue_due_repository_audits($1,$2,$3,$4) as result",args)).rows[0].result;
+    const retry=(await db.query("select public.enqueue_due_repository_audits($1,$2,$3,$4) as result",args)).rows[0].result;
+    assert.deepEqual(firstAdmission,{eligible:1,admitted:1,failed:0,limited:false});
+    assert.deepEqual(retry,{eligible:0,admitted:0,failed:0,limited:false});
+    const scheduled=(await db.query("select count(*)::int as count,min(r.trigger) as trigger from public.execution_jobs j join public.audit_runs r on r.id=j.audit_run_id where j.deduplication_key=$1",[`scheduled:${r1}:2026-09-21`])).rows[0];
+    assert.deepEqual(scheduled,{count:1,trigger:"scheduled"});
+  });
+  await check("client roles cannot schedule repository audits", async () => {
+    await db.exec("set role authenticated");
+    await assert.rejects(db.query("select public.enqueue_due_repository_audits(now(),'2026-09-21',false,100)"));
+    await db.exec("reset role");
+  });
+  await check("pull-request check admission is typed and idempotent", async () => {
+    const key=`pr-check:acme/one:${"a".repeat(40)}`;
+    const one=(await db.query("select public.enqueue_pull_request_check($1,$2,$3,7,$4) as id",[u1,r1,key,"A".repeat(40)])).rows[0].id;
+    const two=(await db.query("select public.enqueue_pull_request_check($1,$2,$3,7,$4) as id",[u1,r1,key,"a".repeat(40)])).rows[0].id;
+    assert.equal(two,one);
+    const stored=(await db.query("select j.kind,c.user_id,c.repository_id,c.pull_request_number,c.head_sha from public.execution_jobs j join public.pull_request_jobs c on c.job_id=j.id where j.id=$1",[one])).rows[0];
+    assert.deepEqual(stored,{kind:"pr-check",user_id:u1,repository_id:r1,pull_request_number:7,head_sha:"a".repeat(40)});
+    await assert.rejects(db.query("select public.enqueue_pull_request_check($1,$2,$3,8,$4)",[u1,r1,key,"a".repeat(40)]));
+    await assert.rejects(db.query("select public.enqueue_pull_request_check($1,$2,$3,7,$4)",[u1,r1,key,"b".repeat(40)]));
+    await assert.rejects(db.query("select public.enqueue_pull_request_check($1,$2,'bad',7,'short')",[u1,r1]));
+  });
+  await check("client roles cannot read or admit pull-request checks", async () => {
+    await db.exec("set role authenticated");
+    await assert.rejects(db.query("select * from public.pull_request_jobs"));
+    await assert.rejects(db.query("select public.enqueue_pull_request_check($1,$2,'x',7,$3)",[u1,r1,"a".repeat(40)]));
+    await db.exec("reset role");
   });
   console.log(`${checks} SQL checks passed. Single-connection PostgreSQL WASM; multi-session contention and hosted Supabase remain unverified.`);
 } finally { await db.close(); }

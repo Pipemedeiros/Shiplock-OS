@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { runNextAuditJob } from "@/lib/jobs/auditWorker";
+import { runNextJob } from "@/lib/jobs/worker";
 import { isAuthorizedWorkerRequest } from "@/lib/jobs/workerAuth";
 
 // One audit owns the invocation budget. The independent caller repeats this
@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const claimed = await runNextAuditJob();
+    const claimed = await runNextJob();
     return NextResponse.json({ processed: claimed ? 1 : 0 });
   } catch {
     // A provider/storage error can contain tenant context. The job records its

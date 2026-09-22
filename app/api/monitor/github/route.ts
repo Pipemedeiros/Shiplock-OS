@@ -4,20 +4,20 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { runGithubScan } from "@/lib/deep/githubRun";
 import { hasProductAccess } from "@/lib/access";
-import { runPullRequestCheck } from "@/lib/agent/prCheck";
-import { enqueueAuditJob } from "@/lib/jobs/queue";
-import { runNextAuditJob } from "@/lib/jobs/auditWorker";
+import { enqueueAuditJob, enqueuePullRequestCheck } from "@/lib/jobs/queue";
+import { runNextJob } from "@/lib/jobs/worker";
 
 // GitHub App webhook — re-scans a repo's source on every pull request, so the
 // watch re-audits "every PR" (replacing the old deploy-webhook trigger). The
 // GitHub App's webhook URL points here; auth is the App's signed payload
 // (X-Hub-Signature-256, HMAC over the raw body with GITHUB_WEBHOOK_SECRET).
-// Inert until the secret is set. Deferred best-effort work never changes the
-// response, but a durable audit admission failure returns 503 so GitHub can
-// retry. The repository + head-SHA idempotency key makes that retry safe.
+// Inert until the secret is set. Durable audit/check admission happens before
+// acknowledgement and returns 503 on failure so GitHub can retry. Repository +
+// head-SHA idempotency makes that retry safe. The legacy source refresh remains
+// deferred until its multi-table writes have a fenced persistence contract.
 //
-// The scan runs in `after()`, so the 200 goes back immediately and the work
-// continues once the response is sent. GitHub allows a webhook TEN SECONDS to
+// The queue worker and legacy source refresh run after acknowledgement. GitHub
+// allows a webhook TEN SECONDS to
 // return headers, and the first real delivery this handler ever received blew
 // straight through it:
 //
@@ -25,8 +25,8 @@ import { runNextAuditJob } from "@/lib/jobs/auditWorker";
 //     (Client.Timeout exceeded while awaiting headers)
 //
 // The check was still posted, because the function kept running, but GitHub had
-// already recorded a failed delivery and would retry it. Retries mean duplicate
-// audits and duplicate check runs on the same commit. Reading a repository
+// already recorded a failed delivery and would retry it. Retries previously
+// meant duplicate audits and check runs. Reading a repository
 // tarball takes longer than ten seconds on its own for a large codebase, so no
 // amount of tuning fits the work inside the deadline: the answer is to stop
 // making GitHub wait for it.
@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
       repository = data ? { id: data.id as string } : null;
     }
 
-    let auditQueued = false;
+    let workQueued = false;
     if (!coalesced && repository && headSha && fullName) {
       try {
         await enqueueAuditJob(
@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
           `pull-request:${fullName}:${headSha}`,
           "pull_request",
         );
-        auditQueued = true;
+        workQueued = true;
       } catch {
         console.error("[monitor/github] audit admission failed");
         return NextResponse.json({ error: "webhook temporarily unavailable" }, { status: 503 });
@@ -144,32 +144,29 @@ export async function POST(req: NextRequest) {
     }
 
     if (repository && prNumber && headSha && fullName) {
-      after(async () => {
-        try {
-          await runPullRequestCheck({
-            userId: ownerId,
-            installationId,
-            fullName,
-            prNumber,
-            headSha,
-          });
-        } catch (err) {
-          console.error(
-            "[monitor/github] merge check failed:",
-            err instanceof Error ? err.message : err,
-          );
-        }
-      });
+      try {
+        await enqueuePullRequestCheck(
+          ownerId,
+          repository.id,
+          `pr-check:${fullName}:${prNumber}:${headSha}`,
+          prNumber,
+          headSha,
+        );
+        workQueued = true;
+      } catch {
+        console.error("[monitor/github] pull request check admission failed");
+        return NextResponse.json({ error: "webhook temporarily unavailable" }, { status: 503 });
+      }
     }
 
-    if (auditQueued) {
+    if (workQueued) {
       after(async () => {
         try {
-          await runNextAuditJob();
+          await runNextJob();
         } catch {
           // The queue is the durable authority. A failed opportunistic wake
           // leaves the admitted job available to the independent worker.
-          console.error("[monitor/github] audit worker wake failed");
+          console.error("[monitor/github] worker wake failed");
         }
       });
     }

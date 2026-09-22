@@ -76,23 +76,48 @@ export async function POST(request: Request) {
   const admin = getSupabaseAdmin();
   const chosen = parsed.data.repositories;
 
-  // Deselect everything first, then upsert the chosen set as selected. Doing it
-  // in this order means a repository removed from the list actually stops being
-  // audited, rather than lingering because nothing ever unset it.
-  await admin.from("repositories").update({ selected: false }).eq("user_id", user.userId);
-
-  if (chosen.length > 0) {
-    await admin.from("repositories").upsert(
-      chosen.map((fullName) => ({ user_id: user.userId, full_name: fullName, selected: true })),
-      { onConflict: "user_id,full_name" },
-    );
+  const { data: profile, error: profileError } = await admin
+    .from("user_profiles")
+    .select("github_installation_id")
+    .eq("id", user.userId)
+    .single();
+  const installationId = profile?.github_installation_id as number | null;
+  if (profileError || !installationId) {
+    return NextResponse.json({ error: "Connect GitHub first." }, { status: 409 });
   }
 
-  const { data: rows } = await admin
-    .from("repositories")
-    .select("id, full_name")
-    .eq("user_id", user.userId)
-    .eq("selected", true);
+  try {
+    // Re-read the installation immediately before changing scope. A repository
+    // name from the browser is a request, not proof that the installation can
+    // still see it or that its default branch is "main".
+    const available = new Map(
+      (await listRepos(await getInstallationToken(installationId))).map((repository) => [
+        repository.fullName,
+        repository,
+      ]),
+    );
+    if (chosen.some((fullName) => !available.has(fullName))) {
+      return NextResponse.json(
+        { error: "One or more repositories are no longer visible to this GitHub installation." },
+        { status: 409 },
+      );
+    }
 
-  return NextResponse.json({ repositories: rows ?? [] });
+    const { data: rows, error } = await admin.rpc("replace_selected_repositories", {
+      p_user: user.userId,
+      p_repositories: chosen.map((fullName) => {
+        const repository = available.get(fullName)!;
+        return {
+          full_name: repository.fullName,
+          github_repo_id: repository.id,
+          default_branch: repository.defaultBranch,
+          private: repository.isPrivate ?? true,
+        };
+      }),
+    });
+    if (error) throw new Error("selection transaction failed");
+    return NextResponse.json({ repositories: rows ?? [] });
+  } catch {
+    return NextResponse.json({ error: "Could not save the repository selection." }, { status: 503 });
+  }
 }

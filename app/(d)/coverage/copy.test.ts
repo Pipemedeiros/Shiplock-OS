@@ -134,11 +134,16 @@ describe("scope page", () => {
   });
 
   // There is no per-account autonomy switch in the code; the only thing the
-  // product creates is a pull request, and it never merges one
-  // (app/api/fix/pr/route.ts, lib/agent/autoFixPr.ts).
+  // product creates only after an explicit fix action is a pull request, and it
+  // never merges one (app/api/fix/pr/route.ts).
   it("says the only thing it creates is a pull request, and that it never merges", () => {
     expect(COVERAGE).toMatch(/never merge/i);
     expect(COVERAGE).not.toMatch(/off by default/i);
+  });
+
+  it("does not claim an audit itself opens a pull request", () => {
+    expect(COVERAGE).toMatch(/only after you click/i);
+    expect(COVERAGE).not.toMatch(/after an audit, a pull request is opened/i);
   });
 });
 

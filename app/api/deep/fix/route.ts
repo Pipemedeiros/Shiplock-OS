@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { runFixPr } from "@/lib/fixes/prRun";
-import { FINDING_SOURCES, type FixableFinding } from "@/lib/fixes/lane";
+import { getFixFindings } from "@/lib/fixes/findings";
 import { hasProductAccess } from "@/lib/access";
 
 // Opens a reviewable fix PR for one finding. Bearer auth + paid + GitHub
@@ -12,17 +12,7 @@ import { hasProductAccess } from "@/lib/access";
 // editedContent is the user's reviewed/customized version of the fix.
 
 const Body = z.object({
-  finding: z.object({
-    id: z.string().min(1).max(400),
-    // Derived from lane.ts's single source of truth. Hand-listing a subset here
-    // is what broke the graph/proven PR buttons: both route to real PR lanes,
-    // and both 400'd on this validator.
-    source: z.enum(FINDING_SOURCES),
-    title: z.string().min(1).max(300),
-    severity: z.enum(["CRITICAL", "WARNING", "INFO"]),
-    fix: z.string().max(20_000),
-    filePath: z.string().max(400).optional(),
-  }),
+  findingId: z.string().min(1).max(400),
   editedContent: z.string().max(60_000),
 });
 
@@ -48,7 +38,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
 
-  const finding: FixableFinding = parsed.finding;
+  // Only the customer's edited artifact comes from the request. Finding
+  // identity, severity, title, source and approved lane are server-owned.
+  const finding = (await getFixFindings(auth.user.id)).find((item) => item.id === parsed.findingId);
+  if (!finding) return NextResponse.json({ error: "Finding not found." }, { status: 404 });
 
   try {
     const { url } = await runFixPr(auth.user.id, finding, parsed.editedContent);

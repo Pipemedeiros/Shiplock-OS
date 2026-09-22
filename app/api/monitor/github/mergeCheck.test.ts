@@ -8,10 +8,10 @@ import crypto from "node:crypto";
 // second push to a branch silently inherits the first push's verdict — a green
 // check on code nobody looked at.
 
-const runPullRequestCheckMock = vi.fn();
 const runGithubScanMock = vi.fn();
 const enqueueAuditJobMock = vi.fn();
-const runNextAuditJobMock = vi.fn();
+const enqueuePullRequestCheckMock = vi.fn();
+const runNextJobMock = vi.fn();
 const profileMaybeSingleMock = vi.fn();
 const repositoryMaybeSingleMock = vi.fn();
 const updateEqMock = vi.fn();
@@ -34,10 +34,9 @@ vi.mock("next/server", async () => {
   };
 });
 
-vi.mock("@/lib/agent/prCheck", () => ({ runPullRequestCheck: runPullRequestCheckMock }));
 vi.mock("@/lib/deep/githubRun", () => ({ runGithubScan: runGithubScanMock }));
-vi.mock("@/lib/jobs/queue", () => ({ enqueueAuditJob: enqueueAuditJobMock }));
-vi.mock("@/lib/jobs/auditWorker", () => ({ runNextAuditJob: runNextAuditJobMock }));
+vi.mock("@/lib/jobs/queue", () => ({ enqueueAuditJob: enqueueAuditJobMock, enqueuePullRequestCheck: enqueuePullRequestCheckMock }));
+vi.mock("@/lib/jobs/worker", () => ({ runNextJob: runNextJobMock }));
 vi.mock("@/lib/supabase", () => ({
   getSupabaseAdmin: () => ({
     from: (table: string) => {
@@ -84,7 +83,7 @@ const payload = JSON.stringify({
   action: "synchronize",
   installation: { id: 42 },
   repository: { full_name: "acme/app" },
-  pull_request: { number: 7, head: { sha: "abc123" } },
+  pull_request: { number: 7, head: { sha: "abc1234" } },
 });
 
 describe("the merge check and the coalescing window", () => {
@@ -104,29 +103,29 @@ describe("the merge check and the coalescing window", () => {
       job_id: "44444444-4444-4444-8444-444444444444",
       run_id: "55555555-5555-4555-8555-555555555555",
     });
-    runNextAuditJobMock.mockResolvedValue(true);
+    enqueuePullRequestCheckMock.mockResolvedValue("66666666-6666-4666-8666-666666666666");
+    runNextJobMock.mockResolvedValue(true);
     runGithubScanMock.mockResolvedValue(undefined);
   });
 
-  it("still posts the check when the full re-scan is coalesced away", async () => {
+  it("still durably queues the check when the full re-scan is coalesced away", async () => {
     await POST(req(payload));
     await flushAfter();
 
-    expect(runPullRequestCheckMock).toHaveBeenCalledWith(
-      expect.objectContaining({ fullName: "acme/app", prNumber: 7, headSha: "abc123" }),
+    expect(enqueuePullRequestCheckMock).toHaveBeenCalledWith(
+      "22222222-2222-4222-8222-222222222222", "33333333-3333-4333-8333-333333333333",
+      "pr-check:acme/app:7:abc1234", 7, "abc1234",
     );
     // The expensive pass is the one that gets skipped.
     expect(runGithubScanMock).not.toHaveBeenCalled();
     expect(enqueueAuditJobMock).not.toHaveBeenCalled();
   });
 
-  it("does not let a failing check stop the rest of the pass", async () => {
+  it("admits durable work before running the deferred source refresh", async () => {
     profileMaybeSingleMock.mockResolvedValue({
       data: { id: "22222222-2222-4222-8222-222222222222", is_paid: true, last_source_scan_at: null },
       error: null,
     });
-    runPullRequestCheckMock.mockRejectedValue(new Error("GitHub 503"));
-
     const res = await POST(req(payload));
     await flushAfter();
     await flushAfter();
@@ -134,7 +133,7 @@ describe("the merge check and the coalescing window", () => {
     // 200 regardless, or GitHub retries the delivery and we do the work twice.
     expect(res.status).toBe(200);
     expect(runGithubScanMock).toHaveBeenCalled();
-    expect(runNextAuditJobMock).toHaveBeenCalledOnce();
+    expect(runNextJobMock).toHaveBeenCalledOnce();
   });
 
   it("durably admits only the event repository with a repository and head-SHA key", async () => {
@@ -149,11 +148,11 @@ describe("the merge check and the coalescing window", () => {
     expect(enqueueAuditJobMock).toHaveBeenCalledWith(
       "22222222-2222-4222-8222-222222222222",
       "33333333-3333-4333-8333-333333333333",
-      "pull-request:acme/app:abc123",
+      "pull-request:acme/app:abc1234",
       "pull_request",
     );
     await flushAfter();
-    expect(runNextAuditJobMock).toHaveBeenCalledOnce();
+    expect(runNextJobMock).toHaveBeenCalledOnce();
   });
 
   it("returns a retryable response before scheduling side effects when admission fails", async () => {
@@ -167,9 +166,18 @@ describe("the merge check and the coalescing window", () => {
     const res = await POST(req(opened));
     expect(res.status).toBe(503);
     expect(afterWork).toHaveLength(0);
-    expect(runPullRequestCheckMock).not.toHaveBeenCalled();
+    expect(enqueuePullRequestCheckMock).not.toHaveBeenCalled();
     expect(runGithubScanMock).not.toHaveBeenCalled();
-    expect(runNextAuditJobMock).not.toHaveBeenCalled();
+    expect(runNextJobMock).not.toHaveBeenCalled();
+  });
+
+  it("returns a retryable response when durable check admission fails", async () => {
+    enqueuePullRequestCheckMock.mockRejectedValue(new Error("private database detail"));
+    const res = await POST(req(payload));
+    expect(res.status).toBe(503);
+    expect(afterWork).toHaveLength(0);
+    expect(runGithubScanMock).not.toHaveBeenCalled();
+    expect(runNextJobMock).not.toHaveBeenCalled();
   });
 
   it("does not write a check or audit for an installation repository the customer did not select", async () => {
@@ -179,7 +187,7 @@ describe("the merge check and the coalescing window", () => {
     await flushAfter();
     expect(res.status).toBe(200);
     expect(enqueueAuditJobMock).not.toHaveBeenCalled();
-    expect(runPullRequestCheckMock).not.toHaveBeenCalled();
+    expect(enqueuePullRequestCheckMock).not.toHaveBeenCalled();
   });
 
   it("stamps source freshness only after a successful refresh", async () => {
@@ -199,6 +207,6 @@ describe("the merge check and the coalescing window", () => {
     const raw = JSON.stringify({ action: "opened", installation: { id: 42 } });
     await POST(req(raw));
     await flushAfter();
-    expect(runPullRequestCheckMock).not.toHaveBeenCalled();
+    expect(enqueuePullRequestCheckMock).not.toHaveBeenCalled();
   });
 });

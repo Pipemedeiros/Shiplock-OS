@@ -4,10 +4,10 @@ import type { Severity } from "@/lib/types";
 import type { Dep, OsvVuln } from "./githubScan";
 import { fixedVersionFromOsv } from "./githubFix";
 
-// GitHub App API access. READ-ONLY: the App requests only "Repository contents:
-// read" + "Metadata: read" (see CLAUDE.md). This module never writes
-// to a repo. All functions throw a clear error at call time if the App isn't
-// configured yet — same optional-env pattern as lib/deep/vercel.ts.
+// GitHub App API access. Collection is read-only. Separate, customer-approved
+// repair paths can write a new branch and open a pull request; they never write
+// the default branch or merge. All functions throw a clear error at call time
+// if the App is not configured.
 const API = "https://api.github.com";
 const TIMEOUT_MS = 12_000;
 const GH_HEADERS = { Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" };
@@ -33,18 +33,48 @@ function appJwt(): string {
 }
 
 // Exchange the App JWT for a short-lived installation access token.
-export async function getInstallationToken(installationId: string | number): Promise<string> {
+export interface InstallationAccess {
+  token: string;
+  permissions: Record<string, string>;
+}
+
+export const REQUIRED_GITHUB_APP_PERMISSIONS = {
+  metadata: "read",
+  contents: "write",
+  pull_requests: "write",
+  checks: "write",
+} as const;
+
+const permissionRank: Record<string, number> = { none: 0, read: 1, write: 2, admin: 3 };
+
+export function missingInstallationPermissions(permissions: Record<string, string>): string[] {
+  return Object.entries(REQUIRED_GITHUB_APP_PERMISSIONS)
+    .filter(([name, required]) => (permissionRank[permissions[name] ?? "none"] ?? 0) < permissionRank[required])
+    .map(([name]) => name);
+}
+
+export async function getInstallationAccess(installationId: string | number): Promise<InstallationAccess> {
   const res = await fetch(`${API}/app/installations/${installationId}/access_tokens`, {
     method: "POST",
     headers: { ...GH_HEADERS, Authorization: `Bearer ${appJwt()}` },
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   if (!res.ok) throw new Error(`GitHub installation token HTTP ${res.status}`);
-  const json = (await res.json()) as { token: string };
-  return json.token;
+  const json = (await res.json()) as { token?: unknown; permissions?: unknown };
+  if (typeof json.token !== "string" || !json.token) throw new Error("GitHub installation token missing");
+  const permissions = json.permissions && typeof json.permissions === "object" && !Array.isArray(json.permissions)
+    ? Object.fromEntries(Object.entries(json.permissions).filter((entry): entry is [string, string] => typeof entry[1] === "string"))
+    : {};
+  return { token: json.token, permissions };
+}
+
+export async function getInstallationToken(installationId: string | number): Promise<string> {
+  return (await getInstallationAccess(installationId)).token;
 }
 
 export interface Repo {
+  /** GitHub-issued repository identity. Stringified to avoid bigint precision loss. */
+  id: string | null;
   fullName: string; // owner/name
   defaultBranch: string;
   /**
@@ -65,6 +95,7 @@ export async function listRepos(token: string): Promise<Repo[]> {
   if (!res.ok) throw new Error(`GitHub list repos HTTP ${res.status}`);
   const json = (await res.json()) as {
     repositories?: Array<{
+      id?: number | string;
       full_name: string;
       default_branch: string;
       private?: boolean;
@@ -72,6 +103,7 @@ export async function listRepos(token: string): Promise<Repo[]> {
     }>;
   };
   return (json.repositories ?? []).map((r) => ({
+    id: typeof r.id === "number" || typeof r.id === "string" ? String(r.id) : null,
     fullName: r.full_name,
     defaultBranch: r.default_branch,
     isPrivate: typeof r.private === "boolean" ? r.private : null,
@@ -227,6 +259,21 @@ export async function openPullRequest(
   return pr.html_url;
 }
 
+/** Recover an already-open ShipLock PR after a lost response. GitHub does not
+ * make POST /pulls idempotent, so callers pair this with a deterministic head. */
+export async function findOpenPullRequestForBranch(
+  token: string, fullName: string, branch: string,
+): Promise<string | null> {
+  const owner = fullName.split("/")[0];
+  const res = await fetch(
+    `${API}/repos/${fullName}/pulls?state=open&head=${encodeURIComponent(`${owner}:${branch}`)}&per_page=10`,
+    { headers: { ...GH_HEADERS, Authorization: `token ${token}` }, signal: AbortSignal.timeout(TIMEOUT_MS) },
+  );
+  if (!res.ok) throw new Error(`GitHub list pull requests HTTP ${res.status}`);
+  const rows = (await res.json()) as Array<{ html_url?: unknown }>;
+  return typeof rows[0]?.html_url === "string" ? rows[0].html_url : null;
+}
+
 /**
  * Recent commits with their diffs, for the history secret scan (C2).
  *
@@ -283,14 +330,28 @@ export async function listRecentCommitPatches(
   return out;
 }
 
-/** Files a pull request touches, with their content AFTER the change. */
+export interface PullRequestFiles {
+  /** Readable files after the change. */
+  files: { path: string; content: string }[];
+  /** Number of entries GitHub returned on the bounded first page. */
+  listed: number;
+  /** True only when every listed change was readable and no page/file was omitted. */
+  complete: boolean;
+  coverage: string;
+}
+
+/** Files a pull request touches, with their content AFTER the change.
+ *
+ * The check is deliberately bounded. A partial diff can still prove a concrete
+ * problem, but it can never produce a green conclusion.
+ */
 export async function listPullRequestFiles(
   token: string,
   fullName: string,
   number: number,
   headSha: string,
-  maxFiles = 300,
-): Promise<{ path: string; content: string }[]> {
+  maxFiles = 24,
+): Promise<PullRequestFiles> {
   const res = await fetch(`${API}/repos/${fullName}/pulls/${number}/files?per_page=100`, {
     headers: { ...GH_HEADERS, Authorization: `token ${token}` },
     signal: AbortSignal.timeout(TIMEOUT_MS),
@@ -299,20 +360,39 @@ export async function listPullRequestFiles(
 
   const json = (await res.json()) as Array<{ filename?: string; status?: string }>;
 
-  const paths = json
-    // A deleted file cannot introduce a vulnerability, and fetching it 404s.
-    .filter((f) => f.filename && f.status !== "removed")
+  const candidates = json.filter((f) => f.filename && f.status !== "removed");
+  const paths = candidates
     .map((f) => f.filename as string)
     .slice(0, maxFiles);
 
   const files: { path: string; content: string }[] = [];
-  for (const path of paths) {
-    // At the PR's head sha, not the default branch: we must judge the code as
-    // proposed, not as it currently is on main.
-    const content = await getFile(token, fullName, path, headSha).catch(() => null);
-    if (content !== null) files.push({ path, content });
+  for (let offset = 0; offset < paths.length; offset += 6) {
+    const batch = paths.slice(offset, offset + 6);
+    const reads = await Promise.all(batch.map(async (path) => ({
+      path,
+      // At the PR's head sha, not the default branch: we must judge the code as
+      // proposed, not as it currently is on main.
+      content: await getFile(token, fullName, path, headSha).catch(() => null),
+    })));
+    files.push(...reads.filter((file): file is { path: string; content: string } => file.content !== null));
   }
-  return files;
+  const removed = json.filter((file) => file.filename && file.status === "removed").length;
+  const paginated = /(?:^|,)\s*<[^>]+>;\s*rel="next"/.test(res.headers.get("link") ?? "");
+  const omitted = Math.max(0, candidates.length - paths.length);
+  const unread = paths.length - files.length;
+  const complete = !paginated && removed === 0 && omitted === 0 && unread === 0;
+  const reasons = [
+    paginated ? "more than the first GitHub page changed" : null,
+    removed ? `${removed} deleted file${removed === 1 ? " was" : "s were"} not readable at the head commit` : null,
+    omitted ? `${omitted} file${omitted === 1 ? " was" : "s were"} beyond the ${maxFiles}-file review budget` : null,
+    unread ? `${unread} file${unread === 1 ? " could" : "s could"} not be read` : null,
+  ].filter(Boolean);
+  return {
+    files,
+    listed: json.length,
+    complete,
+    coverage: complete ? `All ${json.length} changed file${json.length === 1 ? " was" : "s were"} readable.` : `Partial diff: ${reasons.join("; ")}.`,
+  };
 }
 
 /**
@@ -329,13 +409,27 @@ export async function createCheckRun(
   conclusion: "success" | "neutral" | "failure",
   title: string,
   summary: string,
+  externalId: string,
 ): Promise<void> {
-  await ghWrite(token, `/repos/${fullName}/check-runs`, "POST", {
+  if (!externalId || externalId.length > 255) throw new Error("Invalid GitHub check external id");
+  const list = await fetch(
+    `${API}/repos/${fullName}/commits/${encodeURIComponent(headSha)}/check-runs?check_name=ShipLock&filter=latest&per_page=100`,
+    { headers: { ...GH_HEADERS, Authorization: `token ${token}` }, signal: AbortSignal.timeout(TIMEOUT_MS) },
+  );
+  if (!list.ok) throw new Error(`GitHub list check runs HTTP ${list.status}`);
+  const listed = (await list.json()) as { check_runs?: Array<{ id?: number; external_id?: string }> };
+  const existing = (listed.check_runs ?? []).find((run) => run.external_id === externalId && Number.isSafeInteger(run.id));
+  const body = {
     name: "ShipLock",
-    head_sha: headSha,
     status: "completed",
     conclusion,
     completed_at: new Date().toISOString(),
+    external_id: externalId,
     output: { title, summary: summary.slice(0, 65_000) },
-  });
+  };
+  if (existing?.id) {
+    await ghWrite(token, `/repos/${fullName}/check-runs/${existing.id}`, "PATCH", body);
+  } else {
+    await ghWrite(token, `/repos/${fullName}/check-runs`, "POST", { ...body, head_sha: headSha });
+  }
 }

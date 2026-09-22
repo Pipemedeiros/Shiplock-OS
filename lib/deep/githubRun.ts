@@ -150,7 +150,17 @@ export async function runGithubScan(
 ): Promise<{ total: number; newCount: number; resolvedCount: number }> {
   const admin = getSupabaseAdmin();
   const token = await getInstallationToken(installationId);
-  const repos = (await listRepos(token)).slice(0, MAX_REPOS);
+  // Installation visibility is broader than customer selection. Collection is
+  // authorized only for repositories the customer explicitly selected.
+  const { data: selectedRows, error: selectedError } = await admin
+    .from("repositories")
+    .select("full_name")
+    .eq("user_id", userId)
+    .eq("selected", true)
+    .limit(MAX_REPOS);
+  if (selectedError) throw new Error("Selected repositories could not be read");
+  const selected = new Set((selectedRows ?? []).map((row) => row.full_name as string));
+  const repos = (await listRepos(token)).filter((repo) => selected.has(repo.fullName)).slice(0, MAX_REPOS);
 
   const all: GithubFinding[] = [];
   // Which repos we actually finished reading. Load-bearing for archiving below:

@@ -4,7 +4,7 @@ import { requireProUser } from "@/lib/deep/proGate";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { getInstallationToken } from "@/lib/deep/github";
 import { fetchRepoArchive } from "@/lib/deep/repoArchive";
-import { detectStack } from "@/lib/agent/stack";
+import { detectStack, routeAnalysisSupport } from "@/lib/agent/stack";
 
 /**
  * Reads one selected repository and reports the stack it declares.
@@ -62,6 +62,7 @@ export async function POST(request: Request) {
     const token = await getInstallationToken(installationId);
     const archive = await fetchRepoArchive(token, parsed.data.repository);
     const stack = detectStack(archive.files);
+    const routeAnalysis = routeAnalysisSupport(stack);
 
     return NextResponse.json({
       tools: stack.tools.map((t) => ({
@@ -72,6 +73,7 @@ export async function POST(request: Request) {
       })),
       authUnknown: stack.authUnknown,
       databaseUnknown: stack.databaseUnknown,
+      routeAnalysis,
       filesRead: archive.files.length,
     });
   } catch (err) {

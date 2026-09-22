@@ -317,7 +317,7 @@ export const HOW_IT_WORKS: { title: string; body: string }[] = [
 export const PRICING = {
   free: {
     name: "Free scan",
-    price: "$0",
+    price: "Pilot access",
     tagline: "Find out where you stand.",
     features: [
       "One full 15-check scan",
@@ -328,8 +328,8 @@ export const PRICING = {
   },
   paid: {
     name: "Monitor",
-    price: "$49",
-    per: "/month",
+    price: "Pricing pending",
+    per: "",
     tagline: "The $50k audit, running all the time.",
     features: [
       "Everything in the free scan",
@@ -340,7 +340,7 @@ export const PRICING = {
       "Alerts only when something new appears",
     ],
   },
-  rescan: "Need a one-off re-check? $2, any time, no subscription.",
+  rescan: "Pricing is parked until real audit and monitoring costs are measured.",
 };
 
 export const TRUST_LINE =

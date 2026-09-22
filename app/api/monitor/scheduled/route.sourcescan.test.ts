@@ -24,6 +24,7 @@ const saveFactsMock = vi.fn();
 const sendWeeklyDigestMock = vi.fn();
 const pruneOldTrafficMock = vi.fn();
 const updateEqMock = vi.fn();
+const rpcMock = vi.fn();
 
 // Records call order across mocked collectors so ordering can be asserted.
 const callOrder: string[] = [];
@@ -45,6 +46,7 @@ vi.mock("@/lib/monitoring/digest", () => ({ sendWeeklyDigest: sendWeeklyDigestMo
 
 vi.mock("@/lib/supabase", () => ({
   getSupabaseAdmin: () => ({
+    rpc: rpcMock,
     from: (table: string) => {
       // Every select chain in this route ends in an awaitable thenable; model it
       // as a promise-like that resolves to the rows configured for that table.
@@ -108,6 +110,10 @@ describe("GET /api/monitor/scheduled — source facts land without PR activity",
     sendWeeklyDigestMock.mockReset().mockResolvedValue(false);
     pruneOldTrafficMock.mockReset().mockResolvedValue({ ok: true });
     updateEqMock.mockReset();
+    rpcMock.mockReset().mockResolvedValue({
+      data: { eligible: 0, admitted: 0, failed: 0, limited: false },
+      error: null,
+    });
   });
 
   it("401s without the cron secret, before doing any work", async () => {
@@ -118,6 +124,29 @@ describe("GET /api/monitor/scheduled — source facts land without PR activity",
     );
     expect(res.status).toBe(401);
     expect(runGithubScanMock).not.toHaveBeenCalled();
+    expect(rpcMock).not.toHaveBeenCalled();
+  });
+
+  it("durably admits bounded stale audits before legacy scheduled work", async () => {
+    rpcMock.mockResolvedValue({
+      data: { eligible: 3, admitted: 2, failed: 1, limited: false },
+      error: null,
+    });
+    const res = await GET(req());
+    const body = await res.json();
+    expect(rpcMock).toHaveBeenCalledWith("enqueue_due_repository_audits", expect.objectContaining({
+      p_require_paid: false,
+      p_limit: 1_000,
+    }));
+    expect(body).toMatchObject({ auditsEligible: 3, auditsAdmitted: 2, auditAdmissionsFailed: 1 });
+  });
+
+  it("returns retryable failure before legacy side effects when admission is unavailable", async () => {
+    rpcMock.mockResolvedValue({ data: null, error: { message: "private storage detail" } });
+    const res = await GET(req());
+    expect(res.status).toBe(503);
+    expect(runGithubScanMock).not.toHaveBeenCalled();
+    expect(sendWeeklyDigestMock).not.toHaveBeenCalled();
   });
 
   it("runs the source scan for a GitHub-connected paid user who has opened no PRs", async () => {

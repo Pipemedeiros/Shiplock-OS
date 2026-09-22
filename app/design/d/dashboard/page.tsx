@@ -276,7 +276,7 @@ export default function RetainerDashboard() {
               <span className="dxd-mono" style={{ fontSize: 12 }}>
                 {clock} UTC
               </span>
-              <a href="#terms">Retainer · $49/mo</a>
+              <a href="#terms">Founder pilot</a>
             </div>
           </nav>
 
@@ -652,7 +652,7 @@ export default function RetainerDashboard() {
                 style={{ flexDirection: "column", gap: 10, alignItems: "flex-start" }}
               >
                 <span>
-                  plan <b>the retainer · $49/mo</b>
+                  plan <b>the founder pilot</b>
                 </span>
                 <span>
                   alerts <b>only when something new appears</b>

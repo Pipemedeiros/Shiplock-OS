@@ -154,7 +154,7 @@ export default function ProtoLanding() {
         <div className="pr-between" style={{ marginTop: 18 }}>
           <p className="pr-sub" style={{ fontSize: 13 }}>
             Over a limit we email you before we charge you. Extra repository $39/mo · extra 100
-            pull-request audits $49 · extra deep audit $9.
+            Pricing is under measurement and will be set from real usage costs.
           </p>
           <button className="pr-btn pr-btn-ghost pr-btn-sm" onClick={() => { setInternals(!internals); toast(internals ? "Unit economics hidden" : "Internal view — COGS and margin per plan"); }}>
             {internals ? "Hide" : "Show"} unit economics

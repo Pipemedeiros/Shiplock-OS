@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const runNextAuditJob = vi.hoisted(() => vi.fn());
-vi.mock("@/lib/jobs/auditWorker", () => ({ runNextAuditJob }));
+const runNextJob = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/jobs/worker", () => ({ runNextJob }));
 
 import { POST } from "./route";
 
@@ -16,17 +16,17 @@ describe("POST /api/jobs/drain", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubEnv("CRON_SECRET", "worker-secret");
-    runNextAuditJob.mockResolvedValue(false);
+    runNextJob.mockResolvedValue(false);
   });
 
   it("refuses missing and incorrect worker credentials before claiming", async () => {
     expect((await POST(request())).status).toBe(401);
     expect((await POST(request("wrong"))).status).toBe(401);
-    expect(runNextAuditJob).not.toHaveBeenCalled();
+    expect(runNextJob).not.toHaveBeenCalled();
   });
 
   it("runs one bounded claim and reports whether work was processed", async () => {
-    runNextAuditJob.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    runNextJob.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
 
     const worked = await POST(request("worker-secret"));
     expect(worked.status).toBe(200);
@@ -34,11 +34,11 @@ describe("POST /api/jobs/drain", () => {
 
     const idle = await POST(request("worker-secret"));
     await expect(idle.json()).resolves.toEqual({ processed: 0 });
-    expect(runNextAuditJob).toHaveBeenCalledTimes(2);
+    expect(runNextJob).toHaveBeenCalledTimes(2);
   });
 
   it("returns a generic failure while the claimed job owns retry state", async () => {
-    runNextAuditJob.mockRejectedValue(new Error("private provider detail"));
+    runNextJob.mockRejectedValue(new Error("private provider detail"));
     const response = await POST(request("worker-secret"));
     expect(response.status).toBe(500);
     await expect(response.json()).resolves.toEqual({ error: "Worker invocation failed." });

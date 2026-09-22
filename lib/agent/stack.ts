@@ -192,6 +192,30 @@ export interface StackReport {
   databaseUnknown: boolean;
 }
 
+export interface RouteAnalysisSupport {
+  level: "deep" | "inventory_only";
+  framework: "nextjs" | "unsupported_or_unknown";
+  reason: string;
+}
+
+/** The current route reasoner is intentionally narrower than stack detection.
+ * Detecting Express, Nest or Firebase is inventory; it is not evidence that we
+ * understand that framework's authorization paths. */
+export function routeAnalysisSupport(stack: StackReport): RouteAnalysisSupport {
+  if (stack.tools.some((tool) => tool.id === "next")) {
+    return {
+      level: "deep",
+      framework: "nextjs",
+      reason: "Next.js App Router and Pages API routes in JavaScript or TypeScript are supported.",
+    };
+  }
+  return {
+    level: "inventory_only",
+    framework: "unsupported_or_unknown",
+    reason: "Deep route authorization analysis currently supports Next.js App Router and Pages API routes only.",
+  };
+}
+
 /**
  * Identifies the stack from a repository's files.
  *

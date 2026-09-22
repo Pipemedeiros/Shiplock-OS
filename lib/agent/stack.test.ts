@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detectStack, readDependencies } from "./stack";
+import { detectStack, readDependencies, routeAnalysisSupport } from "./stack";
 
 const pkg = (deps: Record<string, string>) => ({
   path: "package.json",
@@ -91,6 +91,21 @@ describe("readDependencies", () => {
 
   it("returns empty for a missing manifest rather than throwing", () => {
     expect(readDependencies(undefined).size).toBe(0);
+  });
+});
+
+describe("routeAnalysisSupport", () => {
+  it("allows the implemented Next.js route reasoner", () => {
+    expect(routeAnalysisSupport(detectStack([pkg({ next: "15.0.0" })]))).toMatchObject({
+      level: "deep",
+      framework: "nextjs",
+    });
+  });
+
+  it("keeps detected non-Next frameworks at inventory-only coverage", () => {
+    const support = routeAnalysisSupport(detectStack([pkg({ express: "5.0.0" })]));
+    expect(support.level).toBe("inventory_only");
+    expect(support.reason).toContain("Next.js");
   });
 });
 

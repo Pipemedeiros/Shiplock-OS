@@ -1,5 +1,6 @@
+import { createHash } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { getInstallationToken, listRepos, getBranchSha, createBranch, putFile, openPullRequest, getFile, getFileSha, listTree } from "@/lib/deep/github";
+import { getInstallationToken, listRepos, getBranchSha, createBranch, putFile, openPullRequest, findOpenPullRequestForBranch, getFile, getFileSha, listTree } from "@/lib/deep/github";
 import { fixLane, type FixableFinding } from "./lane";
 import { applyCodemod, hasCodemod } from "./codemods";
 import { buildMigrationFix, buildCodeFix, type FixArtifact } from "./content";
@@ -17,13 +18,20 @@ export interface FixPrResult {
 // Low-level: commit one artifact to a fresh branch and open a PR. Pure w.r.t.
 // the github.ts client so it's unit-testable with mocked deps.
 export async function openFixPr(
-  token: string, repo: string, defaultBranch: string, artifact: FixArtifact, title: string, body: string
+  token: string, repo: string, defaultBranch: string, artifact: FixArtifact, title: string, body: string,
+  idempotencyMaterial = `${artifact.path}\0${artifact.content}`,
 ): Promise<string> {
-  const branch = `shiplock/fix-${Date.now()}`;
+  const branch = `shiplock/fix-${createHash("sha256").update(idempotencyMaterial).digest("hex").slice(0, 20)}`;
+  const recovered = await findOpenPullRequestForBranch(token, repo, branch);
+  if (recovered) return recovered;
   const baseSha = await getBranchSha(token, repo, defaultBranch);
-  await createBranch(token, repo, branch, baseSha);
-  // New file → no sha (create, not update).
-  await putFile(token, repo, artifact.path, branch, artifact.content, undefined, title);
+  const existingBranch = await getBranchSha(token, repo, branch).then(() => true).catch(() => false);
+  if (!existingBranch) await createBranch(token, repo, branch, baseSha);
+  const existingFile = await getFileSha(token, repo, artifact.path, branch);
+  const existingContent = existingFile ? await getFile(token, repo, artifact.path, branch).catch(() => null) : null;
+  if (existingContent !== artifact.content) {
+    await putFile(token, repo, artifact.path, branch, artifact.content, existingFile ?? undefined, title);
+  }
   return openPullRequest(token, repo, branch, defaultBranch, title, body);
 }
 
@@ -58,8 +66,20 @@ export async function runFixPr(
   const repos = await listRepos(token);
   if (repos.length === 0) throw new Error("No accessible repositories.");
 
+  const { data: selectedRows, error: selectedError } = await admin
+    .from("repositories")
+    .select("full_name")
+    .eq("user_id", userId)
+    .eq("selected", true);
+  if (selectedError) throw new Error("Selected repositories could not be read.");
+  const selected = new Set((selectedRows ?? []).map((row) => row.full_name as string));
+
   const wanted = repoFromFindingId(finding.id);
-  const repo = repos.find((r) => r.fullName === wanted) ?? repos[0];
+  const exactName = wanted ?? (selected.size === 1 ? [...selected][0] : null);
+  if (!exactName) throw new Error("Choose the repository for this finding before opening a pull request.");
+  if (!selected.has(exactName)) throw new Error("The finding repository is not selected.");
+  const repo = repos.find((candidate) => candidate.fullName === exactName);
+  if (!repo) throw new Error("The selected repository is no longer accessible to ShipLock.");
 
   // A REAL fix where the change is mechanical. Committing an edited version of
   // the customer's own file means they review a diff of their code, not a note
@@ -86,7 +106,7 @@ export async function runFixPr(
       ? "Review the migration, then merge — your own deploy applies it. ShipLock never writes to your database directly."
       : "This PR is a fix request describing the exact change. Apply it (your coding agent can, straight from the file), then merge.");
 
-  const url = await openFixPr(token, repo.fullName, repo.defaultBranch, artifact, title, body);
+  const url = await openFixPr(token, repo.fullName, repo.defaultBranch, artifact, title, body, `${userId}\0${finding.id}\0${artifact.content}`);
   return { url };
 }
 

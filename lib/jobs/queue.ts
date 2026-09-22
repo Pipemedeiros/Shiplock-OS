@@ -42,6 +42,29 @@ export async function enqueueJob(userId: string, repositoryId: string | null, ki
   return z.uuid().parse(data);
 }
 
+export async function enqueuePullRequestCheck(
+  userId: string,
+  repositoryId: string,
+  key: string,
+  pullRequestNumber: number,
+  headSha: string,
+): Promise<string> {
+  z.uuid().parse(userId);
+  z.uuid().parse(repositoryId);
+  z.string().min(1).max(256).parse(key);
+  z.number().int().positive().max(Number.MAX_SAFE_INTEGER).parse(pullRequestNumber);
+  z.string().regex(/^[a-f0-9]{7,64}$/i).parse(headSha);
+  const { data, error } = await getSupabaseAdmin().rpc("enqueue_pull_request_check", {
+    p_user: userId,
+    p_repository: repositoryId,
+    p_key: key,
+    p_pull_request_number: pullRequestNumber,
+    p_head_sha: headSha.toLowerCase(),
+  });
+  if (error) throw new Error("Pull request check could not be queued");
+  return z.uuid().parse(data);
+}
+
 export async function claimJob(kind: JobKind): Promise<ClaimedJob | null> {
   JobKind.parse(kind);
   const { data, error } = await getSupabaseAdmin().rpc("claim_execution_job", { p_kind: kind, p_lease_seconds: 120 });

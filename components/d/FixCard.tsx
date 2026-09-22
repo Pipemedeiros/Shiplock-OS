@@ -36,7 +36,7 @@ export function FixCard({ finding, projectRef }: { finding: FixableFinding; proj
       const res = await fetch("/api/deep/fix", {
         method: "POST",
         headers: { "content-type": "application/json", ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}) },
-        body: JSON.stringify({ finding, editedContent: content }),
+        body: JSON.stringify({ findingId: finding.id, editedContent: content }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Couldn't open the PR."); return; }

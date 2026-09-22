@@ -1,7 +1,9 @@
 import {
   getInstallationToken, listRepos, getFile, queryOsv,
-  getBranchSha, createBranch, getFileSha, putFile, openPullRequest,
+  getBranchSha, createBranch, getFileSha, putFile, openPullRequest, findOpenPullRequestForBranch,
 } from "./github";
+import { createHash } from "crypto";
+import { getSupabaseAdmin } from "@/lib/supabase";
 import { extractDependencies } from "./githubScan";
 import { planDependencyBumps, pickTargetVersion, buildPrBody } from "./githubFix";
 
@@ -33,16 +35,22 @@ async function fixRepo(token: string, fullName: string, branch: string): Promise
   if (changes.length === 0) return null;
 
   // New branch off the default branch's tip — never touch the default itself.
-  const fixBranch = `shiplock/dep-fixes-${Date.now()}`;
+  const fixBranch = `shiplock/dep-fixes-${createHash("sha256").update(updated).digest("hex").slice(0, 20)}`;
+  const recovered = await findOpenPullRequestForBranch(token, fullName, fixBranch);
+  if (recovered) return { repo: fullName, url: recovered, count: changes.length };
   const baseSha = await getBranchSha(token, fullName, branch);
-  await createBranch(token, fullName, fixBranch, baseSha);
+  const existingBranch = await getBranchSha(token, fullName, fixBranch).then(() => true).catch(() => false);
+  if (!existingBranch) await createBranch(token, fullName, fixBranch, baseSha);
 
-  const fileSha = await getFileSha(token, fullName, "package.json", branch);
+  const fileSha = await getFileSha(token, fullName, "package.json", fixBranch);
   if (!fileSha) return null;
-  await putFile(
-    token, fullName, "package.json", fixBranch, updated, fileSha,
-    "chore(deps): bump vulnerable dependencies (ShipLock)"
-  );
+  const existingContent = await getFile(token, fullName, "package.json", fixBranch).catch(() => null);
+  if (existingContent !== updated) {
+    await putFile(
+      token, fullName, "package.json", fixBranch, updated, fileSha,
+      "chore(deps): bump vulnerable dependencies (ShipLock)"
+    );
+  }
 
   const url = await openPullRequest(
     token, fullName, fixBranch, branch,
@@ -52,9 +60,13 @@ async function fixRepo(token: string, fullName: string, branch: string): Promise
   return { repo: fullName, url, count: changes.length };
 }
 
-export async function runGithubFix(installationId: string | number): Promise<{ prs: FixPr[]; repos: number }> {
+export async function runGithubFix(userId: string, installationId: string | number): Promise<{ prs: FixPr[]; repos: number }> {
   const token = await getInstallationToken(installationId);
-  const repos = (await listRepos(token)).slice(0, MAX_REPOS);
+  const visible = await listRepos(token);
+  const { data, error } = await getSupabaseAdmin().from("repositories").select("full_name").eq("user_id",userId).eq("selected",true).limit(MAX_REPOS);
+  if (error) throw new Error("Selected repositories could not be read");
+  const selected = new Set((data ?? []).map((row) => row.full_name as string));
+  const repos = visible.filter((repo) => selected.has(repo.fullName)).slice(0, MAX_REPOS);
 
   const prs: FixPr[] = [];
   for (const repo of repos) {

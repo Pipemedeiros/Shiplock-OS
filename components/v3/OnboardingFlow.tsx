@@ -43,6 +43,12 @@ export interface DetectedTool {
   evidence: string;
 }
 
+interface RouteAnalysisSupport {
+  level: "deep" | "inventory_only";
+  framework: "nextjs" | "unsupported_or_unknown";
+  reason: string;
+}
+
 type Step = "connect" | "repos" | "stack" | "audit";
 
 export function OnboardingFlow({
@@ -158,19 +164,20 @@ function Connect() {
         <p className="v3-eyebrow">Setup</p>
         <h1 className="v3-serif" style={{ fontSize: 32, margin: "12px 0 10px" }}>Connect GitHub.</h1>
         <p className="v3-sub" style={{ maxWidth: 560 }}>
-          Read-only on the repositories you pick. We do not ask for your database password, your auth
-          keys or your payment account. Your code names what it talks to.
+          Read-only collection on the repositories you pick. Write access is used only to prepare a
+          new ShipLock fix branch and open a pull request for your review. We never write or merge
+          your default branch.
         </p>
       </div>
 
       <div className="v3-card">
         <div className="v3-hd">
           <h2 className="v3-eyebrow">What we are asking for</h2>
-          <span className="v3-tag ok">Read-only on your code</span>
+          <span className="v3-tag ok">No default-branch writes</span>
         </div>
         <div className="v3-card-p">
           {[
-            { Icon: LockKeyhole, name: "Repository contents", detail: "Read the code to build the map", access: "read" },
+            { Icon: LockKeyhole, name: "Repository contents", detail: "Read the code; write only a new fix branch", access: "read · write" },
             { Icon: GitPullRequest, name: "Pull requests", detail: "Open fix branches for you to merge", access: "read · write" },
             { Icon: ShieldCheck, name: "Checks", detail: "Report a verdict on a pull request before you merge it", access: "write" },
           ].map(({ Icon, name, detail, access }) => (
@@ -186,7 +193,7 @@ function Connect() {
             </div>
           ))}
           <p className="v3-small" style={{ marginTop: 16 }}>
-            We never push to your default branch. Uninstalling deletes what we read within an hour.
+            We never push to your default branch. Disconnecting stops future repository reads.
           </p>
           <a href="/api/deep/github/connect" className="v3-btn v3-primary" style={{ marginTop: 16 }}>
             Install the GitHub App <ArrowRight size={15} />
@@ -262,9 +269,11 @@ function RepoPicker({
 
       <div className="v3-row">
         <button className="v3-btn v3-primary" disabled={picked.length === 0 || loading} onClick={onContinue}>
-          {loading ? "Saving…" : "Run the first audit"}
+          {loading ? "Saving…" : "Inventory selected repositories"}
         </button>
-        <span className="v3-small">{picked.length} selected · a few minutes</span>
+        <span className="v3-small">
+          {picked.length} selected · the first selected repository is audited now
+        </span>
         <button className="v3-btn v3-btn-sm v3-quiet" onClick={onReload} disabled={loading}>
           Reload list
         </button>
@@ -309,6 +318,7 @@ function StackStep({
 }) {
   const [tools, setTools] = useState<DetectedTool[] | null>(null);
   const [authUnknown, setAuthUnknown] = useState(false);
+  const [routeAnalysis, setRouteAnalysis] = useState<RouteAnalysisSupport | null>(null);
   const [error, setError] = useState<string | null>(null);
   const started = useRef(false);
 
@@ -325,11 +335,13 @@ function StackStep({
         const json = (await res.json()) as {
           tools?: DetectedTool[];
           authUnknown?: boolean;
+          routeAnalysis?: RouteAnalysisSupport;
           error?: string;
         };
         if (!res.ok) throw new Error(json.error ?? "Could not read the repository.");
         setTools(json.tools ?? []);
         setAuthUnknown(Boolean(json.authUnknown));
+        setRouteAnalysis(json.routeAnalysis ?? null);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Something went wrong.");
       }
@@ -404,9 +416,20 @@ function StackStep({
         </div>
       ) : null}
 
+      {routeAnalysis?.level === "inventory_only" ? (
+        <div className="v3-card v3-card-warn v3-card-p">
+          <p style={{ fontWeight: 500, fontSize: 14 }}>Repository inventory only</p>
+          <p className="v3-sub" style={{ fontSize: 13.5, marginTop: 6 }}>
+            {routeAnalysis.reason} We will still check framework-independent credential and
+            configuration evidence, but we will not claim that this repository&apos;s routes or
+            authorization paths were assessed.
+          </p>
+        </div>
+      ) : null}
+
       <div className="v3-row">
         <button className="v3-btn v3-primary" onClick={onContinue}>
-          Run the first audit <ArrowRight size={15} />
+          {routeAnalysis?.level === "inventory_only" ? "Run repository checks" : "Run the first audit"} <ArrowRight size={15} />
         </button>
         <span className="v3-small">Coverage keeps this list after the audit runs.</span>
       </div>

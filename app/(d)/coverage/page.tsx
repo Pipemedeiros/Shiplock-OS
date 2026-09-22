@@ -88,16 +88,16 @@ const AREAS = [
   {
     id: "04",
     name: "Fix pull requests",
-    // app/api/fix/pr/route.ts and lib/agent/autoFixPr.ts (called at the end of
-    // every audit in lib/agent/audit.ts). lib/agent/fixPr.ts: no authorization
-    // logic is machine-authored; the PR is a draft for you to complete.
-    lead: "A fix arrives as a pull request on its own branch off your default branch. We never merge it.",
+    // app/api/fix/pr/route.ts is a separate explicit action.
+    // lib/agent/approvalBoundary.test.ts prevents audits from calling a write
+    // path. lib/agent/fixPr.ts never authors authorization logic.
+    lead: "After you approve a fix action, it arrives as a pull request on its own branch off your default branch. We never merge it.",
     detail: [
-      "After an audit, a pull request is opened for each finding that has a mechanical fix, so the work waiting for you is an approval rather than a queue of homework. The same pull request is available on one click from the dashboard.",
+      "An audit only records evidence and findings. A branch or pull request is created only after you click its fix action; retries recover the same deterministic ShipLock branch or open pull request when possible.",
       "A finding closes on evidence: when a later audit no longer reproduces it, it is archived rather than waiting for someone to mark it done.",
     ],
     limit:
-      "Authorisation rules, ownership checks and injection fixes are never machine-authored. Those pull requests are drafts that mark where the change belongs, for you or your coding agent to complete. A leaked credential is a rotation, and no pull request is offered for it. Nothing here demonstrates a fix by re-running an attack; there is no sandbox in this product today.",
+      "Authorisation rules, ownership checks and injection fixes are never machine-authored. Those pull requests are drafts that mark where the change belongs, for you or your coding agent to complete. A leaked credential is a rotation, and no pull request is offered for it. Nothing here demonstrates a fix by re-running an attack; there is no production proof runner today.",
   },
   {
     id: "05",

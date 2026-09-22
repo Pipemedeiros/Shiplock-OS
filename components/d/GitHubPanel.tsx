@@ -78,9 +78,10 @@ export function GitHubPanel({ connected, findings }: { connected: boolean; findi
         </div>
 
         <p style={{ margin: "0 0 14px", fontSize: 12.5, lineHeight: 1.7, color: "var(--d-muted)" }}>
-          Read-only access to your repo — contents and metadata, nothing writable. Finds
-          committed secrets, known-vulnerable dependencies, and tokens stored where an XSS
-          could steal them. We never open pull requests or change your code.
+          ShipLock reads repository contents and metadata to find committed secrets,
+          vulnerable dependencies, and exposed tokens. Write access is used only after you
+          click an explicit fix action: ShipLock creates a new review branch and pull request.
+          It never writes your default branch, merges, or deploys.
         </p>
 
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
