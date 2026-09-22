@@ -7,11 +7,11 @@ import { loadReachabilityIndex } from "@/lib/graph/graphRun";
 import { triageByReachability } from "@/lib/graph/reachability";
 
 // Single source of truth for the open, fixable findings of a user — scan
-// findings (full_issues, paid-gated content) + deep findings (GitHub source,
+// findings (full_issues, product-access-gated content) + deep findings (GitHub source,
 // RLS policy, injection). Dependency findings are excluded (applied via the
 // GitHub panel's bulk PR). Used by the dashboard fix list AND the MCP endpoints
-// so both see exactly the same set. CALLER must have verified the user is paid
-// (full_issues is paywalled content).
+// so both see exactly the same set. CALLER must verify product access before
+// exposing full_issues or fix content.
 export async function getFixFindings(userId: string): Promise<FixableFinding[]> {
   const out: FixableFinding[] = [];
 

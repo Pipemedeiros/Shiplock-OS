@@ -222,10 +222,11 @@ the proving ground and native-agent distribution are not launch-proven.
   observation, not a ShipLock proxy. `mcp/` and `/api/mcp/*` are native-agent
   surfaces but their distribution and live setup remain unverified. The target
   is one backend fact and approval boundary across dashboard and MCP; current
-  MCP code is not there yet. `lib/mcpAuth.ts`/`app/api/tokens/route.ts` still
-  hard-gate on `is_paid` despite preview access, and token-authenticated MCP
-  scan/PR tools can act without a separate dashboard approval receipt. Do not
-  describe native-agent parity or click-only MCP writes as shipped.
+  MCP code is not there yet. PAT issuance and resolution use the central
+  product-access gate, and the public MCP tool list is read-only. Legacy PAT
+  scan/PR endpoints return 403 until they share durable admission and a
+  separate approval receipt. Distribution and agent-intelligence callbacks
+  remain unverified; do not describe native-agent parity as shipped.
 - No agent-intelligence connector currently returns bounded code-navigation
   evidence to the graph. Existing MCP tools expose ShipLock facts/actions to an
   agent; they do not make the customer's agent ShipLock's autonomous worker.

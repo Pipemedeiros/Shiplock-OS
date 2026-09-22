@@ -1,9 +1,10 @@
 import { createHash, randomBytes } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { hasProductAccess } from "@/lib/access";
 
 // ShipLock personal access tokens (PATs) for the MCP integration. Only the
 // SHA-256 hash is stored; the raw token is shown once. resolveApiToken maps a
-// presented PAT to a paid user_id (or null), and is the auth path for the
+// presented PAT to a current user_id (or null), and is the auth path for the
 // /api/mcp/* routes the MCP server calls.
 
 const PREFIX = "shiplock_pat_";
@@ -24,12 +25,12 @@ export function isTokenShaped(raw: string): boolean {
 
 export interface ResolvedToken {
   userId: string;
-  isPaid: boolean;
+  hasAccess: boolean;
 }
 
-// Look up a presented PAT → user (checking not-revoked). Also verifies the user
-// is currently paid (MCP is a paid feature). Best-effort updates last_used_at.
-// Returns null for any invalid/revoked/unpaid token — callers 401/402 generically.
+// Look up a presented PAT → user (checking not-revoked). Product access uses
+// the same signed-in profile gate as the dashboard. Best-effort stamps usage.
+// Returns null for invalid/revoked tokens; missing profiles never grant access.
 export async function resolveApiToken(raw: string): Promise<ResolvedToken | null> {
   if (!raw || !isTokenShaped(raw)) return null;
   const admin = getSupabaseAdmin();
@@ -50,5 +51,5 @@ export async function resolveApiToken(raw: string): Promise<ResolvedToken | null
   // Fire-and-forget last-used stamp (non-critical).
   void admin.from("api_tokens").update({ last_used_at: new Date().toISOString() }).eq("id", row.id);
 
-  return { userId: row.user_id as string, isPaid: Boolean(profile?.is_paid) };
+  return { userId: row.user_id as string, hasAccess: hasProductAccess(profile) };
 }

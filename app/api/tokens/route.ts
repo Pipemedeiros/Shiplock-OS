@@ -1,24 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { generateToken } from "@/lib/apiTokens";
+import { hasProductAccess } from "@/lib/access";
 
 // Manage ShipLock PATs (for the MCP integration). Session-Bearer auth (the
-// dashboard), paid-gated. POST creates + returns the raw token ONCE; GET lists
+// dashboard), product-access gated. POST creates + returns the raw token ONCE; GET lists
 // metadata (never the token); DELETE revokes by id.
 
-async function requirePaidUser(req: NextRequest) {
+async function requireProductUser(req: NextRequest): Promise<
+  { error: NextResponse } | { userId: string; admin: ReturnType<typeof getSupabaseAdmin> }
+> {
   const token = req.headers.get("authorization")?.replace("Bearer ", "");
   if (!token) return { error: NextResponse.json({ error: "Authentication required." }, { status: 401 }) };
   const admin = getSupabaseAdmin();
   const { data: auth } = await admin.auth.getUser(token);
   if (!auth.user) return { error: NextResponse.json({ error: "Authentication required." }, { status: 401 }) };
   const { data: profile } = await admin.from("user_profiles").select("is_paid").eq("id", auth.user.id).maybeSingle();
-  if (!profile?.is_paid) return { error: NextResponse.json({ error: "A subscription is required." }, { status: 402 }) };
+  if (!hasProductAccess(profile)) return { error: NextResponse.json({ error: "Product access unavailable." }, { status: 402 }) };
   return { userId: auth.user.id, admin };
 }
 
 export async function POST(req: NextRequest) {
-  const ctx = await requirePaidUser(req);
+  const ctx = await requireProductUser(req);
   if ("error" in ctx) return ctx.error;
 
   let name = "MCP token";
@@ -36,7 +39,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  const ctx = await requirePaidUser(req);
+  const ctx = await requireProductUser(req);
   if ("error" in ctx) return ctx.error;
   const { data } = await ctx.admin
     .from("api_tokens")
@@ -48,7 +51,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const ctx = await requirePaidUser(req);
+  const ctx = await requireProductUser(req);
   if ("error" in ctx) return ctx.error;
   const id = new URL(req.url).searchParams.get("id");
   if (!id) return NextResponse.json({ error: "Missing token id." }, { status: 400 });

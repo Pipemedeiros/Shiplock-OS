@@ -3,9 +3,9 @@ import type { FullIssue, Severity } from "@/lib/types";
 
 const SEVERITY_RANK: Record<Severity, number> = { CRITICAL: 0, WARNING: 1, INFO: 2 };
 
-// Paid-only, server-side only — the caller (app/(d)/dashboard/page.tsx) is
-// responsible for only invoking this when isPaid && latest, since
-// full_issues (fix/codefix) is the exact data the paywall protects. This
+// Product-access-only, server-side only — each caller is
+// responsible for only invoking this with product access and a latest scan, since
+// full_issues (fix/codefix) is sensitive customer data. This
 // function does no auth/paywall checking itself; it's a pure formatter.
 // Deep findings (GitHub source, RLS policy, injection) surfaced from
 // deep_findings — title/severity/consequence only, same preview-safe shape.

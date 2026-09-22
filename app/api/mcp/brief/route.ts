@@ -6,8 +6,8 @@ import { buildAgentBrief, type DeepBriefFinding } from "@/lib/agentBrief";
 import type { LatestScan } from "@/lib/scanHistory";
 
 // MCP resource `shiplock://brief`: the full agent brief (scan + deep findings)
-// so the agent can load the whole surface at once. PAT-authed (fix content is
-// paid-gated; authMcp verifies paid).
+// so the agent can load the whole surface at once. PAT-authed through the
+// central product-access gate.
 const EMPTY_SCAN: LatestScan = {
   issue_count: 0, preview_issues: null, full_issues: [], created_at: null, project_url_hash: null,
 };

@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 // ShipLock MCP server (stdio). Runs on the developer's machine and exposes their
 // ShipLock security findings + fixes to their coding agent (Claude Code, Cursor,
-// Codex). Thin wrapper over the /api/mcp/* endpoints, authenticated with a
-// ShipLock PAT (SHIPLOCK_TOKEN). It never writes anything itself — fixes are
-// returned as file content the agent writes into the working tree (the developer
-// reviews the diff and commits), or applied as a reviewable PR via open_fix_pr.
+// Codex). Thin read-only wrapper over /api/mcp/*, authenticated with a
+// ShipLock PAT (SHIPLOCK_TOKEN). Returned fix content is for human review; this
+// server cannot initiate a scan, write a file, or open a PR.
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -41,22 +40,6 @@ const TOOLS = [
       "Get the full fix for one finding by id. Returns the fix method and, for code/DB fixes, the exact file content + target path to write into the working tree (the developer reviews the git diff and commits). DB/RLS fixes are migration files applied by the developer's own deploy — never write them to production directly. Some fixes return a deep-link URL instead.",
     inputSchema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
   },
-  {
-    name: "open_fix_pr",
-    description:
-      "Open a reviewable pull request for one finding instead of editing locally. Provide the finding id and the (reviewed) fix content. Returns the PR URL. Requires the ShipLock GitHub App to be connected.",
-    inputSchema: {
-      type: "object",
-      properties: { findingId: { type: "string" }, editedContent: { type: "string" } },
-      required: ["findingId", "editedContent"],
-    },
-  },
-  {
-    name: "run_scan",
-    description:
-      "Re-scan the connected project to confirm a fix resolved. Returns the number of new findings since the last scan. No-op with a reason if no project is connected.",
-    inputSchema: { type: "object", properties: {} },
-  },
 ];
 
 const RESOURCES = [
@@ -91,13 +74,6 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
       result = await api("/api/mcp/findings");
     } else if (name === "get_fix") {
       result = await api(`/api/mcp/fix?id=${encodeURIComponent(args.id)}`);
-    } else if (name === "open_fix_pr") {
-      result = await api("/api/mcp/fix/pr", {
-        method: "POST",
-        body: JSON.stringify({ findingId: args.findingId, editedContent: args.editedContent }),
-      });
-    } else if (name === "run_scan") {
-      result = await api("/api/mcp/scan", { method: "POST", body: "{}" });
     } else {
       throw new Error(`Unknown tool: ${name}`);
     }
