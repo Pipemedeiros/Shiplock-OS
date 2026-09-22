@@ -14,9 +14,6 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Standalone MCP server — its own package/deps, published separately.
     "mcp/**",
-    // Vendored third-party Claude Code skills — not this project's source,
-    // not built/shipped, and not ours to fix lint errors in.
-    ".claude/skills/**",
     // Vendored copies of corpus repositories, kept as audit working material.
     // 63MB and ~10k files of other people's source; linting it produced 9,257
     // problems that are not ours and buried the three that are. Same reason

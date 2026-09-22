@@ -10,7 +10,9 @@ deprecation notices.
 # ShipLock product and architecture contract
 
 This is the sole living product, architecture, and agent-work contract for both
-Claude Code and Codex. Before any implementation, read this file completely,
+Claude Code and Codex. Codex discovers this file; when using Claude Code, start
+the task by explicitly asking it to read this file because this repository does
+not keep a `CLAUDE.md`. Before any implementation, read this file completely,
 then `docs/MASTER-PLAN-PROGRESS.md` completely, then inspect the current code and
 tests. After every implemented package, update the master ledger with its exact
 step/item, evidence, and remaining gaps. Do not create a parallel agent guide,
@@ -284,32 +286,27 @@ lives only in `docs/MASTER-PLAN-PROGRESS.md`.
 
 ## Skill routing for Claude Code and Codex
 
-The checked-in canonical skill text is under `.claude/skills/`; Codex discovers
-thin adapters under `.agents/skills/`. Read the relevant `SKILL.md` completely
-before using it. Do not infer that an installed summary is an executable skill.
+The four checked-in, self-contained skill entry points live only in
+`.agents/skills/`. Codex discovers them; Claude Code does not document automatic
+discovery of this directory, so ask Claude to read the applicable `SKILL.md`
+explicitly at task start. Both agents must read the whole selected skill before
+using it. No repo-local `.claude` directory or duplicate skill tree is needed.
 
-- Ponytail (`.claude/skills/ponytail/SKILL.md`): default for scoped code cleanup
-  and changes. Trace the flow first, then delete dead paths rather than adding
-  abstractions; never simplify a safety boundary away.
-- Superpowers (`.claude/skills/using-superpowers/SKILL.md`): use its applicable
-  planning, debugging, and verification discipline. This repo's two-document
-  rule overrides any instruction to create another design/plan Markdown file.
-- GStack-style review (`.claude/skills/shiplock-gstack-review/SKILL.md`): the
-  checked-in, repo-safe review subset works in both agents. An upstream GStack
-  download is optional and not a ShipLock dependency; do not run its setup,
-  auto-updates, telemetry, network setup, or `CLAUDE.md` injection as part of a
-  ShipLock review. No paid tests or external state changes by default.
-- Ruflo (`.claude/skills/swarm-orchestration/SKILL.md`): optional orchestration
-  only when Felipe explicitly asks for parallel agents and its CLI is already
-  installed. A downloaded skill is not an installed CLI. Do not `npx`-install
-  packages, run project initialization, or add a swarm dependency merely for
-  this repo. Autonomous swarm infrastructure is not a ShipLock requirement.
+- Ponytail (`.agents/skills/ponytail/SKILL.md`): scoped cleanup after tracing
+  callers; preserve security boundaries.
+- Superpowers (`.agents/skills/superpowers/SKILL.md`): planning, root-cause
+  debugging, test-first changes, and fresh verification within this repo's
+  two-document rule.
+- GStack (`.agents/skills/gstack/SKILL.md`): a repo-safe review subset, not the
+  upstream runtime. No setup, auto-update, telemetry, paid tests, or external
+  mutation by default.
+- Ruflo (`.agents/skills/ruflo/SKILL.md`): optional coordination only with
+  explicit delegation and an already-installed CLI; no package installation
+  or autonomous swarm is required for ShipLock.
 
-On Felipe's current machine, upstream GitHub GStack and Ruflo skill sources are
-downloaded under `~/.codex/skills/{gstack,ruflo}` and linked into
-`~/.claude/skills/` for Claude Code. These machine-local installs
-are not repo dependencies or a substitute for the checked-in skill adapters.
-Neither upstream setup/CLI nor paid service was run during installation.
+Upstream GitHub GStack and Ruflo source downloads on Felipe's machine are
+optional user-level tools, not repository dependencies. A downloaded skill is
+not proof its CLI is installed, and neither agent may silently activate it.
 
 ## Documentation hygiene and handoff
 
@@ -324,3 +321,6 @@ retired narrative, use Git history rather than a parallel README/spec/handoff.
 Completed steps may be compacted out of the active queue only after their key
 proof and remaining caveats are retained in the ledger; do not erase unfinished
 2/3/4 work just because a later step started.
+Keep all other project Markdown out of the repo, including a second agent
+guide, generated handoff notes, and a repo-local `.claude` tree. Skill Markdown
+under `.agents/skills/` is the sole exception.
