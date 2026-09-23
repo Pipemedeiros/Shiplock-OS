@@ -38,7 +38,7 @@ describe("Supabase Management connection epoch", () => {
   });
 
   it("clears the epoch on disconnect", async () => {
-    await POST();
+    await POST(new Request("https://shiplock.dev/api/deep/supabase/disconnect", { method: "POST", headers: { origin: "https://shiplock.dev" } }));
     expect(mocks.update).toHaveBeenCalledWith(expect.objectContaining({
       supabase_mgmt_token_encrypted: null, supabase_mgmt_connection_epoch: null,
     }));

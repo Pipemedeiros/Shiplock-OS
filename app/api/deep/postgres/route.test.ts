@@ -9,7 +9,7 @@ vi.mock("@/lib/deep/postgresDirectRun", () => ({
 
 import { POST } from "./route";
 
-const post = (body: unknown) => POST(new Request("https://shiplock.dev/api/deep/postgres", { method: "POST", body: JSON.stringify(body) }));
+const post = (body: unknown) => POST(new Request("https://shiplock.dev/api/deep/postgres", { method: "POST", headers: { origin: "https://shiplock.dev" }, body: JSON.stringify(body) }));
 
 beforeEach(() => {
   vi.clearAllMocks();

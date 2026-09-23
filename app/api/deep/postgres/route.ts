@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireProUser } from "@/lib/deep/proGate";
 import { connectDirectPostgres, disconnectDirectPostgres } from "@/lib/deep/postgresDirectRun";
 import { queueCustomerRecheck } from "@/lib/jobs/manualRecheck";
+import { crossSiteRefusal } from "@/lib/security/sameOrigin";
 
 // Connect / scan / disconnect a customer's own Postgres, for everyone not on
 // Supabase. Same "your database" slot as app/api/deep/supabase/* — a customer
@@ -25,6 +26,9 @@ const SimpleBody = z.object({ action: z.enum(["scan", "disconnect"]) });
 const Body = z.union([ConnectBody, SimpleBody]);
 
 export async function POST(request: Request) {
+  // Cookie-authenticated mutation: require ShipLock's own page as the origin.
+  const refused = crossSiteRefusal(request);
+  if (refused) return refused;
   const pro = await requireProUser();
   if (!pro) return NextResponse.json({ error: "A subscription is required." }, { status: 402 });
 

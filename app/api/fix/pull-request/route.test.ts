@@ -12,7 +12,7 @@ vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ from: () => {
 import { POST } from "./route";
 
 const reviewId = "77777777-7777-4777-8777-777777777777";
-const post = (body: unknown) => POST(new Request("https://shiplock.dev/api/fix/pull-request", { method: "POST", body: JSON.stringify(body) }));
+const post = (body: unknown) => POST(new Request("https://shiplock.dev/api/fix/pull-request", { method: "POST", headers: { origin: "https://shiplock.dev" }, body: JSON.stringify(body) }));
 const repositoryId = "88888888-8888-4888-8888-888888888888";
 const review = { repository_id: repositoryId, same_repository: true, head_ref: "feature/orders", findings: [{ id: "diff:x" }] };
 

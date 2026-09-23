@@ -13,7 +13,7 @@ vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ from: () => {
 
 import { POST } from "./route";
 
-const post = (body: unknown) => POST(new Request("https://shiplock.dev/api/fix/pr", { method: "POST", body: JSON.stringify(body) }));
+const post = (body: unknown) => POST(new Request("https://shiplock.dev/api/fix/pr", { method: "POST", headers: { origin: "https://shiplock.dev" }, body: JSON.stringify(body) }));
 const finding = { id: "agent:idor", repository: "acme/app", fixKind: "pr", fixPrUrl: null };
 
 beforeEach(() => {

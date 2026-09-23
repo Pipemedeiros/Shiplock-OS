@@ -39,7 +39,7 @@ beforeEach(() => {
 describe("Authorization bypass — deep reasoning route", () => {
   it("403s a non-Pro caller and never runs the pass", async () => {
     requireProUserMock.mockResolvedValue(null);
-    const res = await reasonPOST();
+    const res = await reasonPOST(new Request("https://shiplock.dev/api/deep/github/reason", { method: "POST", headers: { origin: "https://shiplock.dev" } }));
     expect(res.status).toBe(403);
     expect(runReasoningPassMock).not.toHaveBeenCalled();
   });
@@ -47,7 +47,7 @@ describe("Authorization bypass — deep reasoning route", () => {
   it("400s when GitHub is not connected (no installation)", async () => {
     requireProUserMock.mockResolvedValue({ userId: "u1", email: "a@b.com" });
     singleMock.mockResolvedValue({ data: { github_installation_id: null } });
-    const res = await reasonPOST();
+    const res = await reasonPOST(new Request("https://shiplock.dev/api/deep/github/reason", { method: "POST", headers: { origin: "https://shiplock.dev" } }));
     expect(res.status).toBe(400);
     expect(runReasoningPassMock).not.toHaveBeenCalled();
   });
@@ -56,7 +56,7 @@ describe("Authorization bypass — deep reasoning route", () => {
     requireProUserMock.mockResolvedValue({ userId: "u1", email: "a@b.com" });
     singleMock.mockResolvedValue({ data: { github_installation_id: 42 } });
     runReasoningPassMock.mockRejectedValue(new Error("secret internal token abc123 blew up"));
-    const res = await reasonPOST();
+    const res = await reasonPOST(new Request("https://shiplock.dev/api/deep/github/reason", { method: "POST", headers: { origin: "https://shiplock.dev" } }));
     expect(res.status).toBe(502);
     expect(JSON.stringify(await res.json())).not.toContain("abc123");
   });

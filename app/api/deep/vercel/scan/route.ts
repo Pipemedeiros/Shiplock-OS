@@ -3,10 +3,14 @@ import { requireProUser } from "@/lib/deep/proGate";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { queueCustomerRecheck } from "@/lib/jobs/manualRecheck";
 import { currentConnectionEpoch } from "@/lib/deep/providerRepositoryMap";
+import { crossSiteRefusal } from "@/lib/security/sameOrigin";
 
 // Queue a recheck of the caller's connected Vercel account (3F-C2c-5). The
 // monitor worker runs the audit under its lease; this request collects nothing.
-export async function POST() {
+export async function POST(request: Request) {
+  // Cookie-authenticated mutation: require ShipLock's own page as the origin.
+  const refused = crossSiteRefusal(request);
+  if (refused) return refused;
   const pro = await requireProUser();
   if (!pro) {
     return NextResponse.json({ error: "Authentication required." }, { status: 403 });

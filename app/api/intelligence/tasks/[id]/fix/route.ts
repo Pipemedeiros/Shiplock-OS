@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireProUser } from "@/lib/deep/proGate";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { requestRepairAction } from "@/lib/jobs/repairAction";
+import { isSameOrigin } from "@/lib/security/sameOrigin";
 
 /**
  * The customer's click to open a PR for a change their own AI proposed
@@ -18,7 +19,7 @@ const taskSchema = z.object({
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireProUser();
   if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
-  if (request.headers.get("origin") !== new URL(request.url).origin) {
+  if (!isSameOrigin(request)) {
     return NextResponse.json({ error: "A same-origin request is required." }, { status: 403 });
   }
   const id = z.uuid().safeParse((await params).id);

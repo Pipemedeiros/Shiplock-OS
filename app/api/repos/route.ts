@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireProUser } from "@/lib/deep/proGate";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { getInstallationToken, listRepos } from "@/lib/deep/github";
+import { crossSiteRefusal } from "@/lib/security/sameOrigin";
 
 /**
  * The repositories this account's GitHub installation can see, merged with the
@@ -65,6 +66,9 @@ const SelectBody = z.object({
 
 /** Records which repositories to audit. Replaces the selection wholesale. */
 export async function POST(request: Request) {
+  // Cookie-authenticated mutation: require ShipLock's own page as the origin.
+  const refused = crossSiteRefusal(request);
+  if (refused) return refused;
   const user = await requireProUser();
   if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
 

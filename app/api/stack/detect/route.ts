@@ -5,6 +5,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { getInstallationToken } from "@/lib/deep/github";
 import { fetchRepoArchive } from "@/lib/deep/repoArchive";
 import { detectStack, routeAnalysisSupport } from "@/lib/agent/stack";
+import { crossSiteRefusal } from "@/lib/security/sameOrigin";
 
 /**
  * Reads one selected repository and reports the stack it declares.
@@ -23,6 +24,9 @@ export const maxDuration = 60;
 const Body = z.object({ repository: z.string().regex(/^[\w.-]+\/[\w.-]+$/) });
 
 export async function POST(request: Request) {
+  // Cookie-authenticated mutation: require ShipLock's own page as the origin.
+  const refused = crossSiteRefusal(request);
+  if (refused) return refused;
   const user = await requireProUser();
   if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
 

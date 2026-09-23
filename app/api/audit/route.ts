@@ -4,6 +4,7 @@ import { requireProUser } from "@/lib/deep/proGate";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { enqueueAuditJob } from "@/lib/jobs/queue";
 import { runNextAuditJob } from "@/lib/jobs/auditWorker";
+import { crossSiteRefusal } from "@/lib/security/sameOrigin";
 
 /**
  * Durably queues an audit of one selected repository and returns its run id.
@@ -23,6 +24,9 @@ export const maxDuration = 60;
 const Body = z.object({ repository: z.string().regex(/^[\w.-]+\/[\w.-]+$/), requestId: z.uuid().optional() });
 
 export async function POST(request: Request) {
+  // Cookie-authenticated mutation: require ShipLock's own page as the origin.
+  const refused = crossSiteRefusal(request);
+  if (refused) return refused;
   const user = await requireProUser();
   if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
 

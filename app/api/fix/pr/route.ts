@@ -4,6 +4,7 @@ import { requireProUser } from "@/lib/deep/proGate";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { getOpenFindings } from "@/lib/agent/dashboardData";
 import { requestRepairAction } from "@/lib/jobs/repairAction";
+import { crossSiteRefusal } from "@/lib/security/sameOrigin";
 
 /**
  * The customer's click to open a pull request for one Risks-board finding.
@@ -15,6 +16,9 @@ import { requestRepairAction } from "@/lib/jobs/repairAction";
 const Body = z.object({ findingId: z.string().min(1).max(400) });
 
 export async function POST(request: Request) {
+  // Cookie-authenticated mutation: require ShipLock's own page as the origin.
+  const refused = crossSiteRefusal(request);
+  if (refused) return refused;
   const user = await requireProUser();
   if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
 

@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { requireProUser } from "@/lib/deep/proGate";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { crossSiteRefusal } from "@/lib/security/sameOrigin";
 
 // Drops the Supabase Management connection. Clears every stored credential —
 // disconnect means the token is gone, not just flagged inactive. Existing
 // policy findings are archived, since we can no longer verify them.
-export async function POST() {
+export async function POST(request: Request) {
+  // Cookie-authenticated mutation: require ShipLock's own page as the origin.
+  const refused = crossSiteRefusal(request);
+  if (refused) return refused;
   const pro = await requireProUser();
   if (!pro) return NextResponse.json({ error: "A subscription is required." }, { status: 402 });
 

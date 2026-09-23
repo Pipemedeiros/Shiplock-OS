@@ -48,7 +48,7 @@ describe("POST /api/deep/vercel/disconnect", () => {
 
   it("returns 403 when the caller is not Pro, without touching the DB", async () => {
     requireProUserMock.mockResolvedValue(null);
-    const res = await POST();
+    const res = await POST(new Request("https://shiplock.dev/api/deep/vercel/disconnect", { method: "POST", headers: { origin: "https://shiplock.dev" } }));
     expect(res.status).toBe(403);
     expect(updateEqMock).not.toHaveBeenCalled();
     expect(deleteScopeMock).not.toHaveBeenCalled();
@@ -56,7 +56,7 @@ describe("POST /api/deep/vercel/disconnect", () => {
 
   it("purges credentials, mappings and runtime facts before archiving findings", async () => {
     requireProUserMock.mockResolvedValue({ userId: "u1", email: "a@b.com" });
-    const res = await POST();
+    const res = await POST(new Request("https://shiplock.dev/api/deep/vercel/disconnect", { method: "POST", headers: { origin: "https://shiplock.dev" } }));
     const body = await res.json();
 
     expect(body).toEqual({ ok: true });
@@ -76,7 +76,7 @@ describe("POST /api/deep/vercel/disconnect", () => {
   it("reports an evidence cleanup failure and does not claim success", async () => {
     requireProUserMock.mockResolvedValue({ userId: "u1", email: "a@b.com" });
     factsDeleteEqMock.mockResolvedValue({ error: { message: "db down" } });
-    const res = await POST();
+    const res = await POST(new Request("https://shiplock.dev/api/deep/vercel/disconnect", { method: "POST", headers: { origin: "https://shiplock.dev" } }));
     expect(res.status).toBe(500);
     expect(archiveIsMock).not.toHaveBeenCalled();
     expect(deleteScopeMock).toHaveBeenCalledTimes(2);
@@ -85,7 +85,7 @@ describe("POST /api/deep/vercel/disconnect", () => {
   it("returns 500 when purging the credential fails, and does not archive findings", async () => {
     requireProUserMock.mockResolvedValue({ userId: "u1", email: "a@b.com" });
     updateEqMock.mockResolvedValue({ error: { message: "db down" } });
-    const res = await POST();
+    const res = await POST(new Request("https://shiplock.dev/api/deep/vercel/disconnect", { method: "POST", headers: { origin: "https://shiplock.dev" } }));
     expect(res.status).toBe(500);
     expect(archiveIsMock).not.toHaveBeenCalled();
     expect(deleteScopeMock).not.toHaveBeenCalled();
@@ -93,7 +93,7 @@ describe("POST /api/deep/vercel/disconnect", () => {
 
   it("clears the connection epoch with the credential (2D)", async () => {
     requireProUserMock.mockResolvedValue({ userId: "u1", email: "a@b.com" });
-    await POST();
+    await POST(new Request("https://shiplock.dev/api/deep/vercel/disconnect", { method: "POST", headers: { origin: "https://shiplock.dev" } }));
     expect(profileUpdateMock).toHaveBeenCalledWith(expect.objectContaining({
       vercel_access_token_encrypted: null, vercel_connection_epoch: null,
     }));

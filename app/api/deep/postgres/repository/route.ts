@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireProUser } from "@/lib/deep/proGate";
 import { DirectRepositoryConfirmation, changeDirectRepositoryBinding, getDirectRepositoryBindings } from "@/lib/deep/databaseRepositoryBinding";
 import { readDatabaseBindingJson } from "@/lib/deep/databaseBindingRequest";
+import { isSameOrigin } from "@/lib/security/sameOrigin";
 
 const unavailable = () => NextResponse.json({ error: "Database association unavailable. Try again." }, { status: 503 });
 
@@ -19,7 +20,7 @@ export async function POST(request: Request) {
     if (!pro) return NextResponse.json({ error: "Sign in to manage database associations." }, { status: 403 });
     // Cookie-authenticated mutation: an opaque connection fingerprint is not
     // a CSRF token or authority. Require the browser's same-origin decision.
-    if (request.headers.get("origin") !== new URL(request.url).origin) {
+    if (!isSameOrigin(request)) {
       return NextResponse.json({ error: "A same-origin request is required." }, { status: 403 });
     }
     if (!/^application\/json(?:\s*;|$)/i.test(request.headers.get("content-type") ?? "")) {

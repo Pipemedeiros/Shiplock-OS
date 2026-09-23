@@ -3,10 +3,14 @@ import { requireProUser } from "@/lib/deep/proGate";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { enqueueJob } from "@/lib/jobs/queue";
 import { runNextJob } from "@/lib/jobs/worker";
+import { crossSiteRefusal } from "@/lib/security/sameOrigin";
 
 // Admit a re-scan for every selected repository. The request never performs
 // provider I/O or writes evidence; a leased worker owns both.
-export async function POST() {
+export async function POST(request: Request) {
+  // Cookie-authenticated mutation: require ShipLock's own page as the origin.
+  const refused = crossSiteRefusal(request);
+  if (refused) return refused;
   const pro = await requireProUser();
   if (!pro) {
     return NextResponse.json({ error: "Authentication required." }, { status: 403 });

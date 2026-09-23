@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { requireProUser } from "@/lib/deep/proGate";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { crossSiteRefusal } from "@/lib/security/sameOrigin";
 
 // Disconnect GitHub. Same established behavior as Vercel: ARCHIVE the source's
 // findings (retain history, hide from active view) and PURGE the stored
 // installation id. Note: this only forgets the installation on our side — the
 // user should also uninstall the App from their GitHub account to fully revoke.
-export async function POST() {
+export async function POST(request: Request) {
+  // Cookie-authenticated mutation: require ShipLock's own page as the origin.
+  const refused = crossSiteRefusal(request);
+  if (refused) return refused;
   const pro = await requireProUser();
   if (!pro) {
     return NextResponse.json({ error: "Authentication required." }, { status: 403 });

@@ -31,7 +31,7 @@ import { POST } from "./route";
 
 const request = (repositories: unknown) => new Request("https://shiplock.dev/api/repos", {
   method: "POST",
-  headers: { "content-type": "application/json" },
+  headers: { "content-type": "application/json", origin: "https://shiplock.dev" },
   body: JSON.stringify({ repositories }),
 });
 

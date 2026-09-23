@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import { requireProUser } from "@/lib/deep/proGate";
 import { readDatabaseBindingJson } from "@/lib/deep/databaseBindingRequest";
 import { ApiKeyInput, getApiKeyStatus, removeApiKey, saveApiKey } from "@/lib/intelligence/credential";
+import { isSameOrigin } from "@/lib/security/sameOrigin";
 
 // The customer's own model key for API-key intelligence mode (10B-2e). The key
 // arrives once in a POST body, is encrypted before storage, and is never
 // echoed, logged, or returned: responses carry only its last 4 characters.
 const signIn = () => NextResponse.json({ error: "Sign in to manage your AI key." }, { status: 403 });
 const unavailable = () => NextResponse.json({ error: "AI key storage unavailable. Try again." }, { status: 503 });
-const crossSite = (request: Request) => request.headers.get("origin") !== new URL(request.url).origin;
+const crossSite = (request: Request) => !isSameOrigin(request);
 const noStore = { headers: { "Cache-Control": "no-store" } };
 
 export async function GET() {

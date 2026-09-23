@@ -21,7 +21,7 @@ beforeEach(()=>{
 });
 
 it("durably queues selected repository scans and returns before collection",async()=>{
-  const response=await POST();
+  const response=await POST(new Request("https://shiplock.dev/api/deep/github/scan", { method: "POST", headers: { origin: "https://shiplock.dev" } }));
   expect(response.status).toBe(202);
   await expect(response.json()).resolves.toEqual({ok:true,queued:1});
   expect(state.enqueue).toHaveBeenCalledWith(expect.any(String),"22222222-2222-4222-8222-222222222222","source",expect.stringMatching(/^manual-source:/));
@@ -31,6 +31,6 @@ it("durably queues selected repository scans and returns before collection",asyn
 
 it("fails closed when any admission cannot be recorded",async()=>{
   state.enqueue.mockRejectedValue(new Error("private"));
-  expect((await POST()).status).toBe(503);
+  expect((await POST(new Request("https://shiplock.dev/api/deep/github/scan", { method: "POST", headers: { origin: "https://shiplock.dev" } }))).status).toBe(503);
   expect(afterWork).toHaveLength(0);
 });

@@ -15,7 +15,7 @@ vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ from: (table: stri
 import { POST } from "./route";
 const user="11111111-1111-4111-8111-111111111111", repo="22222222-2222-4222-8222-222222222222";
 const run="33333333-3333-4333-8333-333333333333", job="44444444-4444-4444-8444-444444444444";
-const request = (body: unknown) => new Request("https://shiplock.test/api/audit",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+const request = (body: unknown) => new Request("https://shiplock.test/api/audit",{method:"POST",headers:{"content-type":"application/json",origin:"https://shiplock.test"},body:JSON.stringify(body)});
 
 beforeEach(() => {
   vi.clearAllMocks(); mocks.auth.mockResolvedValue({userId:user});

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireProUser } from "@/lib/deep/proGate";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { requestRepairAction } from "@/lib/jobs/repairAction";
+import { crossSiteRefusal } from "@/lib/security/sameOrigin";
 
 /**
  * The customer's "fix before merge" click on a checked pull request (8B-3).
@@ -17,6 +18,9 @@ const reviewSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  // Cookie-authenticated mutation: require ShipLock's own page as the origin.
+  const refused = crossSiteRefusal(request);
+  if (refused) return refused;
   const user = await requireProUser();
   if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   const parsed = Body.safeParse(await request.json().catch(() => null));

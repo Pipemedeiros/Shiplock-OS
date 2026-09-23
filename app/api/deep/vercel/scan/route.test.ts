@@ -26,7 +26,7 @@ describe("POST /api/deep/vercel/scan", () => {
 
   it("returns 403 when the caller is not Pro", async () => {
     requireProUserMock.mockResolvedValue(null);
-    const res = await POST();
+    const res = await POST(new Request("https://shiplock.dev/api/deep/vercel/scan", { method: "POST", headers: { origin: "https://shiplock.dev" } }));
     expect(res.status).toBe(403);
     expect(runVercelEnvAuditMock).not.toHaveBeenCalled();
   });
@@ -34,7 +34,7 @@ describe("POST /api/deep/vercel/scan", () => {
   it("returns 400 when Vercel is not connected (no stored token)", async () => {
     requireProUserMock.mockResolvedValue({ userId: "u1", email: "a@b.com" });
     singleMock.mockResolvedValue({ data: { vercel_access_token_encrypted: null, vercel_team_id: null } });
-    const res = await POST();
+    const res = await POST(new Request("https://shiplock.dev/api/deep/vercel/scan", { method: "POST", headers: { origin: "https://shiplock.dev" } }));
     expect(res.status).toBe(400);
     expect(runVercelEnvAuditMock).not.toHaveBeenCalled();
   });
@@ -43,7 +43,7 @@ describe("POST /api/deep/vercel/scan", () => {
     requireProUserMock.mockResolvedValue({ userId: "u1", email: "a@b.com" });
     singleMock.mockResolvedValue({ data: { vercel_access_token_encrypted: "enc", vercel_connection_epoch: "e".repeat(64), vercel_team_id: "t1" } });
 
-    const res = await POST();
+    const res = await POST(new Request("https://shiplock.dev/api/deep/vercel/scan", { method: "POST", headers: { origin: "https://shiplock.dev" } }));
     expect(res.status).toBe(202);
     expect(await res.json()).toEqual({ ok: true, status: "queued" });
     expect(res.headers.get("Cache-Control")).toBe("no-store");
@@ -56,7 +56,7 @@ describe("POST /api/deep/vercel/scan", () => {
     singleMock.mockResolvedValue({ data: { vercel_access_token_encrypted: "enc", vercel_connection_epoch: "e".repeat(64), vercel_team_id: null } });
     recheckMock.mockRejectedValue(new Error("a very specific internal error"));
 
-    const res = await POST();
+    const res = await POST(new Request("https://shiplock.dev/api/deep/vercel/scan", { method: "POST", headers: { origin: "https://shiplock.dev" } }));
     const body = await res.json();
     expect(res.status).toBe(503);
     expect(body.error).toBe("The recheck could not be queued. Try again.");
@@ -66,7 +66,7 @@ describe("POST /api/deep/vercel/scan", () => {
   it("returns 400 when a stored token has no valid connection epoch (2D)", async () => {
     requireProUserMock.mockResolvedValue({ userId: "u1", email: "a@b.com" });
     singleMock.mockResolvedValue({ data: { vercel_access_token_encrypted: "enc", vercel_connection_epoch: null, vercel_team_id: null } });
-    const res = await POST();
+    const res = await POST(new Request("https://shiplock.dev/api/deep/vercel/scan", { method: "POST", headers: { origin: "https://shiplock.dev" } }));
     expect(res.status).toBe(400);
     expect(runVercelEnvAuditMock).not.toHaveBeenCalled();
     expect(recheckMock).not.toHaveBeenCalled();

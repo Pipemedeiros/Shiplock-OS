@@ -2,11 +2,15 @@ import { NextResponse } from "next/server";
 import { requireProUser } from "@/lib/deep/proGate";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { runReasoningPass } from "@/lib/deep/reasoningRun";
+import { crossSiteRefusal } from "@/lib/security/sameOrigin";
 
 // Layer 3 — the reasoning pass over the connected GitHub repo. Pro-gated. One
 // cheap Haiku call reasons over a deterministic map of endpoints + RPCs and
 // writes source='github-reasoned' findings (framed as reasoned, not proven).
-export async function POST() {
+export async function POST(request: Request) {
+  // Cookie-authenticated mutation: require ShipLock's own page as the origin.
+  const refused = crossSiteRefusal(request);
+  if (refused) return refused;
   const pro = await requireProUser();
   if (!pro) {
     return NextResponse.json({ error: "Authentication required." }, { status: 403 });

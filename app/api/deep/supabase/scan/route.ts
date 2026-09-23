@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { requireProUser } from "@/lib/deep/proGate";
 import { queueCustomerRecheck } from "@/lib/jobs/manualRecheck";
+import { crossSiteRefusal } from "@/lib/security/sameOrigin";
 
 // Queues an on-demand policy recheck (3F-C2c-5). The monitor worker runs the
 // read-only policy scan under its lease; this request collects nothing.
-export async function POST() {
+export async function POST(request: Request) {
+  // Cookie-authenticated mutation: require ShipLock's own page as the origin.
+  const refused = crossSiteRefusal(request);
+  if (refused) return refused;
   const pro = await requireProUser();
   if (!pro) return NextResponse.json({ error: "A subscription is required." }, { status: 402 });
 
