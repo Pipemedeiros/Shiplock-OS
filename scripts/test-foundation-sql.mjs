@@ -19,7 +19,7 @@ try {
     create function auth.uid() returns uuid language sql stable as 'select null::uuid';
     create role anon; create role authenticated; create role service_role bypassrls;
     grant usage on schema public to anon,authenticated,service_role;`);
-  for (const file of ["008_monitoring.sql", "021_phase2_github_deep_access.sql", "022_phase2_vercel_env_audit.sql", "032_monitored_app_url.sql", "034_supabase_mgmt_connection.sql", "036_source_scan_coalescing.sql", "039_graph_facts.sql", "043_finding_correlation.sql", "044_hourly_pass_fairness.sql", "045_direct_postgres_connection.sql", "046_mvp_repos_and_runs.sql", "047_agent_findings.sql", "051_findings_idempotent_persist.sql", "053_provider_repository_links.sql", "054_database_repository_bindings.sql", "055_supabase_repository_bindings.sql", "056_durable_jobs.sql", "057_atomic_audit_findings.sql", "058_repository_scoped_finding_identity.sql", "059_audit_job_triggers.sql", "060_atomic_repository_selection.sql", "061_github_install_handshake.sql", "062_scheduled_audit_admission.sql", "063_durable_pull_request_checks.sql", "064_fenced_source_collection.sql", "065_fenced_dependency_rechecks.sql", "066_durable_provider_monitoring.sql"]) {
+  for (const file of ["008_monitoring.sql", "021_phase2_github_deep_access.sql", "022_phase2_vercel_env_audit.sql", "032_monitored_app_url.sql", "034_supabase_mgmt_connection.sql", "036_source_scan_coalescing.sql", "039_graph_facts.sql", "043_finding_correlation.sql", "044_hourly_pass_fairness.sql", "045_direct_postgres_connection.sql", "046_mvp_repos_and_runs.sql", "047_agent_findings.sql", "050_runtime_graph_facts.sql", "051_findings_idempotent_persist.sql", "053_provider_repository_links.sql", "054_database_repository_bindings.sql", "055_supabase_repository_bindings.sql", "056_durable_jobs.sql", "057_atomic_audit_findings.sql", "058_repository_scoped_finding_identity.sql", "059_audit_job_triggers.sql", "060_atomic_repository_selection.sql", "061_github_install_handshake.sql", "062_scheduled_audit_admission.sql", "063_durable_pull_request_checks.sql", "064_fenced_source_collection.sql", "065_fenced_dependency_rechecks.sql", "066_durable_provider_monitoring.sql"]) {
     await db.exec(await readFile(new URL(`../supabase/migrations/${file}`, import.meta.url), "utf8"));
   }
   // 2D: a connection that predates epochs must keep its current identity.
@@ -27,6 +27,7 @@ try {
   await db.query("insert into auth.users values ($1)", [legacy]);
   await db.query("insert into public.user_profiles(id,vercel_access_token_encrypted,supabase_mgmt_token_encrypted,postgres_dsn_encrypted,monitored_anon_key_encrypted) values($1,'v-cipher','m-cipher','p-cipher','  ')", [legacy]);
   await db.exec(await readFile(new URL("../supabase/migrations/067_connection_epochs.sql", import.meta.url), "utf8"));
+  await db.exec(await readFile(new URL("../supabase/migrations/068_fenced_provider_results.sql", import.meta.url), "utf8"));
   await db.query("insert into auth.users values ($1),($2)", [u1,u2]);
   await db.query("insert into public.user_profiles(id) values($1),($2)", [u1,u2]);
   await check("connection epochs backfill the existing fingerprint and ignore blank credentials", async () => {
@@ -417,6 +418,67 @@ try {
     await assert.rejects(db.query("select public.enqueue_due_monitoring_passes('scheduled_48h',now(),'x',100)"));
     await assert.rejects(db.query("select public.enqueue_monitoring_notifications($1,$2,$3,'[]'::jsonb)",[u1,u2,u1]));
     await assert.rejects(db.query("select public.stamp_hourly_monitor_attempt($1,$2,$3)",[u1,u2,u1]));
+    await db.exec("reset role");
+  });
+  // 3F-C2c-1: provider results commit only under a live monitor lease and the
+  // connection identity they were collected under.
+  await db.exec("reset role; grant select on public.deep_findings, public.graph_facts to service_role");
+  const pEpoch = "a".repeat(64);
+  await db.query("update public.user_profiles set postgres_dsn_encrypted='p2',postgres_connection_epoch=$2,monitored_app_url='https://app.example.com' where id=$1",[legacy,pEpoch]);
+  const monitorJob = async (key) => {
+    const id=(await db.query("select public.enqueue_execution_job($1,null,'monitor',$2) as id",[legacy,key])).rows[0].id;
+    const token=(await db.query("update public.execution_jobs set status='running',lease_token=gen_random_uuid(),lease_until=now()+interval '5 minutes' where id=$1 returning lease_token",[id])).rows[0].lease_token;
+    return { id, token };
+  };
+  const providerFinding = (id, severity="CRITICAL") => ({ id, severity, title:`t ${id}`, consequence:`c ${id}` });
+  const persistProvider = (job, transport, identity, facts, findings, retire, unread=[]) => db.query(
+    "select public.persist_provider_monitor_result($1,$2,$3,$4,$5,$6,$7,$8,$9) as created",
+    [legacy, job.id, job.token, transport, identity, facts===null?null:JSON.stringify(facts), JSON.stringify(findings), retire, JSON.stringify(unread)]);
+  const activeProvider = async (source) => (await db.query("select finding_id from public.deep_findings where user_id=$1 and source=$2 and archived_at is null order by finding_id",[legacy,source])).rows.map((r)=>r.finding_id);
+  await db.exec("set role service_role");
+  await check("provider results commit facts and new findings atomically and idempotently", async () => {
+    const job = await monitorJob("c2c-commit");
+    const created = (await persistProvider(job,"postgres-direct",pEpoch,{policies:[]},[providerFinding("rls:a"),providerFinding("rls:b")],true)).rows[0].created;
+    assert.deepEqual(created.map((f)=>f.id).sort(),["rls:a","rls:b"]);
+    assert.deepEqual((await persistProvider(job,"postgres-direct",pEpoch,{policies:[]},[providerFinding("rls:a"),providerFinding("rls:b")],true)).rows[0].created,[]);
+    assert.deepEqual(await activeProvider("policy"),["rls:a","rls:b"]);
+    const facts=(await db.query("select facts from public.graph_facts where user_id=$1 and collector='db'",[legacy])).rows[0].facts;
+    assert.deepEqual(facts.policies,[]); assert.equal(facts._evidence.fields.policies.completeness,"unknown");
+  });
+  await check("provider results retire only re-checked findings and keep unread ones", async () => {
+    const job = await monitorJob("c2c-retire");
+    await persistProvider(job,"postgres-direct",pEpoch,null,[],true,["rls:b"]);
+    assert.deepEqual(await activeProvider("policy"),["rls:b"]);
+    await persistProvider(job,"postgres-direct",pEpoch,null,[providerFinding("rls:c")],false);
+    assert.deepEqual(await activeProvider("policy"),["rls:b","rls:c"]);
+  });
+  await check("stale, expired, or foreign leases commit nothing", async () => {
+    const job = await monitorJob("c2c-lease");
+    await assert.rejects(persistProvider({...job,token:u2},"postgres-direct",pEpoch,null,[providerFinding("rls:x")],false));
+    await db.exec("reset role");
+    await db.query("update public.execution_jobs set lease_until=now()-interval '1 second' where id=$1",[job.id]);
+    await db.exec("set role service_role");
+    await assert.rejects(persistProvider(job,"postgres-direct",pEpoch,null,[providerFinding("rls:x")],false));
+    assert.equal((await activeProvider("policy")).includes("rls:x"),false);
+  });
+  await check("a reconnect after collection commits nothing", async () => {
+    const job = await monitorJob("c2c-reconnect");
+    await assert.rejects(persistProvider(job,"postgres-direct","b".repeat(64),{policies:[1]},[providerFinding("rls:y")],true));
+    assert.deepEqual(await activeProvider("policy"),["rls:b","rls:c"]);
+    await assert.rejects(persistProvider(job,"app-surface","https://other.example.com",null,[providerFinding("exposed:git_exposed")],true));
+    const created=(await persistProvider(job,"app-surface","https://app.example.com",null,[providerFinding("exposed:git_exposed")],true)).rows[0].created;
+    assert.deepEqual(created.map((f)=>f.id),["exposed:git_exposed"]);
+  });
+  await check("provider result payloads are bounded and typed", async () => {
+    const job = await monitorJob("c2c-shape");
+    await assert.rejects(persistProvider(job,"github",pEpoch,null,[],false));
+    await assert.rejects(persistProvider(job,"postgres-direct",pEpoch,[],[],false));
+    await assert.rejects(persistProvider(job,"postgres-direct",pEpoch,null,[{id:"x",severity:"LOUD",title:"t",consequence:"c"}],false));
+    await assert.rejects(persistProvider(job,"app-surface","https://app.example.com",{x:1},[],false));
+  });
+  await check("client roles cannot commit provider results", async () => {
+    await db.exec("reset role; set role authenticated");
+    await assert.rejects(db.query("select public.persist_provider_monitor_result($1,$1,$1,'postgres-direct','x',null,'[]'::jsonb,false,'[]'::jsonb)",[legacy]));
     await db.exec("reset role");
   });
   console.log(`${checks} SQL checks passed. Single-connection PostgreSQL WASM; multi-session contention and hosted Supabase remain unverified.`);
