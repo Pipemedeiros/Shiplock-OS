@@ -39,6 +39,8 @@ import { loadGraphInput } from "@/lib/graph/graphRun";
 import { buildAuthzFacts } from "@/lib/graph/graph";
 import { CollectorShapeError } from "./apiSchemas";
 import type { GithubFinding } from "./githubScan";
+import type { Finding } from "@/lib/monitoring/findings";
+import type { ProviderCommit } from "@/lib/monitoring/registry";
 
 export interface PolicyScanOutcome {
   ok: boolean;
@@ -61,7 +63,7 @@ const ABORTED: PolicyScanOutcome = { ok: false, findings: 0, reason: "aborted" }
 
 export async function runPolicyScan(
   userId: string,
-  { signal }: { signal?: AbortSignal } = {},
+  { signal, commit }: { signal?: AbortSignal; commit?: ProviderCommit } = {},
 ): Promise<PolicyScanOutcome> {
   const admin = getSupabaseAdmin();
 
@@ -126,6 +128,7 @@ export async function runPolicyScan(
   if (signal?.aborted) return ABORTED;
 
   let findings;
+  let committed: Finding[] | undefined;
   try {
     // POLICIES ARE LOAD-BEARING; ADVISORS CORROBORATE. The two get different
     // treatment on a shape failure, deliberately.
@@ -188,12 +191,10 @@ export async function runPolicyScan(
     // Keep legacy flat observations for compatibility, but never persist the
     // loose auth config. Failed advisors remain omitted in the snapshot even
     // though the existing merge may retain an older flat advisor set.
-    await saveFacts(
-      userId,
-      "db",
-      { policies, authConfig: storedAuthConfig, ...(advisorsOk ? { advisors } : {}), supabaseManagementSnapshot },
-      { merge: true }
-    );
+    const dbFacts: Record<string, unknown> = {
+      policies, authConfig: storedAuthConfig, ...(advisorsOk ? { advisors } : {}), supabaseManagementSnapshot,
+    };
+    if (!commit) await saveFacts(userId, "db", dbFacts, { merge: true });
 
     // A21 exposure inventory. SCHEMA ONLY — column names and row counts, never
     // a value. Best-effort: a project we cannot enumerate simply has no
@@ -203,17 +204,30 @@ export async function runPolicyScan(
       const tables = [...new Set(columns.map((c) => c.table))];
       const rowCounts = await fetchRowCounts(token.accessToken, projectRef, tables, signal);
       signal?.throwIfAborted();
-      await saveFacts(
-        userId,
-        "db",
-        { inventory: buildInventory(columns, rowCounts) },
-        { merge: true }
-      );
+      const inventory = buildInventory(columns, rowCounts);
+      if (commit) dbFacts.inventory = inventory;
+      else await saveFacts(userId, "db", { inventory }, { merge: true });
     } catch (err) {
       console.error(
         "[supabaseMgmt] schema inventory failed:",
         err instanceof Error ? err.message : err
       );
+    }
+
+    if (commit) {
+      // Monitor worker: snapshot, inventory, and findings commit together under
+      // the job's lease and this connection epoch, or not at all (3F-C2c). The
+      // side effects below run only after a successful commit.
+      signal?.throwIfAborted();
+      try {
+        committed = await commit({
+          transport: "supabase-management", identity: connectionFingerprint,
+          facts: dbFacts, findings, retire: true,
+        });
+      } catch {
+        console.error(`[supabaseMgmt] result not committed for ${userId}`);
+        return { ok: false, findings: 0, reason: "not_committed" };
+      }
     }
 
     signal?.throwIfAborted();
@@ -360,7 +374,9 @@ export async function runPolicyScan(
     return { ok: false, findings: 0, reason: "scan_failed" };
   }
 
+  if (committed) return { ok: true, findings: findings.length, newFindings: committed as GithubFinding[] };
   if (signal?.aborted) return ABORTED;
+  // Legacy synchronous path (dashboard route) until 3F-C2c-5 queues it.
   // Same persistence shape as lib/deep/githubRun.ts: insert only findings that
   // aren't already active, and archive the ones that have since been fixed.
   // deep_findings has no unique constraint on (user_id, finding_id), so this is

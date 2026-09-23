@@ -36,7 +36,7 @@ beforeEach(() => {
 describe("provider collectors forward the registry signal", () => {
   it("Supabase Management", async () => {
     await supabaseManagementCollector.run(ctx({}));
-    expect(runners.policy).toHaveBeenCalledWith("user-1", { signal });
+    expect(runners.policy).toHaveBeenCalledWith("user-1", { signal, commit: undefined });
   });
 
   it("direct Postgres", async () => {
@@ -69,6 +69,12 @@ describe("endpoint and app-surface collectors forward the registry signal", () =
 });
 
 describe("3F-C2c-2: provider collectors forward the fenced commit", () => {
+  it("Supabase Management", async () => {
+    const commit = vi.fn();
+    await supabaseManagementCollector.run({ ...ctx({}), commit });
+    expect(runners.policy).toHaveBeenCalledWith("user-1", { signal, commit });
+  });
+
   it("direct Postgres", async () => {
     const commit = vi.fn();
     await directPostgresCollector.run({ ...ctx({}), commit });

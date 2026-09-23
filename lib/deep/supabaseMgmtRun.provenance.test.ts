@@ -284,3 +284,35 @@ describe("2D-2: Supabase Management identity is the connection epoch", () => {
     expect(mocks.upsert).not.toHaveBeenCalled();
   });
 });
+
+describe("3F-C2c-3: fenced commit from the monitor worker", () => {
+  it("commits snapshot, inventory, and findings through the fence and writes none itself", async () => {
+    mocks.columns.mockResolvedValue([{ table: "invoices", column: "id" }]);
+    const created = [{ id: "policy:x", severity: "CRITICAL", title: "t", consequence: "c" }];
+    const commit = vi.fn().mockResolvedValue(created);
+    const result = await runPolicyScan("u", { commit });
+    expect(result).toMatchObject({ ok: true, newFindings: created });
+    const call = commit.mock.calls[0][0];
+    expect(call).toMatchObject({ transport: "supabase-management", identity: "a".repeat(64), retire: true });
+    expect(call.facts).toMatchObject({
+      policies, supabaseManagementSnapshot: expect.objectContaining({ connectionFingerprint: "a".repeat(64) }),
+      inventory: expect.anything(),
+    });
+    expect(call.facts).not.toHaveProperty("_evidence");
+    expect(call.findings.length).toBeGreaterThan(0);
+    expect(mocks.upsert).not.toHaveBeenCalled();
+    expect(mocks.insert).not.toHaveBeenCalled();
+    expect(mocks.archive).not.toHaveBeenCalled();
+  });
+
+  it("stops before side effects when the fence rejects the commit", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const commit = vi.fn().mockRejectedValue(new Error("Provider result was not committed"));
+      expect(await runPolicyScan("u", { commit })).toEqual({ ok: false, findings: 0, reason: "not_committed" });
+      expect(mocks.upsert).not.toHaveBeenCalled();
+      expect(mocks.insert).not.toHaveBeenCalled();
+      expect(mocks.proving).not.toHaveBeenCalled();
+    } finally { log.mockRestore(); }
+  });
+});
