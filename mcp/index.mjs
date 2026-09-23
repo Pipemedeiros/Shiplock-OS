@@ -1,9 +1,12 @@
 #!/usr/bin/env node
 // ShipLock MCP server (stdio). Runs on the developer's machine and exposes their
 // ShipLock security findings + fixes to their coding agent (Claude Code, Cursor,
-// Codex). Thin read-only wrapper over /api/mcp/*, authenticated with a
-// ShipLock PAT (SHIPLOCK_TOKEN). Returned fix content is for human review; this
-// server cannot initiate a scan, write a file, or open a PR.
+// Codex). Thin wrapper over /api/mcp/*, authenticated with a ShipLock PAT
+// (SHIPLOCK_TOKEN). Read tools, plus polling ShipLock intelligence tasks and
+// submitting a proposal for one (AGENTS.md, approved 2026-09-23). ShipLock
+// verifies every proposal against GitHub and only stores it. This server cannot
+// initiate a scan, write a file, merge, or open a PR; every PR still needs the
+// customer's own click in the dashboard.
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -40,7 +43,37 @@ const TOOLS = [
       "Get the full fix for one finding by id. Returns the fix method and, for code/DB fixes, the exact file content + target path to write into the working tree (the developer reviews the git diff and commits). DB/RLS fixes are migration files applied by the developer's own deploy — never write them to production directly. Some fixes return a deep-link URL instead.",
     inputSchema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
   },
+  {
+    name: "list_intelligence_tasks",
+    description:
+      "List ShipLock intelligence tasks waiting for this account's coding agent: task id, repository, commit, and instruction. Run on your own schedule; tasks expire, and an unanswered task stays 'AI check pending' in ShipLock.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+  },
+  {
+    name: "get_intelligence_task",
+    description:
+      "Read one intelligence task: repository, commit, instruction, the file paths and SHA-256 hashes it covers, limits, and the exact JSON schema a result must match. ShipLock never sends source; read the files from your own checkout at that commit.",
+    inputSchema: { type: "object", properties: { taskId: { type: "string" } }, required: ["taskId"], additionalProperties: false },
+  },
+  {
+    name: "submit_intelligence_result",
+    description:
+      "Submit one result for a task, matching the task's resultSchema. Quote cited lines exactly; propose edits only for mechanical changes, and use status needs_human for anything that depends on ownership, authorization, or business policy. ShipLock re-reads cited files from GitHub before accepting, stores a proposal only, and never applies it or opens a PR.",
+    inputSchema: {
+      type: "object",
+      properties: { taskId: { type: "string" }, result: { type: "object" } },
+      required: ["taskId", "result"],
+      additionalProperties: false,
+    },
+  },
 ];
+
+// Task ids are UUIDs. Refuse anything else before building a request path.
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function taskPath(taskId) {
+  if (typeof taskId !== "string" || !UUID.test(taskId)) throw new Error("taskId must be a task UUID");
+  return `/api/mcp/intelligence/tasks/${taskId}`;
+}
 
 const RESOURCES = [
   { uri: "shiplock://brief", name: "ShipLock security brief", description: "Every open finding with its fix, formatted for the agent.", mimeType: "text/markdown" },
@@ -74,6 +107,12 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
       result = await api("/api/mcp/findings");
     } else if (name === "get_fix") {
       result = await api(`/api/mcp/fix?id=${encodeURIComponent(args.id)}`);
+    } else if (name === "list_intelligence_tasks") {
+      result = await api("/api/mcp/intelligence/tasks");
+    } else if (name === "get_intelligence_task") {
+      result = await api(taskPath(args.taskId));
+    } else if (name === "submit_intelligence_result") {
+      result = await api(`${taskPath(args.taskId)}/result`, { method: "POST", body: JSON.stringify({ result: args.result }) });
     } else {
       throw new Error(`Unknown tool: ${name}`);
     }

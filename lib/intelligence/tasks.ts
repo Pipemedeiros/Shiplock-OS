@@ -150,3 +150,23 @@ export async function createIntelligenceTask(input: {
   if (error || !id.success) throw new Error("task_not_created");
   return id.data;
 }
+
+const pendingRowSchema = z.object({
+  id: z.uuid(), commit_sha: z.string(), host: z.enum(["codex", "claude-code", "api"]),
+  instruction: z.string(), expires_at: z.string(), repositories: z.object({ full_name: z.string() }),
+});
+
+/** What a customer's host polls for (10B-2a): its own pending, unexpired
+ * tasks, newest first. Paths and hashes come from getIntelligenceTask. */
+export async function listPendingIntelligenceTasks(userId: string) {
+  const { data, error } = await getSupabaseAdmin().from("intelligence_tasks")
+    .select("id, commit_sha, host, instruction, expires_at, repositories(full_name)")
+    .eq("user_id", userId).eq("status", "pending").gt("expires_at", new Date().toISOString())
+    .order("created_at", { ascending: false }).limit(20);
+  if (error) throw new Error("tasks_unreadable");
+  return (data ?? []).flatMap((raw) => {
+    const row = pendingRowSchema.safeParse(raw);
+    return row.success ? [{ taskId: row.data.id, repository: row.data.repositories.full_name, commit: row.data.commit_sha,
+      host: row.data.host, instruction: row.data.instruction, expiresAt: row.data.expires_at }] : [];
+  });
+}

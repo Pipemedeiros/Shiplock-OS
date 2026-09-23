@@ -3,11 +3,12 @@ import { createHash } from "node:crypto";
 
 // 10B-1b: a customer's host submits a result for a durable task. ShipLock
 // re-reads every cited file from GitHub at the pinned commit before storing.
-const mocks = vi.hoisted(() => ({ task: vi.fn(), profile: vi.fn(), rpc: vi.fn(), file: vi.fn(), filters: vi.fn() }));
+const mocks = vi.hoisted(() => ({ task: vi.fn(), profile: vi.fn(), rpc: vi.fn(), file: vi.fn(), filters: vi.fn(), list: vi.fn() }));
 vi.mock("@/lib/deep/github", () => ({ getInstallationToken: vi.fn(async () => "token"), getFile: mocks.file }));
 vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ rpc: mocks.rpc, from: (table: string) => {
   const chain = { select: () => chain, eq: (k: string, v: unknown) => { mocks.filters(table, k, v); return chain; },
-    maybeSingle: table === "user_profiles" ? mocks.profile : mocks.task };
+    gt: (k: string, v: unknown) => { mocks.filters(table, `gt:${k}`, v); return chain; }, order: () => chain,
+    limit: mocks.list, maybeSingle: table === "user_profiles" ? mocks.profile : mocks.task };
   return chain;
 } }) }));
 
@@ -118,5 +119,20 @@ describe("createIntelligenceTask", () => {
     mocks.file.mockResolvedValue(null);
     await expect(createIntelligenceTask({ userId, repositoryId, commit, host: "api", instruction: "x", paths: [path], minutes: 10, key: "k3" })).rejects.toThrow("source_unreadable");
     expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+});
+
+describe("listPendingIntelligenceTasks (10B-2a)", () => {
+  it("returns only the caller's pending, unexpired tasks, newest first, without source", async () => {
+    mocks.list.mockResolvedValue({ data: [
+      { id: taskId, repository_id: repositoryId, commit_sha: commit, host: "claude-code", instruction: "x",
+        expires_at: "2099-01-01T00:00:00.000Z", repositories: { full_name: "acme/app" } },
+    ], error: null });
+    const { listPendingIntelligenceTasks } = await import("./tasks");
+    expect(await listPendingIntelligenceTasks(userId)).toEqual([{ taskId, repository: "acme/app", commit, host: "claude-code",
+      instruction: "x", expiresAt: "2099-01-01T00:00:00.000Z" }]);
+    expect(mocks.filters).toHaveBeenCalledWith("intelligence_tasks", "user_id", userId);
+    expect(mocks.filters).toHaveBeenCalledWith("intelligence_tasks", "status", "pending");
+    expect(mocks.filters).toHaveBeenCalledWith("intelligence_tasks", "gt:expires_at", expect.any(String));
   });
 });
