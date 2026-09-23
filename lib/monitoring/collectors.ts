@@ -6,7 +6,7 @@ import {
   isCriticalScopeFindingId,
   type Finding,
 } from "./findings";
-import type { CollectorSpec } from "./registry";
+import type { CollectorContext, CollectorSpec, ProviderCommit } from "./registry";
 import type { SupabaseEndpointSnapshot } from "@/lib/graph/graphRun";
 import { currentConnectionEpoch } from "@/lib/deep/providerRepositoryMap";
 import { validateSupabaseUrl } from "@/lib/sanitize";
@@ -24,6 +24,13 @@ function endpointOrigin(rawUrl: string, encryptedKey: string | null, epoch: stri
       identitySource: "validated-input", connectionFingerprint,
     };
   } catch { return undefined; }
+}
+
+/** Provider evidence is written only through the monitor worker's fenced
+ * commit (3F-C2c); a pass without one must not collect at all. */
+function requireCommit(ctx: CollectorContext): ProviderCommit {
+  if (!ctx.commit) throw new Error("Provider collection requires the monitor worker's fenced commit");
+  return ctx.commit;
 }
 
 /** Prior findings the pass could not re-check stay open; unread is not fixed. */
@@ -225,7 +232,7 @@ export const directPostgresCollector: CollectorSpec = {
     // deep_findings with their own archive-on-resolve contract, so its findings
     // must not also enter the snapshot and be diffed a second time.
     const { runDirectPostgresScan } = await import("@/lib/deep/postgresDirectRun");
-    const result = await runDirectPostgresScan(ctx.profile.id, { signal: ctx.signal, commit: ctx.commit });
+    const result = await runDirectPostgresScan(ctx.profile.id, { signal: ctx.signal, commit: requireCommit(ctx) });
     if (!result.ok) throw new Error(`Direct Postgres collection failed: ${result.reason ?? "unknown"}`);
     return { newFindings: result.newFindings as Finding[] | undefined };
   },

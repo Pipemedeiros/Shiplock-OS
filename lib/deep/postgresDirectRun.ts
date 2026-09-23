@@ -1,6 +1,5 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { decrypt } from "@/lib/crypto";
-import { saveFacts } from "@/lib/graph/graphRun";
 import { currentConnectionEpoch, newConnectionEpoch } from "./providerRepositoryMap";
 import { analyzePolicies } from "./policyScan";
 import { analyzeGrants } from "./grantScan";
@@ -14,11 +13,11 @@ import type { Finding } from "@/lib/monitoring/findings";
 import type { ProviderCommit } from "@/lib/monitoring/registry";
 import type { GithubFinding } from "./githubScan";
 
-// Running the direct-Postgres collector and persisting what it found.
+// Running the direct-Postgres collector and committing what it found.
 //
 // Mirrors lib/deep/supabaseMgmtRun.ts deliberately: same `deep_findings` source
-// (`policy`), same archive-on-resolve contract, same `saveFacts(userId, "db")`
-// call. Downstream — the reasoner, the fix lanes, the agent brief, MCP, the
+// (`policy`), same archive-on-resolve contract, same `db` graph facts, all
+// through the monitor worker's fenced commit (migration 068). Downstream — the reasoner, the fix lanes, the agent brief, MCP, the
 // dashboard — cannot tell which transport produced the facts, and should not be
 // able to. That is the whole point of the provider seam in lib/graph/graph.ts.
 //
@@ -83,13 +82,13 @@ async function loadConnection(userId: string): Promise<{ raw: string; fingerprin
  * arrays for them would be a lie in the most damaging direction — the graph
  * treats an absent fact as "unknown" and an empty one as "checked, nothing
  * there", and the second would silently downgrade real findings to clean.
- * `saveFacts` is called with `merge: true` for the same reason.
+ * The fenced commit merges these keys into existing facts for the same reason.
  */
 const ABORTED: DirectScanOutcome = { ok: false, findings: 0, reason: "aborted" };
 
 export async function runDirectPostgresScan(
   userId: string,
-  { signal, commit }: { signal?: AbortSignal; commit?: ProviderCommit } = {},
+  { signal, commit }: { signal?: AbortSignal; commit: ProviderCommit },
 ): Promise<DirectScanOutcome> {
   const admin = getSupabaseAdmin();
 
@@ -97,7 +96,7 @@ export async function runDirectPostgresScan(
   if (!loaded) return { ok: false, findings: 0, reason: "not_connected" };
 
   let findings: GithubFinding[];
-  let committed: Finding[] | undefined;
+  let committed: Finding[];
   try {
     const connection = parseConnectionString(loaded.raw);
     const facts = await collectDirectFacts(connection, undefined, signal);
@@ -127,20 +126,16 @@ export async function runDirectPostgresScan(
       },
     };
 
-    if (commit) {
-      // Monitor worker: facts and findings commit together under the job's
-      // lease and this connection epoch, or not at all (3F-C2c).
-      try {
-        committed = await commit({
-          transport: "postgres-direct", identity: loaded.fingerprint, facts: dbFacts,
-          findings, retire: true,
-        });
-      } catch {
-        console.error(`[postgresDirect] result not committed for ${userId}`);
-        return { ok: false, findings: 0, reason: "not_committed" };
-      }
-    } else {
-      await saveFacts(userId, "db", dbFacts, { merge: true });
+    // Facts and findings commit together under the monitor job's lease and
+    // this connection epoch, or not at all (3F-C2c).
+    try {
+      committed = await commit({
+        transport: "postgres-direct", identity: loaded.fingerprint, facts: dbFacts,
+        findings, retire: true,
+      });
+    } catch {
+      console.error(`[postgresDirect] result not committed for ${userId}`);
+      return { ok: false, findings: 0, reason: "not_committed" };
     }
 
     // A display timestamp, not evidence; written after the evidence commit.
@@ -184,55 +179,7 @@ export async function runDirectPostgresScan(
     return { ok: false, findings: 0, reason: "scan_failed" };
   }
 
-  if (committed) return { ok: true, findings: findings.length, newFindings: committed as GithubFinding[] };
-  if (signal?.aborted) return ABORTED;
-  // Legacy synchronous path (dashboard route) until 3F-C2c-5 queues it.
-  // Same persistence contract as the Supabase path: insert what is newly active,
-  // archive what has since been fixed. Shares the `policy` source so a customer
-  // who migrates between transports keeps one continuous finding history rather
-  // than a duplicate set.
-  const nowIso = new Date().toISOString();
-
-  const { data: existing } = await admin
-    .from("deep_findings")
-    .select("finding_id")
-    .eq("user_id", userId)
-    .eq("source", "policy")
-    .is("archived_at", null);
-
-  const activeIds = new Set((existing ?? []).map((r) => r.finding_id as string));
-  const currentIds = new Set(findings.map((f) => f.id));
-
-  const resolved = [...activeIds].filter((id) => !currentIds.has(id));
-  if (resolved.length > 0) {
-    await admin
-      .from("deep_findings")
-      .update({ archived_at: nowIso })
-      .eq("user_id", userId)
-      .eq("source", "policy")
-      .is("archived_at", null)
-      .in("finding_id", resolved);
-  }
-
-  const fresh = findings.filter((f) => !activeIds.has(f.id));
-  if (fresh.length > 0) {
-    await admin.from("deep_findings").insert(
-      fresh.map((f) => ({
-        user_id: userId,
-        source: "policy",
-        finding_id: f.id,
-        severity: f.severity,
-        title: f.title,
-        consequence: f.consequence,
-        package_name: f.packageName,
-        version: f.version,
-        vuln_id: f.vulnId,
-        cve_id: f.cveId,
-      }))
-    );
-  }
-
-  return { ok: true, findings: findings.length, newFindings: fresh };
+  return { ok: true, findings: findings.length, newFindings: committed as GithubFinding[] };
 }
 
 /**

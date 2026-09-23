@@ -445,6 +445,11 @@ try {
     assert.deepEqual(await activeProvider("policy"),["rls:a","rls:b"]);
     const facts=(await db.query("select facts from public.graph_facts where user_id=$1 and collector='db'",[legacy])).rows[0].facts;
     assert.deepEqual(facts.policies,[]); assert.equal(facts._evidence.fields.policies.completeness,"unknown");
+    // A later result from another transport merges without erasing this one.
+    await persistProvider(job,"postgres-direct",pEpoch,{inventory:{tables:1}},[providerFinding("rls:a"),providerFinding("rls:b")],false);
+    const merged=(await db.query("select facts from public.graph_facts where user_id=$1 and collector='db'",[legacy])).rows[0].facts;
+    assert.deepEqual(merged.policies,[]); assert.deepEqual(merged.inventory,{tables:1});
+    assert.deepEqual(Object.keys(merged._evidence.fields).sort(),["inventory","policies"]);
   });
   await check("provider results retire only re-checked findings and keep unread ones", async () => {
     const job = await monitorJob("c2c-retire");

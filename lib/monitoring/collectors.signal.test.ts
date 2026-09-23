@@ -39,9 +39,9 @@ describe("provider collectors forward the registry signal", () => {
     expect(runners.policy).toHaveBeenCalledWith("user-1", { signal, commit: undefined });
   });
 
-  it("direct Postgres", async () => {
-    await directPostgresCollector.run(ctx({}));
-    expect(runners.postgres).toHaveBeenCalledWith("user-1", { signal, commit: undefined });
+  it("direct Postgres refuses to collect without the worker's fenced commit (3F-C2c-6)", async () => {
+    await expect(directPostgresCollector.run(ctx({}))).rejects.toThrow("fenced commit");
+    expect(runners.postgres).not.toHaveBeenCalled();
   });
 
   it("Vercel environment audit", async () => {
