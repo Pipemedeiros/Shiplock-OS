@@ -7,6 +7,7 @@ import { validateSupabaseUrl, validateAnonKey, validateAppUrl, ValidationError }
 import { getClientIpHash } from "@/lib/rateLimit";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { encrypt } from "@/lib/crypto";
+import { newConnectionEpoch } from "@/lib/deep/providerRepositoryMap";
 import { extractFindings } from "@/lib/monitoring/findings";
 import { hasProductAccess } from "@/lib/access";
 
@@ -181,6 +182,8 @@ export async function POST(req: NextRequest) {
           monitoring_enabled: true,
           monitored_project_url: supabaseUrl,
           monitored_anon_key_encrypted: encrypt(anonKey),
+          // Every stored submission is a new endpoint connection (2D).
+          supabase_endpoint_connection_epoch: newConnectionEpoch(),
           // Persist the app URL (when given) so exposed-path probes can re-run
           // later, not just at scan time. Raw, like monitored_project_url.
           ...(appUrl ? { monitored_app_url: appUrl } : {}),

@@ -18,6 +18,7 @@ export async function POST() {
     .from("user_profiles")
     .update({
       vercel_access_token_encrypted: null,
+      vercel_connection_epoch: null,
       vercel_team_id: null,
       vercel_config_id: null,
       vercel_connected_at: null,

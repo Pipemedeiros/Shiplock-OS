@@ -1,11 +1,20 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import type { VercelProject } from "./vercel";
 
 interface SelectedRepository {
   id: string;
   full_name: string;
   github_repo_id: number | string | null;
+}
+
+/**
+ * A new opaque connection epoch (Step 2D, migration 067). Minted only on a
+ * true connect/reconnect and cleared on disconnect; a token refresh or
+ * re-encryption keeps the current one, so it never invalidates evidence.
+ */
+export function newConnectionEpoch(): string {
+  return randomBytes(32).toString("hex");
 }
 
 /** Opaque identity of this installation, never a plaintext credential. */

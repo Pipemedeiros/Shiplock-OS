@@ -3,6 +3,7 @@
 // npm install --prefix .cache/step23-sql --no-audit --no-fund --ignore-scripts --package-lock=false @electric-sql/pglite@0.3.14
 import { readFile } from "node:fs/promises";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { PGlite } from "../.cache/step23-sql/node_modules/@electric-sql/pglite/dist/index.js";
 
 const db = new PGlite();
@@ -21,8 +22,32 @@ try {
   for (const file of ["008_monitoring.sql", "021_phase2_github_deep_access.sql", "022_phase2_vercel_env_audit.sql", "032_monitored_app_url.sql", "034_supabase_mgmt_connection.sql", "036_source_scan_coalescing.sql", "039_graph_facts.sql", "043_finding_correlation.sql", "044_hourly_pass_fairness.sql", "045_direct_postgres_connection.sql", "046_mvp_repos_and_runs.sql", "047_agent_findings.sql", "051_findings_idempotent_persist.sql", "053_provider_repository_links.sql", "054_database_repository_bindings.sql", "055_supabase_repository_bindings.sql", "056_durable_jobs.sql", "057_atomic_audit_findings.sql", "058_repository_scoped_finding_identity.sql", "059_audit_job_triggers.sql", "060_atomic_repository_selection.sql", "061_github_install_handshake.sql", "062_scheduled_audit_admission.sql", "063_durable_pull_request_checks.sql", "064_fenced_source_collection.sql", "065_fenced_dependency_rechecks.sql", "066_durable_provider_monitoring.sql"]) {
     await db.exec(await readFile(new URL(`../supabase/migrations/${file}`, import.meta.url), "utf8"));
   }
+  // 2D: a connection that predates epochs must keep its current identity.
+  const legacy = "55555555-5555-4555-8555-555555555555";
+  await db.query("insert into auth.users values ($1)", [legacy]);
+  await db.query("insert into public.user_profiles(id,vercel_access_token_encrypted,supabase_mgmt_token_encrypted,postgres_dsn_encrypted,monitored_anon_key_encrypted) values($1,'v-cipher','m-cipher','p-cipher','  ')", [legacy]);
+  await db.exec(await readFile(new URL("../supabase/migrations/067_connection_epochs.sql", import.meta.url), "utf8"));
   await db.query("insert into auth.users values ($1),($2)", [u1,u2]);
   await db.query("insert into public.user_profiles(id) values($1),($2)", [u1,u2]);
+  await check("connection epochs backfill the existing fingerprint and ignore blank credentials", async () => {
+    const hex = (v) => createHash("sha256").update(v).digest("hex");
+    const row = (await db.query("select vercel_connection_epoch v, supabase_mgmt_connection_epoch m, postgres_connection_epoch p, supabase_endpoint_connection_epoch e from public.user_profiles where id=$1",[legacy])).rows[0];
+    assert.deepEqual(row,{v:hex("v-cipher"),m:hex("m-cipher"),p:hex("p-cipher"),e:null});
+  });
+  await check("a credential and its connection epoch must be present together", async () => {
+    await assert.rejects(db.query("update public.user_profiles set vercel_access_token_encrypted='x' where id=$1",[u1]));
+    await assert.rejects(db.query("update public.user_profiles set vercel_access_token_encrypted=null where id=$1",[legacy]));
+    await assert.rejects(db.query("update public.user_profiles set postgres_connection_epoch='not-hex' where id=$1",[legacy]));
+    await db.query("update public.user_profiles set monitored_anon_key_encrypted='k',supabase_endpoint_connection_epoch=$2 where id=$1",[u1,"a".repeat(64)]);
+    await db.query("update public.user_profiles set monitored_anon_key_encrypted=null,supabase_endpoint_connection_epoch=null where id=$1",[u1]);
+  });
+  await check("re-encrypting or refreshing a credential keeps its epoch", async () => {
+    const before=(await db.query("select supabase_mgmt_connection_epoch e from public.user_profiles where id=$1",[legacy])).rows[0].e;
+    await db.query("update public.user_profiles set supabase_mgmt_token_encrypted='m-cipher-refreshed' where id=$1",[legacy]);
+    assert.equal((await db.query("select supabase_mgmt_connection_epoch e from public.user_profiles where id=$1",[legacy])).rows[0].e,before);
+  });
+  // Remove the legacy credentials so later admission checks see only their fixtures.
+  await db.query("update public.user_profiles set vercel_access_token_encrypted=null,vercel_connection_epoch=null,supabase_mgmt_token_encrypted=null,supabase_mgmt_connection_epoch=null,postgres_dsn_encrypted=null,postgres_connection_epoch=null where id=$1",[legacy]);
   await db.query("insert into public.repositories(id,user_id,full_name,selected) values($1,$2,'acme/one',true),($3,$4,'acme/two',true),($5,$2,'acme/three',true)", [r1,u1,r2,u2,r3]);
   // Match Supabase's service-role base-table privileges in this minimal fixture.
   await db.exec("grant select on public.repositories to service_role; set role service_role");
@@ -352,7 +377,7 @@ try {
     await db.exec("reset role");
   });
   await check("provider-only monitoring admission is bounded, typed, and idempotent", async () => {
-    await db.query("update public.user_profiles set monitoring_enabled=false,postgres_dsn_encrypted='cipher' where id=$1",[u1]);
+    await db.query("update public.user_profiles set monitoring_enabled=false,postgres_dsn_encrypted='cipher',postgres_connection_epoch=$2 where id=$1",[u1,"b".repeat(64)]);
     const args=["scheduled_48h","2100-01-01T00:00:00Z","2026-09-22",100];
     const admitted=(await db.query("select public.enqueue_due_monitoring_passes($1,$2,$3,$4) as result",args)).rows[0].result;
     const retry=(await db.query("select public.enqueue_due_monitoring_passes($1,$2,$3,$4) as result",args)).rows[0].result;
@@ -376,7 +401,7 @@ try {
     assert.equal((await db.query("select public.advance_execution_job($1,$2,0,'succeeded') as ok",[monitor.id,monitor.lease_token])).rows[0].ok,true);
   });
   await check("hourly fairness receipt requires its current live lease",async()=>{
-    await db.query("update public.user_profiles set monitoring_enabled=true,monitored_project_url='https://x.supabase.co',monitored_anon_key_encrypted='cipher' where id=$1",[u1]);
+    await db.query("update public.user_profiles set monitoring_enabled=true,monitored_project_url='https://x.supabase.co',monitored_anon_key_encrypted='cipher',supabase_endpoint_connection_epoch=$2 where id=$1",[u1,"c".repeat(64)]);
     await db.query("select public.enqueue_monitoring_job($1,'hourly','hourly-receipt-test')",[u1]);
     const hourly=(await db.query("select * from public.claim_execution_job('monitor',120)")).rows[0];
     assert.equal((await db.query("select public.stamp_hourly_monitor_attempt($1,$2,$3) as ok",[u1,hourly.id,u2])).rows[0].ok,false);

@@ -123,4 +123,15 @@ describe("GET /api/deep/vercel/callback", () => {
     const res = await GET(req(`?code=abc&next=${next}`));
     expect(res.headers.get("location")).toBe("https://shiplock.dev/dashboard?vercel=connected");
   });
+
+  it("mints a fresh opaque connection epoch on every connect (2D)", async () => {
+    requireProUserMock.mockResolvedValue({ userId: "u1", email: "a@b.com" });
+    exchangeCodeForTokenMock.mockResolvedValue({ accessToken: "raw-token", teamId: "t1", configurationId: "c1" });
+    await GET(req("?code=abc"));
+    await GET(req("?code=def"));
+    const [first, second] = updateMock.mock.calls.map(([payload]) => (payload as Record<string, string>).vercel_connection_epoch);
+    expect(first).toMatch(/^[a-f0-9]{64}$/);
+    expect(second).toMatch(/^[a-f0-9]{64}$/);
+    expect(first).not.toBe(second);
+  });
 });

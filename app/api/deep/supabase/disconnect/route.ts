@@ -14,6 +14,7 @@ export async function POST() {
     .from("user_profiles")
     .update({
       supabase_mgmt_token_encrypted: null,
+      supabase_mgmt_connection_epoch: null,
       supabase_mgmt_refresh_encrypted: null,
       supabase_mgmt_expires_at: null,
       supabase_mgmt_project_ref: null,

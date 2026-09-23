@@ -68,7 +68,7 @@ describe("POST /api/deep/vercel/disconnect", () => {
       ["provider_repository_links", "user_id", "u1"], ["graph_facts", "user_id", "u1"],
     ]);
     expect(profileUpdateMock).toHaveBeenCalledWith({
-      vercel_access_token_encrypted: null, vercel_team_id: null,
+      vercel_access_token_encrypted: null, vercel_connection_epoch: null, vercel_team_id: null,
       vercel_config_id: null, vercel_connected_at: null,
     });
   });
@@ -89,5 +89,13 @@ describe("POST /api/deep/vercel/disconnect", () => {
     expect(res.status).toBe(500);
     expect(archiveIsMock).not.toHaveBeenCalled();
     expect(deleteScopeMock).not.toHaveBeenCalled();
+  });
+
+  it("clears the connection epoch with the credential (2D)", async () => {
+    requireProUserMock.mockResolvedValue({ userId: "u1", email: "a@b.com" });
+    await POST();
+    expect(profileUpdateMock).toHaveBeenCalledWith(expect.objectContaining({
+      vercel_access_token_encrypted: null, vercel_connection_epoch: null,
+    }));
   });
 });

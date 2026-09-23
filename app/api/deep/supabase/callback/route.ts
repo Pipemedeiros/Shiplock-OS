@@ -5,6 +5,7 @@ import { requireProUser } from "@/lib/deep/proGate";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { encrypt } from "@/lib/crypto";
 import { exchangeCodeForToken, listProjects } from "@/lib/deep/supabaseMgmt";
+import { newConnectionEpoch } from "@/lib/deep/providerRepositoryMap";
 
 // Return leg of the read-only Supabase Management connection. Pro-gated
 // server-side, so a signed-out or unpaid caller can't land a connection here
@@ -67,6 +68,7 @@ export async function GET(req: NextRequest) {
       .from("user_profiles")
       .update({
         supabase_mgmt_token_encrypted: encrypt(token.accessToken),
+        supabase_mgmt_connection_epoch: newConnectionEpoch(),
         supabase_mgmt_refresh_encrypted: token.refreshToken ? encrypt(token.refreshToken) : null,
         supabase_mgmt_expires_at: token.expiresAt,
         supabase_mgmt_project_ref: projectRef,

@@ -3,6 +3,7 @@ import { requireProUser } from "@/lib/deep/proGate";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { encrypt } from "@/lib/crypto";
 import { exchangeCodeForToken } from "@/lib/deep/vercel";
+import { newConnectionEpoch } from "@/lib/deep/providerRepositoryMap";
 
 // Vercel integration install redirect target. Receives ?code=&teamId=&next=…
 // after a Pro user installs the ShipLock integration (read-only, selected
@@ -28,6 +29,7 @@ export async function GET(req: NextRequest) {
       .from("user_profiles")
       .update({
         vercel_access_token_encrypted: encrypt(token.accessToken),
+        vercel_connection_epoch: newConnectionEpoch(),
         vercel_team_id: token.teamId,
         vercel_config_id: token.configurationId,
         vercel_connected_at: new Date().toISOString(),

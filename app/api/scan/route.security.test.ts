@@ -12,6 +12,7 @@ const getUserMock = vi.fn();
 const singleMock = vi.fn();
 const encryptMock = vi.fn();
 const profileEqMock = vi.fn();
+const profileUpdateMock = vi.fn();
 
 vi.mock("@/lib/scanner", () => ({
   scanProject: scanProjectMock,
@@ -34,7 +35,7 @@ vi.mock("@/lib/supabase", () => ({
           return { single: singleMock, maybeSingle: singleMock };
         },
       }),
-      update: () => ({ eq: () => Promise.resolve({ error: null }) }),
+      update: (payload: unknown) => { profileUpdateMock(payload); return { eq: () => Promise.resolve({ error: null }) }; },
       insert: () => Promise.resolve({ error: null }),
     }),
   }),
@@ -61,6 +62,7 @@ describe("POST /api/scan — auth & paywall are enforced, not just labeled", () 
     singleMock.mockReset();
     encryptMock.mockReset();
     profileEqMock.mockReset();
+    profileUpdateMock.mockReset();
   });
 
   it("401s with no Authorization header and never runs the scan", async () => {
@@ -162,5 +164,18 @@ describe("POST /api/scan — auth & paywall are enforced, not just labeled", () 
     // string must still hit the 409 project-limit guard.
     expect(res.status).toBe(409);
     expect(scanProjectMock).not.toHaveBeenCalled();
+  });
+
+  it("mints a new endpoint connection epoch whenever monitoring credentials are stored (2D)", async () => {
+    getUserMock.mockResolvedValue({ data: { user: { id: "u1" } } });
+    singleMock.mockResolvedValue({ data: { is_paid: true, monitored_project_url: null } });
+    scanProjectMock.mockResolvedValue({ keyAnalysis: { isServiceRole: false }, appUrlChecked: false });
+    analyzeResultMock.mockResolvedValue({ summary: "ok", issues: [] });
+    encryptMock.mockReturnValue("encrypted-anon");
+    await POST(req(VALID_BODY, { authorization: "Bearer valid" }));
+    expect(profileUpdateMock).toHaveBeenCalledWith(expect.objectContaining({
+      monitored_anon_key_encrypted: "encrypted-anon",
+      supabase_endpoint_connection_epoch: expect.stringMatching(/^[a-f0-9]{64}$/),
+    }));
   });
 });

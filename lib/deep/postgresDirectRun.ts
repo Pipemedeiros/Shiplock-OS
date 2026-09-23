@@ -1,7 +1,7 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { decrypt } from "@/lib/crypto";
 import { saveFacts } from "@/lib/graph/graphRun";
-import { providerConnectionFingerprint } from "./providerRepositoryMap";
+import { newConnectionEpoch, providerConnectionFingerprint } from "./providerRepositoryMap";
 import { analyzePolicies } from "./policyScan";
 import { analyzeGrants } from "./grantScan";
 import {
@@ -251,6 +251,7 @@ export async function connectDirectPostgres(
     .from("user_profiles")
     .update({
       postgres_dsn_encrypted: encrypt(connection.dsn),
+      postgres_connection_epoch: newConnectionEpoch(),
       postgres_display: display,
       postgres_connected_at: new Date().toISOString(),
     })
@@ -266,6 +267,7 @@ export async function disconnectDirectPostgres(userId: string): Promise<void> {
     .from("user_profiles")
     .update({
       postgres_dsn_encrypted: null,
+      postgres_connection_epoch: null,
       postgres_display: null,
       postgres_connected_at: null,
     })
