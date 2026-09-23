@@ -7,6 +7,7 @@ import type { Severity } from "@/lib/types";
 import type { Confidence, FixKind } from "@/lib/agent/findings";
 import type { DashboardFinding } from "@/lib/agent/dashboardData";
 import { Chain, Claims, Conf, Sev } from "./FindingParts";
+import { repairMessage, waitForRepair } from "@/lib/repairReceiptClient";
 
 /**
  * The list and the inspector, side by side.
@@ -166,8 +167,14 @@ function Inspector({ finding }: { finding: DashboardFinding }) {
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({ findingId: finding.id }),
                     });
-                    const json = (await res.json()) as { error?: string };
+                    const json = (await res.json()) as { error?: string; receiptId?: string };
                     if (!res.ok) throw new Error(json.error ?? "Could not open the pull request.");
+                    // The click is queued as a receipted repair (3F-C2d); follow it
+                    // until GitHub confirms the PR, then show it on the finding.
+                    if (json.receiptId) {
+                      const view = await waitForRepair(json.receiptId);
+                      if (view.status !== "opened") setError(repairMessage(view));
+                    }
                     router.refresh();
                   } catch (err) {
                     setError(err instanceof Error ? err.message : "Something went wrong.");

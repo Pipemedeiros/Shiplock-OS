@@ -6,6 +6,7 @@
 
 import { useState } from "react";
 import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
+import { repairMessage, waitForRepair } from "@/lib/repairReceiptClient";
 import { fixLane, type FixableFinding } from "@/lib/fixes/lane";
 import { buildMigrationFix, buildCodeFix, buildDeepLink } from "@/lib/fixes/content";
 import { AgreementStrip } from "@/components/d/CoverageBoard";
@@ -40,7 +41,12 @@ export function FixCard({ finding, projectRef }: { finding: FixableFinding; proj
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Couldn't open the PR."); return; }
-      setPrUrl(data.url ?? null);
+      // The click is queued as a receipted repair (3F-C2d); follow it until
+      // GitHub confirms the PR.
+      if (!data.receiptId) { setPrUrl(data.url ?? null); return; }
+      const view = await waitForRepair(data.receiptId);
+      if (view.status === "opened") setPrUrl(view.url);
+      else setError(repairMessage(view));
     } catch {
       setError("Couldn't reach the server. Try again.");
     } finally {

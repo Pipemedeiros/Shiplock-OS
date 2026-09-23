@@ -2,22 +2,15 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireProUser } from "@/lib/deep/proGate";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import {
-  createBranch,
-  getBranchSha,
-  getInstallationToken,
-  openPullRequest,
-  putFile,
-  findOpenPullRequestForBranch,
-} from "@/lib/deep/github";
 import { getOpenFindings } from "@/lib/agent/dashboardData";
-import { fixBranchName, fixDocument, fixFilePath, fixTitle } from "@/lib/agent/fixPr";
+import { requestRepairAction } from "@/lib/jobs/repairAction";
 
 /**
- * Opens a pull request for one finding.
+ * The customer's click to open a pull request for one Risks-board finding.
  *
- * Always a NEW branch off the default, never a push to the default itself and
- * never a merge. That boundary is not a setting.
+ * Admits a receipted repair job (3F-C2d); the worker opens the PR on a NEW
+ * branch off the default, never a push to the default and never a merge. That
+ * boundary is not a setting. Poll /api/fix/receipts/[id] for the outcome.
  */
 const Body = z.object({ findingId: z.string().min(1).max(400) });
 
@@ -29,10 +22,8 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Name a finding." }, { status: 400 });
 
   // Read the finding from OUR record rather than from the request. The client
-  // sends an id and nothing else; the title, the evidence and the file that end
-  // up in a pull request on the customer's repository all come from the row.
-  const findings = await getOpenFindings(user.userId);
-  const finding = findings.find((f) => f.id === parsed.data.findingId);
+  // sends an id and nothing else.
+  const finding = (await getOpenFindings(user.userId)).find((f) => f.id === parsed.data.findingId);
   if (!finding) return NextResponse.json({ error: "No such finding." }, { status: 404 });
 
   if (finding.fixKind === "manual") {
@@ -41,72 +32,21 @@ export async function POST(request: Request) {
       { status: 409 },
     );
   }
-  if (finding.fixPrUrl) {
-    return NextResponse.json({ url: finding.fixPrUrl, alreadyOpen: true });
-  }
+  if (finding.fixPrUrl) return NextResponse.json({ url: finding.fixPrUrl, alreadyOpen: true });
 
-  const admin = getSupabaseAdmin();
-  const { data: profile } = await admin
-    .from("user_profiles")
-    .select("github_installation_id")
-    .eq("id", user.userId)
-    .single();
-
-  const installationId = profile?.github_installation_id as number | null;
-  if (!installationId || !finding.repository) {
-    return NextResponse.json({ error: "Connect GitHub first." }, { status: 409 });
+  const { data: repository } = await getSupabaseAdmin().from("repositories").select("id")
+    .eq("user_id", user.userId).eq("full_name", finding.repository ?? "").eq("selected", true).maybeSingle();
+  if (!repository) {
+    return NextResponse.json({ error: "Select this repository again before opening a pull request." }, { status: 409 });
   }
 
   try {
-    const token = await getInstallationToken(installationId);
-    const { data: repoRow } = await admin
-      .from("repositories")
-      .select("default_branch")
-      .eq("user_id", user.userId)
-      .eq("full_name", finding.repository)
-      .eq("selected", true)
-      .maybeSingle();
-
-    if (!repoRow) {
-      return NextResponse.json({ error: "Select this repository again before opening a pull request." }, { status: 409 });
-    }
-    const base = repoRow.default_branch as string;
-    const branch = fixBranchName(finding.id);
-    const recovered = await findOpenPullRequestForBranch(token, finding.repository, branch);
-    if (recovered) {
-      return NextResponse.json({ url: recovered, alreadyOpen: true });
-    }
-    const sha = await getBranchSha(token, finding.repository, base);
-
-    await createBranch(token, finding.repository, branch, sha);
-    await putFile(
-      token,
-      finding.repository,
-      fixFilePath(finding.id),
-      branch,
-      fixDocument(finding),
-      undefined,
-      `ShipLock: ${finding.title}`,
-    );
-
-    const url = await openPullRequest(
-      token,
-      finding.repository,
-      branch,
-      base,
-      fixTitle(finding),
-      fixDocument(finding),
-    );
-
-    const number = Number(url.split("/").pop());
-    await admin
-      .from("deep_findings")
-      .update({ fix_pr_url: url, fix_pr_number: Number.isFinite(number) ? number : null })
-      .eq("id", finding.rowId);
-
-    return NextResponse.json({ url, number });
-  } catch (err) {
-    console.error("[api/fix/pr] failed:", err instanceof Error ? err.message : err);
-    return NextResponse.json({ error: "Could not open the pull request." }, { status: 502 });
+    const receiptId = await requestRepairAction({
+      userId: user.userId, repositoryId: repository.id as string, action: "risk-fix-pr",
+      findingId: finding.id, editedContent: null,
+    });
+    return NextResponse.json({ receiptId, status: "queued" }, { status: 202 });
+  } catch {
+    return NextResponse.json({ error: "Could not queue the pull request. Try again." }, { status: 503 });
   }
 }

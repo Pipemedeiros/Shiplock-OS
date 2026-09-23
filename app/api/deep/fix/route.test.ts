@@ -4,13 +4,18 @@ const getUserMock = vi.fn();
 const profileMock = vi.fn();
 const runFixPrMock = vi.fn();
 const getFixFindingsMock = vi.fn();
+const requestMock = vi.fn();
+const repoMock = vi.fn();
 
 vi.mock("@/lib/fixes/prRun", () => ({ runFixPr: runFixPrMock }));
 vi.mock("@/lib/fixes/findings", () => ({ getFixFindings: getFixFindingsMock }));
+vi.mock("@/lib/jobs/repairAction", () => ({ requestRepairAction: requestMock }));
 vi.mock("@/lib/supabase", () => ({
   getSupabaseAdmin: () => ({
     auth: { getUser: getUserMock },
-    from: () => ({ select: () => ({ eq: () => ({ maybeSingle: profileMock }) }) }),
+    from: (table: string) => table === "repositories"
+      ? { select: () => ({ eq: () => ({ eq: repoMock }) }) }
+      : { select: () => ({ eq: () => ({ maybeSingle: profileMock }) }) },
   }),
 }));
 
@@ -37,19 +42,37 @@ describe("POST /api/deep/fix — server-owned finding", () => {
     profileMock.mockReset().mockResolvedValue({ data: { is_paid: true } });
     runFixPrMock.mockReset().mockResolvedValue({ url: "https://github.com/x/y/pull/1" });
     getFixFindingsMock.mockReset().mockResolvedValue([{...base,source:"graph"}]);
+    repoMock.mockReset().mockResolvedValue({ data: [{ id: "repo-1", full_name: "acme/app" }], error: null });
+    requestMock.mockReset().mockResolvedValue("receipt-1");
   });
 
-  it("re-resolves the finding instead of trusting client-authored security fields", async () => {
+  it("re-resolves the finding and admits a receipt instead of opening the PR inline (3F-C2d-3)", async () => {
     const res = await POST(req(base.id));
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(202);
+    expect(await res.json()).toEqual({ receiptId: "receipt-1", status: "queued" });
     expect(getFixFindingsMock).toHaveBeenCalledWith("u1");
-    expect(runFixPrMock).toHaveBeenCalledWith("u1",{...base,source:"graph"},"-- fix");
+    expect(requestMock).toHaveBeenCalledWith({ userId: "u1", repositoryId: "repo-1", action: "finding-fix-pr", findingId: base.id, editedContent: "-- fix" });
+    expect(runFixPrMock).not.toHaveBeenCalled();
+  });
+
+  it("uses the repository named in a repository-scoped finding id", async () => {
+    repoMock.mockResolvedValue({ data: [{ id: "repo-1", full_name: "acme/app" }, { id: "repo-2", full_name: "acme/web" }], error: null });
+    getFixFindingsMock.mockResolvedValue([{ ...base, id: "acme/web::path:x", source: "graph" }]);
+    await POST(req("acme/web::path:x"));
+    expect(requestMock.mock.calls[0][0]).toMatchObject({ repositoryId: "repo-2" });
+  });
+
+  it("asks the customer to choose when the repository is ambiguous", async () => {
+    repoMock.mockResolvedValue({ data: [{ id: "repo-1", full_name: "acme/app" }, { id: "repo-2", full_name: "acme/web" }], error: null });
+    const res = await POST(req(base.id));
+    expect(res.status).toBe(409);
+    expect(requestMock).not.toHaveBeenCalled();
   });
 
   it("rejects an id that is not currently open for this customer", async () => {
     const res = await POST(req("someone-elses-finding"));
     expect(res.status).toBe(404);
-    expect(runFixPrMock).not.toHaveBeenCalled();
+    expect(requestMock).not.toHaveBeenCalled();
   });
 
   it("still requires auth before doing anything", async () => {
