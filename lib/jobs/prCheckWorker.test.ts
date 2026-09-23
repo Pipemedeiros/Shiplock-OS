@@ -3,9 +3,9 @@ import { z } from "zod";
 
 const state = vi.hoisted(() => ({
   reads: { user_profiles: vi.fn(), repositories: vi.fn(), pull_request_jobs: vi.fn() },
-  filters: vi.fn(), runCheck: vi.fn(), claim: vi.fn(), execute: vi.fn(),
+  filters: vi.fn(), runCheck: vi.fn(), claim: vi.fn(), execute: vi.fn(), rpc: vi.fn(),
 }));
-vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ from: (table: keyof typeof state.reads) => {
+vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ rpc: state.rpc, from: (table: keyof typeof state.reads) => {
   const query = { eq: (key: string, value: unknown) => { state.filters(table,key,value); return query; },
     maybeSingle: () => state.reads[table]() };
   return { select: () => query };
@@ -37,7 +37,7 @@ beforeEach(() => {
 
 it("re-reads current tenant context and runs exactly the stored PR head", async () => {
   await executePullRequestCheckJob(job);
-  expect(state.runCheck).toHaveBeenCalledWith({userId:job.user_id,installationId:42,fullName:"acme/app",prNumber:7,headSha:"a".repeat(40)});
+  expect(state.runCheck).toHaveBeenCalledWith({userId:job.user_id,installationId:42,fullName:"acme/app",prNumber:7,headSha:"a".repeat(40),persistReview:expect.any(Function)});
   expect(state.filters).toHaveBeenCalledWith("repositories","user_id",job.user_id);
   expect(state.filters).toHaveBeenCalledWith("pull_request_jobs","job_id",job.id);
 });
@@ -59,4 +59,14 @@ it("claims at most one PR check", async () => {
   state.claim.mockResolvedValueOnce(job); state.execute.mockResolvedValueOnce(undefined);
   expect(await runNextPullRequestCheckJob()).toBe(true);
   expect(state.execute).toHaveBeenCalledWith(job,[executePullRequestCheckJob]);
+});
+
+it("binds review storage to this job's lease (8B-1)", async () => {
+  await executePullRequestCheckJob(job);
+  const persist = state.runCheck.mock.calls[0][0].persistReview as (review: unknown) => Promise<void>;
+  state.rpc.mockResolvedValueOnce({ data: "review-1", error: null });
+  await persist({ pullRequestNumber: 7 });
+  expect(state.rpc).toHaveBeenCalledWith("persist_pull_request_review", { p_user: job.user_id, p_job: job.id, p_token: job.lease_token, p_review: { pullRequestNumber: 7 } });
+  state.rpc.mockResolvedValueOnce({ data: null, error: { message: "lease" } });
+  await expect(persist({ pullRequestNumber: 7 })).rejects.toThrow("could not be stored");
 });

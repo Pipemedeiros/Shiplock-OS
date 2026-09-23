@@ -274,6 +274,34 @@ export async function findOpenPullRequestForBranch(
   return typeof rows[0]?.html_url === "string" ? rows[0].html_url : null;
 }
 
+export interface PullRequestMeta {
+  headRef: string;
+  headRepository: string | null;
+  /** False for a fork: ShipLock cannot push a fix branch into it. */
+  sameRepository: boolean;
+  title: string;
+  url: string;
+}
+
+/** Read-only PR metadata for a stored review (8B-1): the head branch a
+ * before-merge fix targets, and whether that branch lives in a fork. */
+export async function getPullRequest(token: string, fullName: string, number: number): Promise<PullRequestMeta> {
+  const res = await fetch(`${API}/repos/${fullName}/pulls/${number}`, {
+    headers: { ...GH_HEADERS, Authorization: `token ${token}` }, signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+  if (!res.ok) throw new Error(`GitHub read pull request HTTP ${res.status}`);
+  const pr = await res.json() as { title?: unknown; html_url?: unknown; head?: { ref?: unknown; repo?: { full_name?: unknown } | null } };
+  if (typeof pr.head?.ref !== "string" || typeof pr.title !== "string" || typeof pr.html_url !== "string") {
+    throw new Error("GitHub returned an unexpected pull request shape");
+  }
+  const headRepository = typeof pr.head.repo?.full_name === "string" ? pr.head.repo.full_name : null;
+  return {
+    headRef: pr.head.ref, headRepository,
+    sameRepository: headRepository?.toLowerCase() === fullName.toLowerCase(),
+    title: pr.title.slice(0, 500), url: pr.html_url,
+  };
+}
+
 /**
  * Recent commits with their diffs, for the history secret scan (C2).
  *

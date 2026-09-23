@@ -36,6 +36,13 @@ export async function executePullRequestCheckJob(job: ClaimedJob): Promise<void>
     fullName: repository.data.full_name,
     prNumber: context.data.pull_request_number,
     headSha: context.data.head_sha,
+    // Fenced to this job's lease and exact PR head (migration 071).
+    persistReview: async (review) => {
+      const { error } = await admin.rpc("persist_pull_request_review", {
+        p_user: job.user_id, p_job: job.id, p_token: job.lease_token, p_review: review,
+      });
+      if (error) throw new Error("Pull request review could not be stored");
+    },
   });
 }
 

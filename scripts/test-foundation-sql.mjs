@@ -30,6 +30,7 @@ try {
   await db.exec(await readFile(new URL("../supabase/migrations/068_fenced_provider_results.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/069_manual_monitor_trigger.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/070_repair_action_receipts.sql", import.meta.url), "utf8"));
+  await db.exec(await readFile(new URL("../supabase/migrations/071_pull_request_reviews.sql", import.meta.url), "utf8"));
   await db.query("insert into auth.users values ($1),($2)", [u1,u2]);
   await db.query("insert into public.user_profiles(id) values($1),($2)", [u1,u2]);
   await check("connection epochs backfill the existing fingerprint and ignore blank credentials", async () => {
@@ -539,6 +540,36 @@ try {
     await assert.rejects(db.query("select * from public.repair_action_receipts"));
     await assert.rejects(requestRepair(u1,r1,"click-client"));
     await assert.rejects(db.query("select public.complete_repair_action($1,$1,$1,'opened',null,null,null)",[u1]));
+    await db.exec("reset role; set role service_role");
+  });
+  // 8B-1: each PR check stores what it found, fenced to its own job.
+  await check("a pull-request review is stored once per head commit under the check lease", async () => {
+    const key="review-pr-9";
+    const job=(await db.query("select public.enqueue_pull_request_check($1,$2,$3,9,$4) as id",[u1,r1,key,"c".repeat(40)])).rows[0].id;
+    await db.exec("reset role");
+    const token=(await db.query("update public.execution_jobs set status='running',lease_token=gen_random_uuid(),lease_until=now()+interval '5 minutes' where id=$1 returning lease_token",[job])).rows[0].lease_token;
+    await db.exec("set role service_role");
+    const review=(over={})=>JSON.stringify({pullRequestNumber:9,headSha:"c".repeat(40),headRef:"feature/orders",headRepository:"acme/one",
+      sameRepository:true,title:"Add orders API",url:"https://github.com/acme/one/pull/9",verdict:"block",coverageComplete:true,
+      findings:[{id:"diff:unscoped-query",severity:"CRITICAL",title:"Orders query is not scoped",detail:"d",file:"app/api/orders/route.ts",evidence:"e"}],...over});
+    const persist=(t,body)=>db.query("select public.persist_pull_request_review($1,$2,$3,$4) as id",[u1,job,t,body]);
+    const id=(await persist(token,review())).rows[0].id;
+    assert.equal((await persist(token,review({verdict:"warn"}))).rows[0].id,id);
+    await assert.rejects(persist(u2,review()));
+    await assert.rejects(persist(token,review({pullRequestNumber:10})));
+    await assert.rejects(persist(token,review({headSha:"d".repeat(40)})));
+    await assert.rejects(persist(token,review({verdict:"clean"})));
+    await assert.rejects(persist(token,review({url:"https://evil.example.com/pull/9"})));
+    await assert.rejects(persist(token,review({findings:[{id:"x",severity:"LOUD",title:"t",detail:"d",file:"f",evidence:"e"}]})));
+    await db.exec("reset role");
+    const row=(await db.query("select verdict,head_ref,same_repository,jsonb_array_length(findings) n from public.pull_request_reviews where id=$1",[id])).rows[0];
+    assert.deepEqual(row,{verdict:"warn",head_ref:"feature/orders",same_repository:true,n:1});
+    await db.exec("set role service_role");
+  });
+  await check("client roles cannot read or write pull-request reviews", async () => {
+    await db.exec("reset role; set role authenticated");
+    await assert.rejects(db.query("select * from public.pull_request_reviews"));
+    await assert.rejects(db.query("select public.persist_pull_request_review($1,$1,$1,'{}'::jsonb)",[u1]));
     await db.exec("reset role; set role service_role");
   });
   await check("client roles cannot commit provider results", async () => {

@@ -2,6 +2,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import {
   createCheckRun,
   getInstallationToken,
+  getPullRequest,
   listPullRequestFiles,
 } from "@/lib/deep/github";
 import { fetchRepoArchive } from "@/lib/deep/repoArchive";
@@ -29,14 +30,31 @@ export interface PrCheckResult {
   skipped?: string;
 }
 
+/** What one PR check found, stored for the dashboard, alerts, and a
+ * before-merge fix (8B-1). PR metadata is null when GitHub did not return it. */
+export interface PullRequestReview {
+  pullRequestNumber: number;
+  headSha: string;
+  headRef: string | null;
+  headRepository: string | null;
+  sameRepository: boolean | null;
+  title: string | null;
+  url: string | null;
+  verdict: DiffScanResult["verdict"];
+  coverageComplete: boolean;
+  findings: Pick<DiffScanResult["findings"][number], "id" | "severity" | "title" | "detail" | "file" | "evidence">[];
+}
+
 export async function runPullRequestCheck(options: {
   userId: string;
   installationId: number;
   fullName: string;
   prNumber: number;
   headSha: string;
+  /** Stores the review under the PR-check job's lease; throws if fenced out. */
+  persistReview: (review: PullRequestReview) => Promise<void>;
 }): Promise<PrCheckResult> {
-  const { userId, installationId, fullName, prNumber, headSha } = options;
+  const { userId, installationId, fullName, prNumber, headSha, persistReview } = options;
   const admin = getSupabaseAdmin();
 
   // Only repositories the customer chose. An installation can see more than it
@@ -82,6 +100,18 @@ export async function runPullRequestCheck(options: {
     : result.verdict === "warn" || !coverageComplete
       ? "neutral"
       : "success";
+
+  // Store the review first, so the dashboard and alerts never lag a posted
+  // check. A failed store throws before posting and the job retries.
+  const meta = await getPullRequest(token, fullName, prNumber).catch(() => null);
+  await persistReview({
+    pullRequestNumber: prNumber, headSha: headSha.toLowerCase(),
+    headRef: meta?.headRef ?? null, headRepository: meta?.headRepository ?? null,
+    sameRepository: meta?.sameRepository ?? null, title: meta?.title ?? null, url: meta?.url ?? null,
+    verdict: result.verdict, coverageComplete,
+    findings: result.findings.slice(0, 100).map(({ id, severity, title, detail, file, evidence }) =>
+      ({ id, severity, title, detail, file, evidence })),
+  });
 
   await createCheckRun(
     token,
