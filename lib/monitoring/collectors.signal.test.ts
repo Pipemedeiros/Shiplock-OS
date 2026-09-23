@@ -6,12 +6,17 @@ import type { MonitoredProfile } from "./types";
 // collector hands it to the transport that actually performs the reads.
 const runners = vi.hoisted(() => ({
   policy: vi.fn(), postgres: vi.fn(), vercel: vi.fn(),
+  scan: vi.fn(), critical: vi.fn(), exposed: vi.fn(),
 }));
+vi.mock("@/lib/scanner", () => ({ scanProject: runners.scan, scanCriticalChecks: runners.critical }));
+vi.mock("@/lib/security/exposedPathsRun", () => ({ runExposedPathScan: runners.exposed }));
 vi.mock("@/lib/deep/supabaseMgmtRun", () => ({ runPolicyScan: runners.policy }));
 vi.mock("@/lib/deep/postgresDirectRun", () => ({ runDirectPostgresScan: runners.postgres }));
 vi.mock("@/lib/deep/vercelRun", () => ({ runVercelEnvAudit: runners.vercel }));
 
-import { directPostgresCollector, supabaseManagementCollector, vercelEnvCollector } from "./collectors";
+import {
+  appSurfaceCollector, directPostgresCollector, supabaseManagementCollector, supabaseScanCollector, vercelEnvCollector,
+} from "./collectors";
 
 const signal = new AbortController().signal;
 const ctx = (over: Partial<MonitoredProfile>): CollectorContext => ({
@@ -23,6 +28,9 @@ beforeEach(() => {
   runners.policy.mockReset().mockResolvedValue({ ok: true, findings: 0, newFindings: [] });
   runners.postgres.mockReset().mockResolvedValue({ ok: true, findings: 0, newFindings: [] });
   runners.vercel.mockReset().mockResolvedValue({ newFindings: [] });
+  runners.scan.mockReset().mockResolvedValue({ tables: [] });
+  runners.critical.mockReset().mockResolvedValue({ tables: [] });
+  runners.exposed.mockReset().mockResolvedValue({ newFindings: [] });
 });
 
 describe("provider collectors forward the registry signal", () => {
@@ -39,5 +47,23 @@ describe("provider collectors forward the registry signal", () => {
   it("Vercel environment audit", async () => {
     await vercelEnvCollector.run(ctx({ vercel_access_token_encrypted: "enc", vercel_team_id: "team" } as Partial<MonitoredProfile>));
     expect(runners.vercel).toHaveBeenCalledWith("user-1", "enc", "team", { signal });
+  });
+});
+
+describe("endpoint and app-surface collectors forward the registry signal", () => {
+  const url = { monitored_project_url: "https://abc.supabase.co" } as Partial<MonitoredProfile>;
+  it("full Supabase endpoint scan", async () => {
+    await supabaseScanCollector.run({ ...ctx(url), anonKey: "anon" });
+    expect(runners.scan).toHaveBeenCalledWith("https://abc.supabase.co", "anon", undefined, signal);
+  });
+
+  it("hourly critical subset", async () => {
+    await supabaseScanCollector.run({ ...ctx(url), anonKey: "anon", triggerSource: "hourly" });
+    expect(runners.critical).toHaveBeenCalledWith("https://abc.supabase.co", "anon", signal);
+  });
+
+  it("app surface", async () => {
+    await appSurfaceCollector.run(ctx({ monitored_app_url: "https://app.example.com" } as Partial<MonitoredProfile>));
+    expect(runners.exposed).toHaveBeenCalledWith("user-1", "https://app.example.com", { signal });
   });
 });

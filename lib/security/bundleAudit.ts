@@ -1,6 +1,7 @@
 import type { Severity } from "@/lib/types";
 import { jwtRole } from "@/lib/deep/clientExposure";
 import { guardedFetch } from "@/lib/security/ssrfGuard";
+import { requestSignal } from "@/lib/abort";
 
 // D6 + D7 from CHECK-SPEC.md §4 — audit what the customer's app ACTUALLY ships
 // to a browser, fetched from the public internet the way a visitor gets it.
@@ -264,7 +265,7 @@ async function readCapped(res: Response, limit: number): Promise<string> {
  * problem", never a finding. A monitoring pass reporting a vulnerability because
  * a fetch timed out would be worse than reporting nothing.
  */
-export async function auditShippedBundle(appUrl: string): Promise<BundleFinding[]> {
+export async function auditShippedBundle(appUrl: string, signal?: AbortSignal): Promise<BundleFinding[]> {
   const found = new Map<string, BundleFinding>();
   const add = (finding: BundleFinding) => {
     if (!found.has(finding.id)) found.set(finding.id, finding);
@@ -273,7 +274,7 @@ export async function auditShippedBundle(appUrl: string): Promise<BundleFinding[
   let html: string;
   let pageUrl: string;
   try {
-    const res = await guardedFetch(appUrl, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+    const res = await guardedFetch(appUrl, { signal: requestSignal(signal, TIMEOUT_MS) });
     if (!res.ok) return [];
     pageUrl = res.url || appUrl;
     html = await readCapped(res, 1_000_000);
@@ -290,7 +291,7 @@ export async function auditShippedBundle(appUrl: string): Promise<BundleFinding[
     scripts.map(async (jsUrl) => {
       let js: string;
       try {
-        const res = await guardedFetch(jsUrl, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+        const res = await guardedFetch(jsUrl, { signal: requestSignal(signal, TIMEOUT_MS) });
         if (!res.ok) return;
         js = await readCapped(res, MAX_JS_BYTES);
       } catch {
@@ -302,7 +303,7 @@ export async function auditShippedBundle(appUrl: string): Promise<BundleFinding[
       const mapUrl = findSourceMapUrl(js, jsUrl);
       if (!mapUrl) return;
       try {
-        const res = await guardedFetch(mapUrl, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+        const res = await guardedFetch(mapUrl, { signal: requestSignal(signal, TIMEOUT_MS) });
         const body = await readCapped(res, MAX_MAP_BYTES);
         const finding = classifySourceMap(res.status, body, jsUrl);
         if (finding) add(finding);

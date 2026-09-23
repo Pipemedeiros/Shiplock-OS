@@ -69,7 +69,7 @@ describe("runMonitoringPass — app-surface scan gating", () => {
 
   it("runs the app-surface scan on the 48h deep pass", async () => {
     await runMonitoringPass(profile({ monitored_app_url: "https://app.example.com" }), "scheduled_48h");
-    expect(exposedScanMock).toHaveBeenCalledWith("u1", "https://app.example.com");
+    expect(exposedScanMock).toHaveBeenCalledWith("u1", "https://app.example.com", { signal: expect.any(AbortSignal) });
   });
 
   // The bundle audit downloads real chunks. That's the wrong weight for a pass

@@ -1,5 +1,6 @@
 import type { Severity } from "@/lib/types";
 import { assertPublicHttpsUrl } from "@/lib/security/ssrfGuard";
+import { requestSignal } from "@/lib/abort";
 
 // Dynamic exposed-path probes against the customer's LIVE app URL. Complements
 // the scanner's checkSecretsExposure (which already covers /.env* variants) with
@@ -103,7 +104,7 @@ const MAX_BODY = 20_000; // signatures live near the top; don't slurp huge files
 
 // Probe every path against the app URL. Best-effort: any network error on a path
 // is treated as "not exposed" (safe). Dedups by group.
-export async function probeExposedPaths(appUrl: string): Promise<ExposedFinding[]> {
+export async function probeExposedPaths(appUrl: string, signal?: AbortSignal): Promise<ExposedFinding[]> {
   const base = appUrl.replace(/\/+$/, "");
   try {
     await assertPublicHttpsUrl(base);
@@ -116,7 +117,7 @@ export async function probeExposedPaths(appUrl: string): Promise<ExposedFinding[
     PROBES.map(async (probe) => {
       try {
         const res = await fetch(`${base}${probe.path}`, {
-          signal: AbortSignal.timeout(TIMEOUT_MS),
+          signal: requestSignal(signal, TIMEOUT_MS),
           redirect: "manual", // a redirect to a login/app page is not the file
         });
         const body = (await res.text().catch(() => "")).slice(0, MAX_BODY);

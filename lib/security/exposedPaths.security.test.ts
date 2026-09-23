@@ -32,3 +32,20 @@ describe("probeExposedPaths — SSRF guard integration", () => {
     expect(fetchMock).toHaveBeenCalled();
   });
 });
+
+describe("probeExposedPaths — 3F-C2b-2 cancellation", () => {
+  it("aborts every in-flight probe when the caller aborts", async () => {
+    assertPublicHttpsUrlMock.mockResolvedValue(undefined);
+    const signals: AbortSignal[] = [];
+    vi.stubGlobal("fetch", vi.fn((_url: unknown, init?: RequestInit) => {
+      if (init?.signal) signals.push(init.signal);
+      return new Promise<Response>(() => {});
+    }));
+    const caller = new AbortController();
+    void probeExposedPaths("https://app.example.com/", caller.signal);
+    await vi.waitFor(() => expect(signals.length).toBeGreaterThan(0));
+    caller.abort(new Error("collector timed out"));
+    expect(signals.every((s) => s.aborted)).toBe(true);
+    vi.unstubAllGlobals();
+  });
+});

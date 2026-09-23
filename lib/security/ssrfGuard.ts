@@ -128,7 +128,10 @@ export async function guardedFetch(
 
   let target = url;
   for (let hop = 0; hop <= maxRedirects; hop++) {
+    // Every hop is still validated; cancellation only stops the chain early.
+    init.signal?.throwIfAborted();
     await assertPublicHttpsUrl(target, resolver);
+    init.signal?.throwIfAborted();
     const res = await fetch(target, { ...init, redirect: "manual" });
     const isRedirect = res.status >= 300 && res.status < 400;
     const location = res.headers.get("location");

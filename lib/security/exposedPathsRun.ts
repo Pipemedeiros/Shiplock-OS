@@ -23,13 +23,14 @@ import { analyzeOriginPosture, collectOriginPosture, fetchOriginHeaders, nodeDns
 // track reality.
 export async function runExposedPathScan(
   userId: string,
-  appUrl: string
+  appUrl: string,
+  { signal }: { signal?: AbortSignal } = {},
 ): Promise<{ total: number; newCount: number; resolvedCount: number; newFindings: ExposedFinding[] }> {
   // Independent: a failure in one must not cost us the other's findings. Both
   // are already best-effort internally and resolve to [] on network trouble.
   const [paths, bundle, email, origin] = await Promise.all([
-    probeExposedPaths(appUrl).catch(() => []),
-    auditShippedBundle(appUrl).catch(() => []),
+    probeExposedPaths(appUrl, signal).catch(() => []),
+    auditShippedBundle(appUrl, signal).catch(() => []),
     auditEmailAuth(appUrl, nodeTxtResolver).catch(() => []),
     // Origin exposure. Skipped on shared platform hostnames for the same reason
     // as email auth: the customer does not control that DNS, so a finding there
@@ -37,11 +38,14 @@ export async function runExposedPathScan(
     (async () => {
       const domain = domainFromUrl(appUrl);
       if (!domain || isSharedHost(domain)) return [];
-      const headers = await fetchOriginHeaders(appUrl);
+      const headers = await fetchOriginHeaders(appUrl, signal);
       const posture = await collectOriginPosture(domain, nodeDnsResolver, headers);
       return posture ? analyzeOriginPosture(posture) : [];
     })().catch(() => []),
   ]);
+  // Probes resolve to [] on network failure, and an empty pass archives every
+  // active finding below. A cancelled pass must therefore write nothing at all.
+  signal?.throwIfAborted();
   const findings = [...paths, ...bundle, ...email, ...origin];
 
   const admin = getSupabaseAdmin();

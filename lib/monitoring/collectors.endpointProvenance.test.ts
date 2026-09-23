@@ -70,7 +70,7 @@ describe("Step 2E: endpoint provenance with explicit RLS readability", () => {
       },
     } });
     expect(result.snapshotFindings).toEqual(expect.arrayContaining([expect.objectContaining({ id: "rls:invoices", severity: "CRITICAL" })]));
-    expect(mocks.scan).toHaveBeenCalledWith(context.profile.monitored_project_url, context.anonKey);
+    expect(mocks.scan).toHaveBeenCalledWith(context.profile.monitored_project_url, context.anonKey, undefined, undefined);
     expect(JSON.stringify(result.facts)).not.toContain("private-anon-key");
     expect(JSON.stringify(result.facts)).not.toContain("encrypted-key-one");
   });

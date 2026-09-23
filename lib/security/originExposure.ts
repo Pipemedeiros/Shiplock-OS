@@ -1,5 +1,6 @@
 import type { Severity } from "@/lib/types";
 import { guardedFetch } from "@/lib/security/ssrfGuard";
+import { requestSignal } from "@/lib/abort";
 
 // D — origin exposure: is the customer's edge protection bypassable?
 //
@@ -284,11 +285,13 @@ export const nodeDnsResolver: DnsResolver = {
 };
 
 /** Fetches the response headers an edge provider would announce itself in. */
-export async function fetchOriginHeaders(appUrl: string): Promise<Record<string, string> | undefined> {
+export async function fetchOriginHeaders(
+  appUrl: string, signal?: AbortSignal,
+): Promise<Record<string, string> | undefined> {
   try {
     const res = await guardedFetch(appUrl, {
       method: "HEAD",
-      signal: AbortSignal.timeout(8_000),
+      signal: requestSignal(signal, 8_000),
     });
     const out: Record<string, string> = {};
     res.headers.forEach((value, key) => {

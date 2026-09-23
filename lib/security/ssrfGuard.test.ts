@@ -182,3 +182,18 @@ describe("guardedFetch — the actual attack this guard exists to stop", () => {
     ).rejects.toBeInstanceOf(SsrfBlockedError);
   });
 });
+
+describe("guardedFetch — 3F-C2b-2 cancellation", () => {
+  it("does not resolve or request a hop once the caller signal has aborted", async () => {
+    const lookup = vi.fn(async () => ["93.184.216.34"]);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const caller = new AbortController();
+    caller.abort(new Error("collector timed out"));
+    await expect(guardedFetch("https://app.example.com/", { signal: caller.signal }, { resolver: { lookup } }))
+      .rejects.toThrow("collector timed out");
+    expect(lookup).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+});

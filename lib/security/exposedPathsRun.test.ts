@@ -50,8 +50,8 @@ describe("runExposedPathScan", () => {
 
   it("runs all three collectors against the app URL", async () => {
     await runExposedPathScan("u1", "https://app.example.com");
-    expect(probeMock).toHaveBeenCalledWith("https://app.example.com");
-    expect(auditMock).toHaveBeenCalledWith("https://app.example.com");
+    expect(probeMock).toHaveBeenCalledWith("https://app.example.com", undefined);
+    expect(auditMock).toHaveBeenCalledWith("https://app.example.com", undefined);
     expect(emailMock).toHaveBeenCalledWith("https://app.example.com", expect.anything());
   });
 
@@ -187,5 +187,31 @@ describe("runExposedPathScan", () => {
     const result = await runExposedPathScan("u1", "https://app.example.com");
 
     expect(result.newCount).toBe(1);
+  });
+});
+
+describe("runExposedPathScan — 3F-C2b-2 cancellation", () => {
+  beforeEach(() => {
+    selectChainMock.mockReset().mockResolvedValue({ data: [{ finding_id: "exposed:env" }] });
+    insertMock.mockReset().mockResolvedValue({ data: null, error: null });
+    updateInMock.mockReset().mockResolvedValue({ data: null, error: null });
+    updateSpy.mockReset();
+    auditMock.mockReset().mockResolvedValue([]);
+    emailMock.mockReset().mockResolvedValue([]);
+  });
+
+  it("forwards the signal and never archives findings from a cancelled, empty pass", async () => {
+    const controller = new AbortController();
+    probeMock.mockReset().mockImplementation(async () => {
+      controller.abort(new Error("collector timed out"));
+      return [];
+    });
+    await expect(runExposedPathScan("u1", "https://app.example.com", { signal: controller.signal }))
+      .rejects.toThrow("collector timed out");
+    expect(probeMock).toHaveBeenCalledWith("https://app.example.com", controller.signal);
+    expect(auditMock).toHaveBeenCalledWith("https://app.example.com", controller.signal);
+    expect(updateSpy).not.toHaveBeenCalled();
+    expect(updateInMock).not.toHaveBeenCalled();
+    expect(insertMock).not.toHaveBeenCalled();
   });
 });

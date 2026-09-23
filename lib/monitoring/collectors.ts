@@ -56,7 +56,7 @@ export const supabaseScanCollector: CollectorSpec = {
     if (!ctx.profile.monitored_project_url || !ctx.anonKey) return {};
     if (ctx.triggerSource === "hourly") {
       const fresh = extractCriticalFindings(
-        await scanCriticalChecks(ctx.profile.monitored_project_url, ctx.anonKey)
+        await scanCriticalChecks(ctx.profile.monitored_project_url, ctx.anonKey, ctx.signal)
       );
       const carriedForward = ctx.previousFindings.filter((f) => !isCriticalScopeFindingId(f.id));
       return { snapshotFindings: [...carriedForward, ...fresh] };
@@ -65,7 +65,7 @@ export const supabaseScanCollector: CollectorSpec = {
     // Capture the supplied origin before any asynchronous collection. Later
     // profile changes must not relabel observations from the old target/key.
     const origin = endpointOrigin(ctx.profile.monitored_project_url, encryptedKey);
-    const scan = await scanProject(ctx.profile.monitored_project_url, ctx.anonKey);
+    const scan = await scanProject(ctx.profile.monitored_project_url, ctx.anonKey, undefined, ctx.signal);
     const tableReports = (scan.tables ?? []).map((t) => ({
       name: t.name,
       rlsEnabled: t.rlsEnabled,
@@ -151,7 +151,7 @@ export const appSurfaceCollector: CollectorSpec = {
   appliesTo: (ctx) => ctx.profile.monitoring_enabled !== false
     && Boolean(ctx.profile.monitored_app_url),
   async run(ctx) {
-    const result = await runExposedPathScan(ctx.profile.id, ctx.profile.monitored_app_url!);
+    const result = await runExposedPathScan(ctx.profile.id, ctx.profile.monitored_app_url!, { signal: ctx.signal });
     return { newFindings: result.newFindings as Finding[] };
   },
 };
