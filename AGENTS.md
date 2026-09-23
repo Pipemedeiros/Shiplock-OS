@@ -351,7 +351,7 @@ the proving ground and native-agent distribution are not launch-proven.
   through the existing access gate; it does not enforce the new once-per-account
   first-scan entitlement or free/paid feature matrix.
 - `supabase/migrations/` is the schema/RLS source. Production has every
-  migration through 081 (released 2026-09-23 with its code; each stored
+  migration through 083 (released 2026-09-23 with its code; each stored
   statement is md5-verified against its file). Any newer file is local until
   released the same way. `docs/CORPUS.json`, `scripts/corpus.cjs`, and dated evaluation JSON
   are reproducibility data, not current accuracy marketing claims.
