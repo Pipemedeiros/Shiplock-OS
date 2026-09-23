@@ -114,4 +114,12 @@ describe("the Vercel environment audit is on the schedule", () => {
     expect(vercelEnvCollector.eligibleTriggers).not.toContain("hourly");
     expect(vercelEnvCollector.eligibleTriggers).toContain("scheduled_48h");
   });
+
+describe("customer rechecks run every full-pass collector (3F-C2c-5)", () => {
+  it("makes each deploy-eligible collector eligible for manual rechecks", () => {
+    for (const spec of DEFAULT_COLLECTORS) {
+      expect(spec.eligibleTriggers.includes("manual")).toBe(spec.eligibleTriggers.includes("deploy"));
+    }
+  });
+});
 });

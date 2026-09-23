@@ -1,11 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireProUser } from "@/lib/deep/proGate";
-import {
-  connectDirectPostgres,
-  disconnectDirectPostgres,
-  runDirectPostgresScan,
-} from "@/lib/deep/postgresDirectRun";
+import { connectDirectPostgres, disconnectDirectPostgres } from "@/lib/deep/postgresDirectRun";
+import { queueCustomerRecheck } from "@/lib/jobs/manualRecheck";
 
 // Connect / scan / disconnect a customer's own Postgres, for everyone not on
 // Supabase. Same "your database" slot as app/api/deep/supabase/* — a customer
@@ -46,10 +43,11 @@ export async function POST(request: Request) {
       // be actionable and contain no credential.
       return NextResponse.json({ error: result.message, reason: result.code }, { status: 400 });
     }
-    // Scan immediately, so connecting produces a result rather than a promise
-    // that something will happen within 48 hours.
-    const scan = await runDirectPostgresScan(pro.userId);
-    return NextResponse.json({ ok: true, display: result.display, findings: scan.findings });
+    // Queue the first read now, so connecting produces a result within minutes
+    // rather than at the next 48-hour pass. The connection stands even if the
+    // queue is briefly unavailable; the scheduled pass will still pick it up.
+    const status = await queueCustomerRecheck(pro.userId, "postgres-direct").then(() => "queued", () => "not_queued");
+    return NextResponse.json({ ok: true, display: result.display, status });
   }
 
   if (parsed.action === "disconnect") {
@@ -57,20 +55,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  const result = await runDirectPostgresScan(pro.userId);
-  if (!result.ok) {
-    const message =
-      result.reason === "not_connected"
-        ? "Connect your database first."
-        : result.reason === "auth_failed"
-          ? "Postgres rejected the stored credentials. Reconnect to keep policy checks running."
-          : result.reason === "not_read_only"
-            ? "That role can write to your database. Reconnect with a read-only role."
-            : result.reason === "blocked_host"
-              ? "That host is not publicly reachable, so we cannot connect to it."
-              : "Couldn't read your policies just now. Try again in a moment.";
-    return NextResponse.json({ error: message, reason: result.reason }, { status: 400 });
+  try {
+    await queueCustomerRecheck(pro.userId, "postgres-direct");
+  } catch {
+    // Admission refuses a customer with nothing connected to check.
+    return NextResponse.json({ error: "Connect your database first, then try again." }, { status: 409 });
   }
-
-  return NextResponse.json({ ok: true, findings: result.findings });
+  return NextResponse.json({ ok: true, status: "queued" }, { status: 202 });
 }

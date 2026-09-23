@@ -10,7 +10,7 @@ import {
   type ClaimedJob,
 } from "./queue";
 
-const trigger = z.enum(["deploy", "hourly", "scheduled_48h"]);
+const trigger = z.enum(["manual", "deploy", "hourly", "scheduled_48h"]);
 const contextSchema = z.object({ user_id: z.uuid(), trigger_source: trigger });
 const profileSchema = z.object({
   id: z.uuid(),

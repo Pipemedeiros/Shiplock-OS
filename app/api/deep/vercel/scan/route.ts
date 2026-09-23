@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { requireProUser } from "@/lib/deep/proGate";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { runVercelEnvAudit } from "@/lib/deep/vercelRun";
+import { queueCustomerRecheck } from "@/lib/jobs/manualRecheck";
 import { currentConnectionEpoch } from "@/lib/deep/providerRepositoryMap";
 
-// Run (or re-run) the Vercel env-var audit for the caller's connected account.
-// Pro-gated server-side. Persists only new findings.
+// Queue a recheck of the caller's connected Vercel account (3F-C2c-5). The
+// monitor worker runs the audit under its lease; this request collects nothing.
 export async function POST() {
   const pro = await requireProUser();
   if (!pro) {
@@ -15,7 +15,7 @@ export async function POST() {
   const admin = getSupabaseAdmin();
   const { data: profile } = await admin
     .from("user_profiles")
-    .select("vercel_access_token_encrypted, vercel_connection_epoch, vercel_team_id")
+    .select("vercel_access_token_encrypted, vercel_connection_epoch")
     .eq("id", pro.userId)
     .single();
 
@@ -26,11 +26,9 @@ export async function POST() {
   }
 
   try {
-    const { total, newCount } = await runVercelEnvAudit(
-      pro.userId, encryptedToken, connectionEpoch, (profile?.vercel_team_id as string | null) ?? null
-    );
-    return NextResponse.json({ ok: true, total, newCount }, { headers: { "Cache-Control": "no-store" } });
+    await queueCustomerRecheck(pro.userId, "vercel");
+    return NextResponse.json({ ok: true, status: "queued" }, { status: 202, headers: { "Cache-Control": "no-store" } });
   } catch {
-    return NextResponse.json({ error: "Scan failed. Try again." }, { status: 502 });
+    return NextResponse.json({ error: "The recheck could not be queued. Try again." }, { status: 503 });
   }
 }

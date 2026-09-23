@@ -28,6 +28,7 @@ try {
   await db.query("insert into public.user_profiles(id,vercel_access_token_encrypted,supabase_mgmt_token_encrypted,postgres_dsn_encrypted,monitored_anon_key_encrypted) values($1,'v-cipher','m-cipher','p-cipher','  ')", [legacy]);
   await db.exec(await readFile(new URL("../supabase/migrations/067_connection_epochs.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/068_fenced_provider_results.sql", import.meta.url), "utf8"));
+  await db.exec(await readFile(new URL("../supabase/migrations/069_manual_monitor_trigger.sql", import.meta.url), "utf8"));
   await db.query("insert into auth.users values ($1),($2)", [u1,u2]);
   await db.query("insert into public.user_profiles(id) values($1),($2)", [u1,u2]);
   await check("connection epochs backfill the existing fingerprint and ignore blank credentials", async () => {
@@ -475,6 +476,15 @@ try {
     await assert.rejects(persistProvider(job,"postgres-direct",pEpoch,[],[],false));
     await assert.rejects(persistProvider(job,"postgres-direct",pEpoch,null,[{id:"x",severity:"LOUD",title:"t",consequence:"c"}],false));
     await assert.rejects(persistProvider(job,"app-surface","https://app.example.com",{x:1},[],false));
+  });
+  await check("a customer rescan is admitted as a manual monitor job", async () => {
+    const id=(await db.query("select public.enqueue_monitoring_job($1,'manual','manual:postgres-direct:1') as id",[legacy])).rows[0].id;
+    assert.equal(id,(await db.query("select public.enqueue_monitoring_job($1,'manual','manual:postgres-direct:1') as id",[legacy])).rows[0].id);
+    await db.exec("reset role");
+    assert.equal((await db.query("select trigger_source from public.monitoring_job_context where job_id=$1",[id])).rows[0].trigger_source,"manual");
+    await db.exec("set role service_role");
+    await assert.rejects(db.query("select public.enqueue_monitoring_job($1,'manual','manual:none')",[u2]));
+    await assert.rejects(db.query("select public.enqueue_monitoring_job($1,'bogus','manual:bad')",[legacy]));
   });
   await check("client roles cannot commit provider results", async () => {
     await db.exec("reset role; set role authenticated");

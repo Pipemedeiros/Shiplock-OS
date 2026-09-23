@@ -45,11 +45,8 @@ export function SupabasePanel({
         setIsConnected(false);
         setMessage("Disconnected. Policy checks have stopped.");
       } else {
-        setMessage(
-          data.findings === 0
-            ? "Checked your policies. Nothing permissive found."
-            : `Checked your policies. ${data.findings} issue${data.findings === 1 ? "" : "s"} on your Risks tab.`
-        );
+        // Reads run in the background queue (3F-C2c-5); results land on Risks.
+        setMessage("Policy check queued. Results appear on your Risks tab in a few minutes.");
       }
     } catch {
       setMessage("Couldn't reach the server.");

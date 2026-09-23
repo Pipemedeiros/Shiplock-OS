@@ -39,4 +39,5 @@ export interface MonitoredProfile {
   supabase_mgmt_project_ref?: string | null;
 }
 
-export type TriggerSource = "deploy" | "hourly" | "scheduled_48h";
+/** "manual" is a customer-requested recheck (3F-C2c-5): same scope as deploy. */
+export type TriggerSource = "manual" | "deploy" | "hourly" | "scheduled_48h";

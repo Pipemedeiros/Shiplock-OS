@@ -83,7 +83,7 @@ export async function admitDueMonitoringPasses(
 
 export async function enqueueMonitoringPass(
   userId: string,
-  trigger: "deploy" | "hourly" | "scheduled_48h",
+  trigger: "manual" | "deploy" | "hourly" | "scheduled_48h",
   key: string,
 ): Promise<string> {
   z.uuid().parse(userId);

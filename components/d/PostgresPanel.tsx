@@ -79,10 +79,11 @@ export function PostgresPanel({
         setShowForm(false);
       }
 
+      // Reads run in the background queue (3F-C2c-5); results land on Risks.
       setMessage(
-        data.findings === 0
-          ? "Read your policies. Nothing permissive found."
-          : `Read your policies. ${data.findings} issue${data.findings === 1 ? "" : "s"} on your Risks tab.`
+        data.status === "queued"
+          ? "Policy check queued. Results appear on your Risks tab in a few minutes."
+          : "Connected. Your first policy check will run with the next scheduled pass."
       );
     } catch {
       setError(true);

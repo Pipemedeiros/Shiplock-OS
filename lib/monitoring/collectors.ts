@@ -52,7 +52,7 @@ function carryUnread(previous: Finding[], fresh: Finding[], unread: string[]): F
 export const supabaseScanCollector: CollectorSpec = {
   id: "supabase-scan",
   layer: "db",
-  eligibleTriggers: ["hourly", "deploy", "scheduled_48h"],
+  eligibleTriggers: ["hourly", "manual", "deploy", "scheduled_48h"],
   // The scan makes many sequential network calls against the customer's project;
   // the full 16-check pass is the single longest thing in a monitoring run.
   timeoutMs: 45_000,
@@ -123,7 +123,7 @@ export const supabaseScanCollector: CollectorSpec = {
 export const supabaseManagementCollector: CollectorSpec = {
   id: "supabase-management",
   layer: "db",
-  eligibleTriggers: ["deploy", "scheduled_48h"],
+  eligibleTriggers: ["manual", "deploy", "scheduled_48h"],
   timeoutMs: 30_000,
   appliesTo: (ctx) => Boolean(
     ctx.profile.supabase_mgmt_token_encrypted && ctx.profile.supabase_mgmt_project_ref,
@@ -156,7 +156,7 @@ export const supabaseManagementCollector: CollectorSpec = {
 export const appSurfaceCollector: CollectorSpec = {
   id: "app-surface",
   layer: "app-surface",
-  eligibleTriggers: ["deploy", "scheduled_48h"],
+  eligibleTriggers: ["manual", "deploy", "scheduled_48h"],
   timeoutMs: 30_000,
   appliesTo: (ctx) => ctx.profile.monitoring_enabled !== false
     && Boolean(ctx.profile.monitored_app_url),
@@ -193,7 +193,7 @@ export const vercelEnvCollector: CollectorSpec = {
   layer: "runtime",
   // Not hourly. Environment variables change when someone deploys or edits
   // them, not minute to minute, and the hourly pass is the one with a budget.
-  eligibleTriggers: ["deploy", "scheduled_48h"],
+  eligibleTriggers: ["manual", "deploy", "scheduled_48h"],
   timeoutMs: 30_000,
   appliesTo: (ctx) => Boolean(currentConnectionEpoch(
     ctx.profile.vercel_access_token_encrypted, ctx.profile.vercel_connection_epoch)),
@@ -215,7 +215,7 @@ export const vercelEnvCollector: CollectorSpec = {
 export const directPostgresCollector: CollectorSpec = {
   id: "postgres-direct",
   layer: "db",
-  eligibleTriggers: ["deploy", "scheduled_48h"],
+  eligibleTriggers: ["manual", "deploy", "scheduled_48h"],
   // A TCP connect plus four catalogue queries, against a database that may be
   // cold-starting on a serverless plan.
   timeoutMs: 30_000,

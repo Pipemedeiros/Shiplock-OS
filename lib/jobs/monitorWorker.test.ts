@@ -127,3 +127,9 @@ it("gives collectors a commit bound to this job's lease (3F-C2c-2)",async()=>{
     p_user:job.user_id,p_job:job.id,p_token:job.lease_token,
   }));
 });
+
+it("runs a customer-requested manual recheck (3F-C2c-5)",async()=>{
+  state.reads.monitoring_job_context.mockResolvedValueOnce({data:{user_id:job.user_id,trigger_source:"manual"},error:null});
+  await executeMonitorJob(job);
+  expect(state.run.mock.calls[0][1]).toBe("manual");
+});
