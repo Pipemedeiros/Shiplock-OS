@@ -37,6 +37,7 @@ try {
   await db.exec(await readFile(new URL("../supabase/migrations/075_intelligence_retention.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/076_intelligence_connections.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/077_intelligence_scans.sql", import.meta.url), "utf8"));
+  await db.exec(await readFile(new URL("../supabase/migrations/079_intelligence_credentials.sql", import.meta.url), "utf8"));
   await db.query("insert into auth.users values ($1),($2)", [u1,u2]);
   await db.query("insert into public.user_profiles(id) values($1),($2)", [u1,u2]);
   await check("connection epochs backfill the existing fingerprint and ignore blank credentials", async () => {
@@ -765,7 +766,22 @@ try {
     assert.equal(await pr(8),null);
     assert.equal((await due("2026-10-08T12:00:00Z")).eligible,0);
   });
+  // 10B-2e: one encrypted customer model key per account, service-only.
+  await check("a customer API key is stored only as ciphertext with a 4-character hint and a fresh epoch", async () => {
+    const save=(hint,epoch="e".repeat(64))=>db.query("insert into public.intelligence_credentials(user_id,provider,key_encrypted,key_hint,epoch) values ($1,'anthropic','v1:'||repeat('c',40),$2,$3) on conflict (user_id) do update set key_encrypted=excluded.key_encrypted,key_hint=excluded.key_hint,epoch=excluded.epoch,created_at=now()",[u1,hint,epoch]);
+    await save("Ab_9");
+    await save("Zz-1","f".repeat(64));
+    await db.exec("reset role");
+    assert.deepEqual((await db.query("select key_hint,epoch from public.intelligence_credentials where user_id=$1",[u1])).rows,[{key_hint:"Zz-1",epoch:"f".repeat(64)}]);
+    await db.exec("set role service_role");
+    await assert.rejects(save("toolong"));
+    await assert.rejects(save("Ab_9","nothex"));
+    await assert.rejects(db.query("insert into public.intelligence_credentials(user_id,provider,key_encrypted,key_hint,epoch) values ($1,'openai','v1:'||repeat('c',40),'Ab_9',$2)",[u2,"e".repeat(64)]));
+  });
   await check("client roles cannot touch intelligence tasks", async () => {
+    await db.exec("reset role; set role authenticated");
+    await assert.rejects(db.query("select * from public.intelligence_credentials"));
+    await db.exec("reset role; set role service_role");
     await db.exec("reset role; set role authenticated");
     await assert.rejects(db.query("select * from public.intelligence_scan_jobs"));
     await assert.rejects(db.query("select public.intelligence_month_usage($1)",[u1]));

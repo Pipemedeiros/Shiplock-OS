@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from "react";
 import type { ConnectionApproval, ConnectionView } from "@/lib/intelligence/connection";
+import type { ApiKeyStatus } from "@/lib/intelligence/credential";
 
 type Draft = Omit<ConnectionApproval, "allowProposals"> & { allowProposals: boolean };
 export const defaultDraft: Draft = { host: "claude-code", deepScan: "weekly", prScan: "every_pr",
@@ -20,9 +21,10 @@ const label = <T extends string>(options: [T, string][], value: T) => options.fi
 const row = { display: "grid", gridTemplateColumns: "180px 1fr", gap: 12, alignItems: "center", marginBottom: 12, fontSize: 14 } as const;
 const note = { fontSize: 13, color: "var(--muted)", margin: "0 0 12px", maxWidth: 700 } as const;
 
-export function IntelligenceApprovalView({ connection, draft, busy, error, onChange, onApprove, onRevoke }: {
-  connection: ConnectionView; draft: Draft; busy: boolean; error: string;
+export function IntelligenceApprovalView({ connection, apiKey, draft, busy, error, onChange, onApprove, onRevoke, onSaveKey, onRemoveKey }: {
+  connection: ConnectionView; apiKey: ApiKeyStatus; draft: Draft; busy: boolean; error: string;
   onChange: (draft: Draft) => void; onApprove: () => void; onRevoke: () => void;
+  onSaveKey: (key: string) => void; onRemoveKey: () => void;
 }) {
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => onChange({ ...draft, [key]: value });
   return (
@@ -71,9 +73,19 @@ export function IntelligenceApprovalView({ connection, draft, busy, error, onCha
             onChange={(e) => set("monthlyTokenBudget", Number(e.target.value))} />
         </label>
 
+        {draft.host === "api" ? (
+          <div style={{ ...note, color: "var(--ink)" }}>
+            {apiKey.stored ? (
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <span>Key ending in {apiKey.hint} is saved, encrypted.</span>
+                <button type="button" className="v3-btn v3-btn-sm v3-ghost" onClick={onRemoveKey} disabled={busy}>Remove key</button>
+              </div>
+            ) : <ApiKeyField busy={busy} onSave={onSaveKey} />}
+          </div>
+        ) : null}
         <p style={note}>
           {draft.host === "api"
-            ? "API key mode is not available yet. You can save this choice now; no key is stored and nothing runs until it ships."
+            ? "Your key is stored encrypted and never shown again. ShipLock does not run tasks on it yet; that ships next."
             : "Budgets are a limit we ask your agent to respect: your agent spends its own allowance, so we cannot enforce them."}
         </p>
         <p style={note}>
@@ -99,8 +111,22 @@ export function IntelligenceApprovalView({ connection, draft, busy, error, onCha
   );
 }
 
+/** Holds the typed key only until it is sent; it is cleared right after. */
+function ApiKeyField({ busy, onSave }: { busy: boolean; onSave: (key: string) => void }) {
+  const [value, setValue] = useState("");
+  return (
+    <div style={{ display: "flex", gap: 8 }}>
+      <input type="password" autoComplete="off" placeholder="Anthropic API key (sk-ant-...)" value={value}
+        onChange={(e) => setValue(e.target.value)} style={{ flex: 1 }} />
+      <button type="button" className="v3-btn v3-btn-sm v3-ghost" disabled={busy || value.length === 0}
+        onClick={() => { onSave(value); setValue(""); }}>Save key</button>
+    </div>
+  );
+}
+
 export function IntelligencePanel() {
   const [connection, setConnection] = useState<ConnectionView>({ state: "none" });
+  const [apiKey, setApiKey] = useState<ApiKeyStatus>({ stored: false });
   const [draft, setDraft] = useState<Draft>(defaultDraft);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -116,6 +142,8 @@ export function IntelligencePanel() {
   useEffect(() => {
     fetch("/api/intelligence/connection").then((r) => (r.ok ? r.json() : null))
       .then((view) => { if (view) adopt(view); }).catch(() => {});
+    fetch("/api/intelligence/credential").then((r) => (r.ok ? r.json() : null))
+      .then((status) => { if (status) setApiKey(status); }).catch(() => {});
   }, []);
 
   async function send(method: "POST" | "DELETE") {
@@ -131,6 +159,19 @@ export function IntelligencePanel() {
     finally { setBusy(false); }
   }
 
-  return <IntelligenceApprovalView connection={connection} draft={draft} busy={busy} error={error}
-    onChange={setDraft} onApprove={() => send("POST")} onRevoke={() => send("DELETE")} />;
+  async function key(method: "POST" | "DELETE", value?: string) {
+    setBusy(true); setError("");
+    try {
+      const res = await fetch("/api/intelligence/credential", method === "POST"
+        ? { method, headers: { "content-type": "application/json" }, body: JSON.stringify({ apiKey: value }) } : { method });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setError(data.error ?? "Could not save the key. Try again."); return; }
+      setApiKey(method === "POST" ? data : { stored: false });
+    } catch { setError("Could not reach ShipLock. Try again."); }
+    finally { setBusy(false); }
+  }
+
+  return <IntelligenceApprovalView connection={connection} apiKey={apiKey} draft={draft} busy={busy} error={error}
+    onChange={setDraft} onApprove={() => send("POST")} onRevoke={() => send("DELETE")}
+    onSaveKey={(value) => key("POST", value)} onRemoveKey={() => key("DELETE")} />;
 }
