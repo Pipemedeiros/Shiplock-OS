@@ -43,6 +43,7 @@ try {
   await db.exec(await readFile(new URL("../supabase/migrations/082_manual_audit_quota.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/031_api_tokens.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/083_click_quotas.sql", import.meta.url), "utf8"));
+  await db.exec(await readFile(new URL("../supabase/migrations/084_repair_merge.sql", import.meta.url), "utf8"));
   await db.query("insert into auth.users values ($1),($2)", [u1,u2]);
   await db.query("insert into public.user_profiles(id) values($1),($2)", [u1,u2]);
   await check("connection epochs backfill the existing fingerprint and ignore blank credentials", async () => {
@@ -911,8 +912,24 @@ try {
     await db.query("update public.execution_jobs set status='dead',lease_token=null,lease_until=null where user_id in ($1,$2)",[fa,fb]);
     await db.exec("set role service_role");
   });
+  // 8-R: a merged ShipLock PR is stamped on its receipt exactly once.
+  await check("a merge stamps only the owner's opened receipt for that repository and PR, once", async () => {
+    await db.exec("reset role");
+    const receipt=(await db.query("select id from public.repair_action_receipts where user_id=$1 and repository_id=$2 limit 1",[u1,r1])).rows[0].id;
+    await db.query("update public.repair_action_receipts set status='opened',pr_url='https://github.com/acme/one/pull/77',pr_number=77,failure_code=null,merged_at=null where id=$1",[receipt]);
+    await db.exec("set role service_role");
+    const merge=(user,repo,pr)=>db.query("select public.record_repair_merge($1,$2,$3) as n",[user,repo,pr]).then((x)=>x.rows[0].n);
+    assert.equal(await merge(u2,r1,77),0);   // another tenant
+    assert.equal(await merge(u1,r1,78),0);   // another PR
+    assert.equal(await merge(u1,r1,77),1);
+    assert.equal(await merge(u1,r1,77),0);   // a redelivery does not restamp
+    await db.exec("reset role");
+    assert.ok((await db.query("select merged_at from public.repair_action_receipts where id=$1",[receipt])).rows[0].merged_at);
+    await db.exec("set role service_role");
+  });
   await check("client roles cannot touch intelligence tasks", async () => {
     await db.exec("reset role; set role authenticated");
+    await assert.rejects(db.query("select public.record_repair_merge($1,$1,1)",[u1]));
     await assert.rejects(db.query("select * from public.first_scan_credits"));
     await assert.rejects(db.query("select public.claim_first_scan_credit($1,$1,$1,$1)",[u1]));
     await assert.rejects(db.query("select * from public.intelligence_credentials"));

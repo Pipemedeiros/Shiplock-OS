@@ -61,8 +61,8 @@ export async function POST(req: NextRequest) {
     action?: string;
     installation?: { id?: number };
     number?: number;
-    pull_request?: { number?: number; head?: { sha?: string } };
-    repository?: { full_name?: string };
+    pull_request?: { number?: number; head?: { sha?: string }; merged?: boolean; merge_commit_sha?: string; base?: { ref?: string } };
+    repository?: { full_name?: string; default_branch?: string };
   };
   try {
     payload = JSON.parse(raw);
@@ -71,6 +71,7 @@ export async function POST(req: NextRequest) {
   }
 
   const installationId = payload.installation?.id;
+  if (payload.action === "closed" && installationId) return recheckAfterMerge(payload, installationId);
   if (!payload.action || !RESCAN_ACTIONS.has(payload.action) || !installationId) {
     return NextResponse.json({ ok: true });
   }
@@ -201,4 +202,51 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ ok: true });
+}
+
+/**
+ * A human merged a pull request (8-R). When it landed on the default branch
+ * of a selected repository, queue one recheck of that branch at the merge
+ * commit and stamp ShipLock's receipt if ShipLock opened that PR. Redelivery
+ * is safe: the audit is keyed by the merge commit and the stamp happens once.
+ * ShipLock never merges; this only follows GitHub's signed report.
+ */
+async function recheckAfterMerge(
+  payload: { pull_request?: { number?: number; merged?: boolean; merge_commit_sha?: string; base?: { ref?: string } };
+    repository?: { full_name?: string; default_branch?: string }; number?: number },
+  installationId: number,
+): Promise<NextResponse> {
+  const pr = payload.pull_request;
+  const fullName = payload.repository?.full_name;
+  const prNumber = pr?.number ?? payload.number;
+  const mergeSha = pr?.merge_commit_sha;
+  if (pr?.merged !== true || !fullName || !prNumber || !mergeSha || !/^[a-f0-9]{40}$/i.test(mergeSha)
+    || !payload.repository?.default_branch || pr.base?.ref !== payload.repository.default_branch) {
+    return NextResponse.json({ ok: true });
+  }
+  try {
+    const admin = getSupabaseAdmin();
+    const { data: profile, error: profileError } = await admin.from("user_profiles")
+      .select("id, is_paid").eq("github_installation_id", installationId).maybeSingle();
+    if (profileError) return NextResponse.json({ error: "webhook temporarily unavailable" }, { status: 503 });
+    if (!profile || !hasProductAccess(profile)) return NextResponse.json({ ok: true });
+    const ownerId = profile.id as string;
+    const { data: repository, error: repositoryError } = await admin.from("repositories")
+      .select("id").eq("user_id", ownerId).eq("full_name", fullName).eq("selected", true).maybeSingle();
+    if (repositoryError) return NextResponse.json({ error: "webhook temporarily unavailable" }, { status: 503 });
+    if (!repository) return NextResponse.json({ ok: true });
+
+    await enqueueAuditJob(ownerId, repository.id as string, `merge:${fullName}:${mergeSha.toLowerCase()}`, "pull_request");
+    const { error: stampError } = await admin.rpc("record_repair_merge", {
+      p_user: ownerId, p_repository: repository.id, p_pr: prNumber,
+    });
+    if (stampError) throw new Error("merge stamp failed");
+    after(async () => {
+      try { await runNextJob(); } catch { console.error("[monitor/github] worker wake failed"); }
+    });
+    return NextResponse.json({ ok: true });
+  } catch {
+    console.error("[monitor/github] merge recheck admission failed");
+    return NextResponse.json({ error: "webhook temporarily unavailable" }, { status: 503 });
+  }
 }
