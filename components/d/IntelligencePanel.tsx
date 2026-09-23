@@ -35,7 +35,9 @@ export function IntelligenceApprovalView({ connection, draft, busy, error, onCha
           </b>
           <small>
             {connection.state === "approved"
-              ? `Deep scan ${connection.deepScan === "weekly" ? "weekly" : "off"}. PR scans: ${label(PR_SCANS, connection.prScan)}. Up to ${connection.runTokenBudget.toLocaleString("en-US")} tokens a run.`
+              ? `Deep scan ${connection.deepScan === "weekly" ? "weekly" : "off"}. PR scans: ${label(PR_SCANS, connection.prScan)}. Up to ${connection.runTokenBudget.toLocaleString("en-US")} tokens a run. `
+                + `${connection.monthReportedTokens.toLocaleString("en-US")} of ${connection.monthlyTokenBudget.toLocaleString("en-US")} tokens this month, as reported by your agent (not verified).`
+                + (connection.monthReportedTokens >= connection.monthlyTokenBudget ? " New AI checks are paused until next month." : "")
               : "Your first scan is on us. Later deep scans and PR reasoning use your AI."}
           </small>
         </div>

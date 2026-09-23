@@ -717,6 +717,18 @@ try {
     await db.exec("set role service_role");
     await assert.rejects(db.query("select public.create_intelligence_task($1,$2,$3,'chatgpt','x',$4,now()+interval '10 minutes','intel-rev-2')",[u1,r1,"a".repeat(40),sources]), /intelligence not approved/);
   });
+  await check("the monthly budget stops new tasks once agent-reported usage reaches it", async () => {
+    await approve("codex","off","off",1000,10000);
+    const t=(await newTask("intel-budget-1")).rows[0].id;
+    const usage=(n)=>db.query("select public.intelligence_month_usage($1) as n",[u1]).then((x)=>Number(x.rows[0].n));
+    assert.equal(await usage(),0);
+    await db.query("select public.submit_intelligence_result($1,$2,'unavailable',$3,$4)",
+      [u1,t,JSON.stringify({status:"unavailable",usage:{inputTokens:6000,outputTokens:5000}}),"7".repeat(64)]);
+    assert.equal(await usage(),11000);
+    await assert.rejects(newTask("intel-budget-2"), /intelligence budget exhausted/);
+    await approve("codex","off","off",1000,50000);
+    assert.ok((await newTask("intel-budget-3")).rows[0].id);
+  });
   // 10B-2c: approved cadences admit identity-only intelligence scan jobs.
   const due=(at="2026-09-23T12:00:00Z")=>db.query("select public.enqueue_due_intelligence_scans($1::timestamptz,100) as a",[at]).then((x)=>x.rows[0].a);
   const scans=()=>db.query("reset role").then(()=>db.query("select s.scan,s.pull_request_number as pr,s.head_sha as head,j.kind from public.intelligence_scan_jobs s join public.execution_jobs j on j.id=s.job_id where s.user_id=$1 order by s.scan,s.pull_request_number",[u1])).then(async (x)=>{await db.exec("set role service_role"); return x.rows;});
@@ -756,6 +768,7 @@ try {
   await check("client roles cannot touch intelligence tasks", async () => {
     await db.exec("reset role; set role authenticated");
     await assert.rejects(db.query("select * from public.intelligence_scan_jobs"));
+    await assert.rejects(db.query("select public.intelligence_month_usage($1)",[u1]));
     await assert.rejects(db.query("select public.enqueue_due_intelligence_scans(now(),10)"));
     await assert.rejects(db.query("select public.enqueue_pull_request_intelligence($1,$2,1,$3)",[u1,r1,head]));
     await db.exec("reset role; set role service_role");

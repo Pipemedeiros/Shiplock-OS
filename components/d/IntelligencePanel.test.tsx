@@ -5,7 +5,7 @@ import { IntelligenceApprovalView, defaultDraft } from "./IntelligencePanel";
 const handlers = () => ({ onChange: vi.fn(), onApprove: vi.fn(), onRevoke: vi.fn() });
 const approved = { state: "approved", host: "codex", deepScan: "weekly", prScan: "daily", runTokenBudget: 50000,
   monthlyTokenBudget: 1000000, approvedAt: "2026-09-23T00:00:00Z", budgetEnforcement: "advisory",
-  pullRequests: "each_needs_a_click" } as const;
+  pullRequests: "each_needs_a_click", monthReportedTokens: 12000 } as const;
 const html = (props: Partial<Parameters<typeof IntelligenceApprovalView>[0]> = {}) => renderToStaticMarkup(
   IntelligenceApprovalView({ connection: { state: "none" }, draft: defaultDraft, busy: false, error: "", ...handlers(), ...props }));
 
@@ -32,6 +32,11 @@ describe("IntelligencePanel (10B-2b)", () => {
   it("cannot approve without proposal consent", () => {
     expect(html()).toMatch(/<button[^>]*disabled=""[^>]*>Approve<\/button>/);
     expect(html({ draft: { ...defaultDraft, allowProposals: true } })).not.toMatch(/<button[^>]*disabled=""[^>]*>Approve<\/button>/);
+  });
+
+  it("shows agent-reported monthly usage as unverified, and says when the limit paused new work", () => {
+    expect(html({ connection: approved })).toContain("12,000 of 1,000,000 tokens this month, as reported by your agent");
+    expect(html({ connection: { ...approved, monthReportedTokens: 1_000_000 } })).toContain("New AI checks are paused until next month");
   });
 
   it("shows the current approval with a revoke control", () => {

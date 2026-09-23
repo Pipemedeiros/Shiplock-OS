@@ -28,6 +28,19 @@ alter table public.intelligence_connections enable row level security;
 revoke all on public.intelligence_connections from public, anon, authenticated;
 grant select, insert, update, delete on public.intelligence_connections to service_role;
 
+-- Tokens the customer's host REPORTED on results completed this UTC month.
+-- Self-reported and unverified: it can stop new work at the customer's own
+-- limit, but it is never evidence of cost or of what a host actually spent.
+create function public.intelligence_month_usage(p_user uuid)
+returns bigint language sql stable security definer set search_path = pg_catalog, public as $$
+  select coalesce(sum(
+    coalesce((result->'usage'->>'inputTokens')::bigint, 0) + coalesce((result->'usage'->>'outputTokens')::bigint, 0)
+  ), 0)::bigint
+  from public.intelligence_tasks
+  where user_id = p_user and completed_at >= date_trunc('month', now() at time zone 'UTC') at time zone 'UTC'
+    and jsonb_typeof(result->'usage') = 'object'
+$$;
+
 -- A ChatGPT host can hold tasks like the other pull hosts.
 alter table public.intelligence_tasks drop constraint intelligence_tasks_host_check;
 alter table public.intelligence_tasks add constraint intelligence_tasks_host_check
@@ -73,6 +86,10 @@ begin
   if not exists(select 1 from public.intelligence_connections
       where user_id = p_user and host = p_host and revoked_at is null) then
     raise exception 'intelligence not approved';
+  end if;
+  if public.intelligence_month_usage(p_user) >= (select monthly_token_budget
+      from public.intelligence_connections where user_id = p_user) then
+    raise exception 'intelligence budget exhausted';
   end if;
   if not exists(select 1 from public.repositories where id = p_repository and user_id = p_user and selected = true) then
     raise exception 'repository unavailable';
@@ -125,3 +142,5 @@ revoke all on function public.approve_intelligence_connection(uuid,text,text,tex
 grant execute on function public.approve_intelligence_connection(uuid,text,text,text,integer,integer) to service_role;
 revoke all on function public.revoke_intelligence_connection(uuid) from public, anon, authenticated;
 grant execute on function public.revoke_intelligence_connection(uuid) to service_role;
+revoke all on function public.intelligence_month_usage(uuid) from public, anon, authenticated;
+grant execute on function public.intelligence_month_usage(uuid) to service_role;

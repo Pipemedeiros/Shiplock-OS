@@ -27,7 +27,10 @@ export type ConnectionView =
       prScan: ConnectionApproval["prScan"]; runTokenBudget: number; monthlyTokenBudget: number; approvedAt: string;
       // A pull host spends its own allowance, so ShipLock can only ask it to
       // stay within budget. API-key mode could enforce it but is not built.
-      budgetEnforcement: "advisory" | "not_available_yet"; pullRequests: "each_needs_a_click" };
+      budgetEnforcement: "advisory" | "not_available_yet"; pullRequests: "each_needs_a_click";
+      // Tokens the host reported on results this UTC month. Self-reported, not
+      // verified; new tasks stop once it reaches the monthly budget.
+      monthReportedTokens: number };
 
 export async function getIntelligenceConnection(userId: string): Promise<ConnectionView> {
   const { data, error } = await getSupabaseAdmin().from("intelligence_connections")
@@ -36,10 +39,13 @@ export async function getIntelligenceConnection(userId: string): Promise<Connect
   if (error) throw new Error("connection_unreadable");
   if (!data) return { state: "none" };
   const r = row.parse(data);
+  const usage = await getSupabaseAdmin().rpc("intelligence_month_usage", { p_user: userId });
+  const reported = z.coerce.number().int().nonnegative().safeParse(usage.data);
+  if (usage.error || !reported.success) throw new Error("connection_unreadable");
   return { state: r.revoked_at ? "revoked" : "approved", host: r.host, deepScan: r.deep_scan_cadence,
     prScan: r.pr_scan_cadence, runTokenBudget: r.run_token_budget, monthlyTokenBudget: r.monthly_token_budget,
     approvedAt: r.approved_at, budgetEnforcement: r.host === "api" ? "not_available_yet" : "advisory",
-    pullRequests: "each_needs_a_click" };
+    pullRequests: "each_needs_a_click", monthReportedTokens: reported.data };
 }
 
 export async function approveIntelligenceConnection(userId: string, approval: ConnectionApproval): Promise<void> {

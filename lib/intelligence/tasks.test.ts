@@ -126,6 +126,8 @@ describe("createIntelligenceTask", () => {
     mocks.rpc.mockResolvedValue({ data: null, error: { message: "intelligence not approved" } });
     const { createIntelligenceTask } = await import("./tasks");
     await expect(createIntelligenceTask({ userId, repositoryId, commit, host: "codex", instruction: "x", paths: [path], minutes: 10, key: "k4" })).rejects.toThrow("intelligence_not_approved");
+    mocks.rpc.mockResolvedValue({ data: null, error: { message: "intelligence budget exhausted" } });
+    await expect(createIntelligenceTask({ userId, repositoryId, commit, host: "codex", instruction: "x", paths: [path], minutes: 10, key: "k5" })).rejects.toThrow("intelligence_budget_exhausted");
   });
 });
 

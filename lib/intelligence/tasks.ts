@@ -147,6 +147,7 @@ export async function createIntelligenceTask(input: {
     p_expires_at: new Date(Date.now() + input.minutes * 60_000).toISOString(), p_key: input.key,
   });
   if (error?.message?.includes("intelligence not approved")) throw new Error("intelligence_not_approved");
+  if (error?.message?.includes("intelligence budget exhausted")) throw new Error("intelligence_budget_exhausted");
   const id = z.uuid().safeParse(data);
   if (error || !id.success) throw new Error("task_not_created");
   return id.data;

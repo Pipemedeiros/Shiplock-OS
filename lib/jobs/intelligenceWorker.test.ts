@@ -90,6 +90,9 @@ it("does nothing when the approval was revoked or nothing is reviewable", async 
   state.tree.mockResolvedValue([{ path: "middleware.ts", size: 1 }]);
   state.create.mockRejectedValue(new Error("intelligence_not_approved"));
   await expect(executeIntelligenceJob(job)).resolves.toBeUndefined();
+  // The customer's monthly limit is reached: skip quietly, no retry storm.
+  state.create.mockRejectedValue(new Error("intelligence_budget_exhausted"));
+  await expect(executeIntelligenceJob(job)).resolves.toBeUndefined();
 });
 
 it("refuses changed context permanently and retries storage or GitHub failures", async () => {

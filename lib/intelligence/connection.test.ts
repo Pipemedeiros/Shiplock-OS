@@ -37,11 +37,13 @@ describe("intelligence connection approval (10B-2b)", () => {
   });
 
   it("reads the current approval and labels what a pull host can and cannot enforce", async () => {
+    rpc.mockResolvedValue({ data: 12000, error: null });
     maybeSingle.mockResolvedValue({ data: { host: "codex", deep_scan_cadence: "weekly", pr_scan_cadence: "every_pr",
       run_token_budget: 20000, monthly_token_budget: 500000, approved_at: "2026-09-23T00:00:00Z", revoked_at: null }, error: null });
     expect(await getIntelligenceConnection("u1")).toEqual({ state: "approved", host: "codex", deepScan: "weekly",
       prScan: "every_pr", runTokenBudget: 20000, monthlyTokenBudget: 500000, approvedAt: "2026-09-23T00:00:00Z",
-      budgetEnforcement: "advisory", pullRequests: "each_needs_a_click" });
+      budgetEnforcement: "advisory", pullRequests: "each_needs_a_click", monthReportedTokens: 12000 });
+    expect(rpc).toHaveBeenCalledWith("intelligence_month_usage", { p_user: "u1" });
     maybeSingle.mockResolvedValue({ data: { host: "api", deep_scan_cadence: "off", pr_scan_cadence: "off",
       run_token_budget: 20000, monthly_token_budget: 500000, approved_at: "2026-09-23T00:00:00Z", revoked_at: "2026-09-24T00:00:00Z" }, error: null });
     expect(await getIntelligenceConnection("u1")).toMatchObject({ state: "revoked", budgetEnforcement: "not_available_yet" });
