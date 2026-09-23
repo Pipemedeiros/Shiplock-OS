@@ -75,3 +75,11 @@ describe("scanCriticalChecks unread coverage", () => {
     expect(new Set(unread)).toEqual(new Set(["rls:", "secrets_exposure", "public_bucket:"]));
   });
 });
+
+describe("secure-auth check readability", () => {
+  it("reports the login check as untested when every login probe failed", async () => {
+    install((url) => spec(url) ?? rls(url) ?? (url.includes("/auth/v1/token") ? down() : res(url.includes("pg_policies") || url.includes("/storage/") ? [] : {})));
+    const result = await scanProject(SUPA, ANON);
+    expect(result.secureAuth).toEqual({ tested: false, loginRateLimited: false });
+  });
+});

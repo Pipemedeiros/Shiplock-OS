@@ -184,7 +184,7 @@ secureAuth fields: tested, loginRateLimited
     Fix: enable auth rate limiting in Supabase Auth settings or add a
     reverse proxy with rate limiting in front of the auth endpoint.
 
-• loginRateLimited: true → GOOD.
+• loginRateLimited: true OR tested: false → No issue needed.
 
 ═══════════════════════════════════════════════════════════
 CHECK 11 — HTTPS ENFORCEMENT  (httpsCheck)
@@ -339,9 +339,9 @@ const TIMEOUT_MS = 30_000;
 function countWarnings(scan: ScanResult): number {
   let count = 0;
   if (scan.rateLimiting?.rateLimited === false && (scan.rateLimiting?.successes ?? 0) >= 8) count++;
-  if (scan.botProtection?.rateLimitHeadersPresent === false) count++;
+  if (scan.botProtection?.tested && scan.botProtection.rateLimitHeadersPresent === false) count++;
   if (scan.stackTraceCheck?.exposed) count++;
-  if (scan.secureAuth?.loginRateLimited === false) count++;
+  if (scan.secureAuth?.tested && scan.secureAuth.loginRateLimited === false) count++;
   if (scan.slopSquatting?.suspiciousPackages?.some(p => (p as { reason?: string }).reason === "VERY_NEW")) count++;
   return count;
 }
@@ -454,7 +454,7 @@ function buildFallback(scan: ScanResult): AnalysisResult {
       fix:         "Add rate limiting via Supabase Edge Functions or a reverse proxy.",
     });
   }
-  if (scan.secureAuth?.loginRateLimited === false) {
+  if (scan.secureAuth?.tested && scan.secureAuth.loginRateLimited === false) {
     issues.push({
       severity:    "WARNING",
       title:       "Login endpoint not rate limited",
@@ -470,7 +470,7 @@ function buildFallback(scan: ScanResult): AnalysisResult {
       fix:         "Return only generic error messages in production; log details server-side only.",
     });
   }
-  if (scan.botProtection?.rateLimitHeadersPresent === false) {
+  if (scan.botProtection?.tested && scan.botProtection.rateLimitHeadersPresent === false) {
     issues.push({
       severity:    "WARNING",
       title:       "No rate-limit headers in API responses",

@@ -630,7 +630,8 @@ async function checkSecureAuth(
   );
   const loginRateLimited = statuses.some((s) => s === 429);
   if (!loginRateLimited && statuses.some((s) => s === 0)) unread.push("login_not_rate_limited");
-  return { tested: true, loginRateLimited };
+  // With no response at all, nothing was learned about throttling.
+  return { tested: statuses.some((s) => s > 0), loginRateLimited };
 }
 
 // ── Check 11: HTTPS enforcement ───────────────────────────────────────────────

@@ -154,7 +154,7 @@ export function extractFindings(scan: ScanResult): Finding[] {
     });
   }
 
-  if (scan.secureAuth?.loginRateLimited === false) {
+  if (scan.secureAuth?.tested && scan.secureAuth.loginRateLimited === false) {
     findings.push({
       id: "login_not_rate_limited",
       severity: "WARNING",
@@ -172,7 +172,7 @@ export function extractFindings(scan: ScanResult): Finding[] {
     });
   }
 
-  if (scan.botProtection?.rateLimitHeadersPresent === false) {
+  if (scan.botProtection?.tested && scan.botProtection.rateLimitHeadersPresent === false) {
     findings.push({
       id: "no_rate_limit_headers",
       severity: "WARNING",
