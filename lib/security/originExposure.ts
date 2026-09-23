@@ -1,6 +1,7 @@
 import type { Severity } from "@/lib/types";
 import { guardedFetch } from "@/lib/security/ssrfGuard";
 import { requestSignal } from "@/lib/abort";
+import { isAbsenceError } from "@/lib/security/emailAuth";
 
 // D — origin exposure: is the customer's edge protection bypassable?
 //
@@ -243,9 +244,15 @@ export function analyzeOriginPosture(posture: OriginPosture): OriginFinding[] {
 export async function collectOriginPosture(
   domain: string,
   dns: DnsResolver,
-  headers?: Record<string, string>
+  headers?: Record<string, string>,
+  unread: string[] = [],
 ): Promise<OriginPosture | null> {
-  const safe = async <T>(p: Promise<T[]>): Promise<T[]> => p.catch(() => []);
+  // Absence (ENODATA/ENOTFOUND) is a real answer; any other failure means the
+  // origin findings from this pass cannot be trusted to have cleared.
+  const safe = async <T>(p: Promise<T[]>): Promise<T[]> => p.catch((err) => {
+    if (!isAbsenceError(err) && !unread.includes("origin:")) unread.push("origin:");
+    return [];
+  });
 
   const [webIps, cnames, mx] = await Promise.all([
     safe(dns.resolve4(domain)),

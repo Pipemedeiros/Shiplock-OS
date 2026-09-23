@@ -276,7 +276,9 @@ export function isSharedHost(domain: string): boolean {
  * finding rather than a "missing record" claim, because a DNS failure is not
  * evidence of absence.
  */
-export async function auditEmailAuth(appUrl: string, resolveTxt: TxtResolver): Promise<EmailAuthFinding[]> {
+export async function auditEmailAuth(
+  appUrl: string, resolveTxt: TxtResolver, unread: string[] = [],
+): Promise<EmailAuthFinding[]> {
   const domain = domainFromUrl(appUrl);
   if (!domain) return [];
   if (isSharedHost(domain)) return [];
@@ -297,8 +299,11 @@ export async function auditEmailAuth(appUrl: string, resolveTxt: TxtResolver): P
     ),
   ]);
 
+  // The resolver maps real absence to []; a throw is an unread lookup.
   if (spf.ok) findings.push(...analyzeSpf(domain, spf.txt));
+  else unread.push("email_auth:spf_");
   if (dmarc.ok) findings.push(...analyzeDmarc(domain, dmarc.txt));
+  else unread.push("email_auth:dmarc_");
 
   // DKIM: probe known selectors, report only on ones we FIND and can see are
   // broken. A selector that doesn't resolve is silence, by design.
@@ -306,7 +311,10 @@ export async function auditEmailAuth(appUrl: string, resolveTxt: TxtResolver): P
     DKIM_SELECTORS.map((selector) =>
       resolveTxt(`${selector}._domainkey.${domain}`).then(
         (txt) => ({ selector, txt }),
-        () => ({ selector, txt: [] as string[] })
+        () => {
+          unread.push(`email_auth:dkim_revoked:${selector}`, `email_auth:dkim_weak_key:${selector}`);
+          return { selector, txt: [] as string[] };
+        }
       )
     )
   );

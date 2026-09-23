@@ -265,7 +265,12 @@ async function readCapped(res: Response, limit: number): Promise<string> {
  * problem", never a finding. A monitoring pass reporting a vulnerability because
  * a fetch timed out would be worse than reporting nothing.
  */
-export async function auditShippedBundle(appUrl: string, signal?: AbortSignal): Promise<BundleFinding[]> {
+export async function auditShippedBundle(
+  appUrl: string, signal?: AbortSignal, unread: string[] = [],
+): Promise<BundleFinding[]> {
+  // Failed reads never produce findings, and they record which finding families
+  // this pass could not verify so the caller cannot mistake them for fixed.
+  const chunksUnread = () => unread.push("bundle:shipped_secret:", "bundle:source_map_exposed:");
   const found = new Map<string, BundleFinding>();
   const add = (finding: BundleFinding) => {
     if (!found.has(finding.id)) found.set(finding.id, finding);
@@ -275,14 +280,20 @@ export async function auditShippedBundle(appUrl: string, signal?: AbortSignal): 
   let pageUrl: string;
   try {
     const res = await guardedFetch(appUrl, { signal: requestSignal(signal, TIMEOUT_MS) });
-    if (!res.ok) return [];
+    if (!res.ok) {
+      unread.push("bundle:");
+      return [];
+    }
     pageUrl = res.url || appUrl;
     html = await readCapped(res, 1_000_000);
   } catch {
+    unread.push("bundle:");
     return [];
   }
 
-  const scripts = extractScriptUrls(html, pageUrl).slice(0, MAX_SCRIPTS);
+  const allScripts = extractScriptUrls(html, pageUrl);
+  if (allScripts.length > MAX_SCRIPTS) chunksUnread();
+  const scripts = allScripts.slice(0, MAX_SCRIPTS);
   // An inline-only page (or one whose entry chunk we can't see) still gets its
   // HTML checked — bundlers and hand-written templates both inline keys there.
   for (const finding of scanBundleSecrets(html, pageUrl)) add(finding);
@@ -292,9 +303,13 @@ export async function auditShippedBundle(appUrl: string, signal?: AbortSignal): 
       let js: string;
       try {
         const res = await guardedFetch(jsUrl, { signal: requestSignal(signal, TIMEOUT_MS) });
-        if (!res.ok) return;
+        if (!res.ok) {
+          chunksUnread();
+          return;
+        }
         js = await readCapped(res, MAX_JS_BYTES);
       } catch {
+        chunksUnread();
         return;
       }
 
@@ -304,11 +319,12 @@ export async function auditShippedBundle(appUrl: string, signal?: AbortSignal): 
       if (!mapUrl) return;
       try {
         const res = await guardedFetch(mapUrl, { signal: requestSignal(signal, TIMEOUT_MS) });
+        if (res.status >= 500) unread.push("bundle:source_map_exposed:");
         const body = await readCapped(res, MAX_MAP_BYTES);
         const finding = classifySourceMap(res.status, body, jsUrl);
         if (finding) add(finding);
       } catch {
-        /* map not reachable = not exposed */
+        unread.push("bundle:source_map_exposed:");
       }
     })
   );

@@ -49,3 +49,34 @@ describe("probeExposedPaths — 3F-C2b-2 cancellation", () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe("probeExposedPaths — 1E-1 readability", () => {
+  it("marks a group unread when any of its probes fails or the server errors", async () => {
+    assertPublicHttpsUrlMock.mockResolvedValue(undefined);
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url.includes("/.git/")) throw new Error("ECONNRESET");
+      if (url.endsWith("/backup.sql")) return new Response("oops", { status: 503 });
+      return new Response("not here", { status: 404 });
+    }));
+    const unread: string[] = [];
+    expect(await probeExposedPaths("https://app.example.com/", undefined, unread)).toEqual([]);
+    expect([...new Set(unread)].sort()).toEqual(["exposed:db_dump_exposed", "exposed:git_exposed"]);
+    vi.unstubAllGlobals();
+  });
+
+  it("marks nothing unread when every probe got a definitive answer", async () => {
+    assertPublicHttpsUrlMock.mockResolvedValue(undefined);
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("not here", { status: 404 })));
+    const unread: string[] = [];
+    await probeExposedPaths("https://app.example.com/", undefined, unread);
+    expect(unread).toEqual([]);
+    vi.unstubAllGlobals();
+  });
+
+  it("marks every exposed-path finding unread when the host is refused", async () => {
+    assertPublicHttpsUrlMock.mockRejectedValue(new Error("blocked: private address"));
+    const unread: string[] = [];
+    await probeExposedPaths("https://internal.example/", undefined, unread);
+    expect(unread).toEqual(["exposed:"]);
+  });
+});

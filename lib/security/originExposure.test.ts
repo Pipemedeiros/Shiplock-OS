@@ -198,3 +198,25 @@ describe("edge detection prefers headers, because address ranges go stale", () =
     expect(checkNoEdge(posture({ webIps: ["203.0.113.7"], headers: { server: "nginx" } }))).toHaveLength(1);
   });
 });
+
+describe("collectOriginPosture — 1E-1 readability", () => {
+  const dnsError = (code: string) => Object.assign(new Error(code), { code });
+  const resolver = (over: Record<string, unknown> = {}) => ({
+    resolve4: vi.fn().mockResolvedValue(["104.18.1.5"]),
+    resolveCname: vi.fn().mockRejectedValue(dnsError("ENODATA")),
+    resolveMx: vi.fn().mockRejectedValue(dnsError("ENODATA")),
+    ...over,
+  });
+
+  it("treats DNS absence as read", async () => {
+    const unread: string[] = [];
+    await collectOriginPosture("example.com", resolver(), undefined, unread);
+    expect(unread).toEqual([]);
+  });
+
+  it("marks origin findings unread when a lookup fails for another reason", async () => {
+    const unread: string[] = [];
+    await collectOriginPosture("example.com", resolver({ resolveMx: vi.fn().mockRejectedValue(dnsError("ETIMEOUT")) }), undefined, unread);
+    expect(unread).toEqual(["origin:"]);
+  });
+});

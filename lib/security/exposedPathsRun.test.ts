@@ -50,9 +50,9 @@ describe("runExposedPathScan", () => {
 
   it("runs all three collectors against the app URL", async () => {
     await runExposedPathScan("u1", "https://app.example.com");
-    expect(probeMock).toHaveBeenCalledWith("https://app.example.com", undefined);
-    expect(auditMock).toHaveBeenCalledWith("https://app.example.com", undefined);
-    expect(emailMock).toHaveBeenCalledWith("https://app.example.com", expect.anything());
+    expect(probeMock).toHaveBeenCalledWith("https://app.example.com", undefined, expect.any(Array));
+    expect(auditMock).toHaveBeenCalledWith("https://app.example.com", undefined, expect.any(Array));
+    expect(emailMock).toHaveBeenCalledWith("https://app.example.com", expect.anything(), expect.any(Array));
   });
 
   it("persists email-auth findings alongside the others", async () => {
@@ -208,10 +208,43 @@ describe("runExposedPathScan — 3F-C2b-2 cancellation", () => {
     });
     await expect(runExposedPathScan("u1", "https://app.example.com", { signal: controller.signal }))
       .rejects.toThrow("collector timed out");
-    expect(probeMock).toHaveBeenCalledWith("https://app.example.com", controller.signal);
-    expect(auditMock).toHaveBeenCalledWith("https://app.example.com", controller.signal);
+    expect(probeMock).toHaveBeenCalledWith("https://app.example.com", controller.signal, expect.any(Array));
+    expect(auditMock).toHaveBeenCalledWith("https://app.example.com", controller.signal, expect.any(Array));
     expect(updateSpy).not.toHaveBeenCalled();
     expect(updateInMock).not.toHaveBeenCalled();
     expect(insertMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("runExposedPathScan — 1E-1 an unread check never resolves a finding", () => {
+  beforeEach(() => {
+    probeMock.mockReset().mockResolvedValue([]);
+    auditMock.mockReset().mockResolvedValue([]);
+    emailMock.mockReset().mockResolvedValue([]);
+    insertMock.mockReset().mockResolvedValue({ data: null, error: null });
+    updateInMock.mockReset().mockResolvedValue({ data: null, error: null });
+    updateSpy.mockReset();
+  });
+
+  it("keeps a finding whose group the probe could not read", async () => {
+    selectChainMock.mockReset().mockResolvedValue({ data: [{ finding_id: "exposed:git_exposed" }, { finding_id: "exposed:npmrc_exposed" }] });
+    probeMock.mockImplementation(async (_url: string, _signal: unknown, unread: string[]) => {
+      unread.push("exposed:git_exposed");
+      return [];
+    });
+    const result = await runExposedPathScan("u1", "https://app.example.com");
+    expect(result.resolvedCount).toBe(1);
+    expect(updateInMock).toHaveBeenCalledWith("finding_id", ["exposed:npmrc_exposed"]);
+  });
+
+  it("keeps every finding of a probe that failed outright", async () => {
+    selectChainMock.mockReset().mockResolvedValue({ data: [
+      { finding_id: "bundle:shipped_secret:aws_access_key" }, { finding_id: "email_auth:dmarc_missing" },
+    ] });
+    auditMock.mockRejectedValue(new Error("boom"));
+    emailMock.mockRejectedValue(new Error("ETIMEOUT"));
+    const result = await runExposedPathScan("u1", "https://app.example.com");
+    expect(result.resolvedCount).toBe(0);
+    expect(updateInMock).not.toHaveBeenCalled();
   });
 });

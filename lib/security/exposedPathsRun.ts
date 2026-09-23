@@ -26,12 +26,15 @@ export async function runExposedPathScan(
   appUrl: string,
   { signal }: { signal?: AbortSignal } = {},
 ): Promise<{ total: number; newCount: number; resolvedCount: number; newFindings: ExposedFinding[] }> {
-  // Independent: a failure in one must not cost us the other's findings. Both
-  // are already best-effort internally and resolve to [] on network trouble.
+  // Independent: a failure in one must not cost us the other's findings. Each
+  // records the finding-ID prefixes it could not verify in `unread`; a probe
+  // that throws outright leaves its whole family unread.
+  const unread: string[] = [];
+  const failed = (prefix: string) => () => { unread.push(prefix); return []; };
   const [paths, bundle, email, origin] = await Promise.all([
-    probeExposedPaths(appUrl, signal).catch(() => []),
-    auditShippedBundle(appUrl, signal).catch(() => []),
-    auditEmailAuth(appUrl, nodeTxtResolver).catch(() => []),
+    probeExposedPaths(appUrl, signal, unread).catch(failed("exposed:")),
+    auditShippedBundle(appUrl, signal, unread).catch(failed("bundle:")),
+    auditEmailAuth(appUrl, nodeTxtResolver, unread).catch(failed("email_auth:")),
     // Origin exposure. Skipped on shared platform hostnames for the same reason
     // as email auth: the customer does not control that DNS, so a finding there
     // is something they cannot act on.
@@ -39,9 +42,10 @@ export async function runExposedPathScan(
       const domain = domainFromUrl(appUrl);
       if (!domain || isSharedHost(domain)) return [];
       const headers = await fetchOriginHeaders(appUrl, signal);
-      const posture = await collectOriginPosture(domain, nodeDnsResolver, headers);
+      if (!headers) unread.push("origin:");
+      const posture = await collectOriginPosture(domain, nodeDnsResolver, headers, unread);
       return posture ? analyzeOriginPosture(posture) : [];
-    })().catch(() => []),
+    })().catch(failed("origin:")),
   ]);
   // Probes resolve to [] on network failure, and an empty pass archives every
   // active finding below. A cancelled pass must therefore write nothing at all.
@@ -60,8 +64,9 @@ export async function runExposedPathScan(
   const active = new Set((existing ?? []).map((r) => r.finding_id as string));
   const current = new Set(findings.map((f) => f.id));
 
-  // Resolved: was open, doesn't reproduce now.
-  const resolved = [...active].filter((id) => !current.has(id));
+  // Resolved: was open, was actually re-checked, and doesn't reproduce now.
+  // An unread check is not a fixed one.
+  const resolved = [...active].filter((id) => !current.has(id) && !unread.some((p) => id.startsWith(p)));
   if (resolved.length > 0) {
     await admin
       .from("deep_findings")

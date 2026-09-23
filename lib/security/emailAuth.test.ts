@@ -335,3 +335,20 @@ describe("absence vs failure — the distinction the check depends on", () => {
     expect(out.map((f) => f.id).sort()).toEqual(["email_auth:dmarc_missing", "email_auth:spf_missing"]);
   });
 });
+
+describe("auditEmailAuth — 1E-1 readability", () => {
+  it("marks every record family unread when DNS fails outright", async () => {
+    const unread: string[] = [];
+    await auditEmailAuth("https://example.com", () => Promise.reject(new Error("ETIMEOUT")), unread);
+    expect(unread).toEqual(expect.arrayContaining([
+      "email_auth:spf_", "email_auth:dmarc_",
+      expect.stringMatching(/^email_auth:dkim_revoked:/), expect.stringMatching(/^email_auth:dkim_weak_key:/),
+    ]));
+  });
+
+  it("marks nothing unread when every lookup answered, even with no records", async () => {
+    const unread: string[] = [];
+    await auditEmailAuth("https://example.com", () => Promise.resolve([]), unread);
+    expect(unread).toEqual([]);
+  });
+});

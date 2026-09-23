@@ -102,13 +102,17 @@ export function classifyExposed(
 const TIMEOUT_MS = 5_000;
 const MAX_BODY = 20_000; // signatures live near the top; don't slurp huge files
 
-// Probe every path against the app URL. Best-effort: any network error on a path
-// is treated as "not exposed" (safe). Dedups by group.
-export async function probeExposedPaths(appUrl: string, signal?: AbortSignal): Promise<ExposedFinding[]> {
+// Probe every path against the app URL. A network error or 5xx is never a
+// finding, but it is not "not exposed" either: its group goes into `unread` so
+// the caller cannot resolve an earlier finding from it. Dedups by group.
+export async function probeExposedPaths(
+  appUrl: string, signal?: AbortSignal, unread: string[] = [],
+): Promise<ExposedFinding[]> {
   const base = appUrl.replace(/\/+$/, "");
   try {
     await assertPublicHttpsUrl(base);
   } catch {
+    unread.push("exposed:");
     return []; // resolves to a private/internal address — refuse to probe it
   }
   const found = new Map<string, ExposedFinding>();
@@ -120,11 +124,12 @@ export async function probeExposedPaths(appUrl: string, signal?: AbortSignal): P
           signal: requestSignal(signal, TIMEOUT_MS),
           redirect: "manual", // a redirect to a login/app page is not the file
         });
+        if (res.status >= 500) unread.push(`exposed:${probe.group}`);
         const body = (await res.text().catch(() => "")).slice(0, MAX_BODY);
         const finding = classifyExposed(probe, res.status, body);
         if (finding && !found.has(finding.id)) found.set(finding.id, finding);
       } catch {
-        /* network error / timeout = safe */
+        unread.push(`exposed:${probe.group}`);
       }
     })
   );
