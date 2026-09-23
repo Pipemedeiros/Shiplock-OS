@@ -29,6 +29,7 @@ try {
   await db.exec(await readFile(new URL("../supabase/migrations/067_connection_epochs.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/068_fenced_provider_results.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/069_manual_monitor_trigger.sql", import.meta.url), "utf8"));
+  await db.exec(await readFile(new URL("../supabase/migrations/070_repair_action_receipts.sql", import.meta.url), "utf8"));
   await db.query("insert into auth.users values ($1),($2)", [u1,u2]);
   await db.query("insert into public.user_profiles(id) values($1),($2)", [u1,u2]);
   await check("connection epochs backfill the existing fingerprint and ignore blank credentials", async () => {
@@ -490,6 +491,46 @@ try {
     await db.exec("set role service_role");
     await assert.rejects(db.query("select public.enqueue_monitoring_job($1,'manual','manual:none')",[u2]));
     await assert.rejects(db.query("select public.enqueue_monitoring_job($1,'bogus','manual:bad')",[legacy]));
+  });
+  // 3F-C2d: every PR write is one clicked, receipted, lease-fenced job.
+  const requestRepair = (user, repo, key, action="finding-fix-pr", finding="rls:orders", edited=null) => db.query(
+    "select public.request_repair_action($1,$2,$3,$4,$5,$6) as receipt",[user,repo,action,finding,edited,key]);
+  await check("a repair click creates one receipt and one queued repair job", async () => {
+    const receipt=(await requestRepair(u1,r1,"click-1")).rows[0].receipt;
+    assert.equal((await requestRepair(u1,r1,"click-1")).rows[0].receipt,receipt);
+    await assert.rejects(requestRepair(u1,r1,"click-1","finding-fix-pr","rls:other"));
+    await assert.rejects(requestRepair(u1,r2,"click-x"));
+    await assert.rejects(requestRepair(u1,r1,"click-y","merge-pr"));
+    await assert.rejects(requestRepair(u1,r1,"click-z","finding-fix-pr",null));
+    await db.exec("reset role");
+    const row=(await db.query("select r.status,r.finding_id,j.kind,j.status as job_status from public.repair_action_receipts r join public.execution_jobs j on j.id=r.job_id where r.id=$1",[receipt])).rows[0];
+    assert.deepEqual(row,{status:"queued",finding_id:"rls:orders",kind:"repair",job_status:"queued"});
+    await db.exec("set role service_role");
+  });
+  await check("only the live repair lease can record an outcome", async () => {
+    const receipt=(await requestRepair(u1,r1,"click-2")).rows[0].receipt;
+    await db.exec("reset role");
+    const job=(await db.query("select job_id from public.repair_action_receipts where id=$1",[receipt])).rows[0].job_id;
+    const token=(await db.query("update public.execution_jobs set status='running',lease_token=gen_random_uuid(),lease_until=now()+interval '5 minutes' where id=$1 returning lease_token",[job])).rows[0].lease_token;
+    await db.exec("set role service_role");
+    const complete=(t,status,url,number,failure=null)=>db.query("select public.complete_repair_action($1,$2,$3,$4,$5,$6,$7) as ok",[u1,job,t,status,url,number,failure]);
+    assert.equal((await complete(u2,"opened","https://github.com/acme/one/pull/7",7)).rows[0].ok,false);
+    await assert.rejects(complete(token,"opened","https://evil.example.com/pull/7",7));
+    await assert.rejects(complete(token,"failed",null,null,"not-a-code"));
+    assert.equal((await complete(token,"uncertain",null,null,"delivery_unconfirmed")).rows[0].ok,true);
+    assert.equal((await complete(token,"opened","https://github.com/acme/one/pull/7",7)).rows[0].ok,true);
+    assert.equal((await complete(token,"failed",null,null,"github_rejected")).rows[0].ok,false);
+    await db.exec("reset role");
+    assert.deepEqual((await db.query("select status,pr_url,pr_number from public.repair_action_receipts where id=$1",[receipt])).rows[0],
+      {status:"opened",pr_url:"https://github.com/acme/one/pull/7",pr_number:7});
+    await db.exec("set role service_role");
+  });
+  await check("client roles cannot request, complete, or read repair receipts", async () => {
+    await db.exec("reset role; set role authenticated");
+    await assert.rejects(db.query("select * from public.repair_action_receipts"));
+    await assert.rejects(requestRepair(u1,r1,"click-client"));
+    await assert.rejects(db.query("select public.complete_repair_action($1,$1,$1,'opened',null,null,null)",[u1]));
+    await db.exec("reset role; set role service_role");
   });
   await check("client roles cannot commit provider results", async () => {
     await db.exec("reset role; set role authenticated");
