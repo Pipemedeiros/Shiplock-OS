@@ -44,9 +44,10 @@ describe("provider collectors forward the registry signal", () => {
     expect(runners.postgres).not.toHaveBeenCalled();
   });
 
-  it("Vercel environment audit", async () => {
-    await vercelEnvCollector.run(ctx({ vercel_access_token_encrypted: "enc", vercel_connection_epoch: "e".repeat(64), vercel_team_id: "team" } as Partial<MonitoredProfile>));
-    expect(runners.vercel).toHaveBeenCalledWith("user-1", "enc", "e".repeat(64), "team", { signal, commit: undefined });
+  it("Vercel refuses to collect without the worker's fenced commit (3F-C2c-6)", async () => {
+    await expect(vercelEnvCollector.run(ctx({ vercel_access_token_encrypted: "enc", vercel_connection_epoch: "e".repeat(64), vercel_team_id: "team" } as Partial<MonitoredProfile>)))
+      .rejects.toThrow("fenced commit");
+    expect(runners.vercel).not.toHaveBeenCalled();
   });
 });
 
@@ -62,9 +63,10 @@ describe("endpoint and app-surface collectors forward the registry signal", () =
     expect(runners.critical).toHaveBeenCalledWith("https://abc.supabase.co", "anon", signal, expect.any(Array));
   });
 
-  it("app surface", async () => {
-    await appSurfaceCollector.run(ctx({ monitored_app_url: "https://app.example.com" } as Partial<MonitoredProfile>));
-    expect(runners.exposed).toHaveBeenCalledWith("user-1", "https://app.example.com", { signal, commit: undefined });
+  it("app surface refuses to collect without the worker's fenced commit (3F-C2c-6)", async () => {
+    await expect(appSurfaceCollector.run(ctx({ monitored_app_url: "https://app.example.com" } as Partial<MonitoredProfile>)))
+      .rejects.toThrow("fenced commit");
+    expect(runners.exposed).not.toHaveBeenCalled();
   });
 });
 

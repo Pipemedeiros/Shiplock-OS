@@ -1,4 +1,3 @@
-import { getSupabaseAdmin } from "@/lib/supabase";
 import type { ProviderCommit } from "@/lib/monitoring/registry";
 import { probeExposedPaths, type ExposedFinding } from "./exposedPaths";
 import { auditShippedBundle } from "./bundleAudit";
@@ -11,7 +10,8 @@ import { analyzeOriginPosture, collectOriginPosture, fetchOriginHeaders, nodeDns
 //  - email authentication on their domain (D12 SPF/DKIM/DMARC)
 //  - origin exposure: whether their edge protection can be bypassed
 // Both take the same single input and hit the same host, so they share a pass
-// and a source label. Findings persist into deep_findings (source='exposed-path')
+// and a source label. Findings commit through the monitor worker's fence into
+// deep_findings (source='exposed-path')
 // and flow into the dashboard fix list, the agent brief, MCP, and the Verified
 // report counts with no extra wiring.
 //
@@ -25,8 +25,8 @@ import { analyzeOriginPosture, collectOriginPosture, fetchOriginHeaders, nodeDns
 export async function runExposedPathScan(
   userId: string,
   appUrl: string,
-  { signal, commit }: { signal?: AbortSignal; commit?: ProviderCommit } = {},
-): Promise<{ total: number; newCount: number; resolvedCount?: number; newFindings: ExposedFinding[] }> {
+  { signal, commit }: { signal?: AbortSignal; commit: ProviderCommit },
+): Promise<{ total: number; newCount: number; newFindings: ExposedFinding[] }> {
   // Independent: a failure in one must not cost us the other's findings. Each
   // records the finding-ID prefixes it could not verify in `unread`; a probe
   // that throws outright leaves its whole family unread.
@@ -53,56 +53,9 @@ export async function runExposedPathScan(
   signal?.throwIfAborted();
   const findings = [...paths, ...bundle, ...email, ...origin];
 
-  if (commit) {
-    // Monitor worker: findings commit under the job's lease and the app URL it
-    // probed (3F-C2c); unread families are never archived. The fenced commit
-    // does not report an archive count, so none is claimed here.
-    const created = await commit({ transport: "app-surface", identity: appUrl, findings, retire: true, unread });
-    return { total: findings.length, newCount: created.length, newFindings: created as ExposedFinding[] };
-  }
-
-  const admin = getSupabaseAdmin();
-  const nowIso = new Date().toISOString();
-
-  const { data: existing } = await admin
-    .from("deep_findings")
-    .select("finding_id")
-    .eq("user_id", userId)
-    .eq("source", "exposed-path")
-    .is("archived_at", null);
-  const active = new Set((existing ?? []).map((r) => r.finding_id as string));
-  const current = new Set(findings.map((f) => f.id));
-
-  // Resolved: was open, was actually re-checked, and doesn't reproduce now.
-  // An unread check is not a fixed one.
-  const resolved = [...active].filter((id) => !current.has(id) && !unread.some((p) => id.startsWith(p)));
-  if (resolved.length > 0) {
-    await admin
-      .from("deep_findings")
-      .update({ archived_at: nowIso })
-      .eq("user_id", userId)
-      .eq("source", "exposed-path")
-      .is("archived_at", null)
-      .in("finding_id", resolved);
-  }
-
-  const fresh = findings.filter((f) => !active.has(f.id));
-  if (fresh.length > 0) {
-    await admin.from("deep_findings").insert(
-      fresh.map((f) => ({
-        user_id: userId,
-        source: "exposed-path",
-        finding_id: f.id,
-        severity: f.severity,
-        title: f.title,
-        consequence: f.consequence,
-      }))
-    );
-  }
-
-  // fresh is returned so the caller can alert on it. A newly-shipped
-  // service-role key is the most alert-worthy event this product can detect;
-  // leaving it to the weekly digest would mean up to seven days of exposure
-  // after we already knew.
-  return { total: findings.length, newCount: fresh.length, resolvedCount: resolved.length, newFindings: fresh };
+  // Findings commit under the monitor job's lease and the app URL it probed
+  // (3F-C2c); unread families are never archived. The fenced commit does not
+  // report an archive count, so none is claimed here.
+  const created = await commit({ transport: "app-surface", identity: appUrl, findings, retire: true, unread });
+  return { total: findings.length, newCount: created.length, newFindings: created as ExposedFinding[] };
 }

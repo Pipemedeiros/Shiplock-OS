@@ -32,7 +32,9 @@ vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ from: (table: stri
 } }) }));
 
 import { DEFAULT_COLLECTORS, supabaseScanCollector } from "./collectors";
-import { runMonitoringPass } from "./run";
+import { runMonitoringPassForWorker } from "./run";
+const runMonitoringPass = (...args: Parameters<typeof runMonitoringPassForWorker>) =>
+  runMonitoringPassForWorker(args[0], args[1], args[2], vi.fn(async () => []));
 
 const ctx = (): CollectorContext => ({
   profile: { id: "u", email: null, monitored_project_url: "https://project-one.supabase.co", monitored_anon_key_encrypted: "encrypted-key-one", supabase_endpoint_connection_epoch: EPOCH_ONE },
@@ -189,7 +191,7 @@ describe("Step 2E: endpoint provenance with explicit RLS readability", () => {
     mocks.scan.mockRejectedValue(new Error("unavailable"));
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
-      expect(await runMonitoringPass(ctx().profile, "scheduled_48h", [supabaseScanCollector])).toEqual({ newFindingsCount: 0 });
+      expect(await runMonitoringPass(ctx().profile, "scheduled_48h", [supabaseScanCollector])).toMatchObject({ newFindings: [] });
       expect(state.facts.supabaseEndpointSnapshot).toEqual({ old: "preserve" });
       expect(mocks.upsert).not.toHaveBeenCalled();
       expect(mocks.snapshot).toHaveBeenCalledWith(expect.objectContaining({

@@ -1,14 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { ProviderResult } from "@/lib/monitoring/registry";
 
+// The audit hands one result to the monitor worker's fenced commit (3F-C2c).
+// Insert-if-new and merge semantics are proven in the SQL suite; these tests
+// pin what the runner sends and withholds.
 const decryptMock = vi.fn();
 const listProjectsMock = vi.fn();
 const listProjectEnvMock = vi.fn();
-const selectChainMock = vi.fn();
-const insertMock = vi.fn();
-const saveFactsMock = vi.fn();
 const syncVercelRepositoryLinksMock = vi.fn();
+const commitMock = vi.fn();
 
-vi.mock("@/lib/graph/graphRun", () => ({ saveFacts: saveFactsMock }));
 vi.mock("./providerRepositoryMap", () => ({
   syncVercelRepositoryLinks: syncVercelRepositoryLinksMock,
 }));
@@ -17,84 +18,47 @@ vi.mock("./vercel", () => ({
   listProjects: listProjectsMock,
   listProjectEnv: listProjectEnvMock,
 }));
-vi.mock("@/lib/supabase", () => ({
-  getSupabaseAdmin: () => ({
-    from: (table: string) => {
-      if (table !== "deep_findings") throw new Error(`unexpected table ${table}`);
-      return {
-        select: () => ({
-          eq: () => ({
-            eq: () => ({
-              is: selectChainMock,
-            }),
-          }),
-        }),
-        insert: insertMock,
-      };
-    },
-  }),
-}));
 
 const { runVercelEnvAudit } = await import("./vercelRun");
 
 const EPOCH = "1".repeat(64);
+const run = (options: { signal?: AbortSignal } = {}, epoch = EPOCH) =>
+  runVercelEnvAudit("user-1", "cipher", epoch, null, { commit: commitMock, ...options });
+const sent = () => commitMock.mock.calls[0][0] as ProviderResult;
+const secretEnv = [{ key: "NEXT_PUBLIC_SECRET_TOKEN", value: "a-long-enough-secret-value-here" }];
+
+beforeEach(() => {
+  decryptMock.mockReset().mockReturnValue("plaintext-access-token");
+  listProjectsMock.mockReset();
+  listProjectEnvMock.mockReset();
+  syncVercelRepositoryLinksMock.mockReset().mockResolvedValue(new Map());
+  commitMock.mockReset().mockImplementation(async (result: ProviderResult) => result.findings);
+});
 
 describe("runVercelEnvAudit", () => {
-  beforeEach(() => {
-    decryptMock.mockReset().mockReturnValue("plaintext-access-token");
-    listProjectsMock.mockReset();
-    listProjectEnvMock.mockReset();
-    selectChainMock.mockReset().mockResolvedValue({ data: [] });
-    insertMock.mockReset().mockResolvedValue({ data: null, error: null });
-    saveFactsMock.mockReset().mockResolvedValue(undefined);
-    syncVercelRepositoryLinksMock.mockReset().mockResolvedValue(new Map());
-  });
-
   it("decrypts the stored token before calling the Vercel API", async () => {
     listProjectsMock.mockResolvedValue([]);
-    await runVercelEnvAudit("user-1", "cipher-text", EPOCH, null);
-    expect(decryptMock).toHaveBeenCalledWith("cipher-text");
+    await run();
+    expect(decryptMock).toHaveBeenCalledWith("cipher");
     expect(listProjectsMock).toHaveBeenCalledWith("plaintext-access-token", null, undefined);
   });
 
-  it("audits every project's env and persists only findings not already active", async () => {
+  it("sends every project's env findings to the fenced commit without retiring", async () => {
     listProjectsMock.mockResolvedValue([{ id: "p1", name: "site-one" }]);
-    listProjectEnvMock.mockResolvedValue([
-      { key: "NEXT_PUBLIC_SECRET_TOKEN", value: "a-long-enough-secret-value-here" },
-    ]);
-    selectChainMock.mockResolvedValue({ data: [] });
-
-    const result = await runVercelEnvAudit("user-1", "cipher", EPOCH, null);
-
-    expect(result.total).toBe(1);
-    expect(result.newCount).toBe(1);
-    expect(result.newFindings).toEqual(result.findings);
-    expect(insertMock).toHaveBeenCalledTimes(1);
-    const inserted = insertMock.mock.calls[0][0];
-    expect(inserted).toHaveLength(1);
-    expect(inserted[0]).toMatchObject({
-      user_id: "user-1",
-      source: "vercel",
-      finding_id: "vercel:site-one:NEXT_PUBLIC_SECRET_TOKEN:client_exposed_secret",
-      severity: "CRITICAL",
-    });
+    listProjectEnvMock.mockResolvedValue(secretEnv);
+    const result = await run();
+    expect(sent()).toMatchObject({ transport: "vercel", identity: EPOCH, retire: false });
+    expect(sent().findings.map((finding) => finding.id)).toEqual(["vercel:site-one:NEXT_PUBLIC_SECRET_TOKEN:client_exposed_secret"]);
+    expect(result).toMatchObject({ total: 1, newCount: 1 });
+    expect(result.newFindings).toEqual(sent().findings);
   });
 
-  it("does not re-insert a finding that is already active", async () => {
+  it("reports only what the commit newly inserted", async () => {
     listProjectsMock.mockResolvedValue([{ id: "p1", name: "site-one" }]);
-    listProjectEnvMock.mockResolvedValue([
-      { key: "NEXT_PUBLIC_SECRET_TOKEN", value: "a-long-enough-secret-value-here" },
-    ]);
-    selectChainMock.mockResolvedValue({
-      data: [{ finding_id: "vercel:site-one:NEXT_PUBLIC_SECRET_TOKEN:client_exposed_secret" }],
-    });
-
-    const result = await runVercelEnvAudit("user-1", "cipher", EPOCH, null);
-
-    expect(result.total).toBe(1);
-    expect(result.newCount).toBe(0);
-    expect(result.newFindings).toEqual([]);
-    expect(insertMock).not.toHaveBeenCalled();
+    listProjectEnvMock.mockResolvedValue(secretEnv);
+    commitMock.mockResolvedValue([]);
+    const result = await run();
+    expect(result).toMatchObject({ total: 1, newCount: 0, newFindings: [] });
   });
 
   it("skips a project whose env read fails without failing the whole pass", async () => {
@@ -104,11 +68,9 @@ describe("runVercelEnvAudit", () => {
     ]);
     listProjectEnvMock.mockImplementation(async (_token: string, projectId: string) => {
       if (projectId === "p1") throw new Error("Vercel env read HTTP 404");
-      return [{ key: "NEXT_PUBLIC_SECRET_TOKEN", value: "a-long-enough-secret-value-here" }];
+      return secretEnv;
     });
-
-    const result = await runVercelEnvAudit("user-1", "cipher", EPOCH, null);
-
+    const result = await run();
     expect(result.total).toBe(1);
     expect(result.findings[0].id).toContain("healthy-project");
   });
@@ -116,59 +78,43 @@ describe("runVercelEnvAudit", () => {
   it("fails closed when projects exist but none of their environments are readable", async () => {
     listProjectsMock.mockResolvedValue([{ id: "p1", name: "unreadable" }]);
     listProjectEnvMock.mockRejectedValue(new Error("Vercel env read HTTP 503"));
-    await expect(runVercelEnvAudit("user-1", "cipher", EPOCH, null)).rejects.toThrow(
-      "No Vercel project environment was readable",
-    );
-    expect(saveFactsMock).not.toHaveBeenCalled();
-    expect(insertMock).not.toHaveBeenCalled();
+    await expect(run()).rejects.toThrow("No Vercel project environment was readable");
+    expect(commitMock).not.toHaveBeenCalled();
   });
 
   it("caps processing at the first 20 projects", async () => {
-    const projects = Array.from({ length: 25 }, (_, i) => ({ id: `p${i}`, name: `proj-${i}` }));
-    listProjectsMock.mockResolvedValue(projects);
+    listProjectsMock.mockResolvedValue(Array.from({ length: 25 }, (_, i) => ({ id: `p${i}`, name: `proj-${i}` })));
     listProjectEnvMock.mockResolvedValue([]);
-
-    await runVercelEnvAudit("user-1", "cipher", EPOCH, null);
-
+    await run();
     expect(listProjectEnvMock).toHaveBeenCalledTimes(20);
   });
 
-  it("preserves project identity without saving environment values", async () => {
-    listProjectsMock.mockResolvedValue([
-      { id: "p1", name: "one" },
-      { id: "p2", name: "two" },
-    ]);
-    listProjectEnvMock.mockResolvedValue([
-      { key: "API_KEY", target: ["production"], value: "private-test-value" },
-    ]);
-
-    await runVercelEnvAudit("user-1", "cipher", EPOCH, null);
-
-    expect(listProjectEnvMock).toHaveBeenCalledTimes(2);
-    expect(saveFactsMock).toHaveBeenCalledWith("user-1", "runtime", {
+  it("sends project identity and the epoch without environment values", async () => {
+    listProjectsMock.mockResolvedValue([{ id: "p1", name: "one" }, { id: "p2", name: "two" }]);
+    listProjectEnvMock.mockResolvedValue([{ key: "API_KEY", target: ["production"], value: "private-test-value" }]);
+    await run();
+    expect(sent().facts).toEqual({
       envVars: [
         { key: "API_KEY", target: ["production"], provider: "vercel", projectId: "p1", connectionFingerprint: EPOCH },
         { key: "API_KEY", target: ["production"], provider: "vercel", projectId: "p2", connectionFingerprint: EPOCH },
       ],
       providersRead: ["vercel"],
-    }, expect.anything());
-    expect(JSON.stringify(saveFactsMock.mock.calls)).not.toContain("private-test-value");
+    });
+    expect(JSON.stringify(commitMock.mock.calls)).not.toContain("private-test-value");
   });
 
-  it("adds repository identity only for a persisted provider link", async () => {
+  it("adds repository identity only for a persisted provider link, stamped with the epoch", async () => {
     listProjectsMock.mockResolvedValue([
       { id: "p1", name: "one", gitRepository: { type: "github", fullName: "acme/app", repoId: "7" } },
       { id: "p2", name: "two" },
     ]);
     syncVercelRepositoryLinksMock.mockResolvedValue(new Map([["p1", "repo-a"]]));
     listProjectEnvMock.mockResolvedValue([{ key: "API_KEY", target: ["production"], value: "not-saved" }]);
-
-    await runVercelEnvAudit("user-1", "cipher", EPOCH, null);
-
-    expect(syncVercelRepositoryLinksMock).toHaveBeenCalledWith("user-1", expect.any(Array), EPOCH);
-    expect(saveFactsMock.mock.calls[0][2].envVars).toEqual([
-      { key: "API_KEY", target: ["production"], provider: "vercel", projectId: "p1", repositoryId: "repo-a", connectionFingerprint: EPOCH },
-      { key: "API_KEY", target: ["production"], provider: "vercel", projectId: "p2", connectionFingerprint: EPOCH },
+    await run({}, "9".repeat(64));
+    expect(syncVercelRepositoryLinksMock).toHaveBeenCalledWith("user-1", expect.any(Array), "9".repeat(64));
+    expect((sent().facts as { envVars: unknown[] }).envVars).toEqual([
+      { key: "API_KEY", target: ["production"], provider: "vercel", projectId: "p1", repositoryId: "repo-a", connectionFingerprint: "9".repeat(64) },
+      { key: "API_KEY", target: ["production"], provider: "vercel", projectId: "p2", connectionFingerprint: "9".repeat(64) },
     ]);
   });
 
@@ -178,111 +124,49 @@ describe("runVercelEnvAudit", () => {
     listProjectEnvMock.mockResolvedValue([{ key: "API_KEY", target: ["production"], value: "not-saved" }]);
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
-      await runVercelEnvAudit("user-1", "cipher", EPOCH, null);
-      expect(saveFactsMock.mock.calls[0][2].envVars[0]).not.toHaveProperty("repositoryId");
-      expect(listProjectEnvMock).toHaveBeenCalledTimes(1);
+      await run();
+      expect((sent().facts as { envVars: object[] }).envVars[0]).not.toHaveProperty("repositoryId");
     } finally { log.mockRestore(); }
   });
 
-  it("returns zero counts and does not call insert when there are no findings", async () => {
-    listProjectsMock.mockResolvedValue([{ id: "p1", name: "clean-project" }]);
-    listProjectEnvMock.mockResolvedValue([{ key: "NEXT_PUBLIC_SUPABASE_ANON_KEY", value: "eyJlong" }]);
+  it("sends no facts when no project was listed, so absence is never read as checked", async () => {
+    listProjectsMock.mockResolvedValue([]);
+    await run();
+    expect(sent()).not.toHaveProperty("facts");
+    expect(sent().findings).toEqual([]);
+  });
 
-    const result = await runVercelEnvAudit("user-1", "cipher", EPOCH, null);
-
-    expect(result.total).toBe(0);
-    expect(result.newCount).toBe(0);
-    expect(insertMock).not.toHaveBeenCalled();
+  it("propagates a fenced rejection so the collector fails", async () => {
+    listProjectsMock.mockResolvedValue([{ id: "p1", name: "site-one" }]);
+    listProjectEnvMock.mockResolvedValue(secretEnv);
+    commitMock.mockRejectedValue(new Error("Provider result was not committed"));
+    await expect(run()).rejects.toThrow("not committed");
   });
 });
 
-describe("3F-C2b: an aborted Vercel audit writes nothing", () => {
-  beforeEach(() => {
-    decryptMock.mockReset().mockReturnValue("plaintext-access-token");
-    selectChainMock.mockReset().mockResolvedValue({ data: [] });
-    insertMock.mockReset().mockResolvedValue({ data: null, error: null });
-    saveFactsMock.mockReset().mockResolvedValue(undefined);
-    syncVercelRepositoryLinksMock.mockReset().mockResolvedValue(new Map());
-  });
-
-  it("forwards the signal and stops before mapping, facts or findings when aborted mid-read", async () => {
+describe("3F-C2b: an aborted Vercel audit commits nothing", () => {
+  it("forwards the signal and stops before mapping or the commit when aborted mid-read", async () => {
     const controller = new AbortController();
-    listProjectsMock.mockReset().mockImplementation(async () => {
+    listProjectsMock.mockImplementation(async () => {
       controller.abort(new Error("collector timed out"));
       return [{ id: "p1", name: "site-one" }];
     });
-    listProjectEnvMock.mockReset().mockResolvedValue([
-      { key: "NEXT_PUBLIC_SECRET_TOKEN", value: "a-long-enough-secret-value-here" },
-    ]);
-    await expect(runVercelEnvAudit("user-1", "cipher", EPOCH, null, { signal: controller.signal }))
-      .rejects.toThrow("collector timed out");
+    listProjectEnvMock.mockResolvedValue(secretEnv);
+    await expect(run({ signal: controller.signal })).rejects.toThrow("collector timed out");
     expect(listProjectsMock).toHaveBeenCalledWith("plaintext-access-token", null, controller.signal);
     expect(syncVercelRepositoryLinksMock).not.toHaveBeenCalled();
-    expect(saveFactsMock).not.toHaveBeenCalled();
-    expect(insertMock).not.toHaveBeenCalled();
+    expect(commitMock).not.toHaveBeenCalled();
   });
 
   it("does not treat an aborted project read as one skippable project", async () => {
     const controller = new AbortController();
-    listProjectsMock.mockReset().mockResolvedValue([
-      { id: "p1", name: "one" }, { id: "p2", name: "two" },
-    ]);
-    listProjectEnvMock.mockReset().mockImplementation(async () => {
+    listProjectsMock.mockResolvedValue([{ id: "p1", name: "one" }, { id: "p2", name: "two" }]);
+    listProjectEnvMock.mockImplementation(async () => {
       controller.abort(new Error("collector timed out"));
       throw controller.signal.reason;
     });
-    await expect(runVercelEnvAudit("user-1", "cipher", EPOCH, null, { signal: controller.signal }))
-      .rejects.toThrow("collector timed out");
+    await expect(run({ signal: controller.signal })).rejects.toThrow("collector timed out");
     expect(listProjectEnvMock).toHaveBeenCalledTimes(1);
-    expect(saveFactsMock).not.toHaveBeenCalled();
-    expect(insertMock).not.toHaveBeenCalled();
-  });
-});
-
-describe("2D-2: Vercel identity is the connection epoch", () => {
-  it("stamps env facts and repository links with the caller's epoch", async () => {
-    decryptMock.mockReset().mockReturnValue("plaintext-access-token");
-    listProjectsMock.mockReset().mockResolvedValue([{ id: "p1", name: "site" }]);
-    listProjectEnvMock.mockReset().mockResolvedValue([{ key: "A", value: null }]);
-    selectChainMock.mockReset().mockResolvedValue({ data: [] });
-    saveFactsMock.mockReset().mockResolvedValue(undefined);
-    syncVercelRepositoryLinksMock.mockReset().mockResolvedValue(new Map());
-    await runVercelEnvAudit("user-1", "cipher", "9".repeat(64), null);
-    expect(syncVercelRepositoryLinksMock).toHaveBeenCalledWith("user-1", expect.any(Array), "9".repeat(64));
-    const facts = saveFactsMock.mock.calls[0][2] as { envVars: { connectionFingerprint: string }[] };
-    expect(facts.envVars[0].connectionFingerprint).toBe("9".repeat(64));
-  });
-});
-
-describe("3F-C2c-4: fenced commit from the monitor worker", () => {
-  beforeEach(() => {
-    decryptMock.mockReset().mockReturnValue("plaintext-access-token");
-    listProjectsMock.mockReset().mockResolvedValue([{ id: "p1", name: "site-one" }]);
-    listProjectEnvMock.mockReset().mockResolvedValue([
-      { key: "NEXT_PUBLIC_SECRET_TOKEN", value: "a-long-enough-secret-value-here" },
-    ]);
-    selectChainMock.mockReset().mockResolvedValue({ data: [] });
-    insertMock.mockReset().mockResolvedValue({ data: null, error: null });
-    saveFactsMock.mockReset().mockResolvedValue(undefined);
-    syncVercelRepositoryLinksMock.mockReset().mockResolvedValue(new Map());
-  });
-
-  it("commits runtime facts and env findings through the fence without retiring", async () => {
-    const created = [{ id: "vercel:site-one:NEXT_PUBLIC_SECRET_TOKEN:client_exposed_secret", severity: "CRITICAL", title: "t", consequence: "c" }];
-    const commit = vi.fn().mockResolvedValue(created);
-    const result = await runVercelEnvAudit("user-1", "cipher", EPOCH, null, { commit });
-    expect(result.newFindings).toEqual(created);
-    expect(commit).toHaveBeenCalledWith(expect.objectContaining({
-      transport: "vercel", identity: EPOCH, retire: false,
-      facts: expect.objectContaining({ providersRead: ["vercel"] }),
-    }));
-    expect(saveFactsMock).not.toHaveBeenCalled();
-    expect(insertMock).not.toHaveBeenCalled();
-  });
-
-  it("propagates a fenced rejection so the collector fails", async () => {
-    const commit = vi.fn().mockRejectedValue(new Error("Provider result was not committed"));
-    await expect(runVercelEnvAudit("user-1", "cipher", EPOCH, null, { commit })).rejects.toThrow("not committed");
-    expect(insertMock).not.toHaveBeenCalled();
+    expect(commitMock).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,4 @@
-import { getSupabaseAdmin } from "@/lib/supabase";
 import { decrypt } from "@/lib/crypto";
-import { saveFacts } from "@/lib/graph/graphRun";
 import { listProjects, listProjectEnv } from "./vercel";
 import { auditEnv, type EnvFinding } from "./envaudit";
 import type { RuntimeEnvFact } from "@/lib/graph/graph";
@@ -10,24 +8,23 @@ import { syncVercelRepositoryLinks } from "./providerRepositoryMap";
 const MAX_PROJECTS = 20;
 
 // Full env audit for a connected Vercel account: list projects, read each
-// project's env (read-only), audit, then persist only NEW findings into the
-// shared deep_findings table (source='vercel'). Same only-new contract as the
-// GitHub A03 pass. Never persists or logs any env VALUE — findings hold the key
-// and reason only.
+// project's env (read-only), audit, then hand the findings and runtime facts to
+// the monitor worker's fenced commit, which inserts only NEW findings into
+// deep_findings (source='vercel'). Never persists or logs any env VALUE —
+// findings hold the key and reason only.
 export async function runVercelEnvAudit(
   userId: string,
   encryptedToken: string,
   /** Epoch read in the same profile row as `encryptedToken` (migration 067). */
   connectionEpoch: string,
   teamId: string | null,
-  { signal, commit }: { signal?: AbortSignal; commit?: ProviderCommit } = {},
+  { signal, commit }: { signal?: AbortSignal; commit: ProviderCommit },
 ): Promise<{
   total: number;
   newCount: number;
   findings: EnvFinding[];
   newFindings: EnvFinding[];
 }> {
-  const admin = getSupabaseAdmin();
   const accessToken = decrypt(encryptedToken);
 
   const projects = (await listProjects(accessToken, teamId, signal)).slice(0, MAX_PROJECTS);
@@ -88,44 +85,13 @@ export async function runVercelEnvAudit(
   // list after a failed read would tell the reasoner we looked and found
   // nothing, which is the `rulesRead` mistake on a new surface.
   signal?.throwIfAborted();
-  if (commit) {
-    // Monitor worker: runtime facts and env findings commit together under the
-    // job's lease and this connection epoch (3F-C2c). Vercel findings have
-    // never been archived here, so the commit does not retire either.
-    const created = await commit({
-      transport: "vercel", identity: connectionEpoch,
-      ...(reachedAnyProject ? { facts: { providersRead: ["vercel"], envVars: graphEnvVars } } : {}),
-      findings: all, retire: false,
-    });
-    return { total: all.length, newCount: created.length, findings: all, newFindings: created as EnvFinding[] };
-  }
-  if (reachedAnyProject) {
-    await saveFacts(
-      userId,
-      "runtime",
-      { providersRead: ["vercel"], envVars: graphEnvVars },
-      { merge: true },
-    );
-  }
-
-  const { data: existing } = await admin
-    .from("deep_findings")
-    .select("finding_id")
-    .eq("user_id", userId)
-    .eq("source", "vercel")
-    .is("archived_at", null);
-  const activeIds = new Set((existing ?? []).map((r) => r.finding_id as string));
-
-  const fresh = all.filter((f) => !activeIds.has(f.id));
-  signal?.throwIfAborted();
-  if (fresh.length > 0) {
-    await admin.from("deep_findings").insert(
-      fresh.map((f) => ({
-        user_id: userId, source: "vercel", finding_id: f.id,
-        severity: f.severity, title: f.title, consequence: f.consequence,
-        package_name: null, version: null, vuln_id: null, cve_id: null,
-      }))
-    );
-  }
-  return { total: all.length, newCount: fresh.length, findings: all, newFindings: fresh };
+  // Runtime facts and env findings commit together under the monitor job's
+  // lease and this connection epoch (3F-C2c). Vercel findings have never been
+  // archived here, so the commit does not retire either.
+  const created = await commit({
+    transport: "vercel", identity: connectionEpoch,
+    ...(reachedAnyProject ? { facts: { providersRead: ["vercel"], envVars: graphEnvVars } } : {}),
+    findings: all, retire: false,
+  });
+  return { total: all.length, newCount: created.length, findings: all, newFindings: created as EnvFinding[] };
 }

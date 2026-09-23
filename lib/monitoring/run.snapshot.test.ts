@@ -13,14 +13,12 @@ import type { CollectorSpec } from "./registry";
 // an explicit test.
 
 const insertMock = vi.fn();
-const alertMock = vi.fn();
 const saveFactsMock = vi.fn();
 const profileUpdateMock = vi.fn();
 let snapshotError: { message: string } | null = null;
 
 vi.mock("@/lib/crypto", () => ({ decrypt: () => "anon-key" }));
 vi.mock("@/lib/graph/graphRun", () => ({ saveFacts: saveFactsMock }));
-vi.mock("./alerts", () => ({ sendNewFindingsAlert: alertMock }));
 vi.mock("@/lib/supabase", () => ({
   getSupabaseAdmin: () => ({
     from: (table: string) => ({
@@ -45,7 +43,9 @@ vi.mock("@/lib/supabase", () => ({
   }),
 }));
 
-const { runMonitoringPass, runMonitoringPassForWorker } = await import("./run");
+const { runMonitoringPassForWorker } = await import("./run");
+const runMonitoringPass = (...args: Parameters<typeof runMonitoringPassForWorker>) =>
+  runMonitoringPassForWorker(args[0], args[1], args[2], vi.fn(async () => []));
 
 const profile = {
   id: "u1",
@@ -68,7 +68,6 @@ function spec(over: Partial<CollectorSpec> & Pick<CollectorSpec, "id">): Collect
 describe("runMonitoringPass — snapshot integrity", () => {
   beforeEach(() => {
     insertMock.mockReset();
-    alertMock.mockReset();
     saveFactsMock.mockReset();
     profileUpdateMock.mockReset();
     snapshotError = null;
@@ -89,7 +88,7 @@ describe("runMonitoringPass — snapshot integrity", () => {
       collectors: [expect.objectContaining({ id: "broken", status: "failed" })],
     }));
     expect(profileUpdateMock).not.toHaveBeenCalled();
-    expect(result.newFindingsCount).toBe(0);
+    expect(result.newFindings).toHaveLength(0);
   });
 
   it("does not alert on 'resolved' findings that were merely never re-checked", async () => {
@@ -102,9 +101,9 @@ describe("runMonitoringPass — snapshot integrity", () => {
       },
     });
 
-    await runMonitoringPass(profile, "scheduled_48h", [broken]);
+    const result = await runMonitoringPass(profile, "scheduled_48h", [broken]);
 
-    expect(alertMock).not.toHaveBeenCalled();
+    expect(result.newFindings).toEqual([]);
   });
 
   it("writes a snapshot with collector provenance when a collector succeeds", async () => {
@@ -169,7 +168,7 @@ describe("runMonitoringPass — snapshot integrity", () => {
     );
   });
 
-  it("alerts on pre-diffed findings from a self-diffing collector", async () => {
+  it("returns pre-diffed findings from a self-diffing collector for alerting", async () => {
     const selfDiffing = spec({
       id: "app-surface-like",
       run: async () => ({ newFindings: [{ id: "leak", severity: "CRITICAL" }] as never }),
@@ -178,7 +177,6 @@ describe("runMonitoringPass — snapshot integrity", () => {
 
     const result = await runMonitoringPass(profile, "scheduled_48h", [scan, selfDiffing]);
 
-    expect(result.newFindingsCount).toBe(1);
-    expect(alertMock).toHaveBeenCalled();
+    expect(result.newFindings.map((finding) => finding.id)).toEqual(["leak"]);
   });
 });

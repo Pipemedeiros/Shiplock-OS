@@ -2,7 +2,6 @@ import { decrypt } from "@/lib/crypto";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { Finding } from "./findings";
 import { diffSnapshots } from "./diff";
-import { sendNewFindingsAlert } from "./alerts";
 import { saveFacts } from "@/lib/graph/graphRun";
 import { runCollectors, type CollectorSpec, type ProviderCommit } from "./registry";
 import { DEFAULT_COLLECTORS } from "./collectors";
@@ -15,7 +14,7 @@ export type { MonitoredProfile, TriggerSource } from "./types";
 // Shared by all three monitoring entry points (deploy webhook, hourly cron, 48h
 // cron). The shape is deliberately a spine, not a ladder: run the eligible
 // collectors, merge what they produced, diff against the most recent snapshot,
-// store, alert on genuinely new findings only.
+// store, and return genuinely new findings; the worker queues their alert.
 //
 // Diffing is against the most recent snapshot regardless of which trigger
 // produced it — a hurried hourly pass and a full 48h pass write to the same
@@ -27,9 +26,8 @@ async function executeMonitoringPass(
   // Injectable for tests, and the seam that makes adding a collector a registry
   // entry rather than an edit to this function.
   collectors: readonly CollectorSpec[],
-  sendAlert: boolean,
   commit?: ProviderCommit,
-): Promise<{ newFindingsCount: number; newFindings: Finding[]; writesSucceeded: boolean }> {
+): Promise<{ newFindings: Finding[]; writesSucceeded: boolean }> {
   const admin = getSupabaseAdmin();
   const anonKey = profile.monitored_anon_key_encrypted
     ? decrypt(profile.monitored_anon_key_encrypted)
@@ -114,34 +112,21 @@ async function executeMonitoringPass(
     }
   }
 
-  // One email for both lanes. alerts.ts dedups per (user, finding id) over 7
-  // days, so a check that flaps cannot turn into a stream of mail.
+  // Both lanes, deduplicated by id. The worker admits one durable
+  // notification job for them; this pass never sends email itself.
   const allNewFindings = [...new Map(
     [...newFindings, ...preDiffedNewFindings].map((finding) => [finding.id, finding]),
   ).values()];
-  if (sendAlert && allNewFindings.length > 0 && profile.email) {
-    await sendNewFindingsAlert(profile.id, profile.email, allNewFindings);
-  }
-
-  return { newFindingsCount: allNewFindings.length, newFindings: allNewFindings, writesSucceeded };
+  return { newFindings: allNewFindings, writesSucceeded };
 }
 
-/** Compatibility path for explicit synchronous scans. Scheduled workers use
- * the detailed form so notification delivery gets its own durable job. */
-export async function runMonitoringPass(
-  profile: MonitoredProfile,
-  triggerSource: TriggerSource,
-  collectors: readonly CollectorSpec[] = DEFAULT_COLLECTORS,
-): Promise<{ newFindingsCount: number }> {
-  const result = await executeMonitoringPass(profile,triggerSource,collectors,true);
-  return { newFindingsCount: result.newFindingsCount };
-}
-
+/** The monitor worker's pass. Provider collectors write only through `commit`
+ * (3F-C2c); a pass without one cannot collect provider evidence. */
 export function runMonitoringPassForWorker(
   profile: MonitoredProfile,
   triggerSource: TriggerSource,
   collectors: readonly CollectorSpec[] = DEFAULT_COLLECTORS,
   commit?: ProviderCommit,
 ) {
-  return executeMonitoringPass(profile,triggerSource,collectors,false,commit);
+  return executeMonitoringPass(profile,triggerSource,collectors,commit);
 }

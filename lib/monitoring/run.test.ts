@@ -3,7 +3,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const scanProjectMock = vi.fn();
 const scanCriticalChecksMock = vi.fn();
 const exposedScanMock = vi.fn();
-const alertMock = vi.fn();
 const snapshotSelectMock = vi.fn();
 const snapshotInsertMock = vi.fn();
 const profileUpdateMock = vi.fn();
@@ -13,7 +12,6 @@ vi.mock("@/lib/scanner", () => ({
   scanCriticalChecks: scanCriticalChecksMock,
 }));
 vi.mock("@/lib/crypto", () => ({ decrypt: (v: string) => `plain-${v}` }));
-vi.mock("./alerts", () => ({ sendNewFindingsAlert: alertMock }));
 vi.mock("@/lib/security/exposedPathsRun", () => ({ runExposedPathScan: exposedScanMock }));
 vi.mock("./findings", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./findings")>();
@@ -38,7 +36,12 @@ vi.mock("@/lib/supabase", () => ({
   }),
 }));
 
-const { runMonitoringPass } = await import("./run");
+const { runMonitoringPassForWorker } = await import("./run");
+// Provider collectors require the worker's fenced commit (3F-C2c); the mocked
+// runners never call it, so an empty commit is enough to reach them.
+const commitMock = vi.fn(async () => []);
+const runMonitoringPass = (...args: Parameters<typeof runMonitoringPassForWorker>) =>
+  runMonitoringPassForWorker(args[0], args[1], args[2], commitMock);
 
 // A ScanResult shaped just enough for extractFindings: a clean project with no
 // findings of any kind. Cast because these tests exercise runMonitoringPass's
@@ -61,7 +64,6 @@ describe("runMonitoringPass — app-surface scan gating", () => {
     scanProjectMock.mockReset().mockResolvedValue(cleanScan);
     scanCriticalChecksMock.mockReset().mockResolvedValue(cleanScan);
     exposedScanMock.mockReset().mockResolvedValue({ total: 0, newCount: 0, resolvedCount: 0, newFindings: [] });
-    alertMock.mockReset().mockResolvedValue(undefined);
     snapshotSelectMock.mockReset().mockResolvedValue({ data: null });
     snapshotInsertMock.mockReset().mockReturnValue(Promise.resolve({ error: null }));
     profileUpdateMock.mockReset().mockReturnValue(Promise.resolve({ error: null }));
@@ -69,7 +71,7 @@ describe("runMonitoringPass — app-surface scan gating", () => {
 
   it("runs the app-surface scan on the 48h deep pass", async () => {
     await runMonitoringPass(profile({ monitored_app_url: "https://app.example.com" }), "scheduled_48h");
-    expect(exposedScanMock).toHaveBeenCalledWith("u1", "https://app.example.com", { signal: expect.any(AbortSignal) });
+    expect(exposedScanMock).toHaveBeenCalledWith("u1", "https://app.example.com", { signal: expect.any(AbortSignal), commit: commitMock });
   });
 
   // The bundle audit downloads real chunks. That's the wrong weight for a pass
@@ -93,7 +95,7 @@ describe("runMonitoringPass — app-surface scan gating", () => {
     expect(exposedScanMock).not.toHaveBeenCalled();
   });
 
-  it("alerts on a newly-shipped secret the same pass we find it", async () => {
+  it("returns a newly-shipped secret the same pass we find it, for the worker's alert", async () => {
     exposedScanMock.mockResolvedValue({
       total: 1,
       newCount: 1,
@@ -113,13 +115,10 @@ describe("runMonitoringPass — app-surface scan gating", () => {
       "scheduled_48h"
     );
 
-    expect(result.newFindingsCount).toBe(1);
-    const [, , findings] = alertMock.mock.calls[0];
-    expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("bundle:shipped_secret:supabase_service_role_jwt");
+    expect(result.newFindings.map((finding) => finding.id)).toEqual(["bundle:shipped_secret:supabase_service_role_jwt"]);
   });
 
-  it("sends ONE email covering both lanes, not two", async () => {
+  it("returns both lanes' new findings together, for one notification job", async () => {
     scanProjectMock.mockResolvedValue(scanWithFinding);
     exposedScanMock.mockResolvedValue({
       total: 1,
@@ -133,8 +132,7 @@ describe("runMonitoringPass — app-surface scan gating", () => {
       "scheduled_48h"
     );
 
-    expect(alertMock).toHaveBeenCalledTimes(1);
-    expect(result.newFindingsCount).toBe(2);
+    expect(result.newFindings).toHaveLength(2);
   });
 
   // The Supabase-side snapshot is the load-bearing part of a pass. An app that
@@ -147,7 +145,7 @@ describe("runMonitoringPass — app-surface scan gating", () => {
       "scheduled_48h"
     );
 
-    expect(result.newFindingsCount).toBe(0);
+    expect(result.newFindings).toHaveLength(0);
     expect(snapshotInsertMock).toHaveBeenCalled();
   });
 
@@ -162,24 +160,8 @@ describe("runMonitoringPass — app-surface scan gating", () => {
     expect(profileUpdateMock).not.toHaveBeenCalled();
   });
 
-  it("sends no email when nothing is new", async () => {
-    await runMonitoringPass(profile({ monitored_app_url: "https://app.example.com" }), "scheduled_48h");
-    expect(alertMock).not.toHaveBeenCalled();
-  });
-
-  it("sends no email when the profile has no address", async () => {
-    exposedScanMock.mockResolvedValue({
-      total: 1,
-      newCount: 1,
-      resolvedCount: 0,
-      newFindings: [{ id: "bundle:x", severity: "CRITICAL", title: "t", consequence: "c" }],
-    });
-
-    await runMonitoringPass(
-      profile({ email: null, monitored_app_url: "https://app.example.com" }),
-      "scheduled_48h"
-    );
-
-    expect(alertMock).not.toHaveBeenCalled();
+  it("returns nothing to alert on when nothing is new", async () => {
+    const result = await runMonitoringPass(profile({ monitored_app_url: "https://app.example.com" }), "scheduled_48h");
+    expect(result.newFindings).toEqual([]);
   });
 });
