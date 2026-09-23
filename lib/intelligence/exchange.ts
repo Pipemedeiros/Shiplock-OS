@@ -36,7 +36,7 @@ export const intelligenceResultSchema = z.object({
 
 export type IntelligenceIdentity = z.infer<typeof identitySchema>;
 export type IntelligenceHost = z.infer<typeof hostSchema>;
-type SourceFile = { path: string; content: string };
+export type SourceFile = { path: string; content: string };
 type Result = z.infer<typeof intelligenceResultSchema>;
 type Receipt = {
   taskId: string; digest: string;
@@ -46,6 +46,44 @@ type Receipt = {
 
 export function sourceHash(content: string): string {
   return createHash("sha256").update(content).digest("hex");
+}
+
+/**
+ * Evidence rules shared by the in-memory proof and durable tasks (10B-1b):
+ * unavailable carries a reason and nothing else; any other outcome cites exact
+ * lines of listed sources; only `proposed` may carry edits, each on a cited,
+ * unedited-before listed file at its current hash and allowed by a trusted
+ * mechanical validator. CRLF sources compare line text without the `\r`.
+ */
+export function checkResultEvidence(
+  result: Pick<Result, "status" | "reason" | "citations" | "edits">,
+  source: (path: string) => SourceFile,
+  validateEdit: (file: Readonly<SourceFile>, proposed: string) => boolean,
+): void {
+  if (result.status === "unavailable") {
+    if (!result.reason || result.edits.length || result.citations.length) throw new Error("invalid_unavailable");
+    return;
+  }
+  if (result.reason || !result.citations.length) throw new Error("missing_evidence");
+  for (const citation of result.citations) {
+    const file = source(citation.path);
+    const lines = file.content.split("\n").map((line) => line.replace(/\r$/, ""));
+    if (citation.sourceHash !== sourceHash(file.content) || citation.endLine < citation.startLine ||
+        citation.endLine > lines.length ||
+        lines.slice(citation.startLine - 1, citation.endLine).join("\n") !== citation.quote.replace(/\r\n/g, "\n")) {
+      throw new Error("citation_mismatch");
+    }
+  }
+  if (result.status === "needs_human" && result.edits.length) throw new Error("human_decision_required");
+  if (result.status === "proposed" && !result.edits.length) throw new Error("missing_patch");
+  const edited = new Set<string>();
+  for (const edit of result.edits) {
+    const file = source(edit.path);
+    if (edited.has(edit.path) || edit.baseHash !== sourceHash(file.content) ||
+        !result.citations.some((citation) => citation.path === edit.path) ||
+        !validateEdit(file, edit.content)) throw new Error("edit_not_allowed");
+    edited.add(edit.path);
+  }
 }
 
 export function createIntelligenceExchange(input: {
@@ -121,30 +159,7 @@ export function createIntelligenceExchange(input: {
         if (receipt.digest !== digest) throw new Error("already_completed");
         return structuredClone(receipt);
       }
-      if (result.status === "unavailable") {
-        if (!result.reason || result.edits.length || result.citations.length) throw new Error("invalid_unavailable");
-      } else {
-        if (result.reason || !result.citations.length) throw new Error("missing_evidence");
-        for (const citation of result.citations) {
-          const file = source(citation.path);
-          const lines = file.content.split("\n");
-          if (citation.sourceHash !== sourceHash(file.content) || citation.endLine < citation.startLine ||
-              citation.endLine > lines.length ||
-              lines.slice(citation.startLine - 1, citation.endLine).join("\n") !== citation.quote) {
-            throw new Error("citation_mismatch");
-          }
-        }
-        if (result.status === "needs_human" && result.edits.length) throw new Error("human_decision_required");
-        if (result.status === "proposed" && !result.edits.length) throw new Error("missing_patch");
-        const edited = new Set<string>();
-        for (const edit of result.edits) {
-          const file = source(edit.path);
-          if (edited.has(edit.path) || edit.baseHash !== sourceHash(file.content) ||
-              !result.citations.some((citation) => citation.path === edit.path) ||
-              !input.validateEdit(file, edit.content)) throw new Error("edit_not_allowed");
-          edited.add(edit.path);
-        }
-      }
+      checkResultEvidence(result, source, input.validateEdit);
       receipt = { taskId: identity.taskId, digest,
         status: result.status === "proposed" ? "proposal_received" : result.status,
         applied: false, prOpened: false, tests: "not_run", modelUsageVerified: false };

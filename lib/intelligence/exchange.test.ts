@@ -130,3 +130,16 @@ describe("customer intelligence exchange (offline contract, no inference)", () =
       proposal: { edits: [{ content: after }] } });
   });
 });
+
+describe("10B-1b: shared evidence checks", () => {
+  it("accepts a natural quote from a CRLF source (review item b)", () => {
+    const crlf = "const config = {\r\n  productionBrowserSourceMaps: true,\r\n};\r\nexport default config;\r\n";
+    const exchange = createIntelligenceExchange({
+      identity, host: "codex", files: [{ path, content: crlf }], instruction: "x",
+      expiresAt: 2_000, now: () => 1_000, currentIdentity: () => identity, validateEdit: () => false,
+    });
+    const receipt = exchange.submit({ ...result(), status: "needs_human", edits: [],
+      citations: [{ path, sourceHash: sourceHash(crlf), startLine: 2, endLine: 2, quote: "  productionBrowserSourceMaps: true," }] });
+    expect(receipt.status).toBe("needs_human");
+  });
+});
