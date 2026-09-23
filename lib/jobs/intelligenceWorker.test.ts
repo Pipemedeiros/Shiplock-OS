@@ -3,13 +3,14 @@ import { z } from "zod";
 
 const state = vi.hoisted(() => ({
   reads: { user_profiles: vi.fn(), repositories: vi.fn(), intelligence_scan_jobs: vi.fn(), intelligence_connections: vi.fn() },
-  create: vi.fn(), token: vi.fn(), branch: vi.fn(), tree: vi.fn(), prFiles: vi.fn(), claim: vi.fn(), execute: vi.fn(),
+  create: vi.fn(), runApi: vi.fn(), token: vi.fn(), branch: vi.fn(), tree: vi.fn(), prFiles: vi.fn(), claim: vi.fn(), execute: vi.fn(),
 }));
 vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ from: (table: keyof typeof state.reads) => {
   const query = { eq: () => query, maybeSingle: () => state.reads[table]() };
   return { select: () => query };
 } }) }));
 vi.mock("@/lib/intelligence/tasks", () => ({ createIntelligenceTask: state.create }));
+vi.mock("@/lib/intelligence/apiMode", () => ({ runApiModeTask: state.runApi }));
 vi.mock("@/lib/deep/github", () => ({ getInstallationToken: state.token, getBranchSha: state.branch,
   listTree: state.tree, listPullRequestFileNames: state.prFiles }));
 vi.mock("./queue", () => {
@@ -68,6 +69,16 @@ it("creates a deep-scan task for the approved host at the default branch head", 
   expect(instruction).toContain("50000 tokens");
   expect(instruction).toContain("needs_human");
   expect(instruction.length).toBeLessThanOrEqual(2000);
+});
+
+it("runs an API-mode task on the customer's key right after creating it; pull hosts wait for their agent (10B-2e)", async () => {
+  await executeIntelligenceJob(job);
+  expect(state.runApi).not.toHaveBeenCalled();
+  state.reads.intelligence_connections.mockResolvedValue({ data: { host: "api", revoked_at: null, run_token_budget: 50000 }, error: null });
+  state.runApi.mockResolvedValue("answered");
+  await executeIntelligenceJob(job);
+  expect(state.runApi).toHaveBeenCalledWith({ userId: job.user_id, taskId: "99999999-9999-4999-8999-999999999999",
+    token: "token", fullName: "acme/app", runTokenBudget: 50000 });
 });
 
 it("creates a PR-scan task at the stored head from the changed files", async () => {

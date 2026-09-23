@@ -52,6 +52,12 @@ describe("POST /api/mcp/intelligence/tasks/[id]/result", () => {
     expect(res.status).toBe(status);
     expect(await res.json()).toEqual({ error: code });
   });
+  it("refuses an agent answering as the API-key host (10B-2e)", async () => {
+    const res = await POST(req({ result: { version: 1, host: "api" } }), params);
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ error: "api_mode_task" });
+    expect(mocks.submit).not.toHaveBeenCalled();
+  });
   it("hides unexpected errors behind a generic code", async () => {
     mocks.submit.mockRejectedValue(new Error("connection string leaked"));
     expect(await (await POST(req({ result: {} }), params)).json()).toEqual({ error: "submission_failed" });

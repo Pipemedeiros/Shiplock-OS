@@ -7,7 +7,8 @@ const mocks = vi.hoisted(() => ({ task: vi.fn(), profile: vi.fn(), rpc: vi.fn(),
 vi.mock("@/lib/deep/github", () => ({ getInstallationToken: vi.fn(async () => "token"), getFile: mocks.file }));
 vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ rpc: mocks.rpc, from: (table: string) => {
   const chain = { select: () => chain, eq: (k: string, v: unknown) => { mocks.filters(table, k, v); return chain; },
-    gt: (k: string, v: unknown) => { mocks.filters(table, `gt:${k}`, v); return chain; }, order: () => chain,
+    gt: (k: string, v: unknown) => { mocks.filters(table, `gt:${k}`, v); return chain; },
+    neq: (k: string, v: unknown) => { mocks.filters(table, `neq:${k}`, v); return chain; }, order: () => chain,
     limit: mocks.list, maybeSingle: table === "user_profiles" ? mocks.profile : mocks.task };
   return chain;
 } }) }));
@@ -143,5 +144,7 @@ describe("listPendingIntelligenceTasks (10B-2a)", () => {
     expect(mocks.filters).toHaveBeenCalledWith("intelligence_tasks", "user_id", userId);
     expect(mocks.filters).toHaveBeenCalledWith("intelligence_tasks", "status", "pending");
     expect(mocks.filters).toHaveBeenCalledWith("intelligence_tasks", "gt:expires_at", expect.any(String));
+    // API-mode tasks are ShipLock's to run on the customer's key, never an agent's (10B-2e).
+    expect(mocks.filters).toHaveBeenCalledWith("intelligence_tasks", "neq:host", "api");
   });
 });

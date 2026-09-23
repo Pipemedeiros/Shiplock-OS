@@ -46,7 +46,7 @@ describe("intelligence connection approval (10B-2b)", () => {
     expect(rpc).toHaveBeenCalledWith("intelligence_month_usage", { p_user: "u1" });
     maybeSingle.mockResolvedValue({ data: { host: "api", deep_scan_cadence: "off", pr_scan_cadence: "off",
       run_token_budget: 20000, monthly_token_budget: 500000, approved_at: "2026-09-23T00:00:00Z", revoked_at: "2026-09-24T00:00:00Z" }, error: null });
-    expect(await getIntelligenceConnection("u1")).toMatchObject({ state: "revoked", budgetEnforcement: "not_available_yet" });
+    expect(await getIntelligenceConnection("u1")).toMatchObject({ state: "revoked", budgetEnforcement: "enforced" });
     maybeSingle.mockResolvedValue({ data: null, error: null });
     expect(await getIntelligenceConnection("u1")).toEqual({ state: "none" });
     maybeSingle.mockResolvedValue({ data: null, error: { message: "down" } });

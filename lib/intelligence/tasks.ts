@@ -164,6 +164,8 @@ export async function listPendingIntelligenceTasks(userId: string) {
   const { data, error } = await getSupabaseAdmin().from("intelligence_tasks")
     .select("id, commit_sha, host, instruction, expires_at, repositories(full_name)")
     .eq("user_id", userId).eq("status", "pending").gt("expires_at", new Date().toISOString())
+    // API-mode tasks are run by ShipLock on the customer's key, not by an agent.
+    .neq("host", "api")
     .order("created_at", { ascending: false }).limit(20);
   if (error) throw new Error("tasks_unreadable");
   return (data ?? []).flatMap((raw) => {

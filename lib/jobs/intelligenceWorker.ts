@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { createIntelligenceTask } from "@/lib/intelligence/tasks";
+import { runApiModeTask } from "@/lib/intelligence/apiMode";
 import { getBranchSha, getInstallationToken, listPullRequestFileNames, listTree } from "@/lib/deep/github";
 import { claimJob, executeClaimedJob, PermanentJobError, type ClaimedJob } from "./queue";
 
@@ -99,8 +100,9 @@ export async function executeIntelligenceJob(job: ClaimedJob): Promise<void> {
   }
   if (paths.length === 0) return;
 
+  let taskId: string;
   try {
-    await createIntelligenceTask({ userId: job.user_id, repositoryId: job.repository_id, commit,
+    taskId = await createIntelligenceTask({ userId: job.user_id, repositoryId: job.repository_id, commit,
       host: connection.data.host, instruction, paths, minutes: TASK_MINUTES, key: `job:${job.id}` });
   } catch (error) {
     const code = error instanceof Error ? error.message : "";
@@ -108,6 +110,12 @@ export async function executeIntelligenceJob(job: ClaimedJob): Promise<void> {
     if (code === "intelligence_not_approved" || code === "intelligence_budget_exhausted") return;
     if (code === "repository_unavailable") throw new PermanentJobError("Repository no longer available");
     throw error;
+  }
+  // API-key mode: ShipLock answers now, on the customer's key. A retry of this
+  // job finds the task answered and does not call the model again.
+  if (connection.data.host === "api") {
+    await runApiModeTask({ userId: job.user_id, taskId, token, fullName,
+      runTokenBudget: connection.data.run_token_budget });
   }
 }
 

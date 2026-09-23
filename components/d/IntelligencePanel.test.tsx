@@ -26,7 +26,10 @@ describe("IntelligencePanel (10B-2b)", () => {
     expect(out).toContain("your agent spends its own allowance");
     expect(out).toContain("Agent setup is not available yet");
     expect(out).not.toContain("npx");
-    expect(html({ draft: { ...defaultDraft, host: "api" } })).toContain("ShipLock does not run tasks on it yet");
+    const api = html({ draft: { ...defaultDraft, host: "api" } });
+    expect(api).toContain("ShipLock runs approved checks on your key");
+    expect(api).toContain("counted from the API");
+    expect(api).not.toContain("does not run tasks on it yet");
   });
 
   it("offers a key field only for API-key mode and never shows more than the saved key's last 4 characters (10B-2e)", () => {

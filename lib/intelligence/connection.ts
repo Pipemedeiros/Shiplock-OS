@@ -26,8 +26,9 @@ export type ConnectionView =
   | { state: "approved" | "revoked"; host: ConnectionApproval["host"]; deepScan: ConnectionApproval["deepScan"];
       prScan: ConnectionApproval["prScan"]; runTokenBudget: number; monthlyTokenBudget: number; approvedAt: string;
       // A pull host spends its own allowance, so ShipLock can only ask it to
-      // stay within budget. API-key mode could enforce it but is not built.
-      budgetEnforcement: "advisory" | "not_available_yet"; pullRequests: "each_needs_a_click";
+      // stay within budget. API-key mode caps each call and counts the API's
+      // own usage against the monthly limit (10B-2e).
+      budgetEnforcement: "advisory" | "enforced"; pullRequests: "each_needs_a_click";
       // Tokens the host reported on results this UTC month. Self-reported, not
       // verified; new tasks stop once it reaches the monthly budget.
       monthReportedTokens: number };
@@ -44,7 +45,7 @@ export async function getIntelligenceConnection(userId: string): Promise<Connect
   if (usage.error || !reported.success) throw new Error("connection_unreadable");
   return { state: r.revoked_at ? "revoked" : "approved", host: r.host, deepScan: r.deep_scan_cadence,
     prScan: r.pr_scan_cadence, runTokenBudget: r.run_token_budget, monthlyTokenBudget: r.monthly_token_budget,
-    approvedAt: r.approved_at, budgetEnforcement: r.host === "api" ? "not_available_yet" : "advisory",
+    approvedAt: r.approved_at, budgetEnforcement: r.host === "api" ? "enforced" : "advisory",
     pullRequests: "each_needs_a_click", monthReportedTokens: reported.data };
 }
 

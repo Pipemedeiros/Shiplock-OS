@@ -85,7 +85,7 @@ export function IntelligenceApprovalView({ connection, apiKey, draft, busy, erro
         ) : null}
         <p style={note}>
           {draft.host === "api"
-            ? "Your key is stored encrypted and never shown again. ShipLock does not run tasks on it yet; that ships next."
+            ? "ShipLock runs approved checks on your key, and only your key. It is stored encrypted and never shown again. Each run is capped at your per-run budget, and monthly usage is counted from the API, so the monthly limit is enforced."
             : "Budgets are a limit we ask your agent to respect: your agent spends its own allowance, so we cannot enforce them."}
         </p>
         <p style={note}>

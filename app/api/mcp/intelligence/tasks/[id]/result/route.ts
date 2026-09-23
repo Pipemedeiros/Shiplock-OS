@@ -23,6 +23,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!body || typeof body !== "object" || !("result" in body)) {
     return NextResponse.json({ error: "invalid_result" }, { status: 422 });
   }
+  // API-key tasks are answered only by ShipLock on the customer's key (10B-2e);
+  // an agent over MCP may not answer as that host.
+  const result = body.result as { host?: unknown } | null;
+  if (result && typeof result === "object" && result.host === "api") {
+    return NextResponse.json({ error: "api_mode_task" }, { status: 403 });
+  }
   try {
     const receipt = await submitIntelligenceResult(auth.userId, id.data, body.result);
     return NextResponse.json(receipt, { headers: { "Cache-Control": "no-store" } });
