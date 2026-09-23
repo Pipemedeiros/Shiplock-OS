@@ -6,6 +6,7 @@ import { isSupabaseMgmtConfigured } from "@/lib/deep/supabaseMgmt";
 import { SupabasePanel } from "@/components/d/SupabasePanel";
 import { PostgresPanel } from "@/components/d/PostgresPanel";
 import { VerifiedPanel } from "@/components/d/VerifiedPanel";
+import { IntelligencePanel } from "@/components/d/IntelligencePanel";
 import { BILLING_ENABLED } from "@/lib/access";
 
 /**
@@ -73,6 +74,13 @@ export default async function SettingsPage() {
               )}
             </div>
           </div>
+        </div>
+
+        {/* The customer's own AI funds deep scans and PR reasoning after the
+            first scan. The card owns its state through /api/intelligence/connection. */}
+        <div className="v3-card">
+          <div className="v3-hd"><h2 className="v3-eyebrow">Your AI</h2></div>
+          <div className="v3-card-p"><IntelligencePanel /></div>
         </div>
 
         <div className="v3-card">

@@ -18,11 +18,11 @@ const durableResultSchema = intelligenceResultSchema.extend({
   identity: z.object({
     taskId: z.uuid(), tenantId: z.uuid(), repositoryId: z.uuid(), commit: z.string().regex(/^[a-f0-9]{40}$/),
   }).strict(),
-  host: z.enum(["codex", "claude-code", "api"]),
+  host: z.enum(["codex", "claude-code", "chatgpt", "api"]),
 }).strict();
 const taskRowSchema = z.object({
   id: z.uuid(), user_id: z.uuid(), repository_id: z.uuid(), commit_sha: z.string(),
-  host: z.enum(["codex", "claude-code", "api"]), instruction: z.string(),
+  host: z.enum(["codex", "claude-code", "chatgpt", "api"]), instruction: z.string(),
   sources: z.array(z.object({ path: z.string(), sourceHash: z.string() })),
   status: z.enum(["pending", "proposal_received", "needs_human", "unavailable", "cancelled"]),
   result: z.unknown().nullable(), expires_at: z.string(),
@@ -123,7 +123,7 @@ export async function submitIntelligenceResult(userId: string, taskId: string, r
  * and hashed by ShipLock, so a host can never supply the hashes it will later
  * be checked against. Idempotent per `key`. */
 export async function createIntelligenceTask(input: {
-  userId: string; repositoryId: string; commit: string; host: "codex" | "claude-code" | "api";
+  userId: string; repositoryId: string; commit: string; host: "codex" | "claude-code" | "chatgpt" | "api";
   instruction: string; paths: string[]; minutes: number; key: string;
 }): Promise<string> {
   const admin = getSupabaseAdmin();
@@ -152,7 +152,7 @@ export async function createIntelligenceTask(input: {
 }
 
 const pendingRowSchema = z.object({
-  id: z.uuid(), commit_sha: z.string(), host: z.enum(["codex", "claude-code", "api"]),
+  id: z.uuid(), commit_sha: z.string(), host: z.enum(["codex", "claude-code", "chatgpt", "api"]),
   instruction: z.string(), expires_at: z.string(), repositories: z.object({ full_name: z.string() }),
 });
 

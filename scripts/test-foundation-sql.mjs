@@ -35,6 +35,7 @@ try {
   await db.exec(await readFile(new URL("../supabase/migrations/073_pull_request_alerts.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/074_intelligence_tasks.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/075_intelligence_retention.sql", import.meta.url), "utf8"));
+  await db.exec(await readFile(new URL("../supabase/migrations/076_intelligence_connections.sql", import.meta.url), "utf8"));
   await db.query("insert into auth.users values ($1),($2)", [u1,u2]);
   await db.query("insert into public.user_profiles(id) values($1),($2)", [u1,u2]);
   await check("connection epochs backfill the existing fingerprint and ignore blank credentials", async () => {
@@ -674,7 +675,36 @@ try {
     assert.deepEqual(left,[fresh,pending].sort());
     await db.exec("set role service_role");
   });
+  // 10B-2b: one pre-approved intelligence connection per account.
+  const approve=(host="claude-code",deep="weekly",pr="daily",run=50000,month=1000000,user=u1)=>db.query(
+    "select public.approve_intelligence_connection($1,$2,$3,$4,$5,$6) as at",[user,host,deep,pr,run,month]);
+  await check("an account pre-approves its intelligence host, cadence, and budgets once", async () => {
+    await approve();
+    await approve("codex","off","per_deploy",20000,500000);
+    await db.exec("reset role");
+    const rows=(await db.query("select host,deep_scan_cadence,pr_scan_cadence,run_token_budget,revoked_at from public.intelligence_connections where user_id=$1",[u1])).rows;
+    assert.deepEqual(rows,[{host:"codex",deep_scan_cadence:"off",pr_scan_cadence:"per_deploy",run_token_budget:20000,revoked_at:null}]);
+    await db.exec("set role service_role");
+    await assert.rejects(approve("gemini"));
+    await assert.rejects(approve("codex","hourly"));
+    await assert.rejects(approve("codex","weekly","hourly"));
+    await assert.rejects(approve("codex","weekly","daily",500,1000000));
+    await assert.rejects(approve("codex","weekly","daily",50000,10000));
+  });
+  await check("revoking the connection cancels pending tasks and a chatgpt host can hold tasks", async () => {
+    await approve("chatgpt");
+    const pending=(await db.query("select public.create_intelligence_task($1,$2,$3,'chatgpt','x',$4,now()+interval '10 minutes','intel-rev-1') as id",[u1,r1,"a".repeat(40),sources])).rows[0].id;
+    assert.ok((await db.query("select public.revoke_intelligence_connection($1) as n",[u1])).rows[0].n>=1);
+    await db.exec("reset role");
+    assert.equal((await db.query("select status from public.intelligence_tasks where id=$1",[pending])).rows[0].status,"cancelled");
+    assert.ok((await db.query("select revoked_at from public.intelligence_connections where user_id=$1",[u1])).rows[0].revoked_at);
+    await db.exec("set role service_role");
+  });
   await check("client roles cannot touch intelligence tasks", async () => {
+    await db.exec("reset role; set role authenticated");
+    await assert.rejects(db.query("select * from public.intelligence_connections"));
+    await assert.rejects(approve());
+    await db.exec("reset role; set role service_role");
     await db.exec("reset role; set role authenticated");
     await assert.rejects(db.query("select public.purge_intelligence_tasks()"));
     await db.exec("reset role; set role service_role");
