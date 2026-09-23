@@ -21,11 +21,13 @@ const down = () => { throw new TypeError("fetch failed"); };
 afterEach(() => vi.unstubAllGlobals());
 
 describe("scanProject unread coverage", () => {
-  it("reports nothing unread for a project that answered every check", async () => {
+  it("never PATCHes production tables and reports mass assignment untested", async () => {
     install((url) => spec(url) ?? rls(url) ?? res(url.includes("pg_policies") || url.includes("/storage/") ? [] : {}));
     const unread: string[] = [];
-    await scanProject(SUPA, ANON, undefined, undefined, unread);
-    expect(unread).toEqual([]);
+    const result = await scanProject(SUPA, ANON, undefined, undefined, unread);
+    expect(vi.mocked(fetch).mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
+    expect(result.massAssignment).toEqual({ tested: false, results: [] });
+    expect(unread).toEqual(["mass_assignment:"]);
   });
 
   // The PostgREST root still answers here, so root-targeted checks (rate limit,
@@ -38,6 +40,7 @@ describe("scanProject unread coverage", () => {
       "rls:user_profiles", "rls:orders",
       "unauth_access:user_profiles", "unauth_access:orders",
       "mass_assignment:user_profiles", "mass_assignment:orders",
+      "mass_assignment:",
       "idor:user_profiles",
       "auth_admin_endpoint", "secrets_exposure", "public_bucket:", "login_not_rate_limited",
       // No table could be probed, so the table-targeted probes did not run.
@@ -49,7 +52,7 @@ describe("scanProject unread coverage", () => {
     install((url) => spec(url) ?? rls(url) ?? (url.includes("/auth/v1/admin/users") ? res("err", 503) : res(url.includes("pg_policies") || url.includes("/storage/") ? [] : {})));
     const unread: string[] = [];
     await scanProject(SUPA, ANON, undefined, undefined, unread);
-    expect(unread).toEqual(["auth_admin_endpoint"]);
+    expect(unread).toEqual(expect.arrayContaining(["mass_assignment:", "auth_admin_endpoint"]));
   });
 
   it("marks every per-table family unread when RLS state cannot be read", async () => {

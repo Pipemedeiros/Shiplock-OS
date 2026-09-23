@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "test:intelligence": "node mcp/intelligence-spike-smoke.mjs",
     "worker:audit": "node scripts/audit-worker.mjs",
     "corpus:acquire": "node scripts/corpus.cjs acquire",
     "corpus:evaluate": "node scripts/corpus.cjs evaluate"

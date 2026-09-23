@@ -151,7 +151,7 @@ export interface ScanResult {
   unauthAccess:     UnauthAccessCheck;
   // Check 5  — slop squatting via package.json
   slopSquatting:    SlopSquattingCheck;
-  // Check 6  — mass assignment via privileged PATCH
+  // Check 6 — reserved for authorized replica proof; production is untested.
   massAssignment:   MassAssignmentCheck;
   // Check 7  — auth admin endpoint accessibility
   authSecurity:     AuthSecurityCheck;
@@ -506,35 +506,6 @@ async function slopSquattingCheck(supabaseUrl: string, signal?: AbortSignal): Pr
   return { tested: true, packageJsonAccessible: true, suspiciousPackages: suspicious };
 }
 
-// ── Check 6: Mass assignment ──────────────────────────────────────────────────
-
-const MASS_ASSIGN_PAYLOAD = JSON.stringify({ is_paid: true, is_admin: true, role: "admin" });
-
-async function massAssignmentCheck(
-  restBase: string, anonKey: string, exposedTables: string[], signal?: AbortSignal, unread: string[] = [],
-): Promise<MassAssignmentCheck> {
-  if (exposedTables.length === 0) return { tested: false, results: [] };
-  const results = await Promise.all(
-    exposedTables.map(async (name): Promise<MassAssignmentResult> => {
-      try {
-        const url = `${restBase}/${encodeURIComponent(name)}?id=eq.00000000-0000-0000-0000-000000000000`;
-        const res = await fetch(url, {
-          method:  "PATCH",
-          headers: { ...makeHeaders(anonKey), "Content-Type": "application/json", Prefer: "return=minimal" },
-          body:    MASS_ASSIGN_PAYLOAD,
-          signal:  requestSignal(signal, TIMEOUT_MS),
-        });
-        if (res.status >= 500) unread.push(`mass_assignment:${name}`);
-        return { tableName: name, vulnerable: res.ok };
-      } catch {
-        unread.push(`mass_assignment:${name}`);
-        return { tableName: name, vulnerable: false };
-      }
-    })
-  );
-  return { tested: true, results };
-}
-
 // ── Check 7: Auth security ────────────────────────────────────────────────────
 
 async function checkAuthSecurity(
@@ -789,7 +760,7 @@ async function checkCorsConfig(
  * Check 3  — Rate limiting            (10-request burst, look for 429)
  * Check 4  — Unauthenticated access   (request without any auth headers)
  * Check 5  — Slop squatting           (exposed package.json + npm registry)
- * Check 6  — Mass assignment          (privileged PATCH on exposed tables)
+ * Check 6  — Mass assignment          (untested; requires authorized replica)
  * Check 7  — Auth security            (admin endpoint blocked to anon key)
  * Check 8  — IDOR                     (user-sensitive tables, anon-key probe)
  * Check 9  — Secrets exposure         (/.env files publicly reachable)
@@ -888,13 +859,16 @@ export async function scanProject(
   if (!rlsStatusMap) unread.push("rls:", "unauth_access:", "mass_assignment:");
   const exposedNames    = tables.filter((t) => !t.rlsEnabled).map((t) => t.name);
   const rateLimitTable  = tables[0]?.name ?? null;
+  // A no-match filter does not make PATCH a read-only operation. Preserve prior
+  // evidence under this family; removal of the production probe is not a fix.
+  unread.push("mass_assignment:");
+  const massAssignment: MassAssignmentCheck = { tested: false, results: [] };
 
   // Step 5: Run all remaining checks in parallel
   const [
     rateLimiting,
     unauthAccess,
     slopSquatting,
-    massAssignment,
     authSecurity,
     idor,
     secretsExposure,
@@ -909,7 +883,6 @@ export async function scanProject(
     checkRateLimiting(restBase, anonKey, rateLimitTable, signal, unread),
     checkUnauthAccess(restBase, exposedNames, signal, unread),
     slopSquattingCheck(appUrl ?? supabaseUrl, signal),
-    massAssignmentCheck(restBase, anonKey, exposedNames, signal, unread),
     checkAuthSecurity(supabaseUrl, anonKey, signal, unread),
     checkIdor(restBase, anonKey, tableNames, signal, unread),
     checkSecretsExposure(appUrl ?? supabaseUrl, signal, unread),
