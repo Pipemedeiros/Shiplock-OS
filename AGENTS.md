@@ -350,8 +350,10 @@ the proving ground and native-agent distribution are not launch-proven.
   proven recurring customer-funded AI path. `app/api/audit/route.ts` enqueues
   through the existing access gate; it does not enforce the new once-per-account
   first-scan entitlement or free/paid feature matrix.
-- `supabase/migrations/` is the schema/RLS source. 053–066 are local and
-  unapplied. `docs/CORPUS.json`, `scripts/corpus.cjs`, and dated evaluation JSON
+- `supabase/migrations/` is the schema/RLS source. Production has every
+  migration through 078 (released 2026-09-23 with its code; each stored
+  statement is md5-verified against its file). Any newer file is local until
+  released the same way. `docs/CORPUS.json`, `scripts/corpus.cjs`, and dated evaluation JSON
   are reproducibility data, not current accuracy marketing claims.
 
 ### Security and quality invariants
@@ -373,8 +375,9 @@ dated, narrow evidence, not product-wide precision. Any route/parser/ranking
 change invalidates comparisons unless the population is remeasured. No paid
 model runs without Felipe's approval.
 
-Migrations 053–066 and the current working packages require deployment-grade
-verification before production use. Remaining master work includes connection
+New migrations and working packages still require deployment-grade
+verification (hosted grants, advisors, smoke) before production use; the
+local PGlite suite does not prove hosted behavior. Remaining master work includes connection
 epochs and traffic binding, a production always-on worker plus migration of all
 remaining producers, provider evidence contracts, safe proof execution,
 detection quality, the approval/repair loop, continuous monitoring, native-agent
