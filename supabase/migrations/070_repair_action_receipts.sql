@@ -27,7 +27,7 @@ create table public.repair_action_receipts (
   pr_url text check (pr_url is null or pr_url ~ '^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/pull/[0-9]+$'),
   pr_number integer check (pr_number is null or pr_number > 0),
   failure_code text check (failure_code is null or failure_code in
-    ('delivery_unconfirmed','github_rejected','finding_unavailable','repository_unavailable','not_fixable')),
+    ('delivery_unconfirmed','github_rejected','finding_unavailable','repository_unavailable','not_fixable','no_changes')),
   requested_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   foreign key (job_id, user_id) references public.execution_jobs(id, user_id) on delete cascade,

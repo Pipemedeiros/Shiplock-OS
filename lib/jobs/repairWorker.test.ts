@@ -2,13 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // 3F-C2d-2: a clicked repair opens its PR in the worker, under the job lease,
 // and every outcome lands on the customer's receipt.
-const mocks = vi.hoisted(() => ({ receipt: vi.fn(), rpc: vi.fn(), risk: vi.fn(), finding: vi.fn(), heartbeat: vi.fn() }));
+const mocks = vi.hoisted(() => ({ receipt: vi.fn(), rpc: vi.fn(), risk: vi.fn(), finding: vi.fn(), dependency: vi.fn(), heartbeat: vi.fn() }));
 vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({
   rpc: mocks.rpc,
   from: () => ({ select: () => ({ eq: () => ({ maybeSingle: mocks.receipt }) }) }),
 }) }));
 vi.mock("@/lib/fixes/riskFixPr", () => ({ openRiskFixPr: mocks.risk }));
 vi.mock("@/lib/fixes/findingFixPr", () => ({ openFindingFixPr: mocks.finding }));
+vi.mock("@/lib/deep/githubFixRun", () => ({ openDependencyBumpPr: mocks.dependency }));
 vi.mock("./queue", async (original) => ({
   ...await original<typeof import("./queue")>(),
   withLeaseHeartbeat: (_job: unknown, work: () => Promise<unknown>) => { mocks.heartbeat(); return work(); },
@@ -53,6 +54,14 @@ describe("executeRepairJob", () => {
     await executeRepairJob(job);
     expect(mocks.finding).toHaveBeenCalledWith(job.user_id, "scan:open-table", "-- reviewed", job.repository_id);
     expect(completed()[0]).toMatchObject({ p_status: "opened", p_number: 10 });
+  });
+
+  it("opens one dependency-bump PR for the receipt's repository (3F-C2d-4)", async () => {
+    mocks.receipt.mockResolvedValue(receipt({ action: "dependency-bump-pr", finding_id: null }));
+    mocks.dependency.mockResolvedValue({ status: "failed", code: "no_changes" });
+    await executeRepairJob(job);
+    expect(mocks.dependency).toHaveBeenCalledWith(job.user_id, job.repository_id);
+    expect(completed()[0]).toMatchObject({ p_status: "failed", p_failure: "no_changes" });
   });
 
   it("records a permanent refusal as failed without retrying", async () => {

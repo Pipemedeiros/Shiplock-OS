@@ -69,6 +69,13 @@ describe("POST /api/deep/fix — server-owned finding", () => {
     expect(requestMock).not.toHaveBeenCalled();
   });
 
+  it("queues a dependency finding as one bump PR for its repository (3F-C2d-4)", async () => {
+    getFixFindingsMock.mockResolvedValue([{ ...base, id: "github:dep:left-pad:GHSA-x", source: "github" }]);
+    const res = await POST(req("github:dep:left-pad:GHSA-x"));
+    expect(res.status).toBe(202);
+    expect(requestMock).toHaveBeenCalledWith({ userId: "u1", repositoryId: "repo-1", action: "dependency-bump-pr", findingId: null, editedContent: null });
+  });
+
   it("rejects an id that is not currently open for this customer", async () => {
     const res = await POST(req("someone-elses-finding"));
     expect(res.status).toBe(404);

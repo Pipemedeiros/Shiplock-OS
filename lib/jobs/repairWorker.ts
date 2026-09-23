@@ -2,6 +2,7 @@ import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { openRiskFixPr } from "@/lib/fixes/riskFixPr";
 import { openFindingFixPr } from "@/lib/fixes/findingFixPr";
+import { openDependencyBumpPr } from "@/lib/deep/githubFixRun";
 import type { RepairOutcome } from "@/lib/fixes/repairOutcome";
 import { claimJob, executeClaimedJob, PermanentJobError, withLeaseHeartbeat, type ClaimedJob } from "./queue";
 
@@ -53,9 +54,7 @@ export async function executeRepairJob(job: ClaimedJob): Promise<void> {
     try {
       outcome = action === "risk-fix-pr" ? await openRiskFixPr(job.user_id, findingId!, job.repository_id!)
         : action === "finding-fix-pr" ? await openFindingFixPr(job.user_id, findingId!, edited, job.repository_id!)
-        // Dependency bumps move onto per-repository receipts in 3F-C2d; no
-        // route admits this action yet.
-        : { status: "failed", code: "not_fixable" };
+        : await openDependencyBumpPr(job.user_id, job.repository_id!);
     } catch (err) {
       await record({ status: "uncertain" }).catch(() => {});
       throw err;

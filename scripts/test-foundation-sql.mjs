@@ -519,6 +519,13 @@ try {
     assert.equal((await complete(u2,"opened","https://github.com/acme/one/pull/7",7)).rows[0].ok,false);
     await assert.rejects(complete(token,"opened","https://evil.example.com/pull/7",7));
     await assert.rejects(complete(token,"failed",null,null,"not-a-code"));
+    await assert.rejects(requestRepair(u1,r1,"click-dep","dependency-bump-pr","github:dep:x"));
+    const depReceipt=(await requestRepair(u1,r1,"click-dep","dependency-bump-pr",null)).rows[0].receipt;
+    await db.exec("reset role");
+    const depJob=(await db.query("select job_id from public.repair_action_receipts where id=$1",[depReceipt])).rows[0].job_id;
+    const depToken=(await db.query("update public.execution_jobs set status='running',lease_token=gen_random_uuid(),lease_until=now()+interval '5 minutes' where id=$1 returning lease_token",[depJob])).rows[0].lease_token;
+    await db.exec("set role service_role");
+    assert.equal((await db.query("select public.complete_repair_action($1,$2,$3,'failed',null,null,'no_changes') as ok",[u1,depJob,depToken])).rows[0].ok,true);
     assert.equal((await complete(token,"uncertain",null,null,"delivery_unconfirmed")).rows[0].ok,true);
     assert.equal((await complete(token,"opened","https://github.com/acme/one/pull/7",7)).rows[0].ok,true);
     assert.equal((await complete(token,"failed",null,null,"github_rejected")).rows[0].ok,false);

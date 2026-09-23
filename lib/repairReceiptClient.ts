@@ -30,6 +30,7 @@ export function repairMessage(view: RepairView): string {
       case "not_fixable": return "This fix needs a decision from you, so there is no pull request to open.";
       case "repository_unavailable": return "ShipLock can no longer reach that repository. Reselect it and try again.";
       case "finding_unavailable": return "This finding is no longer open, so there is nothing to fix.";
+      case "no_changes": return "No vulnerable dependency here has a patched version yet, so there is nothing to bump.";
       default: return "GitHub refused the pull request. Try again.";
     }
   }

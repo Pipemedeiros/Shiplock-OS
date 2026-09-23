@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { requestRepairAction } from "@/lib/jobs/repairAction";
 import { getFixFindings } from "@/lib/fixes/findings";
+import { fixLane } from "@/lib/fixes/lane";
 import { hasProductAccess } from "@/lib/access";
 
 // The customer's click to open a reviewable fix PR for one finding. Admits a
@@ -56,10 +57,13 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const receiptId = await requestRepairAction({
-      userId: auth.user.id, repositoryId: repository.id, action: "finding-fix-pr",
-      findingId: finding.id, editedContent: parsed.editedContent || null,
-    });
+    // A vulnerable dependency is fixed by one bump PR for its repository
+    // (every bumpable package at once); anything else is a single-finding PR.
+    const dependency = fixLane(finding).method === "dep-pr";
+    const receiptId = await requestRepairAction(dependency
+      ? { userId: auth.user.id, repositoryId: repository.id, action: "dependency-bump-pr", findingId: null, editedContent: null }
+      : { userId: auth.user.id, repositoryId: repository.id, action: "finding-fix-pr",
+          findingId: finding.id, editedContent: parsed.editedContent || null });
     return NextResponse.json({ receiptId, status: "queued" }, { status: 202 });
   } catch {
     return NextResponse.json({ error: "Could not queue the fix PR. Try again." }, { status: 503 });

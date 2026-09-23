@@ -8,8 +8,7 @@ import { triageByReachability } from "@/lib/graph/reachability";
 
 // Single source of truth for the open, fixable findings of a user — scan
 // findings (full_issues, product-access-gated content) + deep findings (GitHub source,
-// RLS policy, injection). Dependency findings are excluded (applied via the
-// GitHub panel's bulk PR). Used by the dashboard fix list AND the MCP endpoints
+// RLS policy, injection, dependencies). Used by the dashboard fix list AND the MCP endpoints
 // so both see exactly the same set. CALLER must verify product access before
 // exposing full_issues or fix content.
 export async function getFixFindings(userId: string): Promise<FixableFinding[]> {
@@ -32,13 +31,6 @@ export async function getFixFindings(userId: string): Promise<FixableFinding[]> 
     .order("detected_at", { ascending: false })
     .limit(50);
   for (const d of (deep ?? []) as Array<{ finding_id: string; title: string; severity: Severity; consequence: string; source: string; correlation?: { surfaces: string[]; proven?: boolean } | null }>) {
-    // Dependency findings from the SOURCE scan are shown in the GitHub panel's
-    // bulk PR instead. Scoped to source='github' deliberately: zero-day findings
-    // reuse the same `github:dep:` id shape (they are the same class of problem,
-    // found on a schedule rather than on a push) but the GitHub panel filters on
-    // source='github', so skipping them here made them invisible everywhere —
-    // written to the database and shown on no screen.
-    if (d.source === "github" && d.finding_id.includes("github:dep:")) continue;
     // Only ever consumed as `!== "scan"` today, but kept accurate so a future
     // per-source grouping doesn't file a DNS record under "GitHub".
     const src: FindingSource = d.finding_id.startsWith("traffic:")

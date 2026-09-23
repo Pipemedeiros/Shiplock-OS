@@ -2,7 +2,7 @@
  * ambiguous error is thrown so the worker records `uncertain` and retries. */
 export type RepairOutcome =
   | { status: "opened"; url: string; number: number }
-  | { status: "failed"; code: "finding_unavailable" | "repository_unavailable" | "not_fixable" };
+  | { status: "failed"; code: "finding_unavailable" | "repository_unavailable" | "not_fixable" | "no_changes" };
 
 export function openedOutcome(url: string): RepairOutcome {
   const number = Number(url.split("/").pop());

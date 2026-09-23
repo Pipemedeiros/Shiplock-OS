@@ -7,8 +7,9 @@ import { runNextRepairJob } from "./repairWorker";
 export interface RepairRequest {
   userId: string;
   repositoryId: string;
-  action: "risk-fix-pr" | "finding-fix-pr";
-  findingId: string;
+  action: "risk-fix-pr" | "finding-fix-pr" | "dependency-bump-pr";
+  /** Null only for a dependency bump, which covers the whole repository. */
+  findingId: string | null;
   editedContent: string | null;
 }
 
@@ -24,7 +25,7 @@ export async function requestRepairAction(request: RepairRequest): Promise<strin
   const { data, error } = await getSupabaseAdmin().rpc("request_repair_action", {
     p_user: request.userId, p_repository: request.repositoryId, p_action: request.action,
     p_finding: request.findingId, p_edited: request.editedContent,
-    p_key: `${request.action}:${request.findingId}:${edit}:${minute}`.slice(0, 200),
+    p_key: `${request.action}:${request.findingId ?? request.repositoryId}:${edit}:${minute}`.slice(0, 200),
   });
   const receiptId = z.uuid().safeParse(data);
   if (error || !receiptId.success) throw new Error("The fix could not be queued");

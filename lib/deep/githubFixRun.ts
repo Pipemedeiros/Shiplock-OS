@@ -1,19 +1,18 @@
 import {
-  getInstallationToken, listRepos, getFile, queryOsv,
+  getInstallationToken, getFile, queryOsv,
   getBranchSha, createBranch, getFileSha, putFile, openPullRequest, findOpenPullRequestForBranch,
 } from "./github";
 import { createHash } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { extractDependencies } from "./githubScan";
 import { planDependencyBumps, pickTargetVersion, buildPrBody } from "./githubFix";
+import { openedOutcome, type RepairOutcome } from "@/lib/fixes/repairOutcome";
 
-// Opens dependency-bump fix PRs for a connected installation. One PR per repo
-// that has vulnerable deps with known fixes. NEVER pushes to the default branch
-// (always a new branch), never merges, only edits package.json version ranges.
-// A single failing repo never aborts the others.
-const MAX_REPOS = 10;
+// Opens a dependency-bump fix PR for one repository. NEVER pushes to the
+// default branch (always a new branch), never merges, only edits package.json
+// version ranges.
 
-export interface FixPr {
+interface FixPr {
   repo: string;
   url: string;
   count: number; // number of deps bumped
@@ -60,22 +59,21 @@ async function fixRepo(token: string, fullName: string, branch: string): Promise
   return { repo: fullName, url, count: changes.length };
 }
 
-export async function runGithubFix(userId: string, installationId: string | number): Promise<{ prs: FixPr[]; repos: number }> {
+/**
+ * One customer click, one dependency-bump PR (3F-C2d-4): the selected
+ * repository named on the repair receipt, every vulnerable package with a known
+ * patched version bumped at once. Runs inside the repair worker's lease.
+ */
+export async function openDependencyBumpPr(userId: string, repositoryId: string): Promise<RepairOutcome> {
+  const admin = getSupabaseAdmin();
+  const [{ data: profile }, { data: repo }] = await Promise.all([
+    admin.from("user_profiles").select("github_installation_id").eq("id", userId).maybeSingle(),
+    admin.from("repositories").select("full_name, default_branch")
+      .eq("id", repositoryId).eq("user_id", userId).eq("selected", true).maybeSingle(),
+  ]);
+  const installationId = profile?.github_installation_id as string | number | null | undefined;
+  if (!installationId || !repo) return { status: "failed", code: "repository_unavailable" };
   const token = await getInstallationToken(installationId);
-  const visible = await listRepos(token);
-  const { data, error } = await getSupabaseAdmin().from("repositories").select("full_name").eq("user_id",userId).eq("selected",true).limit(MAX_REPOS);
-  if (error) throw new Error("Selected repositories could not be read");
-  const selected = new Set((data ?? []).map((row) => row.full_name as string));
-  const repos = visible.filter((repo) => selected.has(repo.fullName)).slice(0, MAX_REPOS);
-
-  const prs: FixPr[] = [];
-  for (const repo of repos) {
-    try {
-      const pr = await fixRepo(token, repo.fullName, repo.defaultBranch);
-      if (pr) prs.push(pr);
-    } catch {
-      continue; // one repo's failure never blocks the rest
-    }
-  }
-  return { prs, repos: repos.length };
+  const pr = await fixRepo(token, repo.full_name as string, repo.default_branch as string);
+  return pr ? openedOutcome(pr.url) : { status: "failed", code: "no_changes" };
 }
