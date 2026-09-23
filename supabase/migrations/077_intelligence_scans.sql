@@ -47,8 +47,10 @@ begin
 end $$;
 
 -- Daily admission: weekly deep scans (one per selected repository per ISO
--- week) and windowed PR scans (daily or every 2 days) for PRs whose
--- deterministic review landed inside the window, at their latest head.
+-- week) and windowed PR scans (daily or every 2 days) for every PR whose
+-- deterministic check was admitted inside the window, at its latest head.
+-- Admission, not a stored review, is the source: a check that failed or died
+-- must not also cost the PR its AI scan.
 create function public.enqueue_due_intelligence_scans(p_now timestamptz, p_limit integer default 100)
 returns jsonb language plpgsql security definer set search_path = pg_catalog, public as $$
 declare
@@ -79,15 +81,16 @@ begin
       from (
         select distinct on (v.repository_id, v.pull_request_number)
           v.repository_id, v.user_id, v.pull_request_number, v.head_sha, c.pr_scan_cadence as cadence
-        from public.pull_request_reviews v
+        from public.pull_request_jobs v
+        join public.execution_jobs j on j.id = v.job_id and j.user_id = v.user_id
         join public.repositories r on r.id = v.repository_id and r.user_id = v.user_id and r.selected
         join public.intelligence_connections c on c.user_id = v.user_id
         join public.user_profiles p on p.id = v.user_id
         where c.revoked_at is null and c.pr_scan_cadence in ('daily','every_2_days')
           and p.github_installation_id is not null and v.head_sha ~ '^[a-f0-9]{40}$'
-          and v.checked_at <= p_now
-          and v.checked_at > p_now - case c.pr_scan_cadence when 'daily' then interval '1 day' else interval '2 days' end
-        order by v.repository_id, v.pull_request_number, v.checked_at desc
+          and j.created_at <= p_now
+          and j.created_at > p_now - case c.pr_scan_cadence when 'daily' then interval '1 day' else interval '2 days' end
+        order by v.repository_id, v.pull_request_number, j.created_at desc
       ) latest
     ) due
     where not exists(select 1 from public.execution_jobs j

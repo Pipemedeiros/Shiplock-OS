@@ -728,10 +728,14 @@ try {
     assert.deepEqual(await scans(),[{scan:"deep",pr:null,head:null,kind:"intelligence"}]);
     assert.equal((await due("2026-09-30T12:00:00Z")).admitted,1);
   });
-  await check("windowed PR scans cover PRs reviewed in the window, at their latest head", async () => {
+  await check("windowed PR scans cover every PR check admitted in the window, at its latest head, even if the check failed", async () => {
     await approve("codex","off","daily");
     await db.exec("reset role");
-    await db.query("insert into public.pull_request_reviews(user_id,repository_id,pull_request_number,head_sha,verdict,coverage_complete,findings,checked_at) values ($1,$2,5,$3,'pass',true,'[]','2026-10-01T08:00:00Z'),($1,$2,5,$4,'warn',true,'[]','2026-10-01T09:00:00Z'),($1,$2,6,$3,'pass',true,'[]','2026-09-20T09:00:00Z')",[u1,r1,"a".repeat(40),head]);
+    // PR 5: two admitted checks (the later one never produced a review); PR 6: outside the window.
+    for (const [pr,sha,at,status] of [[5,"a".repeat(40),"2026-10-01T08:00:00Z","succeeded"],[5,head,"2026-10-01T09:00:00Z","dead"],[6,"a".repeat(40),"2026-09-20T09:00:00Z","succeeded"]]) {
+      const job=(await db.query("insert into public.execution_jobs(user_id,repository_id,kind,deduplication_key,status,created_at) values ($1,$2,'pr-check',$3,$4,$5) returning id",[u1,r1,`pr-window:${pr}:${sha}`,status,at])).rows[0].id;
+      await db.query("insert into public.pull_request_jobs(job_id,user_id,repository_id,pull_request_number,head_sha) values ($1,$2,$3,$4,$5)",[job,u1,r1,pr,sha]);
+    }
     await db.exec("set role service_role");
     assert.equal((await due("2026-10-01T12:00:00Z")).admitted,1);
     assert.equal((await due("2026-10-01T13:00:00Z")).admitted,0);
