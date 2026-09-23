@@ -1,6 +1,7 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { sendEmail } from "@/lib/email";
 import type { Decision } from "@/lib/types";
+import { EMAIL_ALERTS_ENABLED } from "@/lib/access";
 
 // Mirrors lib/monitoring/alerts.ts: dedup per (user, source) over a window so a
 // flapping attacker doesn't email the customer repeatedly, one Resend send,
@@ -36,7 +37,9 @@ export async function sendThreatAlert(
   if (recent && recent.length > 0) return; // already told them about this source+action recently
 
   const blocked = decision.action === "block";
-  const sent = await sendEmail(
+  // Email is parked until Felipe approves delivery and cost. The judgment row
+  // below is still written: the graph reads it as "this source was judged".
+  const sent = EMAIL_ALERTS_ENABLED && await sendEmail(
     {
       to: email,
       subject: blocked
@@ -64,7 +67,7 @@ export async function sendThreatAlert(
   // notification of something the customer must act on, and the row's only job
   // is suppression. Same-shaped code, opposite correct answer, so the divergence
   // is spelled out rather than left as an inconsistency someone later "fixes".
-  if (!sent) {
+  if (!sent && EMAIL_ALERTS_ENABLED) {
     console.error(
       `[traffic] alert email failed for user ${userId}; recording the judgment anyway so the graph keeps the signal`
     );

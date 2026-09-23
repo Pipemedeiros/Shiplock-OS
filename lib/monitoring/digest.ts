@@ -2,6 +2,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { sendEmail } from "@/lib/email";
 import { getLatestScan } from "@/lib/scanHistory";
 import type { Severity } from "@/lib/types";
+import { EMAIL_ALERTS_ENABLED } from "@/lib/access";
 
 // The weekly digest — the churn countermeasure.
 //
@@ -168,6 +169,9 @@ export async function sendWeeklyDigest(
   email: string | null,
   lastSentAt: string | null
 ): Promise<boolean> {
+  // Email is parked until Felipe approves delivery and cost; the digest is an
+  // email like any alert. Nothing is stamped, so it resumes when enabled.
+  if (!EMAIL_ALERTS_ENABLED) return false;
   if (!email) return false;
   if (lastSentAt && Date.now() - Date.parse(lastSentAt) < WEEK_MS) return false;
 
