@@ -11,6 +11,7 @@ import crypto from "node:crypto";
 const enqueueAuditJobMock = vi.fn();
 const enqueueJobMock = vi.fn();
 const enqueuePullRequestCheckMock = vi.fn();
+const enqueuePullRequestIntelligenceMock = vi.fn();
 const runNextJobMock = vi.fn();
 const profileMaybeSingleMock = vi.fn();
 const repositoryMaybeSingleMock = vi.fn();
@@ -37,6 +38,7 @@ vi.mock("@/lib/jobs/queue", () => ({
   enqueueAuditJob: enqueueAuditJobMock,
   enqueueJob: enqueueJobMock,
   enqueuePullRequestCheck: enqueuePullRequestCheckMock,
+  enqueuePullRequestIntelligence: enqueuePullRequestIntelligenceMock,
 }));
 vi.mock("@/lib/jobs/worker", () => ({ runNextJob: runNextJobMock }));
 vi.mock("@/lib/supabase", () => ({
@@ -200,5 +202,18 @@ describe("the merge check and the coalescing window", () => {
     await POST(req(raw));
     await flushAfter();
     expect(enqueuePullRequestCheckMock).not.toHaveBeenCalled();
+  });
+
+  it("admits an every-PR intelligence scan with the check, only at a full head sha (10B-2c)", async () => {
+    await POST(req(payload));
+    expect(enqueuePullRequestIntelligenceMock).not.toHaveBeenCalled();
+    const full = "d".repeat(40);
+    const raw = JSON.stringify({ ...JSON.parse(payload), pull_request: { number: 7, head: { sha: full } } });
+    enqueuePullRequestIntelligenceMock.mockResolvedValue(null);
+    expect((await POST(req(raw))).status).toBe(200);
+    expect(enqueuePullRequestIntelligenceMock).toHaveBeenCalledWith(
+      "22222222-2222-4222-8222-222222222222", "33333333-3333-4333-8333-333333333333", 7, full);
+    enqueuePullRequestIntelligenceMock.mockRejectedValue(new Error("down"));
+    expect((await POST(req(raw))).status).toBe(503);
   });
 });

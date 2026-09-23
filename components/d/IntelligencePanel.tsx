@@ -14,7 +14,7 @@ export const defaultDraft: Draft = { host: "claude-code", deepScan: "weekly", pr
 
 const HOSTS: [Draft["host"], string][] = [["claude-code", "Claude Code"], ["codex", "Codex"], ["chatgpt", "ChatGPT"], ["api", "Your own API key"]];
 const PR_SCANS: [Draft["prScan"], string][] = [["every_pr", "Every PR"], ["every_2_days", "Every 2 days"], ["daily", "Daily"],
-  ["per_deploy", "Each deploy"], ["off", "Off"]];
+  ["per_deploy", "Each deploy (not available yet)"], ["off", "Off"]];
 const label = <T extends string>(options: [T, string][], value: T) => options.find(([v]) => v === value)?.[1] ?? value;
 
 const row = { display: "grid", gridTemplateColumns: "180px 1fr", gap: 12, alignItems: "center", marginBottom: 12, fontSize: 14 } as const;

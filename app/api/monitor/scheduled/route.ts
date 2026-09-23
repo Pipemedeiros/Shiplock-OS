@@ -11,6 +11,7 @@ import {
   admitDueMonitoringPasses,
   admitDueRepositoryDependencyChecks,
   admitDueRepositorySourceScans,
+  admitDueIntelligenceScans,
 } from "@/lib/jobs/scheduler";
 import { enqueueJob } from "@/lib/jobs/queue";
 
@@ -40,13 +41,16 @@ export async function GET(req: NextRequest) {
   let sourceAdmission;
   let dependencyAdmission;
   let monitoringAdmission;
+  let intelligenceAdmission;
   try {
     const now = new Date();
-    [auditAdmission, sourceAdmission, dependencyAdmission, monitoringAdmission] = await Promise.all([
+    [auditAdmission, sourceAdmission, dependencyAdmission, monitoringAdmission, intelligenceAdmission] = await Promise.all([
       admitDueRepositoryAudits(now, 1_000),
       admitDueRepositorySourceScans(now, 1_000),
       admitDueRepositoryDependencyChecks(now, 1_000),
       admitDueMonitoringPasses("scheduled_48h", now, 1_000),
+      // Weekly deep and windowed PR scans for the customer's own AI (10B-2c).
+      admitDueIntelligenceScans(now, 1_000),
     ]);
   } catch {
     console.error("[monitor/scheduled] durable work admission failed");
@@ -154,6 +158,9 @@ export async function GET(req: NextRequest) {
     dependencyJobsAdmitted: dependencyAdmission.admitted,
     dependencyAdmissionsFailed: dependencyAdmission.failed,
     dependencyAdmissionLimited: dependencyAdmission.limited,
+    intelligenceJobsAdmitted: intelligenceAdmission.admitted,
+    intelligenceAdmissionsFailed: intelligenceAdmission.failed,
+    intelligenceAdmissionLimited: intelligenceAdmission.limited,
     graphJobsAdmitted,
     graphAdmissionsFailed,
     digestsSent,

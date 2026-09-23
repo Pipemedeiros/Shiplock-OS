@@ -3,7 +3,7 @@ import { after } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { hasProductAccess } from "@/lib/access";
-import { enqueueAuditJob, enqueueJob, enqueuePullRequestCheck } from "@/lib/jobs/queue";
+import { enqueueAuditJob, enqueueJob, enqueuePullRequestCheck, enqueuePullRequestIntelligence } from "@/lib/jobs/queue";
 import { runNextJob } from "@/lib/jobs/worker";
 
 // GitHub App webhook — durably admits repository work for qualifying pull
@@ -155,6 +155,11 @@ export async function POST(req: NextRequest) {
           prNumber,
           headSha,
         );
+        // Every-PR AI scan for the customer's own host, when approved. A
+        // no-op otherwise; retried with the check if admission fails.
+        if (/^[a-f0-9]{40}$/i.test(headSha)) {
+          await enqueuePullRequestIntelligence(ownerId, repository.id, prNumber, headSha);
+        }
         workQueued = true;
       } catch {
         console.error("[monitor/github] pull request check admission failed");

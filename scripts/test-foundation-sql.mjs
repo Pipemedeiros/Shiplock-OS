@@ -36,6 +36,7 @@ try {
   await db.exec(await readFile(new URL("../supabase/migrations/074_intelligence_tasks.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/075_intelligence_retention.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/076_intelligence_connections.sql", import.meta.url), "utf8"));
+  await db.exec(await readFile(new URL("../supabase/migrations/077_intelligence_scans.sql", import.meta.url), "utf8"));
   await db.query("insert into auth.users values ($1),($2)", [u1,u2]);
   await db.query("insert into public.user_profiles(id) values($1),($2)", [u1,u2]);
   await check("connection epochs backfill the existing fingerprint and ignore blank credentials", async () => {
@@ -714,7 +715,44 @@ try {
     await db.exec("set role service_role");
     await assert.rejects(db.query("select public.create_intelligence_task($1,$2,$3,'chatgpt','x',$4,now()+interval '10 minutes','intel-rev-2')",[u1,r1,"a".repeat(40),sources]), /intelligence not approved/);
   });
+  // 10B-2c: approved cadences admit identity-only intelligence scan jobs.
+  const due=(at="2026-09-23T12:00:00Z")=>db.query("select public.enqueue_due_intelligence_scans($1::timestamptz,100) as a",[at]).then((x)=>x.rows[0].a);
+  const scans=()=>db.query("reset role").then(()=>db.query("select s.scan,s.pull_request_number as pr,s.head_sha as head,j.kind from public.intelligence_scan_jobs s join public.execution_jobs j on j.id=s.job_id where s.user_id=$1 order by s.scan,s.pull_request_number",[u1])).then(async (x)=>{await db.exec("set role service_role"); return x.rows;});
+  const head="c".repeat(40);
+  await check("a weekly deep scan is admitted once per selected repository per ISO week", async () => {
+    await approve("codex","weekly","off");
+    assert.deepEqual(await due(),{eligible:1,admitted:1,failed:0,limited:false});
+    assert.deepEqual(await due("2026-09-24T12:00:00Z"),{eligible:0,admitted:0,failed:0,limited:false});
+    assert.deepEqual(await scans(),[{scan:"deep",pr:null,head:null,kind:"intelligence"}]);
+    assert.equal((await due("2026-09-30T12:00:00Z")).admitted,1);
+  });
+  await check("windowed PR scans cover PRs reviewed in the window, at their latest head", async () => {
+    await approve("codex","off","daily");
+    await db.exec("reset role");
+    await db.query("insert into public.pull_request_reviews(user_id,repository_id,pull_request_number,head_sha,verdict,coverage_complete,findings,checked_at) values ($1,$2,5,$3,'pass',true,'[]','2026-10-01T08:00:00Z'),($1,$2,5,$4,'warn',true,'[]','2026-10-01T09:00:00Z'),($1,$2,6,$3,'pass',true,'[]','2026-09-20T09:00:00Z')",[u1,r1,"a".repeat(40),head]);
+    await db.exec("set role service_role");
+    assert.equal((await due("2026-10-01T12:00:00Z")).admitted,1);
+    assert.equal((await due("2026-10-01T13:00:00Z")).admitted,0);
+    assert.deepEqual((await scans()).filter((x)=>x.scan==="pr"),[{scan:"pr",pr:5,head,kind:"intelligence"}]);
+  });
+  await check("every-PR scans are admitted only under that cadence, idempotently", async () => {
+    const pr=(n)=>db.query("select public.enqueue_pull_request_intelligence($1,$2,$3,$4) as id",[u1,r1,n,head]).then((x)=>x.rows[0].id);
+    assert.equal(await pr(7),null);
+    await approve("codex","off","every_pr");
+    const id=await pr(7);
+    assert.ok(id);
+    assert.equal(await pr(7),id);
+    await assert.rejects(db.query("select public.enqueue_pull_request_intelligence($1,$2,7,'nothex')",[u1,r1]));
+    await db.query("select public.revoke_intelligence_connection($1)",[u1]);
+    assert.equal(await pr(8),null);
+    assert.equal((await due("2026-10-08T12:00:00Z")).eligible,0);
+  });
   await check("client roles cannot touch intelligence tasks", async () => {
+    await db.exec("reset role; set role authenticated");
+    await assert.rejects(db.query("select * from public.intelligence_scan_jobs"));
+    await assert.rejects(db.query("select public.enqueue_due_intelligence_scans(now(),10)"));
+    await assert.rejects(db.query("select public.enqueue_pull_request_intelligence($1,$2,1,$3)",[u1,r1,head]));
+    await db.exec("reset role; set role service_role");
     await db.exec("reset role; set role authenticated");
     await assert.rejects(db.query("select * from public.intelligence_connections"));
     await assert.rejects(approve());

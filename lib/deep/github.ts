@@ -368,6 +368,24 @@ export interface PullRequestFiles {
   coverage: string;
 }
 
+/** Names of files a pull request adds or modifies (first page, up to 100).
+ * `complete` is false when GitHub has more pages or files were deleted. */
+export async function listPullRequestFileNames(
+  token: string,
+  fullName: string,
+  number: number,
+): Promise<{ paths: string[]; complete: boolean }> {
+  const res = await fetch(`${API}/repos/${fullName}/pulls/${number}/files?per_page=100`, {
+    headers: { ...GH_HEADERS, Authorization: `token ${token}` },
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+  if (!res.ok) throw new Error(`GitHub PR files HTTP ${res.status}`);
+  const json = (await res.json()) as Array<{ filename?: string; status?: string }>;
+  const paths = json.filter((f) => f.filename && f.status !== "removed").map((f) => f.filename as string);
+  const paginated = /(?:^|,)\s*<[^>]+>;\s*rel="next"/.test(res.headers.get("link") ?? "");
+  return { paths, complete: !paginated && paths.length === json.length };
+}
+
 /** Files a pull request touches, with their content AFTER the change.
  *
  * The check is deliberately bounded. A partial diff can still prove a concrete

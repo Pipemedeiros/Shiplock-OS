@@ -5,6 +5,7 @@ const admitAuditsMock = vi.fn();
 const admitSourcesMock = vi.fn();
 const admitDependenciesMock = vi.fn();
 const admitMonitoringMock = vi.fn();
+const admitIntelligenceMock = vi.fn();
 const runGraphReasonerMock = vi.fn();
 const collectTrafficFactsMock = vi.fn();
 const saveFactsMock = vi.fn();
@@ -20,6 +21,7 @@ vi.mock("@/lib/jobs/scheduler", () => ({
   admitDueRepositorySourceScans: admitSourcesMock,
   admitDueRepositoryDependencyChecks: admitDependenciesMock,
   admitDueMonitoringPasses: admitMonitoringMock,
+  admitDueIntelligenceScans: admitIntelligenceMock,
 }));
 vi.mock("@/lib/jobs/queue", () => ({ enqueueJob: enqueueJobMock }));
 vi.mock("@/lib/traffic/prune", () => ({ pruneOldTraffic: pruneOldTrafficMock }));
@@ -75,6 +77,7 @@ describe("GET /api/monitor/scheduled — durable source admission", () => {
     admitSourcesMock.mockResolvedValue({ eligible: 4, admitted: 4, failed: 0, limited: true });
     admitDependenciesMock.mockResolvedValue({ eligible: 2, admitted: 2, failed: 0, limited: false });
     admitMonitoringMock.mockResolvedValue({ eligible: 5, admitted: 4, failed: 1, limited: false });
+    admitIntelligenceMock.mockResolvedValue({ eligible: 1, admitted: 1, failed: 0, limited: false });
     runGraphReasonerMock.mockResolvedValue({ total: 0, newCount: 0, resolvedCount: 0 });
     collectTrafficFactsMock.mockResolvedValue([]);
     sendWeeklyDigestMock.mockResolvedValue(false);
@@ -100,7 +103,11 @@ describe("GET /api/monitor/scheduled — durable source admission", () => {
     expect(admitSourcesMock).toHaveBeenCalledWith(expect.any(Date), 1_000);
     expect(admitDependenciesMock).toHaveBeenCalledWith(expect.any(Date), 1_000);
     expect(admitMonitoringMock).toHaveBeenCalledWith("scheduled_48h",expect.any(Date),1_000);
+    expect(admitIntelligenceMock).toHaveBeenCalledWith(expect.any(Date), 1_000);
     expect(body).toMatchObject({
+      intelligenceJobsAdmitted: 1,
+      intelligenceAdmissionsFailed: 0,
+      intelligenceAdmissionLimited: false,
       auditsEligible: 3,
       auditsAdmitted: 2,
       auditAdmissionsFailed: 1,

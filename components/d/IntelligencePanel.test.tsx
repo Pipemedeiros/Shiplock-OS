@@ -17,6 +17,8 @@ describe("IntelligencePanel (10B-2b)", () => {
     }
     expect(out).toContain("Every pull request still needs your click");
     expect(out).toContain("not connected");
+    // Nothing admits per-deploy scans yet (10B-2c); the option says so.
+    expect(out).toContain("Each deploy (not available yet)");
   });
 
   it("is honest that pull-host budgets are advisory and agent setup is not live", () => {

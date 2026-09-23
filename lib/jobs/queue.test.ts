@@ -1,7 +1,7 @@
 import { beforeEach, expect, it, vi } from "vitest";
 const rpc = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ rpc }) }));
-import { enqueueAuditJob, enqueueJob, enqueuePullRequestCheck, claimJob, executeClaimedJob, withLeaseHeartbeat, type ClaimedJob } from "./queue";
+import { enqueueAuditJob, enqueueJob, enqueuePullRequestCheck, enqueuePullRequestIntelligence, claimJob, executeClaimedJob, withLeaseHeartbeat, type ClaimedJob } from "./queue";
 const id = "11111111-1111-4111-8111-111111111111";
 const job: ClaimedJob = { id, user_id: id, repository_id: id, kind: "audit", status: "running", attempts: 1,
   audit_run_id: "33333333-3333-4333-8333-333333333333", deduplication_key: "audit:test",
@@ -82,4 +82,15 @@ it("keeps a long provider read inside the live lease", async () => {
   } finally {
     vi.useRealTimers();
   }
+});
+
+it("queues an every-PR intelligence scan only at a full head commit, and reports no approval as null (10B-2c)", async () => {
+  rpc.mockResolvedValue({ data: id, error: null });
+  expect(await enqueuePullRequestIntelligence(id, id, 7, "A".repeat(40))).toBe(id);
+  expect(rpc).toHaveBeenCalledWith("enqueue_pull_request_intelligence", { p_user: id, p_repository: id, p_pr: 7, p_head: "a".repeat(40) });
+  rpc.mockResolvedValue({ data: null, error: null });
+  expect(await enqueuePullRequestIntelligence(id, id, 7, "a".repeat(40))).toBeNull();
+  await expect(enqueuePullRequestIntelligence(id, id, 7, "abc1234")).rejects.toThrow();
+  rpc.mockResolvedValue({ data: null, error: { message: "private" } });
+  await expect(enqueuePullRequestIntelligence(id, id, 7, "a".repeat(40))).rejects.toThrow("could not be queued");
 });

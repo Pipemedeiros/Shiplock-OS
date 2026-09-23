@@ -6,6 +6,7 @@ import { runNextDependencyJob } from "./dependencyWorker";
 import { runNextMonitorJob } from "./monitorWorker";
 import { runNextNotificationJob } from "./notificationWorker";
 import { runNextRepairJob } from "./repairWorker";
+import { runNextIntelligenceJob } from "./intelligenceWorker";
 
 /** One bounded unit per invocation. Customer-visible PR/audit work wins, then
  * already-admitted graph follow-ups, source refresh, and advisory rechecks.
@@ -19,5 +20,7 @@ export async function runNextJob(): Promise<boolean> {
   if (await runNextGraphJob()) return true;
   if (await runNextSourceJob()) return true;
   if (await runNextDependencyJob()) return true;
+  // Creates a task for the customer's own AI; no model is called here.
+  if (await runNextIntelligenceJob()) return true;
   return runNextMonitorJob();
 }

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
-export const JobKind = z.enum(["audit", "source", "monitor", "dependency", "graph", "pr-check", "notification", "repair"]);
+export const JobKind = z.enum(["audit", "source", "monitor", "dependency", "graph", "pr-check", "notification", "repair", "intelligence"]);
 export type JobKind = z.infer<typeof JobKind>;
 export const AuditTrigger = z.enum(["manual", "pull_request", "scheduled"]);
 export type AuditTrigger = z.infer<typeof AuditTrigger>;
@@ -63,6 +63,25 @@ export async function enqueuePullRequestCheck(
   });
   if (error) throw new Error("Pull request check could not be queued");
   return z.uuid().parse(data);
+}
+
+/** Every-PR customer-intelligence scan (10B-2c). Null means the account does
+ * not currently approve every-PR scans; nothing was queued. */
+export async function enqueuePullRequestIntelligence(
+  userId: string,
+  repositoryId: string,
+  pullRequestNumber: number,
+  headSha: string,
+): Promise<string | null> {
+  z.uuid().parse(userId);
+  z.uuid().parse(repositoryId);
+  z.number().int().positive().max(Number.MAX_SAFE_INTEGER).parse(pullRequestNumber);
+  z.string().regex(/^[a-f0-9]{40}$/i).parse(headSha);
+  const { data, error } = await getSupabaseAdmin().rpc("enqueue_pull_request_intelligence", {
+    p_user: userId, p_repository: repositoryId, p_pr: pullRequestNumber, p_head: headSha.toLowerCase(),
+  });
+  if (error) throw new Error("Pull request intelligence could not be queued");
+  return z.uuid().nullable().parse(data);
 }
 
 export async function claimJob(kind: JobKind): Promise<ClaimedJob | null> {

@@ -81,6 +81,22 @@ export async function admitDueMonitoringPasses(
   return admission.parse(data);
 }
 
+/** Weekly deep scans and windowed PR scans the customer approved (10B-2c). */
+export async function admitDueIntelligenceScans(
+  now = new Date(),
+  limit = 1_000,
+): Promise<AuditAdmission> {
+  if (!Number.isInteger(limit) || limit < 1 || limit > 5_000 || !Number.isFinite(now.getTime())) {
+    throw new Error("Invalid intelligence admission window");
+  }
+  const { data, error } = await getSupabaseAdmin().rpc("enqueue_due_intelligence_scans", {
+    p_now: now.toISOString(),
+    p_limit: limit,
+  });
+  if (error) throw new Error("Scheduled intelligence scans could not be queued");
+  return admission.parse(data);
+}
+
 export async function enqueueMonitoringPass(
   userId: string,
   trigger: "manual" | "deploy" | "hourly" | "scheduled_48h",
