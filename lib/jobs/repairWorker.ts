@@ -3,12 +3,14 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { openRiskFixPr } from "@/lib/fixes/riskFixPr";
 import { openFindingFixPr } from "@/lib/fixes/findingFixPr";
 import { openDependencyBumpPr } from "@/lib/deep/githubFixRun";
+import { openPullRequestFixPr } from "@/lib/fixes/pullRequestFixPr";
 import type { RepairOutcome } from "@/lib/fixes/repairOutcome";
 import { claimJob, executeClaimedJob, PermanentJobError, withLeaseHeartbeat, type ClaimedJob } from "./queue";
 
 const receiptSchema = z.object({
   user_id: z.uuid(), repository_id: z.uuid(),
-  action: z.enum(["risk-fix-pr", "finding-fix-pr", "dependency-bump-pr"]),
+  action: z.enum(["risk-fix-pr", "finding-fix-pr", "dependency-bump-pr", "pr-fix-pr"]),
+  review_id: z.uuid().nullable(),
   finding_id: z.string().min(1).max(400).nullable(),
   edited_content: z.string().max(60_000).nullable(),
   status: z.enum(["queued", "opened", "failed", "uncertain"]),
@@ -28,7 +30,7 @@ export async function executeRepairJob(job: ClaimedJob): Promise<void> {
   }
   const admin = getSupabaseAdmin();
   const { data, error } = await admin.from("repair_action_receipts")
-    .select("user_id, repository_id, action, finding_id, edited_content, status")
+    .select("user_id, repository_id, action, finding_id, edited_content, review_id, status")
     .eq("job_id", job.id).maybeSingle();
   if (error) throw new Error("Repair receipt could not be read");
   const receipt = receiptSchema.safeParse(data);
@@ -48,12 +50,13 @@ export async function executeRepairJob(job: ClaimedJob): Promise<void> {
     if (recordError || recorded !== true) throw new Error("Repair receipt could not be recorded");
   };
 
-  const { action, finding_id: findingId, edited_content: edited } = receipt.data;
+  const { action, finding_id: findingId, edited_content: edited, review_id: reviewId } = receipt.data;
   await withLeaseHeartbeat(job, async () => {
     let outcome: RepairOutcome;
     try {
       outcome = action === "risk-fix-pr" ? await openRiskFixPr(job.user_id, findingId!, job.repository_id!)
         : action === "finding-fix-pr" ? await openFindingFixPr(job.user_id, findingId!, edited, job.repository_id!)
+        : action === "pr-fix-pr" ? await openPullRequestFixPr(job.user_id, reviewId!, findingId!, job.repository_id!)
         : await openDependencyBumpPr(job.user_id, job.repository_id!);
     } catch (err) {
       await record({ status: "uncertain" }).catch(() => {});

@@ -4,6 +4,7 @@ import { requireDashboardSession } from "@/lib/dashboard";
 import { getOpenFindings } from "@/lib/agent/dashboardData";
 import { getRecentPullRequestReviews, type PullRequestReviewView } from "@/lib/agent/pullRequestReviews";
 import { Sev } from "@/components/v3/FindingParts";
+import { PullRequestFixButton } from "@/components/v3/PullRequestFixButton";
 
 /**
  * The pull requests ShipLock opened, waiting on a human.
@@ -182,6 +183,11 @@ function CheckedPullRequests({ reviews }: { reviews: PullRequestReviewView[] }) 
                       <Sev severity={finding.severity} />
                     </div>
                     <p className="v3-small" style={{ marginTop: 2 }}>{finding.file}. {finding.evidence}</p>
+                    {review.sameRepository && review.headRef ? (
+                      <PullRequestFixButton reviewId={review.id} findingId={finding.id} />
+                    ) : review.sameRepository === false ? (
+                      <p className="v3-small" style={{ marginTop: 2 }}>From a fork, so the fix is yours to push.</p>
+                    ) : null}
                   </div>
                 ))}
                 {review.url ? (

@@ -41,4 +41,10 @@ describe("requestRepairAction (3F-C2d-3)", () => {
     expect(mocks.after).not.toHaveBeenCalled();
     vi.useRealTimers();
   });
+
+  it("binds a fix-before-merge click to its stored review (8B-3)", async () => {
+    await requestRepairAction({ userId: "u1", repositoryId: "r1", action: "pr-fix-pr", findingId: "diff:x", editedContent: null, reviewId: "rev-1" });
+    expect(mocks.rpc.mock.calls[0][1]).toMatchObject({ p_action: "pr-fix-pr", p_review: "rev-1" });
+    vi.useRealTimers();
+  });
 });

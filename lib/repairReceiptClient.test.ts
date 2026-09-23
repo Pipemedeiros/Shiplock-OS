@@ -37,6 +37,8 @@ describe("repairMessage", () => {
       { status: "failed", url: null, failure: "finding_unavailable" },
       { status: "failed", url: null, failure: "github_rejected" },
       { status: "failed", url: null, failure: "no_changes" },
+      { status: "failed", url: null, failure: "fork_pull_request" },
+      { status: "failed", url: null, failure: "pull_request_closed" },
       { status: "uncertain", url: null, failure: "delivery_unconfirmed" },
       { status: "queued", url: null, failure: null },
     ] as const) {

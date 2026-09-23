@@ -31,6 +31,7 @@ try {
   await db.exec(await readFile(new URL("../supabase/migrations/069_manual_monitor_trigger.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/070_repair_action_receipts.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/071_pull_request_reviews.sql", import.meta.url), "utf8"));
+  await db.exec(await readFile(new URL("../supabase/migrations/072_pull_request_fix_receipts.sql", import.meta.url), "utf8"));
   await db.query("insert into auth.users values ($1),($2)", [u1,u2]);
   await db.query("insert into public.user_profiles(id) values($1),($2)", [u1,u2]);
   await check("connection epochs backfill the existing fingerprint and ignore blank credentials", async () => {
@@ -564,6 +565,24 @@ try {
     await db.exec("reset role");
     const row=(await db.query("select verdict,head_ref,same_repository,jsonb_array_length(findings) n from public.pull_request_reviews where id=$1",[id])).rows[0];
     assert.deepEqual(row,{verdict:"warn",head_ref:"feature/orders",same_repository:true,n:1});
+    await db.exec("set role service_role");
+  });
+  await check("a fix-before-merge click binds to the caller's own same-repository review", async () => {
+    await db.exec("reset role");
+    const review=(await db.query("select id from public.pull_request_reviews where user_id=$1 and pull_request_number=9",[u1])).rows[0].id;
+    const fork=(await db.query("insert into public.pull_request_reviews(user_id,repository_id,pull_request_number,head_sha,head_ref,same_repository,verdict,coverage_complete,findings) values($1,$2,10,$3,'patch-1',false,'block',true,$4) returning id",
+      [u1,r1,"e".repeat(40),JSON.stringify([{id:"diff:x",severity:"CRITICAL",title:"t",detail:"d",file:"f",evidence:"e"}])])).rows[0].id;
+    await db.exec("set role service_role");
+    const ask=(key,finding,reviewId,repo=r1,user=u1)=>db.query("select public.request_repair_action($1,$2,'pr-fix-pr',$3,null,$4,$5) as receipt",[user,repo,finding,key,reviewId]);
+    const receipt=(await ask("pr-fix-1","diff:unscoped-query",review)).rows[0].receipt;
+    assert.equal((await ask("pr-fix-1","diff:unscoped-query",review)).rows[0].receipt,receipt);
+    await assert.rejects(ask("pr-fix-2","diff:not-in-review",review));
+    await assert.rejects(ask("pr-fix-3","diff:x",fork));
+    await assert.rejects(ask("pr-fix-4","diff:unscoped-query",null));
+    await assert.rejects(ask("pr-fix-5","diff:unscoped-query",review,r2,u2));
+    await assert.rejects(db.query("select public.request_repair_action($1,$2,'risk-fix-pr','agent:x',null,'pr-fix-6',$3)",[u1,r1,review]));
+    await db.exec("reset role");
+    assert.equal((await db.query("select review_id from public.repair_action_receipts where id=$1",[receipt])).rows[0].review_id,review);
     await db.exec("set role service_role");
   });
   await check("client roles cannot read or write pull-request reviews", async () => {
