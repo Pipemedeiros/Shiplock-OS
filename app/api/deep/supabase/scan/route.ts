@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireProUser } from "@/lib/deep/proGate";
 import { queueCustomerRecheck } from "@/lib/jobs/manualRecheck";
 import { crossSiteRefusal } from "@/lib/security/sameOrigin";
+import { quotaResponse } from "@/lib/quota";
 
 // Queues an on-demand policy recheck (3F-C2c-5). The monitor worker runs the
 // read-only policy scan under its lease; this request collects nothing.
@@ -14,7 +15,9 @@ export async function POST(request: Request) {
 
   try {
     await queueCustomerRecheck(pro.userId, "supabase-management");
-  } catch {
+  } catch (err) {
+    const quota = quotaResponse(err);
+    if (quota) return quota;
     // Admission refuses a customer with nothing connected to check.
     return NextResponse.json({ error: "Connect your Supabase project first, then try again." }, { status: 409 });
   }

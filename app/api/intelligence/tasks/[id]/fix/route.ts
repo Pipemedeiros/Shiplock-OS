@@ -4,6 +4,7 @@ import { requireProUser } from "@/lib/deep/proGate";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { requestRepairAction } from "@/lib/jobs/repairAction";
 import { isSameOrigin } from "@/lib/security/sameOrigin";
+import { quotaResponse } from "@/lib/quota";
 
 /**
  * The customer's click to open a PR for a change their own AI proposed
@@ -38,7 +39,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const receiptId = await requestRepairAction({ userId: user.userId, repositoryId: task.data.repository_id,
       action: "ai-fix-pr", findingId: id.data, editedContent: null, taskId: id.data });
     return NextResponse.json({ receiptId, status: "queued" }, { status: 202 });
-  } catch {
+  } catch (err) {
+    const quota = quotaResponse(err);
+    if (quota) return quota;
     return NextResponse.json({ error: "Could not queue the pull request. Try again." }, { status: 503 });
   }
 }

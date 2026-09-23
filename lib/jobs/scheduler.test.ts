@@ -55,3 +55,8 @@ it("admits approved intelligence scans for one bounded window (10B-2c)",async()=
   expect(rpc).toHaveBeenCalledWith("enqueue_due_intelligence_scans",{p_now:"2026-09-23T01:00:00.000Z",p_limit:250});
   await expect(admitDueIntelligenceScans(new Date("x"),250)).rejects.toThrow();
 });
+
+it("reports the manual recheck quota distinctly (3H-2)",async()=>{
+  rpc.mockResolvedValueOnce({data:null,error:{message:"recheck quota reached"}});
+  await expect(enqueueMonitoringPass("22222222-2222-4222-8222-222222222222","manual","manual:x")).rejects.toThrow("recheck_quota_reached");
+});

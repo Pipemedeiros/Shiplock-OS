@@ -4,6 +4,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { queueCustomerRecheck } from "@/lib/jobs/manualRecheck";
 import { currentConnectionEpoch } from "@/lib/deep/providerRepositoryMap";
 import { crossSiteRefusal } from "@/lib/security/sameOrigin";
+import { quotaResponse } from "@/lib/quota";
 
 // Queue a recheck of the caller's connected Vercel account (3F-C2c-5). The
 // monitor worker runs the audit under its lease; this request collects nothing.
@@ -32,7 +33,9 @@ export async function POST(request: Request) {
   try {
     await queueCustomerRecheck(pro.userId, "vercel");
     return NextResponse.json({ ok: true, status: "queued" }, { status: 202, headers: { "Cache-Control": "no-store" } });
-  } catch {
+  } catch (err) {
+    const quota = quotaResponse(err);
+    if (quota) return quota;
     return NextResponse.json({ error: "The recheck could not be queued. Try again." }, { status: 503 });
   }
 }

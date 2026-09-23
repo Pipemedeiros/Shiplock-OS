@@ -33,6 +33,13 @@ describe("POST /api/fix/pr", () => {
     expect(mocks.github).not.toHaveBeenCalled();
   });
 
+  it("tells the customer when the daily fix limit is reached (3H-2)", async () => {
+    mocks.request.mockRejectedValue(new Error("repair_quota_reached"));
+    const res = await post({ findingId: "agent:idor" });
+    expect(res.status).toBe(429);
+    expect((await res.json()).error).toMatch(/30 fixes in the last 24 hours/);
+  });
+
   it("returns an already-open PR without a new receipt", async () => {
     mocks.findings.mockResolvedValue([{ ...finding, fixPrUrl: "https://github.com/acme/app/pull/3" }]);
     expect(await (await post({ findingId: "agent:idor" })).json()).toEqual({ url: "https://github.com/acme/app/pull/3", alreadyOpen: true });

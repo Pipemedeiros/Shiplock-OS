@@ -5,6 +5,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { getOpenFindings } from "@/lib/agent/dashboardData";
 import { requestRepairAction } from "@/lib/jobs/repairAction";
 import { crossSiteRefusal } from "@/lib/security/sameOrigin";
+import { quotaResponse } from "@/lib/quota";
 
 /**
  * The customer's click to open a pull request for one Risks-board finding.
@@ -50,7 +51,9 @@ export async function POST(request: Request) {
       findingId: finding.id, editedContent: null,
     });
     return NextResponse.json({ receiptId, status: "queued" }, { status: 202 });
-  } catch {
+  } catch (err) {
+    const quota = quotaResponse(err);
+    if (quota) return quota;
     return NextResponse.json({ error: "Could not queue the pull request. Try again." }, { status: 503 });
   }
 }

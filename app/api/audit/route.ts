@@ -5,6 +5,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { enqueueAuditJob } from "@/lib/jobs/queue";
 import { runNextAuditJob } from "@/lib/jobs/auditWorker";
 import { crossSiteRefusal } from "@/lib/security/sameOrigin";
+import { quotaResponse } from "@/lib/quota";
 
 /**
  * Durably queues an audit of one selected repository and returns its run id.
@@ -72,9 +73,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ runId: receipt.run_id, status: "queued" }, { status: 202 });
   } catch (err) {
     // Provisional hard cap (migration 082): tell the customer, do not alarm the logs.
-    if (err instanceof Error && err.message === "audit_quota_reached") {
-      return NextResponse.json({ error: "You have run 20 audits in the last 24 hours, the current limit. Scheduled and pull request checks keep running; try a manual audit again later." }, { status: 429 });
-    }
+    const quota = quotaResponse(err);
+    if (quota) return quota;
     console.error("[api/audit] enqueue failed:", err instanceof Error ? err.message : "unknown error");
     return NextResponse.json({ error: "The audit could not be queued." }, { status: 503 });
   }

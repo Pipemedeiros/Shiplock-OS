@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { quotaCode } from "@/lib/quota";
 
 export const JobKind = z.enum(["audit", "source", "monitor", "dependency", "graph", "pr-check", "notification", "repair", "intelligence"]);
 export type JobKind = z.infer<typeof JobKind>;
@@ -28,7 +29,7 @@ export async function enqueueAuditJob(
   const { data, error } = await getSupabaseAdmin().rpc("enqueue_repository_audit", {
     p_user: userId, p_repository: repositoryId, p_key: key, p_trigger: trigger,
   });
-  if (error?.message?.includes("audit quota reached")) throw new Error("audit_quota_reached");
+  if (error && quotaCode(error.message)) throw new Error(quotaCode(error.message)!);
   if (error) throw new Error("Audit could not be queued");
   return auditReceipt.parse(z.array(auditReceipt).length(1).parse(data)[0]);
 }

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { BILLING_ENABLED } from "@/lib/access";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { quotaCode } from "@/lib/quota";
 
 const admission = z.object({
   eligible: z.number().int().nonnegative(),
@@ -109,6 +110,6 @@ export async function enqueueMonitoringPass(
     p_trigger: trigger,
     p_key: key,
   });
-  if (error) throw new Error("Monitoring could not be queued");
+  if (error) throw new Error(quotaCode(error.message) ?? "Monitoring could not be queued");
   return z.uuid().parse(data);
 }

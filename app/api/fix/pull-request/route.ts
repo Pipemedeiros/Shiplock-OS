@@ -4,6 +4,7 @@ import { requireProUser } from "@/lib/deep/proGate";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { requestRepairAction } from "@/lib/jobs/repairAction";
 import { crossSiteRefusal } from "@/lib/security/sameOrigin";
+import { quotaResponse } from "@/lib/quota";
 
 /**
  * The customer's "fix before merge" click on a checked pull request (8B-3).
@@ -44,7 +45,9 @@ export async function POST(request: Request) {
       findingId: parsed.data.findingId, editedContent: null, reviewId: parsed.data.reviewId,
     });
     return NextResponse.json({ receiptId, status: "queued" }, { status: 202 });
-  } catch {
+  } catch (err) {
+    const quota = quotaResponse(err);
+    if (quota) return quota;
     return NextResponse.json({ error: "Could not queue the fix. Try again." }, { status: 503 });
   }
 }

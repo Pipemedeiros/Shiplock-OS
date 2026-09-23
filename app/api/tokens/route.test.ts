@@ -38,6 +38,16 @@ describe("MCP token issuance with billing parked", () => {
     expect(insertToken).toHaveBeenCalledOnce();
   });
 
+  it("refuses an eleventh active token plainly and returns no token (3H-2)", async () => {
+    profile.mockResolvedValue({ data: { is_paid: false } });
+    insertToken.mockResolvedValue({ error: { message: "token limit reached" } });
+    const response = await POST(request());
+    expect(response.status).toBe(429);
+    const body = await response.json();
+    expect(body.token).toBeUndefined();
+    expect(body.error).toMatch(/10 active tokens/);
+  });
+
   it("does not issue a PAT when the signed-in account has no profile", async () => {
     profile.mockResolvedValue({ data: null });
     const response = await POST(request());

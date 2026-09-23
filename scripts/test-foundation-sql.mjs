@@ -41,6 +41,8 @@ try {
   await db.exec(await readFile(new URL("../supabase/migrations/080_ai_fix_receipts.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/081_first_scan_credit.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/082_manual_audit_quota.sql", import.meta.url), "utf8"));
+  await db.exec(await readFile(new URL("../supabase/migrations/031_api_tokens.sql", import.meta.url), "utf8"));
+  await db.exec(await readFile(new URL("../supabase/migrations/083_click_quotas.sql", import.meta.url), "utf8"));
   await db.query("insert into auth.users values ($1),($2)", [u1,u2]);
   await db.query("insert into public.user_profiles(id) values($1),($2)", [u1,u2]);
   await check("connection epochs backfill the existing fingerprint and ignore blank credentials", async () => {
@@ -854,6 +856,38 @@ try {
     assert.deepEqual(await manual("quota-20"),twentieth);                   // idempotent replay is not a new run
     await assert.rejects(manual("quota-21"),/audit quota reached/);         // the 21st in 24h is refused
     assert.ok((await manual("quota-sched","scheduled")).run_id);           // scheduled work is not a manual click
+  });
+  // 3H-2: provisional caps on the other customer-click paths.
+  await check("manual provider rechecks are capped at 20 per account per rolling day, replays excepted", async () => {
+    await db.exec("reset role");
+    const existing=(await db.query("select count(*)::int as n from public.monitoring_job_context where user_id=$1 and trigger_source='manual' and created_at>now()-interval '24 hours'",[legacy])).rows[0].n;
+    await db.exec("set role service_role");
+    const recheck=(key)=>db.query("select public.enqueue_monitoring_job($1,'manual',$2) as id",[legacy,key]).then((x)=>x.rows[0].id);
+    let last;
+    for (let i=existing;i<20;i++) last=await recheck(`quota-recheck-${i}`);
+    await assert.rejects(recheck("quota-recheck-over"),/recheck quota reached/);
+    assert.equal(await recheck(`quota-recheck-19`),last);
+    assert.ok(await db.query("select public.enqueue_monitoring_job($1,'deploy','quota-deploy') as id",[legacy]).then((x)=>x.rows[0].id));
+  });
+  await check("repair clicks are capped at 30 per account per rolling day, replays excepted", async () => {
+    await db.exec("reset role");
+    const existing=(await db.query("select count(*)::int as n from public.repair_action_receipts where user_id=$1 and requested_at>now()-interval '24 hours'",[u1])).rows[0].n;
+    await db.query("delete from public.execution_jobs where user_id=$1 and status='queued' and kind<>'repair'",[u1]);
+    await db.exec("set role service_role");
+    const click=(key)=>db.query("select public.request_repair_action($1,$2,'dependency-bump-pr',null,null,$3) as id",[u1,r1,key]).then((x)=>x.rows[0].id);
+    let last;
+    for (let i=existing;i<30;i++) last=await click(`quota-repair-${i}`);
+    await assert.rejects(click("quota-repair-over"),/repair quota reached/);
+    assert.equal(await click(`quota-repair-29`),last);
+  });
+  await check("an account holds at most 10 active access tokens; revoked ones do not count", async () => {
+    await db.exec("reset role");
+    const token=(n)=>db.query("insert into public.api_tokens(user_id,token_hash) values ($1,$2)",[u2,`quota-token-${n}`]);
+    for (let i=0;i<10;i++) await token(i);
+    await assert.rejects(token(10),/token limit reached/);
+    await db.query("update public.api_tokens set revoked_at=now() where token_hash='quota-token-0'");
+    await token(11);
+    await db.exec("set role service_role");
   });
   await check("client roles cannot touch intelligence tasks", async () => {
     await db.exec("reset role; set role authenticated");

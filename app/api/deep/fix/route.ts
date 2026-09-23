@@ -5,6 +5,7 @@ import { requestRepairAction } from "@/lib/jobs/repairAction";
 import { getFixFindings } from "@/lib/fixes/findings";
 import { fixLane } from "@/lib/fixes/lane";
 import { hasProductAccess } from "@/lib/access";
+import { quotaResponse } from "@/lib/quota";
 
 // The customer's click to open a reviewable fix PR for one finding. Admits a
 // receipted repair job (3F-C2d); the worker opens a new branch off the default
@@ -65,7 +66,9 @@ export async function POST(req: NextRequest) {
       : { userId: auth.user.id, repositoryId: repository.id, action: "finding-fix-pr",
           findingId: finding.id, editedContent: parsed.editedContent || null });
     return NextResponse.json({ receiptId, status: "queued" }, { status: 202 });
-  } catch {
+  } catch (err) {
+    const quota = quotaResponse(err);
+    if (quota) return quota;
     return NextResponse.json({ error: "Could not queue the fix PR. Try again." }, { status: 503 });
   }
 }

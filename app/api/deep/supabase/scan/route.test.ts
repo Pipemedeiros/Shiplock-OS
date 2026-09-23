@@ -27,6 +27,13 @@ describe("POST /api/deep/supabase/scan (3F-C2c-5)", () => {
     expect((await POST(new Request("https://shiplock.dev/api/deep/supabase/scan", { method: "POST", headers: { origin: "https://shiplock.dev" } }))).status).toBe(409);
   });
 
+  it("tells the customer when the daily recheck limit is reached (3H-2)", async () => {
+    mocks.recheck.mockRejectedValue(new Error("recheck_quota_reached"));
+    const res = await POST(new Request("https://shiplock.dev/api/deep/supabase/scan", { method: "POST", headers: { origin: "https://shiplock.dev" } }));
+    expect(res.status).toBe(429);
+    expect((await res.json()).error).toMatch(/20 rechecks/);
+  });
+
   it("still requires access", async () => {
     mocks.pro.mockResolvedValue(null);
     expect((await POST(new Request("https://shiplock.dev/api/deep/supabase/scan", { method: "POST", headers: { origin: "https://shiplock.dev" } }))).status).toBe(402);

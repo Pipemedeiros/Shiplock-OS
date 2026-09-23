@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { generateToken } from "@/lib/apiTokens";
 import { hasProductAccess } from "@/lib/access";
+import { quotaCode, quotaResponse } from "@/lib/quota";
 
 // Manage ShipLock PATs (for the MCP integration). Session-Bearer auth (the
 // dashboard), product-access gated. POST creates + returns the raw token ONCE; GET lists
@@ -32,7 +33,11 @@ export async function POST(req: NextRequest) {
 
   const { raw, hash } = generateToken();
   const { error } = await ctx.admin.from("api_tokens").insert({ user_id: ctx.userId, token_hash: hash, name });
-  if (error) return NextResponse.json({ error: "Could not create token." }, { status: 500 });
+  if (error) {
+    // Provisional cap of 10 active tokens (migration 083).
+    const code = quotaCode(error.message);
+    return quotaResponse(code ? new Error(code) : null) ?? NextResponse.json({ error: "Could not create token." }, { status: 500 });
+  }
 
   // Raw token returned ONCE — never retrievable again.
   return NextResponse.json({ token: raw, name });

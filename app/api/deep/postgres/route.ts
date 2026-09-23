@@ -4,6 +4,7 @@ import { requireProUser } from "@/lib/deep/proGate";
 import { connectDirectPostgres, disconnectDirectPostgres } from "@/lib/deep/postgresDirectRun";
 import { queueCustomerRecheck } from "@/lib/jobs/manualRecheck";
 import { crossSiteRefusal } from "@/lib/security/sameOrigin";
+import { quotaResponse } from "@/lib/quota";
 
 // Connect / scan / disconnect a customer's own Postgres, for everyone not on
 // Supabase. Same "your database" slot as app/api/deep/supabase/* — a customer
@@ -61,7 +62,9 @@ export async function POST(request: Request) {
 
   try {
     await queueCustomerRecheck(pro.userId, "postgres-direct");
-  } catch {
+  } catch (err) {
+    const quota = quotaResponse(err);
+    if (quota) return quota;
     // Admission refuses a customer with nothing connected to check.
     return NextResponse.json({ error: "Connect your database first, then try again." }, { status: 409 });
   }

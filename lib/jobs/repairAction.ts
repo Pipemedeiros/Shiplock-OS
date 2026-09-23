@@ -3,6 +3,7 @@ import { after } from "next/server";
 import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { runNextRepairJob } from "./repairWorker";
+import { quotaCode } from "@/lib/quota";
 
 export interface RepairRequest {
   userId: string;
@@ -33,7 +34,8 @@ export async function requestRepairAction(request: RepairRequest): Promise<strin
     p_key: `${request.action}:${request.findingId ?? request.repositoryId}:${edit}:${minute}`.slice(0, 200),
   });
   const receiptId = z.uuid().safeParse(data);
-  if (error || !receiptId.success) throw new Error("The fix could not be queued");
+  if (error) throw new Error(quotaCode(error.message) ?? "The fix could not be queued");
+  if (!receiptId.success) throw new Error("The fix could not be queued");
   after(async () => {
     try { await runNextRepairJob(); }
     catch (err) { console.error("[repair] queued worker stopped:", err instanceof Error ? err.message : "unknown error"); }
