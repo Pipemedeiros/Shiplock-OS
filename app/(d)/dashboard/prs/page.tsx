@@ -5,6 +5,8 @@ import { getOpenFindings } from "@/lib/agent/dashboardData";
 import { getRecentPullRequestReviews, type PullRequestReviewView } from "@/lib/agent/pullRequestReviews";
 import { Sev } from "@/components/v3/FindingParts";
 import { PullRequestFixButton } from "@/components/v3/PullRequestFixButton";
+import { aiCheckForPullRequest, getAiActivity, type AiActivity } from "@/lib/intelligence/activity";
+import { aiStateLabel } from "@/components/v3/AiChecks";
 
 /**
  * The pull requests ShipLock opened, waiting on a human.
@@ -25,7 +27,7 @@ export const metadata = { title: "Pull requests" };
 
 export default async function PullRequests() {
   const { userId } = await requireDashboardSession();
-  const [findings, reviews] = await Promise.all([getOpenFindings(userId), getRecentPullRequestReviews(userId)]);
+  const [findings, reviews, ai] = await Promise.all([getOpenFindings(userId), getRecentPullRequestReviews(userId), getAiActivity(userId)]);
 
   const open = findings.filter((f) => f.fixPrUrl);
   const eligible = findings.filter((f) => !f.fixPrUrl && f.fixKind === "pr");
@@ -45,7 +47,7 @@ export default async function PullRequests() {
       </div>
 
       <div className="v3-stack">
-        <CheckedPullRequests reviews={reviews} />
+        <CheckedPullRequests reviews={reviews} ai={ai} />
 
         <div className="v3-card">
           <div className="v3-hd">
@@ -148,7 +150,13 @@ const verdictLabel: Record<PullRequestReviewView["verdict"], string> = {
 
 /** Your own pull requests as ShipLock checked them (8B-2): what each one
  * introduced, where, and how much of it we could read. */
-function CheckedPullRequests({ reviews }: { reviews: PullRequestReviewView[] }) {
+function aiLine(ai: AiActivity, review: PullRequestReviewView): string {
+  if (!ai.available) return "state unknown.";
+  const check = aiCheckForPullRequest(ai.checks, review.repository, review.number);
+  return check ? aiStateLabel[check.state] : "none requested for this pull request. Not checked by AI.";
+}
+
+function CheckedPullRequests({ reviews, ai }: { reviews: PullRequestReviewView[]; ai: AiActivity }) {
   return (
     <div className="v3-card">
       <div className="v3-hd">
@@ -175,6 +183,9 @@ function CheckedPullRequests({ reviews }: { reviews: PullRequestReviewView[] }) 
                   #{review.number} · {review.repository}
                   {review.headRef ? ` · ${review.headRef}` : ""}
                   {review.coverageComplete ? "" : " · partial check, some files were not read"}
+                </p>
+                <p className="v3-small" style={{ marginTop: 3 }}>
+                  AI check: {aiLine(ai, review)}
                 </p>
                 {review.findings.map((finding) => (
                   <div key={finding.id} style={{ marginTop: 8 }}>

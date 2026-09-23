@@ -2,6 +2,8 @@ import Link from "next/link";
 import { requireDashboardSession } from "@/lib/dashboard";
 import { getRuns } from "@/lib/agent/dashboardData";
 import { getEvidenceCoverage } from "@/lib/graph/evidenceCoverage";
+import { getAiActivity } from "@/lib/intelligence/activity";
+import { AiChecks } from "@/components/v3/AiChecks";
 
 /**
  * What the last audit did not reach.
@@ -13,7 +15,7 @@ import { getEvidenceCoverage } from "@/lib/graph/evidenceCoverage";
  */
 export default async function Coverage() {
   const { userId } = await requireDashboardSession();
-  const [runs, evidence] = await Promise.all([getRuns(userId, 1), getEvidenceCoverage(userId)]);
+  const [runs, evidence, ai] = await Promise.all([getRuns(userId, 1), getEvidenceCoverage(userId), getAiActivity(userId)]);
   const latest = runs[0];
 
   return (
@@ -23,6 +25,14 @@ export default async function Coverage() {
           <p className="v3-eyebrow">What we read, and what we did not</p>
           <h1 className="v3-serif">Coverage</h1>
         </div>
+      </div>
+
+      {/* Work handed to the customer's own AI (10B-2d). Unanswered is not clean. */}
+      <div className="v3-card" style={{ marginBottom: 24 }}>
+        <div className="v3-hd">
+          <h2 className="v3-eyebrow">Your AI checks</h2>
+        </div>
+        <div className="v3-card-p"><AiChecks activity={ai} /></div>
       </div>
 
       <div className="v3-card" style={{ marginBottom: 24 }}>
