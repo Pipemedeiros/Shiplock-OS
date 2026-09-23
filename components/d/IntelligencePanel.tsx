@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react";
 import type { ConnectionApproval, ConnectionView } from "@/lib/intelligence/connection";
 import type { ApiKeyStatus } from "@/lib/intelligence/credential";
+import { AgentSetup } from "./AgentSetup";
 
 type Draft = Omit<ConnectionApproval, "allowProposals"> & { allowProposals: boolean };
 export const defaultDraft: Draft = { host: "claude-code", deepScan: "weekly", prScan: "every_pr",
@@ -88,10 +89,7 @@ export function IntelligenceApprovalView({ connection, apiKey, draft, busy, erro
             ? "ShipLock runs approved checks on your key, and only your key. It is stored encrypted and never shown again. Each run is capped at your per-run budget, and monthly usage is counted from the API, so the monthly limit is enforced."
             : "Budgets are a limit we ask your agent to respect: your agent spends its own allowance, so we cannot enforce them."}
         </p>
-        <p style={note}>
-          Agent setup is not available yet. Once it is, your agent picks up approved work, reads your code in its own
-          checkout, and sends back findings and suggested fixes. We check every citation against GitHub before accepting it.
-        </p>
+        <AgentSetup host={draft.host} />
         <label style={{ ...note, display: "flex", gap: 8, alignItems: "flex-start", color: "var(--ink)" }}>
           <input type="checkbox" checked={draft.allowProposals} onChange={(e) => set("allowProposals", e.target.checked)} />
           <span>Let my AI send findings and suggested fixes on this schedule. Every pull request still needs your click,

@@ -24,7 +24,9 @@ describe("IntelligencePanel (10B-2b)", () => {
   it("is honest that pull-host budgets are advisory and agent setup is not live", () => {
     const out = html();
     expect(out).toContain("your agent spends its own allowance");
-    expect(out).toContain("Agent setup is not available yet");
+    // Every account can connect its own agent over MCP (Felipe 2026-09-23).
+    expect(out).toContain("Create a token");
+    expect(out).toContain("cannot start your agent");
     expect(out).not.toContain("npx");
     const api = html({ draft: { ...defaultDraft, host: "api" } });
     expect(api).toContain("ShipLock runs approved checks on your key");
