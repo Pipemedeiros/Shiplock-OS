@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createHash } from "node:crypto";
 
 const mocks = vi.hoisted(() => ({
   profile: vi.fn(), refreshWrite: vi.fn(), encrypt: vi.fn(), usable: vi.fn(),
@@ -55,8 +54,8 @@ const profile = {
   supabase_mgmt_token_encrypted: encrypted, supabase_mgmt_refresh_encrypted: "encrypted-refresh",
   supabase_mgmt_project_ref: project, supabase_mgmt_expires_at: null,
   monitored_app_url: "https://app.example.com",
+  supabase_mgmt_connection_epoch: "a".repeat(64),
 };
-const fingerprint = (value: string) => createHash("sha256").update(value).digest("hex");
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -83,7 +82,7 @@ describe("Step 2C-3-C2-A: Supabase Management project and credential provenance"
     expect(result.newFindings!.length).toBeGreaterThan(0);
     expect(state.facts.supabaseManagementSnapshot).toEqual({
       collector: "supabase-management", authzProvider: "postgres-rls", projectRef: project,
-      connectionFingerprint: fingerprint(encrypted), recordedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
+      connectionFingerprint: "a".repeat(64), recordedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
       completeness: "unknown", policies, advisors: [],
       authConfig: { disable_signup: false, mailer_autoconfirm: true },
     });
@@ -101,7 +100,7 @@ describe("Step 2C-3-C2-A: Supabase Management project and credential provenance"
 
   it("replaces snapshots on project/credential change rather than borrowing merged facts", async () => {
     await runPolicyScan("u");
-    mocks.profile.mockResolvedValue({ data: { ...profile, supabase_mgmt_project_ref: "project-two", supabase_mgmt_token_encrypted: "encrypted-access-three" }, error: null });
+    mocks.profile.mockResolvedValue({ data: { ...profile, supabase_mgmt_project_ref: "project-two", supabase_mgmt_token_encrypted: "encrypted-access-three", supabase_mgmt_connection_epoch: "b".repeat(64) }, error: null });
     mocks.policies.mockResolvedValue([]);
     mocks.advisors.mockRejectedValue(new Error("unavailable"));
     mocks.auth.mockResolvedValue(null);
@@ -109,7 +108,7 @@ describe("Step 2C-3-C2-A: Supabase Management project and credential provenance"
     try {
       expect(await runPolicyScan("u")).toMatchObject({ ok: true });
       expect(state.facts.supabaseManagementSnapshot).toMatchObject({
-        projectRef: "project-two", connectionFingerprint: fingerprint("encrypted-access-three"), policies: [], authConfig: null,
+        projectRef: "project-two", connectionFingerprint: "b".repeat(64), policies: [], authConfig: null,
       });
       expect(state.facts.supabaseManagementSnapshot).not.toHaveProperty("advisors");
       expect(state.facts.supabaseManagementSnapshot).not.toHaveProperty("scanTables");
@@ -184,10 +183,10 @@ describe("Step 2C-3-C2-A: Supabase Management project and credential provenance"
     expect(mocks.upsert).not.toHaveBeenCalled();
   });
 
-  it("uses the newly persisted ciphertext fingerprint after refresh and guards the old project/credential", async () => {
+  it("keeps the connection epoch across a refresh (2D) and guards the old project/credential", async () => {
     mocks.usable.mockResolvedValue({ token: { accessToken: "private-access", refreshToken: "private-refresh", expiresAt: null }, refreshed: true });
     expect(await runPolicyScan("u")).toMatchObject({ ok: true });
-    expect(state.facts.supabaseManagementSnapshot).toHaveProperty("connectionFingerprint", fingerprint("encrypted-access-two"));
+    expect(state.facts.supabaseManagementSnapshot).toHaveProperty("connectionFingerprint", "a".repeat(64));
     expect(state.refreshFilters).toEqual([["id", "u"], ["supabase_mgmt_project_ref", project], ["supabase_mgmt_token_encrypted", encrypted]]);
   });
 
@@ -275,5 +274,13 @@ describe("3F-C2b: an aborted Supabase Management pass writes no evidence", () =>
       expect(mocks.policies).not.toHaveBeenCalled();
       expect(mocks.upsert).not.toHaveBeenCalled();
     } finally { log.mockRestore(); }
+  });
+});
+
+describe("2D-2: Supabase Management identity is the connection epoch", () => {
+  it("treats a credential without a valid epoch as not connected", async () => {
+    mocks.profile.mockResolvedValue({ data: { ...profile, supabase_mgmt_connection_epoch: null }, error: null });
+    expect(await runPolicyScan("u")).toEqual({ ok: false, findings: 0, reason: "not_connected" });
+    expect(mocks.upsert).not.toHaveBeenCalled();
   });
 });

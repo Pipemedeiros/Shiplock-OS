@@ -4,7 +4,7 @@ import { saveFacts } from "@/lib/graph/graphRun";
 import { listProjects, listProjectEnv } from "./vercel";
 import { auditEnv, type EnvFinding } from "./envaudit";
 import type { RuntimeEnvFact } from "@/lib/graph/graph";
-import { syncVercelRepositoryLinks, providerConnectionFingerprint } from "./providerRepositoryMap";
+import { syncVercelRepositoryLinks } from "./providerRepositoryMap";
 
 const MAX_PROJECTS = 20;
 
@@ -16,6 +16,8 @@ const MAX_PROJECTS = 20;
 export async function runVercelEnvAudit(
   userId: string,
   encryptedToken: string,
+  /** Epoch read in the same profile row as `encryptedToken` (migration 067). */
+  connectionEpoch: string,
   teamId: string | null,
   { signal }: { signal?: AbortSignal } = {},
 ): Promise<{
@@ -32,7 +34,7 @@ export async function runVercelEnvAudit(
   signal?.throwIfAborted();
   let repositoryByProject = new Map<string, string>();
   try {
-    repositoryByProject = await syncVercelRepositoryLinks(userId, projects, encryptedToken);
+    repositoryByProject = await syncVercelRepositoryLinks(userId, projects, connectionEpoch);
   } catch (err) {
     // Provider-only checks may still run, but repository attribution fails
     // closed. A persistence/read failure never becomes an in-memory mapping.
@@ -65,7 +67,7 @@ export async function runVercelEnvAudit(
         target: Array.isArray(env.target) ? env.target : [],
         provider: "vercel",
         projectId: project.id,
-        connectionFingerprint: providerConnectionFingerprint(encryptedToken),
+        connectionFingerprint: connectionEpoch,
         ...(repositoryByProject.get(project.id)
           ? { repositoryId: repositoryByProject.get(project.id) }
           : {}),

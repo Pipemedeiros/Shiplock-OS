@@ -38,20 +38,20 @@ describe("POST /api/deep/vercel/scan", () => {
 
   it("runs the audit and returns counts on success", async () => {
     requireProUserMock.mockResolvedValue({ userId: "u1", email: "a@b.com" });
-    singleMock.mockResolvedValue({ data: { vercel_access_token_encrypted: "enc", vercel_team_id: "t1" } });
+    singleMock.mockResolvedValue({ data: { vercel_access_token_encrypted: "enc", vercel_connection_epoch: "e".repeat(64), vercel_team_id: "t1" } });
     runVercelEnvAuditMock.mockResolvedValue({ total: 3, newCount: 1, findings: [] });
 
     const res = await POST();
     const body = await res.json();
 
-    expect(runVercelEnvAuditMock).toHaveBeenCalledWith("u1", "enc", "t1");
+    expect(runVercelEnvAuditMock).toHaveBeenCalledWith("u1", "enc", "e".repeat(64), "t1");
     expect(body).toEqual({ ok: true, total: 3, newCount: 1 });
     expect(res.headers.get("Cache-Control")).toBe("no-store");
   });
 
   it("returns 502 with a generic message when the audit throws", async () => {
     requireProUserMock.mockResolvedValue({ userId: "u1", email: "a@b.com" });
-    singleMock.mockResolvedValue({ data: { vercel_access_token_encrypted: "enc", vercel_team_id: null } });
+    singleMock.mockResolvedValue({ data: { vercel_access_token_encrypted: "enc", vercel_connection_epoch: "e".repeat(64), vercel_team_id: null } });
     runVercelEnvAuditMock.mockRejectedValue(new Error("Vercel API is down with a very specific internal error"));
 
     const res = await POST();
@@ -59,5 +59,13 @@ describe("POST /api/deep/vercel/scan", () => {
     expect(res.status).toBe(502);
     expect(body.error).toBe("Scan failed. Try again.");
     expect(JSON.stringify(body)).not.toContain("Vercel API is down");
+  });
+
+  it("returns 400 when a stored token has no valid connection epoch (2D)", async () => {
+    requireProUserMock.mockResolvedValue({ userId: "u1", email: "a@b.com" });
+    singleMock.mockResolvedValue({ data: { vercel_access_token_encrypted: "enc", vercel_connection_epoch: null, vercel_team_id: null } });
+    const res = await POST();
+    expect(res.status).toBe(400);
+    expect(runVercelEnvAuditMock).not.toHaveBeenCalled();
   });
 });

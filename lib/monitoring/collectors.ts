@@ -8,19 +8,20 @@ import {
 } from "./findings";
 import type { CollectorSpec } from "./registry";
 import type { SupabaseEndpointSnapshot } from "@/lib/graph/graphRun";
-import { providerConnectionFingerprint } from "@/lib/deep/providerRepositoryMap";
+import { currentConnectionEpoch } from "@/lib/deep/providerRepositoryMap";
 import { validateSupabaseUrl } from "@/lib/sanitize";
 
-function endpointOrigin(rawUrl: string, encryptedKey: string | null): Pick<SupabaseEndpointSnapshot,
+function endpointOrigin(rawUrl: string, encryptedKey: string | null, epoch: string | null | undefined): Pick<SupabaseEndpointSnapshot,
   "endpointUrl" | "projectRef" | "identitySource" | "connectionFingerprint"> | undefined {
-  if (typeof encryptedKey !== "string" || !encryptedKey.trim()) return undefined;
+  const connectionFingerprint = currentConnectionEpoch(encryptedKey, epoch);
+  if (!connectionFingerprint) return undefined;
   try {
     // Match the scanner's accepted target, not a raw URL containing credentials
     // or query parameters. This identifies the input endpoint, not its database.
     const endpointUrl = validateSupabaseUrl(rawUrl);
     return {
       endpointUrl, projectRef: new URL(endpointUrl).hostname.split(".")[0],
-      identitySource: "validated-input", connectionFingerprint: providerConnectionFingerprint(encryptedKey),
+      identitySource: "validated-input", connectionFingerprint,
     };
   } catch { return undefined; }
 }
@@ -72,7 +73,7 @@ export const supabaseScanCollector: CollectorSpec = {
 
     // Capture the supplied origin before any asynchronous collection. Later
     // profile changes must not relabel observations from the old target/key.
-    const origin = endpointOrigin(ctx.profile.monitored_project_url, encryptedKey);
+    const origin = endpointOrigin(ctx.profile.monitored_project_url, encryptedKey, ctx.profile.supabase_endpoint_connection_epoch);
     const scan = await scanProject(ctx.profile.monitored_project_url, ctx.anonKey, undefined, ctx.signal, unread);
     const fresh = extractFindings(scan);
     const tableReports = (scan.tables ?? []).map((t) => ({
@@ -194,7 +195,8 @@ export const vercelEnvCollector: CollectorSpec = {
   // them, not minute to minute, and the hourly pass is the one with a budget.
   eligibleTriggers: ["deploy", "scheduled_48h"],
   timeoutMs: 30_000,
-  appliesTo: (ctx) => Boolean(ctx.profile.vercel_access_token_encrypted),
+  appliesTo: (ctx) => Boolean(currentConnectionEpoch(
+    ctx.profile.vercel_access_token_encrypted, ctx.profile.vercel_connection_epoch)),
   async run(ctx) {
     // Self-diffing: runVercelEnvAudit owns its rows in deep_findings, so its
     // findings must not also enter the snapshot and be diffed a second time.
@@ -202,6 +204,7 @@ export const vercelEnvCollector: CollectorSpec = {
     const result = await runVercelEnvAudit(
       ctx.profile.id,
       ctx.profile.vercel_access_token_encrypted as string,
+      ctx.profile.vercel_connection_epoch as string,
       ctx.profile.vercel_team_id ?? null,
       { signal: ctx.signal },
     );

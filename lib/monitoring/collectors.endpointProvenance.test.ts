@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createHash } from "node:crypto";
+const EPOCH_ONE = "1".repeat(64), EPOCH_TWO = "2".repeat(64);
 import type { ScanResult } from "@/lib/scanner";
 import type { CollectorContext } from "./registry";
 
@@ -35,7 +35,7 @@ import { DEFAULT_COLLECTORS, supabaseScanCollector } from "./collectors";
 import { runMonitoringPass } from "./run";
 
 const ctx = (): CollectorContext => ({
-  profile: { id: "u", email: null, monitored_project_url: "https://project-one.supabase.co", monitored_anon_key_encrypted: "encrypted-key-one" },
+  profile: { id: "u", email: null, monitored_project_url: "https://project-one.supabase.co", monitored_anon_key_encrypted: "encrypted-key-one", supabase_endpoint_connection_epoch: EPOCH_ONE },
   anonKey: "private-anon-key", triggerSource: "scheduled_48h", previousFindings: [],
 });
 const scanTables = [{ name: "invoices", rlsEnabled: false }, { name: "profiles", rlsEnabled: true }];
@@ -43,7 +43,7 @@ const tableReports = scanTables.map((table) => ({ ...table, rlsReadable: true })
 // Deliberately partial fixture: full result parsing belongs to scanner tests.
 // Isolate its reported table contract, not untracked per-table RLS reads.
 const scan = { tables: tableReports.map((t) => ({ ...t, policies: [], policiesRetrieved: false })) } as unknown as ScanResult;
-const fingerprint = (value: string) => createHash("sha256").update(value).digest("hex");
+
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -64,7 +64,7 @@ describe("Step 2E: endpoint provenance with explicit RLS readability", () => {
       supabaseEndpointSnapshot: {
         collector: "supabase-scan", authzProvider: "postgres-rls",
         endpointUrl: "https://project-one.supabase.co", projectRef: "project-one",
-        identitySource: "validated-input", connectionFingerprint: fingerprint("encrypted-key-one"),
+        identitySource: "validated-input", connectionFingerprint: EPOCH_ONE,
         recordedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/), completeness: "unknown",
         rlsReadability: "complete", tableReports,
       },
@@ -91,9 +91,9 @@ describe("Step 2E: endpoint provenance with explicit RLS readability", () => {
     const first = ctx().profile;
     await runMonitoringPass(first, "scheduled_48h", [supabaseScanCollector]);
     mocks.scan.mockResolvedValue({ tables: [] });
-    await runMonitoringPass({ ...first, monitored_project_url: "https://project-two.supabase.co", monitored_anon_key_encrypted: "encrypted-key-two" }, "deploy", [supabaseScanCollector]);
+    await runMonitoringPass({ ...first, monitored_project_url: "https://project-two.supabase.co", monitored_anon_key_encrypted: "encrypted-key-two", supabase_endpoint_connection_epoch: EPOCH_TWO }, "deploy", [supabaseScanCollector]);
     expect(state.facts.supabaseEndpointSnapshot).toMatchObject({
-      projectRef: "project-two", connectionFingerprint: fingerprint("encrypted-key-two"), tableReports: [], completeness: "unknown",
+      projectRef: "project-two", connectionFingerprint: EPOCH_TWO, tableReports: [], completeness: "unknown",
     });
     expect(state.facts.supabaseEndpointSnapshot).not.toHaveProperty("policies");
     expect(state.facts.supabaseEndpointSnapshot).not.toHaveProperty("advisors");
@@ -146,16 +146,17 @@ describe("Step 2E: endpoint provenance with explicit RLS readability", () => {
     expect(mocks.upsert).not.toHaveBeenCalled();
   });
 
-  it("captures the supplied target and ciphertext before awaiting a scan", async () => {
+  it("captures the supplied target and connection epoch before awaiting a scan", async () => {
     const context = ctx();
     mocks.scan.mockImplementation(async () => {
       context.profile.monitored_project_url = "https://project-two.supabase.co";
       context.profile.monitored_anon_key_encrypted = "encrypted-key-two";
+      context.profile.supabase_endpoint_connection_epoch = EPOCH_TWO;
       return scan;
     });
     const result = await supabaseScanCollector.run(context);
     expect(result.facts?.facts.supabaseEndpointSnapshot).toMatchObject({
-      endpointUrl: "https://project-one.supabase.co", projectRef: "project-one", connectionFingerprint: fingerprint("encrypted-key-one"),
+      endpointUrl: "https://project-one.supabase.co", projectRef: "project-one", connectionFingerprint: EPOCH_ONE,
     });
   });
 
@@ -210,5 +211,14 @@ describe("Step 2E: endpoint provenance with explicit RLS readability", () => {
       expect(mocks.snapshot).toHaveBeenCalledTimes(1);
       expect(log).toHaveBeenCalled();
     } finally { log.mockRestore(); }
+  });
+});
+
+describe("2D-2: endpoint identity is the connection epoch", () => {
+  it("stamps the endpoint snapshot with the stored epoch", async () => {
+    const context = ctx();
+    context.profile.supabase_endpoint_connection_epoch = "f".repeat(64);
+    const result = await supabaseScanCollector.run(context);
+    expect(result.facts?.facts.supabaseEndpointSnapshot).toMatchObject({ connectionFingerprint: "f".repeat(64) });
   });
 });

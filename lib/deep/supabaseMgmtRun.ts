@@ -29,7 +29,7 @@ import { scanStorage, checkBackups } from "./storageScan";
 import { scanRealtimeAndHooks } from "./realtimeScan";
 import { deriveAppUrl } from "./deriveAppUrl";
 import { saveFacts, type SupabaseManagementSnapshot } from "@/lib/graph/graphRun";
-import { providerConnectionFingerprint } from "./providerRepositoryMap";
+import { currentConnectionEpoch } from "./providerRepositoryMap";
 import { buildInventory } from "@/lib/exposure/model";
 import { runAuthLogScan } from "@/lib/runtime/authRun";
 import { runProvingGround } from "@/lib/proving/run";
@@ -68,7 +68,7 @@ export async function runPolicyScan(
   const { data: row, error: profileError } = await admin
     .from("user_profiles")
     .select(
-      "supabase_mgmt_token_encrypted, supabase_mgmt_refresh_encrypted, supabase_mgmt_expires_at, supabase_mgmt_project_ref, monitored_app_url"
+      "supabase_mgmt_token_encrypted, supabase_mgmt_connection_epoch, supabase_mgmt_refresh_encrypted, supabase_mgmt_expires_at, supabase_mgmt_project_ref, monitored_app_url"
     )
     .eq("id", userId)
     .maybeSingle();
@@ -78,9 +78,12 @@ export async function runPolicyScan(
       !row.supabase_mgmt_project_ref.trim()) {
     return { ok: false, findings: 0, reason: "not_connected" };
   }
+  // Read with the credential; an OAuth refresh below keeps this identity.
+  const connectionFingerprint = currentConnectionEpoch(row.supabase_mgmt_token_encrypted, row.supabase_mgmt_connection_epoch);
+  if (!connectionFingerprint) return { ok: false, findings: 0, reason: "not_connected" };
 
   const projectRef = row.supabase_mgmt_project_ref;
-  let connectionCiphertext = row.supabase_mgmt_token_encrypted;
+  const connectionCiphertext = row.supabase_mgmt_token_encrypted;
   let token;
   try {
     const usable = await getUsableToken(row);
@@ -110,7 +113,6 @@ export async function runPolicyScan(
       if (refreshError || persisted?.supabase_mgmt_token_encrypted !== refreshedCiphertext) {
         return { ok: false, findings: 0, reason: "auth_failed" };
       }
-      connectionCiphertext = refreshedCiphertext;
     }
   } catch {
     // A revoked or expired connection is a normal state, not an error worth
@@ -122,7 +124,6 @@ export async function runPolicyScan(
   // already have rotated the refresh token, and dropping the replacement would
   // strand the connection. From here on, a cancelled pass reads and writes nothing.
   if (signal?.aborted) return ABORTED;
-  const connectionFingerprint = providerConnectionFingerprint(connectionCiphertext);
 
   let findings;
   try {

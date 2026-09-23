@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { validateSupabaseUrl } from "@/lib/sanitize";
-import { providerConnectionFingerprint } from "@/lib/deep/providerRepositoryMap";
+import { currentConnectionEpoch } from "@/lib/deep/providerRepositoryMap";
 import { PgPolicyRow, SupabaseAdvisorRow } from "@/lib/deep/apiSchemas";
 import type { DbFacts } from "./graphRun";
 
@@ -51,7 +51,8 @@ const endpointSchema = base.extend({
   }
 });
 const profileSchema = z.object({
-  postgres_dsn_encrypted: z.unknown().optional(),
+  postgres_dsn_encrypted: z.unknown().optional(), postgres_connection_epoch: z.unknown().optional(),
+  supabase_mgmt_connection_epoch: z.unknown().optional(), supabase_endpoint_connection_epoch: z.unknown().optional(),
   supabase_mgmt_token_encrypted: z.unknown().optional(), supabase_mgmt_project_ref: z.unknown().optional(),
   monitored_anon_key_encrypted: z.unknown().optional(), monitored_project_url: z.unknown().optional(),
 });
@@ -60,14 +61,15 @@ const factsSchema = z.object({
   supabaseEndpointSnapshot: z.unknown().optional(),
 });
 
-function matches(snapshot: z.infer<typeof base>, ciphertext: unknown, now: number): boolean {
-  return typeof ciphertext === "string" && ciphertext.trim().length > 0 && Number.isFinite(now) &&
-    Date.parse(snapshot.recordedAt) <= now && snapshot.connectionFingerprint === providerConnectionFingerprint(ciphertext);
+function matches(snapshot: z.infer<typeof base>, epoch: string | null, now: number): boolean {
+  return epoch !== null && Number.isFinite(now) &&
+    Date.parse(snapshot.recordedAt) <= now && snapshot.connectionFingerprint === epoch;
 }
 
 /** Current-profile admission only. No decryption, provider fetch, flat fallback
- * or repository inference. Reconnect after this read remains a race until an
- * immutable connection epoch/transactional admission contract exists. */
+ * or repository inference. Snapshots match the connection epoch read with its
+ * credential (migration 067); a reconnect after this read is still a race until
+ * transactional admission exists (3F-C2c). */
 export async function loadCurrentDatabaseEvidence(userId: string, rawFacts: unknown, now = Date.now()): Promise<DatabaseEvidence> {
   const result: DatabaseEvidence = { admission: "unknown", snapshots: {} };
   const facts = factsSchema.safeParse(rawFacts);
@@ -80,20 +82,20 @@ export async function loadCurrentDatabaseEvidence(userId: string, rawFacts: unkn
   if (!direct.success && !management.success && !endpoint.success) return result;
   try {
     const { data, error } = await getSupabaseAdmin().from("user_profiles")
-      .select("postgres_dsn_encrypted, supabase_mgmt_token_encrypted, supabase_mgmt_project_ref, monitored_anon_key_encrypted, monitored_project_url")
+      .select("postgres_dsn_encrypted, postgres_connection_epoch, supabase_mgmt_token_encrypted, supabase_mgmt_connection_epoch, supabase_mgmt_project_ref, monitored_anon_key_encrypted, supabase_endpoint_connection_epoch, monitored_project_url")
       .eq("id", userId).maybeSingle();
     if (error) return result;
     const profile = profileSchema.safeParse(data);
     if (!profile.success) return result;
 
-    if (direct.success && matches(direct.data, profile.data.postgres_dsn_encrypted, now)) {
+    if (direct.success && matches(direct.data, currentConnectionEpoch(profile.data.postgres_dsn_encrypted, profile.data.postgres_connection_epoch), now)) {
       result.snapshots.directPostgresSnapshot = direct.data;
     }
-    if (management.success && matches(management.data, profile.data.supabase_mgmt_token_encrypted, now) &&
+    if (management.success && matches(management.data, currentConnectionEpoch(profile.data.supabase_mgmt_token_encrypted, profile.data.supabase_mgmt_connection_epoch), now) &&
         management.data.projectRef === profile.data.supabase_mgmt_project_ref) {
       result.snapshots.supabaseManagementSnapshot = management.data;
     }
-    if (endpoint.success && matches(endpoint.data, profile.data.monitored_anon_key_encrypted, now)) {
+    if (endpoint.success && matches(endpoint.data, currentConnectionEpoch(profile.data.monitored_anon_key_encrypted, profile.data.supabase_endpoint_connection_epoch), now)) {
       try {
         const url = validateSupabaseUrl(profile.data.monitored_project_url);
         if (endpoint.data.endpointUrl === url && endpoint.data.projectRef === new URL(url).hostname.split(".")[0]) {

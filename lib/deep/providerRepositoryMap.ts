@@ -1,5 +1,5 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import type { VercelProject } from "./vercel";
 
 interface SelectedRepository {
@@ -17,9 +17,14 @@ export function newConnectionEpoch(): string {
   return randomBytes(32).toString("hex");
 }
 
-/** Opaque identity of this installation, never a plaintext credential. */
-export function providerConnectionFingerprint(encryptedToken: string): string {
-  return createHash("sha256").update(encryptedToken).digest("hex");
+/**
+ * The current connection identity, read from the SAME profile row as its
+ * credential: the stored epoch when a non-blank credential is present and the
+ * epoch is well-formed, otherwise null (unknown, never a match).
+ */
+export function currentConnectionEpoch(credential: unknown, epoch: unknown): string | null {
+  return typeof credential === "string" && credential.trim().length > 0 &&
+    typeof epoch === "string" && /^[a-f0-9]{64}$/.test(epoch) ? epoch : null;
 }
 
 /**
@@ -31,7 +36,7 @@ export function providerConnectionFingerprint(encryptedToken: string): string {
 export async function syncVercelRepositoryLinks(
   userId: string,
   projects: VercelProject[],
-  encryptedToken: string,
+  connectionEpoch: string,
 ): Promise<Map<string, string>> {
   const admin = getSupabaseAdmin();
   const { data, error } = await admin
@@ -72,7 +77,7 @@ export async function syncVercelRepositoryLinks(
       provider_repository_id: link.repoId,
       repository_id: repository.id,
       verification_method: "provider_git_link",
-      connection_fingerprint: providerConnectionFingerprint(encryptedToken),
+      connection_fingerprint: connectionEpoch,
       verified_at: new Date().toISOString(),
     });
   }
@@ -110,13 +115,13 @@ export async function loadVerifiedProviderProjects(
 ): Promise<Set<string>> {
   const admin = getSupabaseAdmin();
   const [{ data: profile, error: profileError }, { data: repository, error: repositoryError }] = await Promise.all([
-    admin.from("user_profiles").select("vercel_access_token_encrypted").eq("id", userId).maybeSingle(),
+    admin.from("user_profiles").select("vercel_access_token_encrypted, vercel_connection_epoch").eq("id", userId).maybeSingle(),
     admin.from("repositories").select("id").eq("user_id", userId)
       .eq("id", repositoryId).eq("selected", true).maybeSingle(),
   ]);
   if (profileError || repositoryError) throw new Error("Current provider authorization could not be read");
-  if (!repository || !profile?.vercel_access_token_encrypted) return new Set();
-  const fingerprint = providerConnectionFingerprint(profile.vercel_access_token_encrypted);
+  const fingerprint = currentConnectionEpoch(profile?.vercel_access_token_encrypted, profile?.vercel_connection_epoch);
+  if (!repository || !fingerprint) return new Set();
   const { data, error } = await admin
     .from("provider_repository_links")
     .select("provider, provider_project_id, connection_fingerprint")

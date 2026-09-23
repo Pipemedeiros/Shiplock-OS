@@ -30,7 +30,8 @@ const job: ClaimedJob = {
 const providerOnly = {
   id:job.user_id,email:"founder@example.com",monitoring_enabled:false,
   monitored_project_url:null,monitored_anon_key_encrypted:null,monitored_app_url:null,
-  postgres_dsn_encrypted:"cipher",vercel_access_token_encrypted:null,vercel_team_id:null,
+  postgres_dsn_encrypted:"cipher",vercel_access_token_encrypted:null,vercel_connection_epoch:null,
+  supabase_endpoint_connection_epoch:null,vercel_team_id:null,
   supabase_mgmt_token_encrypted:null,supabase_mgmt_project_ref:null,
 };
 

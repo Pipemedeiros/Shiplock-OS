@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createHash } from "node:crypto";
 
 const mocks = vi.hoisted(() => ({ collect: vi.fn(), decrypt: vi.fn(), readProfile: vi.fn(), insert: vi.fn(), archive: vi.fn(), upsert: vi.fn() }));
 const state = vi.hoisted(() => ({ facts: {} as Record<string, unknown> }));
@@ -31,6 +30,7 @@ import { PostgresConnectionError } from "./postgresDirect";
 import { CollectorShapeError } from "./apiSchemas";
 
 const encrypted = "encrypted-connection-one";
+const epoch = "c".repeat(64);
 const dsn = "postgres://private-reader:private-password@private-db.example.com/private-db";
 const policies = [{ schemaname: "public", tablename: "invoices", policyname: "read", cmd: "SELECT", qual: "true", with_check: null, roles: ["anon"] }];
 const scanTables = [{ name: "invoices", rlsEnabled: true }];
@@ -39,7 +39,7 @@ const facts = { policies, scanTables, grants: [] };
 beforeEach(() => {
   vi.clearAllMocks();
   state.facts = { advisors: [{ name: "old-advisor" }], unrelatedSnapshot: { projectId: "other-project" } };
-  mocks.readProfile.mockResolvedValue({ data: { postgres_dsn_encrypted: encrypted }, error: null });
+  mocks.readProfile.mockResolvedValue({ data: { postgres_dsn_encrypted: encrypted, postgres_connection_epoch: epoch }, error: null });
   mocks.decrypt.mockReturnValue(dsn);
   mocks.collect.mockResolvedValue(facts);
   mocks.insert.mockResolvedValue({ error: null });
@@ -48,14 +48,14 @@ beforeEach(() => {
 });
 
 describe("Step 2C-3-C1: direct-Postgres connection provenance", () => {
-  it("persists self-contained facts bound to an opaque encrypted-connection fingerprint", async () => {
+  it("persists self-contained facts bound to the opaque connection epoch", async () => {
     const result = await runDirectPostgresScan("u");
     expect(result).toMatchObject({ ok: true, newFindings: expect.any(Array) });
     expect(result.newFindings).toHaveLength(1);
     const snapshot = state.facts.directPostgresSnapshot;
     expect(snapshot).toEqual({
       collector: "postgres-direct", authzProvider: "postgres-rls", completeness: "unknown",
-      connectionFingerprint: createHash("sha256").update(encrypted).digest("hex"),
+      connectionFingerprint: epoch,
       recordedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/), policies, scanTables,
     });
     expect(state.facts.advisors).toEqual([{ name: "old-advisor" }]);
@@ -75,7 +75,7 @@ describe("Step 2C-3-C1: direct-Postgres connection provenance", () => {
   it("replaces the complete transport snapshot on reconnect, without borrowing previous fields", async () => {
     await runDirectPostgresScan("u");
     const first = state.facts.directPostgresSnapshot as { connectionFingerprint: string };
-    mocks.readProfile.mockResolvedValue({ data: { postgres_dsn_encrypted: "encrypted-connection-two" }, error: null });
+    mocks.readProfile.mockResolvedValue({ data: { postgres_dsn_encrypted: "encrypted-connection-two", postgres_connection_epoch: "e".repeat(64) }, error: null });
     mocks.collect.mockResolvedValue({ policies: [], scanTables: [], grants: [] });
     await runDirectPostgresScan("u");
     expect(state.facts.directPostgresSnapshot).toMatchObject({ policies: [], scanTables: [] });
@@ -92,7 +92,7 @@ describe("Step 2C-3-C1: direct-Postgres connection provenance", () => {
   });
 
   it("refuses a profile read error even if the response also includes connection data", async () => {
-    mocks.readProfile.mockResolvedValue({ data: { postgres_dsn_encrypted: encrypted }, error: { message: "private-read-error" } });
+    mocks.readProfile.mockResolvedValue({ data: { postgres_dsn_encrypted: encrypted, postgres_connection_epoch: epoch }, error: { message: "private-read-error" } });
     expect(await runDirectPostgresScan("u")).toMatchObject({ ok: false });
     expect(mocks.collect).not.toHaveBeenCalled();
     expect(mocks.upsert).not.toHaveBeenCalled();
@@ -155,5 +155,18 @@ describe("3F-C2b: an aborted direct-Postgres pass writes no evidence", () => {
       expect(mocks.insert).not.toHaveBeenCalled();
       expect(mocks.archive).not.toHaveBeenCalled();
     } finally { log.mockRestore(); }
+  });
+});
+
+describe("2D-2: direct-Postgres identity is the connection epoch", () => {
+  it("stamps the snapshot with the stored epoch, not a ciphertext hash", async () => {
+    mocks.readProfile.mockResolvedValue({ data: { postgres_dsn_encrypted: encrypted, postgres_connection_epoch: "d".repeat(64) }, error: null });
+    await runDirectPostgresScan("u");
+    expect(state.facts.directPostgresSnapshot).toMatchObject({ connectionFingerprint: "d".repeat(64) });
+  });
+
+  it("treats a credential without a valid epoch as not connected", async () => {
+    mocks.readProfile.mockResolvedValue({ data: { postgres_dsn_encrypted: encrypted, postgres_connection_epoch: null }, error: null });
+    expect(await runDirectPostgresScan("u")).toEqual({ ok: false, findings: 0, reason: "not_connected" });
   });
 });

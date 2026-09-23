@@ -1,7 +1,7 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { decrypt } from "@/lib/crypto";
 import { saveFacts } from "@/lib/graph/graphRun";
-import { newConnectionEpoch, providerConnectionFingerprint } from "./providerRepositoryMap";
+import { currentConnectionEpoch, newConnectionEpoch } from "./providerRepositoryMap";
 import { analyzePolicies } from "./policyScan";
 import { analyzeGrants } from "./grantScan";
 import {
@@ -42,6 +42,7 @@ export interface DirectScanOutcome {
 
 interface ProfileRow {
   postgres_dsn_encrypted: string | null;
+  postgres_connection_epoch: string | null;
 }
 
 /**
@@ -53,15 +54,16 @@ interface ProfileRow {
 async function loadConnection(userId: string): Promise<{ raw: string; fingerprint: string } | null> {
   const { data, error } = await getSupabaseAdmin()
     .from("user_profiles")
-    .select("postgres_dsn_encrypted")
+    .select("postgres_dsn_encrypted, postgres_connection_epoch")
     .eq("id", userId)
     .maybeSingle<ProfileRow>();
 
-  if (error || typeof data?.postgres_dsn_encrypted !== "string" || !data.postgres_dsn_encrypted) return null;
+  const fingerprint = currentConnectionEpoch(data?.postgres_dsn_encrypted, data?.postgres_connection_epoch);
+  if (error || !fingerprint || typeof data?.postgres_dsn_encrypted !== "string") return null;
   try {
     const raw = decrypt(data.postgres_dsn_encrypted);
     if (!raw) return null;
-    return { raw, fingerprint: providerConnectionFingerprint(data.postgres_dsn_encrypted) };
+    return { raw, fingerprint };
   } catch {
     // A key rotation that left an undecryptable value must not look like a clean
     // scan. Treat it as not connected so the customer is prompted to reconnect.

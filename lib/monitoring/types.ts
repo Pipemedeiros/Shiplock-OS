@@ -30,6 +30,9 @@ export interface MonitoredProfile {
    * collector and never travels on the profile.
    */
   vercel_access_token_encrypted?: string | null;
+  /** Connection epochs (migration 067), read in the same row as their credential. */
+  vercel_connection_epoch?: string | null;
+  supabase_endpoint_connection_epoch?: string | null;
   vercel_team_id?: string | null;
   /** Read-only Supabase Management connection; the worker rereads the token. */
   supabase_mgmt_token_encrypted?: string | null;

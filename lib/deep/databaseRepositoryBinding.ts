@@ -1,10 +1,10 @@
 import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { providerConnectionFingerprint } from "./providerRepositoryMap";
 import { bindingDate as date, bindingNumericId as numericId, bindingRepositorySchema as repositorySchema,
   loadDatabaseBindingIdentity } from "./databaseBindingIdentity";
 
 const profileSchema = z.object({ postgres_dsn_encrypted: z.string().refine((value) => value.trim().length > 0),
+  postgres_connection_epoch: z.string().regex(/^[a-f0-9]{64}$/),
   postgres_display: z.string().nullable().optional(), github_installation_id: numericId, github_connected_at: date });
 const bindingSchema = z.object({
   user_id: z.uuid(), repository_id: z.uuid(), collector: z.literal("postgres-direct"),
@@ -30,13 +30,13 @@ interface ConnectionContext {
 /** Read-only current context. Ciphertext never leaves the server helpers. An invalid
  * connection is unknown, while failed storage reads are operational failures. */
 async function currentContext(userId: string, now = Date.now()): Promise<ConnectionContext | null> {
-  const identity = await loadDatabaseBindingIdentity(userId, "postgres_dsn_encrypted, postgres_display", now);
+  const identity = await loadDatabaseBindingIdentity(userId, "postgres_dsn_encrypted, postgres_connection_epoch, postgres_display", now);
   if (!identity) return null;
   const profile = profileSchema.safeParse(identity.profile);
   if (!profile.success) return null;
   return {
     databaseDisplay: profile.data.postgres_display ?? null,
-    connectionFingerprint: providerConnectionFingerprint(profile.data.postgres_dsn_encrypted),
+    connectionFingerprint: profile.data.postgres_connection_epoch,
     installationId: profile.data.github_installation_id, githubConnectedAt: profile.data.github_connected_at,
     repositories: identity.repositories,
   };

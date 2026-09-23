@@ -45,8 +45,8 @@ describe("provider collectors forward the registry signal", () => {
   });
 
   it("Vercel environment audit", async () => {
-    await vercelEnvCollector.run(ctx({ vercel_access_token_encrypted: "enc", vercel_team_id: "team" } as Partial<MonitoredProfile>));
-    expect(runners.vercel).toHaveBeenCalledWith("user-1", "enc", "team", { signal });
+    await vercelEnvCollector.run(ctx({ vercel_access_token_encrypted: "enc", vercel_connection_epoch: "e".repeat(64), vercel_team_id: "team" } as Partial<MonitoredProfile>));
+    expect(runners.vercel).toHaveBeenCalledWith("user-1", "enc", "e".repeat(64), "team", { signal });
   });
 });
 

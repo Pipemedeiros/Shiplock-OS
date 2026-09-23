@@ -102,7 +102,9 @@ describe("the Vercel environment audit is on the schedule", () => {
         },
       }) as never;
 
-    expect(vercelEnvCollector.appliesTo?.(profile({ vercel_access_token_encrypted: "enc" }))).toBe(true);
+    expect(vercelEnvCollector.appliesTo?.(profile({ vercel_access_token_encrypted: "enc", vercel_connection_epoch: "e".repeat(64) }))).toBe(true);
+    // A token without a connection epoch (2D) is not a usable connection.
+    expect(vercelEnvCollector.appliesTo?.(profile({ vercel_access_token_encrypted: "enc" }))).toBe(false);
     expect(vercelEnvCollector.appliesTo?.(profile({}))).toBe(false);
   });
 

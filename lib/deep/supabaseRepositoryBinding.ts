@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { validateSupabaseUrl } from "@/lib/sanitize";
-import { providerConnectionFingerprint } from "./providerRepositoryMap";
+
 import { DirectRepositoryConfirmation } from "./databaseRepositoryBinding";
 import { bindingDate, bindingNumericId, bindingRepositorySchema, loadDatabaseBindingIdentity } from "./databaseBindingIdentity";
 
@@ -10,8 +10,11 @@ type Collector = z.infer<typeof SupabaseBindingCollector>;
 const projectRef = z.string().min(1).max(63).regex(/^[a-z0-9-]+$/);
 const endpointUrl = z.string().regex(/^https:\/\/[a-z0-9-]+\.supabase\.co$/);
 const ciphertext = z.string().refine((value) => value.trim().length > 0);
-const managementProfile = z.object({ supabase_mgmt_token_encrypted: ciphertext, supabase_mgmt_project_ref: projectRef });
-const endpointProfile = z.object({ monitored_anon_key_encrypted: ciphertext, monitored_project_url: z.string() });
+const epoch = z.string().regex(/^[a-f0-9]{64}$/);
+const managementProfile = z.object({ supabase_mgmt_token_encrypted: ciphertext, supabase_mgmt_connection_epoch: epoch,
+  supabase_mgmt_project_ref: projectRef });
+const endpointProfile = z.object({ monitored_anon_key_encrypted: ciphertext, supabase_endpoint_connection_epoch: epoch,
+  monitored_project_url: z.string() });
 export const SupabaseRepositoryConfirmation = DirectRepositoryConfirmation.extend({
   collector: SupabaseBindingCollector, expectedProjectRef: projectRef, expectedEndpointUrl: endpointUrl.nullable(),
 }).refine((value) => value.collector === "supabase-management" ? value.expectedEndpointUrl === null
@@ -31,15 +34,16 @@ interface Context {
 /** Each transport reads only its own configured credential/project. Matching
  * project names or fingerprints never authorizes borrowing another transport. */
 async function currentContext(userId: string, collector: Collector): Promise<Context | null> {
-  const columns = collector === "supabase-management" ? "supabase_mgmt_token_encrypted, supabase_mgmt_project_ref"
-    : "monitored_anon_key_encrypted, monitored_project_url";
+  const columns = collector === "supabase-management"
+    ? "supabase_mgmt_token_encrypted, supabase_mgmt_connection_epoch, supabase_mgmt_project_ref"
+    : "monitored_anon_key_encrypted, supabase_endpoint_connection_epoch, monitored_project_url";
   const identity = await loadDatabaseBindingIdentity(userId, columns);
   if (!identity) return null;
-  let credential: string, ref: string, endpoint: string | null = null;
+  let connectionEpoch: string, ref: string, endpoint: string | null = null;
   if (collector === "supabase-management") {
     const profile = managementProfile.safeParse(identity.profile);
     if (!profile.success) return null;
-    credential = profile.data.supabase_mgmt_token_encrypted; ref = profile.data.supabase_mgmt_project_ref;
+    connectionEpoch = profile.data.supabase_mgmt_connection_epoch; ref = profile.data.supabase_mgmt_project_ref;
   } else {
     const profile = endpointProfile.safeParse(identity.profile);
     if (!profile.success) return null;
@@ -47,9 +51,9 @@ async function currentContext(userId: string, collector: Collector): Promise<Con
       endpoint = validateSupabaseUrl(profile.data.monitored_project_url);
       ref = projectRef.parse(new URL(endpoint).hostname.split(".")[0]);
     } catch { return null; }
-    credential = profile.data.monitored_anon_key_encrypted;
+    connectionEpoch = profile.data.supabase_endpoint_connection_epoch;
   }
-  return { collector, projectRef: ref, endpointUrl: endpoint, connectionFingerprint: providerConnectionFingerprint(credential),
+  return { collector, projectRef: ref, endpointUrl: endpoint, connectionFingerprint: connectionEpoch,
     installationId: identity.profile.github_installation_id, githubConnectedAt: identity.profile.github_connected_at, repositories: identity.repositories };
 }
 function rowFor(userId: string, context: Context, repository: Context["repositories"][number], at: string) {

@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { providerConnectionFingerprint } from "@/lib/deep/providerRepositoryMap";
 
 const mocks = vi.hoisted(() => ({
   gate: vi.fn(), profile: vi.fn(), repositories: vi.fn(), links: vi.fn(), write: vi.fn(), filters: vi.fn(), payload: vi.fn(),
@@ -26,8 +25,8 @@ const userId = "11111111-1111-4111-8111-111111111111";
 const repositoryId = "22222222-2222-4222-8222-222222222222";
 const at = "2026-09-17T10:00:00.000Z";
 const connectedAt = "2026-09-17T09:00:00.000Z";
-const fingerprint = providerConnectionFingerprint("stored-encrypted-dsn");
-const profile = { postgres_dsn_encrypted: "stored-encrypted-dsn", github_installation_id: 42, github_connected_at: connectedAt };
+const fingerprint = "d".repeat(64);
+const profile = { postgres_dsn_encrypted: "stored-encrypted-dsn", postgres_connection_epoch: fingerprint, github_installation_id: 42, github_connected_at: connectedAt };
 const repository = { id: repositoryId, full_name: "acme/app", github_repo_id: 7 };
 const confirmation = { action: "confirm", confirmed: true, repositoryId, expectedConnectionFingerprint: fingerprint,
   expectedInstallationId: "42", expectedGithubConnectedAt: connectedAt, expectedRepositoryFullName: "acme/app", expectedGithubRepositoryId: "7" };
@@ -195,7 +194,7 @@ describe("Section 10 / 2C-3-C3-B1: explicit direct-Postgres repository confirmat
     expect(JSON.stringify(log.mock.calls)).not.toContain("stored-encrypted-dsn");
   });
 
-  it.each([{ postgres_dsn_encrypted: "replacement" }, { github_installation_id: null },
+  it.each([{ postgres_dsn_encrypted: "replacement", postgres_connection_epoch: "f".repeat(64) }, { github_installation_id: null },
     { github_connected_at: "2026-09-17T09:30:00.000Z" }])(
     "does not acknowledge confirmation when context changes during persistence: %j", async (change) => {
       mocks.profile.mockResolvedValueOnce({ data: profile, error: null })

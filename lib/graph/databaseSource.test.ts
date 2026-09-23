@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { providerConnectionFingerprint } from "@/lib/deep/providerRepositoryMap";
 import { loadGraphInput, canRetireGraphFindings, runGraphReasoner } from "./graphRun";
 import { findAttackPaths } from "./attackPaths";
 
@@ -25,22 +24,24 @@ const profile = {
   postgres_dsn_encrypted: "direct-ciphertext",
   supabase_mgmt_token_encrypted: "management-ciphertext", supabase_mgmt_project_ref: "project-a",
   monitored_anon_key_encrypted: "endpoint-ciphertext", monitored_project_url: "https://project-b.supabase.co",
+  postgres_connection_epoch: "a".repeat(64), supabase_mgmt_connection_epoch: "b".repeat(64),
+  supabase_endpoint_connection_epoch: "c".repeat(64),
 };
 const policy = { schemaname: "public", tablename: "invoices", policyname: "allow", cmd: "SELECT", qual: "true", with_check: null, roles: ["anon"] };
 const direct = {
   collector: "postgres-direct", authzProvider: "postgres-rls", recordedAt: at, completeness: "unknown",
-  connectionFingerprint: providerConnectionFingerprint(profile.postgres_dsn_encrypted),
+  connectionFingerprint: profile.postgres_connection_epoch,
   policies: [policy], scanTables: [{ name: "invoices", rlsEnabled: false }],
 };
 const management = {
   collector: "supabase-management", authzProvider: "postgres-rls", recordedAt: at, completeness: "unknown",
-  projectRef: "project-a", connectionFingerprint: providerConnectionFingerprint(profile.supabase_mgmt_token_encrypted),
+  projectRef: "project-a", connectionFingerprint: profile.supabase_mgmt_connection_epoch,
   policies: [policy], authConfig: { disable_signup: true },
 };
 const endpoint = {
   collector: "supabase-scan", authzProvider: "postgres-rls", recordedAt: at, completeness: "unknown",
   endpointUrl: profile.monitored_project_url, projectRef: "project-b", identitySource: "validated-input", rlsReadability: "unknown",
-  connectionFingerprint: providerConnectionFingerprint(profile.monitored_anon_key_encrypted),
+  connectionFingerprint: profile.supabase_endpoint_connection_epoch,
   tableReports: [{ name: "invoices", rlsEnabled: true, rlsReadable: false }],
 };
 const snapshots = { directPostgresSnapshot: direct, supabaseManagementSnapshot: management, supabaseEndpointSnapshot: endpoint };
@@ -80,14 +81,14 @@ describe("Step 2C-3-C3-A: current-connection database admission through the actu
 
   it.each([
     ["postgres_dsn_encrypted", null, "directPostgresSnapshot"],
-    ["postgres_dsn_encrypted", "replacement", "directPostgresSnapshot"],
+    ["postgres_connection_epoch", "f".repeat(64), "directPostgresSnapshot"],
     ["postgres_dsn_encrypted", 42, "directPostgresSnapshot"],
-    ["supabase_mgmt_token_encrypted", "refreshed", "supabaseManagementSnapshot"],
+    ["supabase_mgmt_connection_epoch", "f".repeat(64), "supabaseManagementSnapshot"],
     ["supabase_mgmt_token_encrypted", " ", "supabaseManagementSnapshot"],
     ["supabase_mgmt_project_ref", "other-project", "supabaseManagementSnapshot"],
     ["supabase_mgmt_project_ref", null, "supabaseManagementSnapshot"],
     ["monitored_anon_key_encrypted", null, "supabaseEndpointSnapshot"],
-    ["monitored_anon_key_encrypted", "replacement", "supabaseEndpointSnapshot"],
+    ["supabase_endpoint_connection_epoch", "f".repeat(64), "supabaseEndpointSnapshot"],
     ["monitored_project_url", "https://different.supabase.co", "supabaseEndpointSnapshot"],
     ["monitored_project_url", "https://example.com", "supabaseEndpointSnapshot"],
     ["monitored_project_url", null, "supabaseEndpointSnapshot"],
@@ -202,5 +203,34 @@ describe("Step 2C-3-C3-A: current-connection database admission through the actu
     reads.deep_findings.mockResolvedValue({ data: null, error: { message: "findings read failed" } });
     await expect(runGraphReasoner("owner")).rejects.toThrow("Graph findings could not be read");
     expect(writes).not.toHaveBeenCalled();
+  });
+});
+
+describe("2D-2: database admission matches connection epochs", () => {
+  const epochs = { postgres_connection_epoch: "1".repeat(64), supabase_mgmt_connection_epoch: "2".repeat(64), supabase_endpoint_connection_epoch: "3".repeat(64) };
+  const stamped = {
+    directPostgresSnapshot: { ...direct, connectionFingerprint: epochs.postgres_connection_epoch },
+    supabaseManagementSnapshot: { ...management, connectionFingerprint: epochs.supabase_mgmt_connection_epoch },
+    supabaseEndpointSnapshot: { ...endpoint, connectionFingerprint: epochs.supabase_endpoint_connection_epoch },
+  };
+
+  it("admits snapshots after a refresh re-encrypted every credential", async () => {
+    reads.user_profiles.mockResolvedValue({ data: {
+      ...profile, ...epochs, postgres_dsn_encrypted: "re-encrypted-direct",
+      supabase_mgmt_token_encrypted: "refreshed-management", monitored_anon_key_encrypted: "re-encrypted-endpoint",
+    }, error: null });
+    facts(stamped);
+    const { loadCurrentDatabaseEvidence } = await import("./databaseSource");
+    const evidence = await loadCurrentDatabaseEvidence("owner", stamped, now);
+    expect(Object.keys(evidence.snapshots).sort()).toEqual(["directPostgresSnapshot", "supabaseEndpointSnapshot", "supabaseManagementSnapshot"]);
+  });
+
+  it("rejects every snapshot after a true reconnect minted new epochs", async () => {
+    reads.user_profiles.mockResolvedValue({ data: {
+      ...profile, postgres_connection_epoch: "4".repeat(64), supabase_mgmt_connection_epoch: "5".repeat(64), supabase_endpoint_connection_epoch: "6".repeat(64),
+    }, error: null });
+    const { loadCurrentDatabaseEvidence } = await import("./databaseSource");
+    const evidence = await loadCurrentDatabaseEvidence("owner", stamped, now);
+    expect(evidence).toEqual({ admission: "unknown", snapshots: {} });
   });
 });

@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { providerConnectionFingerprint } from "@/lib/deep/providerRepositoryMap";
 
 const mocks = vi.hoisted(() => ({ gate: vi.fn(), profile: vi.fn(), repositories: vi.fn(), links: vi.fn(),
   write: vi.fn(), filters: vi.fn(), payload: vi.fn(), selects: vi.fn() }));
@@ -24,14 +23,14 @@ import { GET, POST } from "./route";
 
 const userId = "11111111-1111-4111-8111-111111111111", repositoryId = "22222222-2222-4222-8222-222222222222";
 const at = "2026-09-17T10:00:00.000Z", connectedAt = "2026-09-17T09:00:00.000Z";
-const ref = "project-a", url = `https://${ref}.supabase.co`, fingerprint = providerConnectionFingerprint("shared-encrypted");
+const ref = "project-a", url = `https://${ref}.supabase.co`, fingerprint = "a".repeat(64);
 const profile = { github_installation_id: 42, github_connected_at: connectedAt,
-  supabase_mgmt_token_encrypted: "shared-encrypted", supabase_mgmt_project_ref: ref,
-  monitored_anon_key_encrypted: "shared-encrypted", monitored_project_url: url, postgres_dsn_encrypted: "private-direct-decoy" };
+  supabase_mgmt_token_encrypted: "shared-encrypted", supabase_mgmt_connection_epoch: fingerprint, supabase_mgmt_project_ref: ref,
+  monitored_anon_key_encrypted: "shared-encrypted", supabase_endpoint_connection_epoch: fingerprint, monitored_project_url: url, postgres_dsn_encrypted: "private-direct-decoy" };
 const repository = { id: repositoryId, full_name: "acme/app", github_repo_id: 7 };
 const fixtures = [
-  { collector: "supabase-management", credentialField: "supabase_mgmt_token_encrypted", projectField: "supabase_mgmt_project_ref", endpoint: null },
-  { collector: "supabase-scan", credentialField: "monitored_anon_key_encrypted", projectField: "monitored_project_url", endpoint: url },
+  { collector: "supabase-management", credentialField: "supabase_mgmt_token_encrypted", epochField: "supabase_mgmt_connection_epoch", projectField: "supabase_mgmt_project_ref", endpoint: null },
+  { collector: "supabase-scan", credentialField: "monitored_anon_key_encrypted", epochField: "supabase_endpoint_connection_epoch", projectField: "monitored_project_url", endpoint: url },
 ] as const;
 function request(body: unknown, headers: Record<string, string> = {}) {
   return new Request("https://shiplock.dev/api/deep/supabase/repository", { method: "POST",
@@ -53,7 +52,7 @@ afterEach(() => {
   finally { vi.restoreAllMocks(); }
 });
 
-describe.each(fixtures)("Section 10 / 2C-3-C3-B3-A: $collector confirmation", ({ collector, credentialField, projectField, endpoint }) => {
+describe.each(fixtures)("Section 10 / 2C-3-C3-B3-A: $collector confirmation", ({ collector, credentialField, epochField, projectField, endpoint }) => {
   const confirmation = { action: "confirm", confirmed: true, collector, repositoryId, expectedProjectRef: ref, expectedEndpointUrl: endpoint,
     expectedConnectionFingerprint: fingerprint, expectedInstallationId: "42", expectedGithubConnectedAt: connectedAt,
     expectedRepositoryFullName: "acme/app", expectedGithubRepositoryId: "7" };
@@ -175,10 +174,17 @@ describe.each(fixtures)("Section 10 / 2C-3-C3-B3-A: $collector confirmation", ({
 
   it.each(["project", "credential", "github"])("does not acknowledge a %s change during persistence", async (kind) => {
     const change = kind === "project" ? { [projectField]: endpoint ? "https://project-b.supabase.co" : "project-b" }
-      : kind === "credential" ? { [credentialField]: "replacement" } : { github_connected_at: "2026-09-17T09:30:00Z" };
+      // A reconnect mints a new epoch (2D); a ciphertext-only change is a refresh.
+      : kind === "credential" ? { [credentialField]: "replacement", [epochField]: "f".repeat(64) } : { github_connected_at: "2026-09-17T09:30:00Z" };
     mocks.profile.mockResolvedValueOnce({ data: profile, error: null }).mockResolvedValue({ data: { ...profile, ...change }, error: null });
     expect((await POST(request(confirmation))).status).toBe(409);
     mocks.links.mockResolvedValue({ data: [stored], error: null }); expect((await (await get(collector)).json()).bindings).toEqual([]);
+  });
+
+  it("acknowledges a refresh that re-encrypted the credential but kept the epoch (2D)", async () => {
+    mocks.profile.mockResolvedValueOnce({ data: profile, error: null })
+      .mockResolvedValue({ data: { ...profile, [credentialField]: "refreshed" }, error: null });
+    expect((await POST(request(confirmation))).status).toBe(200);
   });
 
   it("also rechecks identity after removal without silently retrying/rolling back", async () => {

@@ -19,6 +19,8 @@ const profileSchema = z.object({
   monitored_app_url: z.string().min(1).nullable(),
   postgres_dsn_encrypted: z.string().min(1).nullable(),
   vercel_access_token_encrypted: z.string().min(1).nullable(),
+  vercel_connection_epoch: z.string().nullable(),
+  supabase_endpoint_connection_epoch: z.string().nullable(),
   vercel_team_id: z.string().nullable(),
   supabase_mgmt_token_encrypted: z.string().min(1).nullable(),
   supabase_mgmt_project_ref: z.string().min(1).nullable(),
@@ -69,7 +71,7 @@ export async function executeMonitorJob(job: ClaimedJob): Promise<void> {
   const [contextRead, profileRead] = await Promise.all([
     admin.from("monitoring_job_context").select("user_id, trigger_source").eq("job_id", job.id).maybeSingle(),
     admin.from("user_profiles").select(
-      "id, monitoring_enabled, monitored_project_url, monitored_anon_key_encrypted, monitored_app_url, postgres_dsn_encrypted, vercel_access_token_encrypted, vercel_team_id, supabase_mgmt_token_encrypted, supabase_mgmt_project_ref",
+      "id, monitoring_enabled, monitored_project_url, monitored_anon_key_encrypted, monitored_app_url, postgres_dsn_encrypted, vercel_access_token_encrypted, vercel_connection_epoch, supabase_endpoint_connection_epoch, vercel_team_id, supabase_mgmt_token_encrypted, supabase_mgmt_project_ref",
     ).eq("id", job.user_id).maybeSingle(),
   ]);
   if (contextRead.error || profileRead.error) throw new Error("Monitoring context could not be read");
