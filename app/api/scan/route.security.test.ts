@@ -13,6 +13,7 @@ const singleMock = vi.fn();
 const encryptMock = vi.fn();
 const profileEqMock = vi.fn();
 const profileUpdateMock = vi.fn();
+const recheckMock = vi.fn();
 
 vi.mock("@/lib/scanner", () => ({
   scanProject: scanProjectMock,
@@ -21,6 +22,7 @@ vi.mock("@/lib/scanner", () => ({
   },
 }));
 vi.mock("@/lib/security/exposedPathsRun", () => ({ runExposedPathScan: runExposedPathScanMock }));
+vi.mock("@/lib/jobs/manualRecheck", () => ({ queueCustomerRecheck: recheckMock }));
 vi.mock("@/lib/analyzer", () => ({ analyzeResult: analyzeResultMock }));
 vi.mock("@/lib/rateLimit", () => ({ getClientIpHash: () => "iphash" }));
 vi.mock("@/lib/crypto", () => ({ encrypt: encryptMock }));
@@ -63,6 +65,7 @@ describe("POST /api/scan — auth & paywall are enforced, not just labeled", () 
     encryptMock.mockReset();
     profileEqMock.mockReset();
     profileUpdateMock.mockReset();
+    recheckMock.mockReset().mockResolvedValue("job-1");
   });
 
   it("401s with no Authorization header and never runs the scan", async () => {
@@ -177,5 +180,16 @@ describe("POST /api/scan — auth & paywall are enforced, not just labeled", () 
       monitored_anon_key_encrypted: "encrypted-anon",
       supabase_endpoint_connection_epoch: expect.stringMatching(/^[a-f0-9]{64}$/),
     }));
+  });
+
+  it("queues the app-surface follow-up instead of probing inside the request (3F-C2c-5)", async () => {
+    getUserMock.mockResolvedValue({ data: { user: { id: "u1" } } });
+    singleMock.mockResolvedValue({ data: { is_paid: true, monitored_project_url: null } });
+    scanProjectMock.mockResolvedValue({ keyAnalysis: { isServiceRole: false }, appUrlChecked: true });
+    analyzeResultMock.mockResolvedValue({ summary: "ok", issues: [] });
+    encryptMock.mockReturnValue("encrypted-anon");
+    await POST(req({ ...VALID_BODY, appUrl: "https://app.example.com" }, { authorization: "Bearer valid" }));
+    expect(recheckMock).toHaveBeenCalledWith("u1", "app-surface");
+    expect(runExposedPathScanMock).not.toHaveBeenCalled();
   });
 });

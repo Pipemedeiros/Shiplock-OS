@@ -1,7 +1,7 @@
 import { createHash } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { scanProject, ScanError } from "@/lib/scanner";
-import { runExposedPathScan } from "@/lib/security/exposedPathsRun";
+import { queueCustomerRecheck } from "@/lib/jobs/manualRecheck";
 import { analyzeResult } from "@/lib/analyzer";
 import { validateSupabaseUrl, validateAnonKey, validateAppUrl, ValidationError } from "@/lib/sanitize";
 import { getClientIpHash } from "@/lib/rateLimit";
@@ -197,13 +197,14 @@ export async function POST(req: NextRequest) {
       });
 
       // Dynamic exposed-path probes against the live app (git repo, DB dumps,
-      // credential files) — complements the scanner's .env checks. Best-effort;
+      // credential files) complement the scanner's .env checks. They run as a
+      // queued monitor pass under a lease (3F-C2c-5), not inside this request;
       // findings land in deep_findings and surface everywhere the others do.
       if (appUrl) {
         try {
-          await runExposedPathScan(userId, appUrl);
+          await queueCustomerRecheck(userId, "app-surface");
         } catch (e) {
-          console.error("[scan] exposed-path probe failed:", e instanceof Error ? e.message : e);
+          console.error("[scan] app-surface recheck not queued:", e instanceof Error ? e.message : e);
         }
       }
     } catch (err) {
