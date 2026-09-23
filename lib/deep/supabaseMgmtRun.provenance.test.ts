@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   profile: vi.fn(), refreshWrite: vi.fn(), encrypt: vi.fn(), usable: vi.fn(),
   policies: vi.fn(), advisors: vi.fn(), auth: vi.fn(), columns: vi.fn(),
-  upsert: vi.fn(), insert: vi.fn(), archive: vi.fn(), proving: vi.fn(),
+  upsert: vi.fn(), insert: vi.fn(), archive: vi.fn(), proving: vi.fn(), commit: vi.fn(),
 }));
 const state = vi.hoisted(() => ({ facts: {} as Record<string, unknown>, refreshFilters: [] as unknown[][] }));
 vi.mock("@/lib/crypto", () => ({ encrypt: mocks.encrypt }));
@@ -45,6 +45,13 @@ vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ from: (table: stri
 } }) }));
 
 import { runPolicyScan } from "./supabaseMgmtRun";
+import type { ProviderResult } from "@/lib/monitoring/registry";
+
+// The runner hands one result to the monitor worker's fenced commit (3F-C2c).
+// This double applies facts the way the SQL merge does (proven in the SQL
+// suite) so provenance assertions read the resulting state.
+const run = (options: { signal?: AbortSignal } = {}) => runPolicyScan("u", { commit: mocks.commit, ...options });
+const sent = () => mocks.commit.mock.calls[0][0] as ProviderResult;
 import { CollectorShapeError } from "./apiSchemas";
 
 const encrypted = "encrypted-access-one";
@@ -72,12 +79,16 @@ beforeEach(() => {
   mocks.upsert.mockResolvedValue({ error: null });
   mocks.insert.mockResolvedValue({ error: null });
   mocks.archive.mockResolvedValue({ error: null });
+  mocks.commit.mockImplementation(async (result: ProviderResult) => {
+    if (result.facts) state.facts = { ...state.facts, ...result.facts };
+    return result.findings;
+  });
 });
 
 describe("Step 2C-3-C2-A: Supabase Management project and credential provenance", () => {
   it("persists only this pass's facts with project, opaque fingerprint and unknown completeness", async () => {
     state.facts.authConfig = { smtp_pass: "previous-private-smtp", mailer_autoconfirm: false };
-    const result = await runPolicyScan("u");
+    const result = await run();
     expect(result).toMatchObject({ ok: true, newFindings: expect.any(Array) });
     expect(result.newFindings!.length).toBeGreaterThan(0);
     expect(state.facts.supabaseManagementSnapshot).toEqual({
@@ -87,9 +98,10 @@ describe("Step 2C-3-C2-A: Supabase Management project and credential provenance"
       authConfig: { disable_signup: false, mailer_autoconfirm: true },
     });
     expect(state.facts.directPostgresSnapshot).toEqual({ old: "preserve" });
-    expect(state.facts._evidence).toMatchObject({ fields: { supabaseManagementSnapshot: { completeness: "unknown" } } });
+    expect(sent()).toMatchObject({ transport: "supabase-management", identity: "a".repeat(64), retire: true });
     expect(mocks.policies).toHaveBeenCalledWith("private-access", project, undefined);
-    expect(mocks.upsert.mock.calls[0][0].user_id).toBe("u");
+    expect(mocks.upsert).not.toHaveBeenCalled();
+    expect(mocks.insert).not.toHaveBeenCalled();
     expect(mocks.proving).not.toHaveBeenCalled();
     expect(state.facts.authConfig).toEqual({ disable_signup: false, mailer_autoconfirm: true });
     const stored = JSON.stringify(state.facts);
@@ -99,14 +111,14 @@ describe("Step 2C-3-C2-A: Supabase Management project and credential provenance"
   });
 
   it("replaces snapshots on project/credential change rather than borrowing merged facts", async () => {
-    await runPolicyScan("u");
+    await run();
     mocks.profile.mockResolvedValue({ data: { ...profile, supabase_mgmt_project_ref: "project-two", supabase_mgmt_token_encrypted: "encrypted-access-three", supabase_mgmt_connection_epoch: "b".repeat(64) }, error: null });
     mocks.policies.mockResolvedValue([]);
     mocks.advisors.mockRejectedValue(new Error("unavailable"));
     mocks.auth.mockResolvedValue(null);
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
-      expect(await runPolicyScan("u")).toMatchObject({ ok: true });
+      expect(await run()).toMatchObject({ ok: true });
       expect(state.facts.supabaseManagementSnapshot).toMatchObject({
         projectRef: "project-two", connectionFingerprint: "b".repeat(64), policies: [], authConfig: null,
       });
@@ -120,7 +132,7 @@ describe("Step 2C-3-C2-A: Supabase Management project and credential provenance"
     mocks.advisors.mockRejectedValue(new Error("unavailable"));
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
-      expect(await runPolicyScan("u")).toMatchObject({ ok: true });
+      expect(await run()).toMatchObject({ ok: true });
       expect(state.facts.advisors).toEqual([{ name: "old-advisor" }]);
       expect(state.facts.supabaseManagementSnapshot).not.toHaveProperty("advisors");
     } finally { log.mockRestore(); }
@@ -128,10 +140,10 @@ describe("Step 2C-3-C2-A: Supabase Management project and credential provenance"
 
   it("keeps failed auth reads unknown and never coerces strings to verified boolean flags", async () => {
     mocks.auth.mockResolvedValue(null);
-    await runPolicyScan("u");
+    await run();
     expect(state.facts.supabaseManagementSnapshot).toHaveProperty("authConfig", null);
     mocks.auth.mockResolvedValue({ disable_signup: "false", mailer_autoconfirm: "true", smtp_pass: "private-smtp" });
-    await runPolicyScan("u");
+    await run();
     expect(state.facts.supabaseManagementSnapshot).toHaveProperty("authConfig", {});
   });
 
@@ -140,13 +152,12 @@ describe("Step 2C-3-C2-A: Supabase Management project and credential provenance"
       disable_signup: false, mailer_autoconfirm: true, site_url: "https://app.example.com",
       uri_allow_list: "**", password_min_length: 4, smtp_pass: "private-smtp",
     });
-    const result = await runPolicyScan("u");
+    const result = await run();
     expect(result).toMatchObject({ ok: true, newFindings: expect.any(Array) });
     expect(result.newFindings?.map((finding) => finding.id)).toEqual(expect.arrayContaining([
       "auth_redirect:wildcard_any_host", "auth_policy:weak_password_length",
     ]));
-    const inserted = mocks.insert.mock.calls[0][0] as { finding_id: string }[];
-    expect(inserted.map((row) => row.finding_id)).toEqual(expect.arrayContaining([
+    expect(sent().findings.map((finding) => finding.id)).toEqual(expect.arrayContaining([
       "auth_redirect:wildcard_any_host", "auth_policy:weak_password_length",
     ]));
     expect(state.facts.authConfig).toEqual({ disable_signup: false, mailer_autoconfirm: true });
@@ -158,10 +169,10 @@ describe("Step 2C-3-C2-A: Supabase Management project and credential provenance"
     mocks.columns.mockRejectedValue(new Error("unavailable"));
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
-      expect(await runPolicyScan("u")).toMatchObject({ ok: true });
+      expect(await run()).toMatchObject({ ok: true });
       expect(state.facts.inventory).toEqual([{ table: "old-project-table" }]);
       expect(state.facts.supabaseManagementSnapshot).not.toHaveProperty("inventory");
-      expect(mocks.upsert).toHaveBeenCalledTimes(1);
+      expect(sent().facts).not.toHaveProperty("inventory");
     } finally { log.mockRestore(); }
   });
 
@@ -170,22 +181,24 @@ describe("Step 2C-3-C2-A: Supabase Management project and credential provenance"
     { supabase_mgmt_project_ref: "" }, { supabase_mgmt_project_ref: 42 },
   ])("refuses malformed/disconnected profile inputs: %j", async (override) => {
     mocks.profile.mockResolvedValue({ data: { ...profile, ...override }, error: null });
-    expect(await runPolicyScan("u")).toMatchObject({ ok: false });
+    expect(await run()).toMatchObject({ ok: false });
     expect(mocks.usable).not.toHaveBeenCalled();
     expect(mocks.policies).not.toHaveBeenCalled();
     expect(mocks.upsert).not.toHaveBeenCalled();
+    expect(mocks.commit).not.toHaveBeenCalled();
   });
 
   it("does not collect when profile data accompanies a returned read error", async () => {
     mocks.profile.mockResolvedValue({ data: profile, error: { message: "read failed" } });
-    expect(await runPolicyScan("u")).toMatchObject({ ok: false });
+    expect(await run()).toMatchObject({ ok: false });
     expect(mocks.usable).not.toHaveBeenCalled();
     expect(mocks.upsert).not.toHaveBeenCalled();
+    expect(mocks.commit).not.toHaveBeenCalled();
   });
 
   it("keeps the connection epoch across a refresh (2D) and guards the old project/credential", async () => {
     mocks.usable.mockResolvedValue({ token: { accessToken: "private-access", refreshToken: "private-refresh", expiresAt: null }, refreshed: true });
-    expect(await runPolicyScan("u")).toMatchObject({ ok: true });
+    expect(await run()).toMatchObject({ ok: true });
     expect(state.facts.supabaseManagementSnapshot).toHaveProperty("connectionFingerprint", "a".repeat(64));
     expect(state.refreshFilters).toEqual([["id", "u"], ["supabase_mgmt_project_ref", project], ["supabase_mgmt_token_encrypted", encrypted]]);
   });
@@ -197,10 +210,9 @@ describe("Step 2C-3-C2-A: Supabase Management project and credential provenance"
   ])("does not collect when refresh persistence is unconfirmed: %j", async (result) => {
     mocks.usable.mockResolvedValue({ token: { accessToken: "private-access", refreshToken: null, expiresAt: null }, refreshed: true });
     mocks.refreshWrite.mockResolvedValue(result);
-    expect(await runPolicyScan("u")).toMatchObject({ ok: false, reason: "auth_failed" });
+    expect(await run()).toMatchObject({ ok: false, reason: "auth_failed" });
     expect(mocks.policies).not.toHaveBeenCalled();
-    expect(mocks.upsert).not.toHaveBeenCalled();
-    expect(mocks.archive).not.toHaveBeenCalled();
+    expect(mocks.commit).not.toHaveBeenCalled();
   });
 
   it("preserves old snapshots and findings on load-bearing policy shape failure", async () => {
@@ -208,10 +220,9 @@ describe("Step 2C-3-C2-A: Supabase Management project and credential provenance"
     mocks.policies.mockRejectedValue(new CollectorShapeError("policies", ["invalid"]));
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
-      expect(await runPolicyScan("u")).toMatchObject({ ok: false, reason: "shape_mismatch" });
+      expect(await run()).toMatchObject({ ok: false, reason: "shape_mismatch" });
       expect(state.facts.supabaseManagementSnapshot).toEqual({ old: "preserve" });
-      expect(mocks.upsert).not.toHaveBeenCalled();
-      expect(mocks.archive).not.toHaveBeenCalled();
+      expect(mocks.commit).not.toHaveBeenCalled();
       expect(mocks.insert).not.toHaveBeenCalled();
     } finally { log.mockRestore(); }
   });
@@ -220,22 +231,10 @@ describe("Step 2C-3-C2-A: Supabase Management project and credential provenance"
     mocks.usable.mockRejectedValue(new Error("private-access"));
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
-      expect(await runPolicyScan("u")).toMatchObject({ ok: false, reason: "auth_failed" });
+      expect(await run()).toMatchObject({ ok: false, reason: "auth_failed" });
       expect(mocks.policies).not.toHaveBeenCalled();
-      expect(mocks.upsert).not.toHaveBeenCalled();
-      expect(mocks.archive).not.toHaveBeenCalled();
+      expect(mocks.commit).not.toHaveBeenCalled();
       expect(JSON.stringify(log.mock.calls)).not.toContain("private-access");
-    } finally { log.mockRestore(); }
-  });
-
-  it("preserves the old snapshot after returned fact-write failure under the existing fail-soft contract", async () => {
-    state.facts.supabaseManagementSnapshot = { old: "preserve" };
-    mocks.upsert.mockResolvedValue({ error: { message: "write unavailable" } });
-    const log = vi.spyOn(console, "error").mockImplementation(() => {});
-    try {
-      expect(await runPolicyScan("u")).toMatchObject({ ok: true });
-      expect(state.facts.supabaseManagementSnapshot).toEqual({ old: "preserve" });
-      expect(log).toHaveBeenCalled();
     } finally { log.mockRestore(); }
   });
 });
@@ -249,10 +248,11 @@ describe("3F-C2b: an aborted Supabase Management pass writes no evidence", () =>
     });
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
-      const result = await runPolicyScan("u", { signal: controller.signal });
+      const result = await run({ signal: controller.signal });
       expect(result).toEqual({ ok: false, findings: 0, reason: "aborted" });
       expect(mocks.policies).toHaveBeenCalledWith("private-access", project, controller.signal);
       expect(mocks.upsert).not.toHaveBeenCalled();
+      expect(mocks.commit).not.toHaveBeenCalled();
       expect(mocks.insert).not.toHaveBeenCalled();
       expect(mocks.archive).not.toHaveBeenCalled();
       expect(mocks.proving).not.toHaveBeenCalled();
@@ -267,12 +267,13 @@ describe("3F-C2b: an aborted Supabase Management pass writes no evidence", () =>
     });
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
-      const result = await runPolicyScan("u", { signal: controller.signal });
+      const result = await run({ signal: controller.signal });
       expect(mocks.usable).toHaveBeenCalledWith(profile);
       expect(mocks.refreshWrite).toHaveBeenCalledTimes(1);
       expect(result).toEqual({ ok: false, findings: 0, reason: "aborted" });
       expect(mocks.policies).not.toHaveBeenCalled();
       expect(mocks.upsert).not.toHaveBeenCalled();
+      expect(mocks.commit).not.toHaveBeenCalled();
     } finally { log.mockRestore(); }
   });
 });
@@ -280,26 +281,22 @@ describe("3F-C2b: an aborted Supabase Management pass writes no evidence", () =>
 describe("2D-2: Supabase Management identity is the connection epoch", () => {
   it("treats a credential without a valid epoch as not connected", async () => {
     mocks.profile.mockResolvedValue({ data: { ...profile, supabase_mgmt_connection_epoch: null }, error: null });
-    expect(await runPolicyScan("u")).toEqual({ ok: false, findings: 0, reason: "not_connected" });
+    expect(await run()).toEqual({ ok: false, findings: 0, reason: "not_connected" });
     expect(mocks.upsert).not.toHaveBeenCalled();
+    expect(mocks.commit).not.toHaveBeenCalled();
   });
 });
 
-describe("3F-C2c-3: fenced commit from the monitor worker", () => {
-  it("commits snapshot, inventory, and findings through the fence and writes none itself", async () => {
+describe("3F-C2c: fenced commit from the monitor worker", () => {
+  it("sends snapshot, inventory, and findings in one result without writing any itself", async () => {
     mocks.columns.mockResolvedValue([{ table: "invoices", column: "id" }]);
-    const created = [{ id: "policy:x", severity: "CRITICAL", title: "t", consequence: "c" }];
-    const commit = vi.fn().mockResolvedValue(created);
-    const result = await runPolicyScan("u", { commit });
-    expect(result).toMatchObject({ ok: true, newFindings: created });
-    const call = commit.mock.calls[0][0];
-    expect(call).toMatchObject({ transport: "supabase-management", identity: "a".repeat(64), retire: true });
-    expect(call.facts).toMatchObject({
+    await run();
+    expect(sent().facts).toMatchObject({
       policies, supabaseManagementSnapshot: expect.objectContaining({ connectionFingerprint: "a".repeat(64) }),
       inventory: expect.anything(),
     });
-    expect(call.facts).not.toHaveProperty("_evidence");
-    expect(call.findings.length).toBeGreaterThan(0);
+    expect(sent().facts).not.toHaveProperty("_evidence");
+    expect(sent().findings.length).toBeGreaterThan(0);
     expect(mocks.upsert).not.toHaveBeenCalled();
     expect(mocks.insert).not.toHaveBeenCalled();
     expect(mocks.archive).not.toHaveBeenCalled();
@@ -308,10 +305,8 @@ describe("3F-C2c-3: fenced commit from the monitor worker", () => {
   it("stops before side effects when the fence rejects the commit", async () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
-      const commit = vi.fn().mockRejectedValue(new Error("Provider result was not committed"));
-      expect(await runPolicyScan("u", { commit })).toEqual({ ok: false, findings: 0, reason: "not_committed" });
-      expect(mocks.upsert).not.toHaveBeenCalled();
-      expect(mocks.insert).not.toHaveBeenCalled();
+      mocks.commit.mockRejectedValue(new Error("Provider result was not committed"));
+      expect(await run()).toEqual({ ok: false, findings: 0, reason: "not_committed" });
       expect(mocks.proving).not.toHaveBeenCalled();
     } finally { log.mockRestore(); }
   });

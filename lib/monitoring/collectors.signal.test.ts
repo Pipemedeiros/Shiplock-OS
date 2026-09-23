@@ -34,9 +34,9 @@ beforeEach(() => {
 });
 
 describe("provider collectors forward the registry signal", () => {
-  it("Supabase Management", async () => {
-    await supabaseManagementCollector.run(ctx({}));
-    expect(runners.policy).toHaveBeenCalledWith("user-1", { signal, commit: undefined });
+  it("Supabase Management refuses to collect without the worker's fenced commit (3F-C2c-6)", async () => {
+    await expect(supabaseManagementCollector.run(ctx({}))).rejects.toThrow("fenced commit");
+    expect(runners.policy).not.toHaveBeenCalled();
   });
 
   it("direct Postgres refuses to collect without the worker's fenced commit (3F-C2c-6)", async () => {

@@ -137,7 +137,7 @@ export const supabaseManagementCollector: CollectorSpec = {
   ),
   async run(ctx) {
     const { runPolicyScan } = await import("@/lib/deep/supabaseMgmtRun");
-    const result = await runPolicyScan(ctx.profile.id, { signal: ctx.signal, commit: ctx.commit });
+    const result = await runPolicyScan(ctx.profile.id, { signal: ctx.signal, commit: requireCommit(ctx) });
     if (!result.ok) throw new Error(`Supabase Management collection failed: ${result.reason ?? "unknown"}`);
     return { newFindings: result.newFindings as Finding[] | undefined };
   },

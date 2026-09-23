@@ -1,5 +1,5 @@
-// Runs the policy scan against a connected customer project and persists the
-// findings, the same way lib/deep/githubRun.ts does for source findings.
+// Runs the policy scan against a connected customer project and hands the
+// findings and facts to the monitor worker's fenced commit (migration 068).
 //
 // This is the piece that finally lets lib/deep/policyScan.ts see real policies.
 // Everything here is read-only (see supabaseMgmt.ts's guard).
@@ -28,7 +28,7 @@ import { scanExtensions } from "./extensionScan";
 import { scanStorage, checkBackups } from "./storageScan";
 import { scanRealtimeAndHooks } from "./realtimeScan";
 import { deriveAppUrl } from "./deriveAppUrl";
-import { saveFacts, type SupabaseManagementSnapshot } from "@/lib/graph/graphRun";
+import type { SupabaseManagementSnapshot } from "@/lib/graph/graphRun";
 import { currentConnectionEpoch } from "./providerRepositoryMap";
 import { buildInventory } from "@/lib/exposure/model";
 import { runAuthLogScan } from "@/lib/runtime/authRun";
@@ -63,7 +63,7 @@ const ABORTED: PolicyScanOutcome = { ok: false, findings: 0, reason: "aborted" }
 
 export async function runPolicyScan(
   userId: string,
-  { signal, commit }: { signal?: AbortSignal; commit?: ProviderCommit } = {},
+  { signal, commit }: { signal?: AbortSignal; commit: ProviderCommit },
 ): Promise<PolicyScanOutcome> {
   const admin = getSupabaseAdmin();
 
@@ -128,7 +128,7 @@ export async function runPolicyScan(
   if (signal?.aborted) return ABORTED;
 
   let findings;
-  let committed: Finding[] | undefined;
+  let committed: Finding[];
   try {
     // POLICIES ARE LOAD-BEARING; ADVISORS CORROBORATE. The two get different
     // treatment on a shape failure, deliberately.
@@ -194,7 +194,6 @@ export async function runPolicyScan(
     const dbFacts: Record<string, unknown> = {
       policies, authConfig: storedAuthConfig, ...(advisorsOk ? { advisors } : {}), supabaseManagementSnapshot,
     };
-    if (!commit) await saveFacts(userId, "db", dbFacts, { merge: true });
 
     // A21 exposure inventory. SCHEMA ONLY — column names and row counts, never
     // a value. Best-effort: a project we cannot enumerate simply has no
@@ -204,9 +203,7 @@ export async function runPolicyScan(
       const tables = [...new Set(columns.map((c) => c.table))];
       const rowCounts = await fetchRowCounts(token.accessToken, projectRef, tables, signal);
       signal?.throwIfAborted();
-      const inventory = buildInventory(columns, rowCounts);
-      if (commit) dbFacts.inventory = inventory;
-      else await saveFacts(userId, "db", { inventory }, { merge: true });
+      dbFacts.inventory = buildInventory(columns, rowCounts);
     } catch (err) {
       console.error(
         "[supabaseMgmt] schema inventory failed:",
@@ -214,20 +211,18 @@ export async function runPolicyScan(
       );
     }
 
-    if (commit) {
-      // Monitor worker: snapshot, inventory, and findings commit together under
-      // the job's lease and this connection epoch, or not at all (3F-C2c). The
-      // side effects below run only after a successful commit.
-      signal?.throwIfAborted();
-      try {
-        committed = await commit({
-          transport: "supabase-management", identity: connectionFingerprint,
-          facts: dbFacts, findings, retire: true,
-        });
-      } catch {
-        console.error(`[supabaseMgmt] result not committed for ${userId}`);
-        return { ok: false, findings: 0, reason: "not_committed" };
-      }
+    // Snapshot, inventory, and findings commit together under the monitor
+    // job's lease and this connection epoch, or not at all (3F-C2c). The side
+    // effects below run only after a successful commit.
+    signal?.throwIfAborted();
+    try {
+      committed = await commit({
+        transport: "supabase-management", identity: connectionFingerprint,
+        facts: dbFacts, findings, retire: true,
+      });
+    } catch {
+      console.error(`[supabaseMgmt] result not committed for ${userId}`);
+      return { ok: false, findings: 0, reason: "not_committed" };
     }
 
     signal?.throwIfAborted();
@@ -374,55 +369,5 @@ export async function runPolicyScan(
     return { ok: false, findings: 0, reason: "scan_failed" };
   }
 
-  if (committed) return { ok: true, findings: findings.length, newFindings: committed as GithubFinding[] };
-  if (signal?.aborted) return ABORTED;
-  // Legacy synchronous path (dashboard route) until 3F-C2c-5 queues it.
-  // Same persistence shape as lib/deep/githubRun.ts: insert only findings that
-  // aren't already active, and archive the ones that have since been fixed.
-  // deep_findings has no unique constraint on (user_id, finding_id), so this is
-  // read-then-write rather than an upsert. Everything downstream (fix lanes,
-  // agent brief, MCP, the dashboard) picks these up unchanged.
-  const nowIso = new Date().toISOString();
-
-  const { data: existing } = await admin
-    .from("deep_findings")
-    .select("finding_id")
-    .eq("user_id", userId)
-    .eq("source", "policy")
-    .is("archived_at", null);
-
-  const activeIds = new Set((existing ?? []).map((r) => r.finding_id as string));
-  const currentIds = new Set(findings.map((f) => f.id));
-
-  // Resolved: was active, isn't any more.
-  const resolved = [...activeIds].filter((id) => !currentIds.has(id));
-  if (resolved.length > 0) {
-    await admin
-      .from("deep_findings")
-      .update({ archived_at: nowIso })
-      .eq("user_id", userId)
-      .eq("source", "policy")
-      .is("archived_at", null)
-      .in("finding_id", resolved);
-  }
-
-  const fresh = findings.filter((f) => !activeIds.has(f.id));
-  if (fresh.length > 0) {
-    await admin.from("deep_findings").insert(
-      fresh.map((f) => ({
-        user_id: userId,
-        source: "policy",
-        finding_id: f.id,
-        severity: f.severity,
-        title: f.title,
-        consequence: f.consequence,
-        package_name: f.packageName,
-        version: f.version,
-        vuln_id: f.vulnId,
-        cve_id: f.cveId,
-      }))
-    );
-  }
-
-  return { ok: true, findings: findings.length, newFindings: fresh };
+  return { ok: true, findings: findings.length, newFindings: committed as GithubFinding[] };
 }
