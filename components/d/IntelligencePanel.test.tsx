@@ -25,8 +25,8 @@ describe("IntelligencePanel (10B-2b)", () => {
     const out = html();
     expect(out).toContain("your agent spends its own allowance");
     // Every account can connect its own agent over MCP (Felipe 2026-09-23).
-    expect(out).toContain("Create a token");
-    expect(out).toContain("cannot start your agent");
+    // Until @shiplock/mcp is published the panel says so instead of offering setup.
+    expect(out).toContain("opens once the ShipLock MCP package is published");
     expect(out).not.toContain("npx");
     const api = html({ draft: { ...defaultDraft, host: "api" } });
     expect(api).toContain("ShipLock runs approved checks on your key");

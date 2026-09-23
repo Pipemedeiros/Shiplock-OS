@@ -8,6 +8,10 @@
 import { useEffect, useState } from "react";
 import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
 
+/** Flip to true in the same change that publishes `@shiplock/mcp` to npm.
+ * Until then the panel must not hand out a command for a missing package. */
+export const MCP_PACKAGE_PUBLISHED = false;
+
 export interface TokenMeta { id: string; name: string; created_at: string; last_used_at: string | null }
 type Host = "claude-code" | "codex" | "chatgpt" | "api";
 
@@ -20,13 +24,16 @@ const pre = { margin: "6px 0 0", fontSize: 12, lineHeight: 1.5, overflow: "auto"
   background: "var(--paper)", border: "1px solid var(--line)", borderRadius: 6, padding: "10px 12px", userSelect: "all" as const };
 const note = { fontSize: 13, color: "var(--muted)", margin: "0 0 10px", maxWidth: 700 } as const;
 
-export function AgentSetupView({ host, tokens, fresh, busy, error, onGenerate, onRevoke }: {
+export function AgentSetupView({ host, tokens, fresh, busy, error, onGenerate, onRevoke, published = MCP_PACKAGE_PUBLISHED }: {
   host: Host; tokens: TokenMeta[]; fresh: string | null; busy: boolean; error: string;
-  onGenerate: () => void; onRevoke: (id: string) => void;
+  onGenerate: () => void; onRevoke: (id: string) => void; published?: boolean;
 }) {
   if (host === "api") return null;
   if (host === "chatgpt") {
     return <p style={note}>ChatGPT connection is not available yet. Choose Claude Code or Codex to connect an agent today.</p>;
+  }
+  if (!published) {
+    return <p style={note}>Agent setup opens once the ShipLock MCP package is published. Your approval here is saved and applies as soon as your agent is connected.</p>;
   }
   const where = host === "claude-code" ? "Run this in your terminal:" : "Add this to ~/.codex/config.toml:";
   return (

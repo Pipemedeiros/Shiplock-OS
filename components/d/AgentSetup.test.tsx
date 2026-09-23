@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { AgentSetupView, setupCommand } from "./AgentSetup";
 
-const base = { tokens: [], fresh: null, busy: false, error: "", onGenerate: vi.fn(), onRevoke: vi.fn() };
+const base = { tokens: [], fresh: null, busy: false, error: "", onGenerate: vi.fn(), onRevoke: vi.fn(), published: true };
 const html = (props: Partial<Parameters<typeof AgentSetupView>[0]> & { host: Parameters<typeof AgentSetupView>[0]["host"] }) =>
   renderToStaticMarkup(AgentSetupView({ ...base, ...props }));
 
@@ -26,6 +26,13 @@ describe("AgentSetup (MCP for every account)", () => {
     expect(out).toContain("cannot start your agent");
     expect(out).toContain("never merges");
     expect(out).not.toMatch(/applies the fixes|automatically fix/i);
+  });
+
+  it("offers no token or command until @shiplock/mcp is published", () => {
+    const out = html({ host: "claude-code", published: false });
+    expect(out).toContain("opens once the ShipLock MCP package is published");
+    expect(out).not.toContain("Create a token");
+    expect(out).not.toContain("npx");
   });
 
   it("says ChatGPT is not available yet and offers no token", () => {
