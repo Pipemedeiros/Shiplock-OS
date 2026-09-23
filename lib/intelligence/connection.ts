@@ -8,7 +8,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 export const ConnectionApproval = z.strictObject({
   host: z.enum(["claude-code", "codex", "chatgpt", "api"]),
   deepScan: z.enum(["weekly", "off"]),
-  prScan: z.enum(["every_pr", "every_2_days", "daily", "per_deploy", "off"]),
+  prScan: z.enum(["every_pr", "every_2_days", "daily", "off"]),
   runTokenBudget: z.number().int().min(1000).max(1_000_000),
   monthlyTokenBudget: z.number().int().min(1000).max(50_000_000),
   allowProposals: z.literal(true),

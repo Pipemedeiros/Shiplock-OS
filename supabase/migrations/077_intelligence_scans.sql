@@ -4,8 +4,7 @@
 -- (repository, and for PR scans the PR number and head commit); the worker
 -- re-reads the approval, repository, and installation, picks the files, and
 -- creates the task for the approved host. Nothing here calls a model or funds
--- one: the customer's own host picks the task up. Per-deploy PR scans are not
--- admitted yet (no repository-bound deploy signal).
+-- one: the customer's own host picks the task up.
 
 alter table public.execution_jobs drop constraint execution_jobs_kind_check;
 alter table public.execution_jobs add constraint execution_jobs_kind_check

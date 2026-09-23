@@ -15,7 +15,7 @@ create table public.intelligence_connections (
   host text not null check (host in ('claude-code','codex','chatgpt','api')),
   deep_scan_cadence text not null check (deep_scan_cadence in ('weekly','off')),
   pr_scan_cadence text not null
-    check (pr_scan_cadence in ('every_pr','every_2_days','daily','per_deploy','off')),
+    check (pr_scan_cadence in ('every_pr','every_2_days','daily','off')),
   run_token_budget integer not null check (run_token_budget between 1000 and 1000000),
   monthly_token_budget integer not null check (monthly_token_budget between 1000 and 50000000),
   proposals_allowed boolean not null default true check (proposals_allowed),

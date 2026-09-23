@@ -12,13 +12,13 @@ const html = (props: Partial<Parameters<typeof IntelligenceApprovalView>[0]> = {
 describe("IntelligencePanel (10B-2b)", () => {
   it("offers every approved host and cadence and says PRs always need a click", () => {
     const out = html();
-    for (const label of ["Claude Code", "Codex", "ChatGPT", "Your own API key", "Every PR", "Every 2 days", "Daily", "Each deploy"]) {
+    for (const label of ["Claude Code", "Codex", "ChatGPT", "Your own API key", "Every PR", "Every 2 days", "Daily"]) {
       expect(out).toContain(label);
     }
     expect(out).toContain("Every pull request still needs your click");
     expect(out).toContain("not connected");
-    // Nothing admits per-deploy scans yet (10B-2c); the option says so.
-    expect(out).toContain("Each deploy (not available yet)");
+    // PR scans are tied to PRs; there is no per-deploy cadence.
+    expect(out).not.toContain("per_deploy");
   });
 
   it("is honest that pull-host budgets are advisory and agent setup is not live", () => {

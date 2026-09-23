@@ -682,14 +682,16 @@ try {
     "select public.approve_intelligence_connection($1,$2,$3,$4,$5,$6) as at",[user,host,deep,pr,run,month]);
   await check("an account pre-approves its intelligence host, cadence, and budgets once", async () => {
     await approve();
-    await approve("codex","off","per_deploy",20000,500000);
+    await approve("codex","off","every_2_days",20000,500000);
     await db.exec("reset role");
     const rows=(await db.query("select host,deep_scan_cadence,pr_scan_cadence,run_token_budget,revoked_at from public.intelligence_connections where user_id=$1",[u1])).rows;
-    assert.deepEqual(rows,[{host:"codex",deep_scan_cadence:"off",pr_scan_cadence:"per_deploy",run_token_budget:20000,revoked_at:null}]);
+    assert.deepEqual(rows,[{host:"codex",deep_scan_cadence:"off",pr_scan_cadence:"every_2_days",run_token_budget:20000,revoked_at:null}]);
     await db.exec("set role service_role");
     await assert.rejects(approve("gemini"));
     await assert.rejects(approve("codex","hourly"));
     await assert.rejects(approve("codex","weekly","hourly"));
+    // PR scans are tied to PRs; there is no per-deploy cadence.
+    await assert.rejects(approve("codex","weekly","per_deploy"));
     await assert.rejects(approve("codex","weekly","daily",500,1000000));
     await assert.rejects(approve("codex","weekly","daily",50000,10000));
   });

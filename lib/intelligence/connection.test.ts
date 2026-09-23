@@ -20,6 +20,7 @@ describe("intelligence connection approval (10B-2b)", () => {
     expect(() => ConnectionApproval.parse({ ...valid, allowProposals: false })).toThrow();
     expect(() => ConnectionApproval.parse({ ...valid, host: "gemini" })).toThrow();
     expect(() => ConnectionApproval.parse({ ...valid, prScan: "hourly" })).toThrow();
+    expect(() => ConnectionApproval.parse({ ...valid, prScan: "per_deploy" })).toThrow();
     expect(() => ConnectionApproval.parse({ ...valid, runTokenBudget: 500 })).toThrow();
     expect(() => ConnectionApproval.parse({ ...valid, monthlyTokenBudget: 10000 })).toThrow();
     // A standing approval can never carry PR or merge authority.
