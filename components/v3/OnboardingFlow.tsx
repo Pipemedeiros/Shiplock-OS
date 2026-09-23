@@ -5,10 +5,11 @@ import { CONNECTION_CATEGORIES } from "@/lib/connections/categories";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Check, GitPullRequest, LockKeyhole, ShieldCheck } from "lucide-react";
 import { startAndWaitForAudit } from "./auditClient";
+import { IntelligencePanel } from "@/components/d/IntelligencePanel";
 
 /**
  * Onboarding: connect GitHub, choose repositories, see the stack we read, run
- * the first audit.
+ * the first audit, then ask for the customer's own AI for later scans.
  *
  * GitHub is the only required connection and the audit produces real findings
  * with nothing else. The stack step exists because reading a repository tells
@@ -49,7 +50,7 @@ interface RouteAnalysisSupport {
   reason: string;
 }
 
-type Step = "connect" | "repos" | "stack" | "audit";
+type Step = "connect" | "repos" | "stack" | "audit" | "ai";
 
 export function OnboardingFlow({
   connected,
@@ -130,8 +131,10 @@ export function OnboardingFlow({
       ) : null}
 
       {step === "audit" ? (
-        <FirstAudit repository={picked[0]} onDone={() => router.push("/dashboard")} />
+        <FirstAudit repository={picked[0]} onDone={() => setStep("ai")} />
       ) : null}
+
+      {step === "ai" ? <AiStep onDone={() => router.push("/dashboard")} /> : null}
     </div>
   );
 }
@@ -142,6 +145,7 @@ function Stepper({ step }: { step: Step }) {
     ["repos", "Choose repositories"],
     ["stack", "Your stack"],
     ["audit", "First audit"],
+    ["ai", "Your AI"],
   ];
   const index = labels.findIndex(([s]) => s === step);
 
@@ -519,9 +523,32 @@ function FirstAudit({ repository, onDone }: { repository: string | undefined; on
               Everything we could not cover is listed under Coverage.
             </p>
           </div>
-          <button className="v3-btn v3-primary" onClick={onDone}>Open the results</button>
+          <button className="v3-btn v3-primary" onClick={onDone}>Continue</button>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/** The first scan is ShipLock-funded; later deep scans and PR reasoning use the
+ * customer's own AI. Asked after the audit, never before it, and skippable. */
+export function AiStep({ onDone }: { onDone: () => void }) {
+  return (
+    <div className="v3-stack">
+      <div>
+        <p className="v3-eyebrow">Your AI</p>
+        <h1 className="v3-serif" style={{ fontSize: 30, margin: "12px 0 10px" }}>Keep watching with your own AI.</h1>
+        <p className="v3-sub">
+          Your first scan was on us. Once your agent is set up, weekly deep scans and AI checks on pull
+          requests run on the AI you already use, on the schedule you approve here. Checks that need no AI
+          keep running either way.
+        </p>
+      </div>
+      <div className="v3-card"><div className="v3-card-p"><IntelligencePanel /></div></div>
+      <div className="v3-card v3-card-p v3-between">
+        <p className="v3-small">Skip for now if you like. You can change this any time in Settings.</p>
+        <button className="v3-btn v3-primary" onClick={onDone}>Open the results</button>
+      </div>
     </div>
   );
 }
