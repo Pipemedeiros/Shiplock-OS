@@ -337,7 +337,9 @@ the proving ground and native-agent distribution are not launch-proven.
   surfaces but their distribution and live setup remain unverified. The target
   is one backend fact and approval boundary across dashboard and MCP; current
   MCP code is not there yet. PAT issuance and resolution use the central
-  product-access gate, and the public MCP tool list is read-only. Legacy PAT
+  product-access gate. The public MCP server exposes read tools plus task
+  polling and proposal submission; it has no scan, file-write, merge, or PR
+  tools, and every PR still needs its own customer click. Legacy PAT
   scan/PR endpoints return 403 until they share durable admission and a
   separate approval receipt. Distribution and agent-intelligence callbacks
   remain unverified; do not describe native-agent parity as shipped.
