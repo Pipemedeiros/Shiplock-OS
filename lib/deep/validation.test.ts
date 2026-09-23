@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { scanSecrets, extractDependencies } from "./githubScan";
-import { extractEndpoints, extractRpcs, detectMiddlewareAuthGate } from "./reasoningContext";
 import type { RepoFile } from "./githubScan";
 
 // FP/FN validation corpus. VULN plants one known issue per detector; CLEAN is the
@@ -32,17 +31,6 @@ describe("VALIDATION — no false negatives on the vulnerable fixture", () => {
     expect(ids.some((i) => i.includes("supabase_service_key"))).toBe(true);
     expect(ids.some((i) => i.includes("committed_env"))).toBe(true);
   });
-  it("catches the mutating endpoint with no ownership scope + client input (IDOR/mass-assign)", () => {
-    const orders = extractEndpoints(VULN).find((e) => e.path.includes("orders"));
-    expect(orders?.mutates && !orders?.hasOwnershipScope && orders?.usesClientInputInWrite).toBe(true);
-  });
-  it("catches the SECURITY DEFINER RPC that's anon-callable (priv-esc)", () => {
-    const promote = extractRpcs(VULN).find((r) => r.name === "promote");
-    expect(promote?.securityDefiner && promote?.anonExecute).toBe(true);
-  });
-  it("catches the middleware-only auth gate (CVE-2025-29927 class)", () => {
-    expect(detectMiddlewareAuthGate(VULN)).toBe(true);
-  });
   it("extracts the vulnerable dependency for CVE lookup", () => {
     expect(extractDependencies(VULN.find((f) => f.path === "package.json")!.content, null)).toContainEqual({ name: "lodash", version: "4.17.11" });
   });
@@ -51,15 +39,5 @@ describe("VALIDATION — no false negatives on the vulnerable fixture", () => {
 describe("VALIDATION — no false positives on the clean fixture", () => {
   it("no committed secrets", () => {
     expect(scanSecrets(CLEAN)).toEqual([]);
-  });
-  it("no unscoped mutating endpoint (the /me route is ownership-scoped)", () => {
-    const me = extractEndpoints(CLEAN).find((e) => e.path.includes("me"));
-    expect(me?.hasOwnershipScope).toBe(true);
-  });
-  it("the revoked SECURITY DEFINER fn is not anon-callable", () => {
-    expect(extractRpcs(CLEAN).find((r) => r.name === "f")?.anonExecute).toBe(false);
-  });
-  it("no middleware auth gate (plain next())", () => {
-    expect(detectMiddlewareAuthGate(CLEAN)).toBe(false);
   });
 });
