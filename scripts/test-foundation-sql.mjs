@@ -39,6 +39,7 @@ try {
   await db.exec(await readFile(new URL("../supabase/migrations/077_intelligence_scans.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/079_intelligence_credentials.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/080_ai_fix_receipts.sql", import.meta.url), "utf8"));
+  await db.exec(await readFile(new URL("../supabase/migrations/081_first_scan_credit.sql", import.meta.url), "utf8"));
   await db.query("insert into auth.users values ($1),($2)", [u1,u2]);
   await db.query("insert into public.user_profiles(id) values($1),($2)", [u1,u2]);
   await check("connection epochs backfill the existing fingerprint and ignore blank credentials", async () => {
@@ -807,8 +808,39 @@ try {
     await db.query("update public.repair_action_receipts set status='failed',failure_code='source_changed' where id=$1",[receipt]);
     await db.exec("set role service_role");
   });
+  // 3G-1: one ShipLock-funded model run per account, bound to a leased audit run.
+  await check("the first-scan credit funds exactly one audit run per account and per GitHub installation", async () => {
+    await db.exec("reset role");
+    const leased=async(user,repo)=>{
+      const run=(await db.query("insert into public.audit_runs(user_id,repository_id,full_name,status) values ($1,$2,'acme/app','running') returning id",[user,repo])).rows[0].id;
+      const token="99999999-9999-4999-8999-"+Math.random().toString(16).slice(2,14).padEnd(12,"0");
+      const job=(await db.query("insert into public.execution_jobs(user_id,repository_id,audit_run_id,kind,deduplication_key,status,lease_token,lease_until,attempts) values ($1,$2,$3,'audit',$4,'running',$5,now()+interval '5 minutes',1) returning id",[user,repo,run,"credit:"+run,token])).rows[0].id;
+      return {run,job,token};
+    };
+    const a=await leased(u1,r1), b=await leased(u1,r1);
+    await db.exec("set role service_role");
+    const claim=(x,user=u1)=>db.query("select public.claim_first_scan_credit($1,$2,$3,$4) as ok",[user,x.run,x.job,x.token]).then((q)=>q.rows[0].ok);
+    assert.equal(await claim({...a,token:"00000000-0000-4000-8000-000000000000"}),false); // wrong lease
+    assert.equal(await claim(a),true);
+    assert.equal(await claim(a),true);   // a retry of the same run reuses the credit
+    assert.equal(await claim(b),false);  // any later run is not ShipLock-funded
+    // Another account on the same GitHub installation (account recreation) gets no second credit.
+    await db.exec("reset role");
+    await db.query("update public.user_profiles set github_installation_id=42 where id=$1",[u2]);
+    const c=await leased(u2,r2);
+    await db.exec("set role service_role");
+    assert.equal(await claim(c,u2),false);
+    // The credit is a ledger: deleting the run it funded does not erase it.
+    await db.exec("reset role");
+    await db.query("delete from public.execution_jobs where audit_run_id=$1",[a.run]);
+    await db.query("delete from public.audit_runs where id=$1",[a.run]);
+    assert.equal((await db.query("select count(*)::int as n from public.first_scan_credits where github_installation_id=42")).rows[0].n,1);
+    await db.exec("set role service_role");
+  });
   await check("client roles cannot touch intelligence tasks", async () => {
     await db.exec("reset role; set role authenticated");
+    await assert.rejects(db.query("select * from public.first_scan_credits"));
+    await assert.rejects(db.query("select public.claim_first_scan_credit($1,$1,$1,$1)",[u1]));
     await assert.rejects(db.query("select * from public.intelligence_credentials"));
     await assert.rejects(db.query("select public.claim_api_intelligence_task($1,$1)",[u1]));
     await db.exec("reset role; set role service_role");

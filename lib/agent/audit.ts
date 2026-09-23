@@ -7,6 +7,7 @@ import { scanCredentialHandling } from "@/lib/deep/credentialHandling";
 import { scanNextConfigEnv } from "@/lib/deep/nextConfigEnv";
 import { collectRoutes, type RouteFact } from "@/lib/graph/routeInventory";
 import { proposeAttacks, riskyRoutesOmitted, routesOmitted } from "./attack";
+import { claimFirstScanCredit } from "./firstScanCredit";
 import { crossTenantNotes, renderCrossTenantNote } from "./crossTenantNotes";
 import { detectStack, routeAnalysisSupport, type StackReport } from "./stack";
 import { buildFindings, type AgentFinding } from "./findings";
@@ -427,8 +428,12 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
     // binding and the mint. An unreadable gate leaves the critical standing.
     const gates = possessionGates(routes, new Map(archive.files.map((f) => [f.path, f])));
 
-    if (canReason) step("Reasoning about who can reach what");
-    const agent = canReason
+    // ShipLock funds one model-assisted audit per account (3G-1). A later run
+    // keeps every deterministic check; its reasoning step says it did not run.
+    const funding = canReason ? await claimFirstScanCredit(userId, runId, options.jobLease) : null;
+    const reasons = canReason && funding?.funded === true;
+    if (reasons) step("Reasoning about who can reach what");
+    const agent = reasons
       ? await proposeAttacks({
       routes: reasonedRoutes,
       stack,
@@ -449,7 +454,8 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
           unmatchedEntries: [],
           model: "none",
           skipped: true,
-          skipReason: routeSupport.level === "inventory_only"
+          skipReason: funding && !funding.funded ? funding.reason
+            : routeSupport.level === "inventory_only"
             ? "the repository framework is inventory-only"
             : "not enough time left in this run",
         };
