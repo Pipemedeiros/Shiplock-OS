@@ -43,50 +43,103 @@ The durable advantage is the longitudinal evidence graph: repository facts,
 provider configuration, authorized proof results, dependency state, and traffic
 summaries bound to the same repository over time. The model is replaceable;
 customer-specific history, explicit bindings, and remediation outcomes are the
-moat. Native use from the dashboard and coding agents (MCP/terminal/Codex/Claude
-Code) must consume the same facts and approval state, never a separate truth.
+proposed advantage, not a proven moat. Native use from the dashboard and coding
+agents (MCP/terminal/Codex/Claude Code) must consume the same facts and approval
+state, never a separate truth.
 
-Felipe's proposed intelligence connector is **not** merely a customer API key
-and is not shipped: ShipLock would own the collectors, deterministic checks,
-evidence graph, prompts, guards, and approval workflow while a customer-run
-coding agent navigates its own authorized checkout and supplies bounded,
-structured reasoning/evidence back to ShipLock. The agent is an optional
-intelligence and local-code navigation surface, never an independent source of
-security truth or a way to bypass provenance and approval. A model-provider API
-key alone does not grant that agent's repository/tool access. A passive MCP
-server alone cannot guarantee ShipLock can start a cloud audit or command a
-desktop agent: the host must support and authorize the interaction and be
-running. Preserve the GitHub-only deterministic path and durable workers when
-the agent is offline. Validate exact host capabilities with a small local
-prototype before claiming this works in Codex, Claude Code, or other clients.
+The approved target packaging is a free GitHub-first entry and a paid
+cross-layer product; neither tier is implemented or priced yet. After sign-in,
+GitHub installation, and selection of a repository, ShipLock funds **one
+bounded first scan per account** to show value. Do not silently grant another
+funded model run on repository changes, retries, or account recreation. The
+token ceiling and abuse policy remain open in the master ledger and must be
+measured before launch. The first scan still reports partial/unread/model-skipped
+coverage honestly.
 
-Pricing is undecided. Billing is parked while unit costs are measured. Do not
-publish or restore a price, trial, paid tier, Stripe Checkout entry point, or
-margin claim until Felipe approves a cost model based on measured model tokens,
-provider calls, storage, queue execution, support, and target gross margin. The
-old $49/$265/$470 offer and later prototype tiers are superseded. Customer-
-supplied agent intelligence and a possible free harness remain product proposals,
-not implemented tiers or claims of zero ShipLock cost.
+For subsequent scheduled deep scans, PR reasoning, and AI-assisted repair,
+the customer supplies the intelligence and its token allowance through an
+explicitly connected, supported mode: a customer-owned model API credential,
+a running coding agent such as Claude Code or Codex, or a ChatGPT connector.
+These are **different transports**, not interchangeable credentials. An API
+key can fund inference but cannot by itself navigate a checkout; a passive MCP
+server cannot command a dormant desktop agent or debit a ChatGPT subscription
+on ShipLock's schedule. A ChatGPT plugin can expose ShipLock tools, but
+reliable trigger, result return, plan eligibility, and limits require a real
+host-specific proof. No adapter may be marketed or billed as working until it
+can return schema-validated, scoped evidence to the same guarded graph. When
+customer intelligence is disconnected, exhausted, or unavailable, deterministic
+collection may continue within budget; model-assisted work is explicitly
+pending/unread, never clean. ShipLock owns collectors, prompts, guards,
+correlation, approval, and audit history in every mode. Customer model output
+never overrides source identity, deterministic admission, or approval.
+
+Free targets repository inventory, deterministic findings, honest coverage,
+and bounded manual/PR-triggered/scheduled rechecks; AI-assisted rechecks
+require the customer's connected intelligence. Paid targets optional live
+provider connections and cross-layer detection/proof, with the same
+customer-funded intelligence direction after the first scan. Meaningful-change
+email alerts belong to paid only. A reviewable PR suggestion may be shown in
+either tier, but **every branch/PR write requires a separate customer click**;
+mere connection or a standing opt-in is insufficient. A suggestion is not proof
+that a change cannot break production. Before opening a code PR, require an
+allowlisted mechanical change, current evidence, tests/CI or an explicit unverified label,
+an action receipt, and customer authorization. ShipLock never merges or deploys.
+
+Pricing is undecided. Billing/Checkout stays parked while first-scan and hosted
+COGS are measured: model tokens, GitHub/provider calls, queue execution,
+storage, support, and target margin. A free price to the customer is not zero
+ShipLock cost. Never purchase or activate customer/provider plans to make a
+core claim. The old $49/$265/$470 offer and prototype tiers are superseded.
+
+### ICP and market validation
+
+Start with founders of small, growing GitHub-based Next.js/Supabase SaaS teams
+without a security specialist; other stacks remain inventory until supported.
+This is a testable initial ICP, not evidence that all founders will buy.
+Repository scanning and AI repair alone are not differentiation: [GitHub Code
+Security](https://github.com/security/advanced-security/code-security) already
+combines scanning and remediation, and [Codex Security](https://openai.com/index/codex-security-now-in-research-preview/)
+describes vulnerability discovery, validation, and proposed fixes. The hypothesis
+is that current, explicitly bound provider configuration plus repository and
+traffic evidence finds actionable cross-layer issues and saves founder triage
+time beyond those baselines. Do not claim competitors lack a capability without
+testing that specific comparison.
+
+The weakest commercial assumption is willingness to connect both provider access
+and customer intelligence for incremental value. Test connection completion,
+incremental confirmed findings, false alarms, time to reviewed remedy, repeat
+use, willingness to pay, and hosted cost on consented pilot repos. If pilots
+cannot show incremental value or complete setup reliably, revisit scope before
+expanding connectors. Customer-supplied models improve potential economics,
+not necessarily onboarding; no universal subscription-to-API bridge is assumed.
+The market supports a credible experiment, not a claim of product-market fit.
 
 ## Customer journey
 
 1. Sign in and install the GitHub App.
 2. Select repositories. ShipLock records installation, repository, default
    branch, and commit identity, then inventories the stack automatically.
-3. Run the first repository audit. The UI shows progress, useful findings, and
-   explicit unknown/unread coverage; it never turns missing evidence into clean.
-4. Offer optional provider connections discovered from code. Explain exactly
-   what each connection lets ShipLock verify and request minimum read-only scope.
-5. Correlate only evidence explicitly bound to that repository and current
-   connection. Show an attack path with a claims ledger, not a mystery score.
-6. For a mechanical remedy, draft or open a reviewable branch/PR. ShipLock never
-   merges, deploys, changes provider configuration, or enables enforcement
-   without a separate explicit customer approval.
-7. Recheck pull requests and connected evidence continuously. Notify on a
-   meaningful change, not on an unchanged recurring scan.
+3. Run one budgeted ShipLock-funded first audit of the selected repository. The
+   UI shows progress, findings, and explicit unknown/unread coverage; it never
+   turns missing evidence into clean.
+4. Ask the user to connect a supported customer-intelligence mode for later
+   model-assisted runs. Show what it can do, its limits, and whether it is
+   currently reachable; do not mistake GitHub access for AI funding.
+5. Admit selected-repository PR events and customer schedules through durable,
+   bounded jobs. Deterministic rechecks can continue; deep reasoning waits for
+   customer intelligence and never falls back to ShipLock-funded calls silently.
+6. Offer optional read-only provider connections inferred from code as paid
+   depth. Explain what each lets ShipLock verify; a detected provider is not a
+   bound account. Correlate only current, explicitly bound evidence.
+7. Show consequences, citations, uncertainty, and a reviewable fix proposal.
+   Open a code PR only after the customer's click; never approve, merge,
+   deploy, or enable enforcement on the customer's behalf.
+8. Recheck changes. Paid email alerts notify only on a meaningful new state,
+   not on every unchanged recurring scan; free may show in-app state but sends
+   no email alerts.
 
-Time-to-first-value for a GitHub-only customer is under ten minutes. A provider
-connection may strengthen a claim from inferred/corroborated to verified or
+The time-to-first-value target for a GitHub-only customer is under ten minutes.
+A provider connection may strengthen a claim from inferred/corroborated to verified or
 proven; it may not be required to obtain an honest first result.
 
 ## Evidence architecture
@@ -123,6 +176,16 @@ timeout, malformed output, and skipped reasoning are coverage states—not clean
 audits. A probabilistic model is never called “deterministic,” regardless of its
 benchmark accuracy.
 
+Every intelligence mode must return the same bounded result contract: tenant,
+selected repository and immutable commit, run/attempt identity, host/provider,
+credential or connection epoch (never the secret), source citations, structured
+hypotheses, usage/limit receipt when available, and explicit completeness or
+failure. The server validates identity, freshness, schema, citations, and
+deterministic admission before persistence. Treat customer model text as
+untrusted input, not as a collector snapshot or authorization to write. The
+first-scan credit is a durable, idempotent per-account entitlement with hard
+token/time ceilings; retrying the same run cannot mint a second credit.
+
 Authorized attack-based verification is part of the target product, with proof:
 run only against a disposable replica or an environment the customer explicitly
 authorized for that exact test; use synthetic tenants/data; enforce request,
@@ -150,6 +213,15 @@ per-tenant fairness. Web requests are not the durable execution engine. Schedule
 and webhook paths enqueue the same job contracts rather than running parallel
 business logic.
 
+Jobs distinguish deterministic collection from intelligence requests and record
+who funds model invocation. After the first-scan entitlement is consumed, no
+worker may call a ShipLock-funded model as a fallback. Customer credentials are
+encrypted references, never job payloads; host/agent integrations need explicit
+availability and result-return contracts. A PR webhook may enqueue a
+deterministic recheck while the customer agent is offline, but its AI leg stays
+pending/unread. Bound per-account runs, repository bytes, provider calls, model
+output, concurrency, and retention before opening the free tier.
+
 Postgres/Supabase is the system of record. Tenant-owned rows use Row Level
 Security plus tenant-bound foreign keys; service-only tables deny customer-role
 access. Secrets are encrypted, never returned after write, and excluded from
@@ -158,19 +230,52 @@ rebuildable. Large artifacts use bounded object storage with retention rules.
 Audit finding replacement and terminal job/run transitions are transactional
 and fenced so a stale worker cannot overwrite a newer result.
 
-Scale claims require load evidence. The target architecture can serve 50,000
+Scale claims require load evidence. The architecture targets 50,000
 accounts by scaling stateless web nodes and workers independently, but no one may
 claim that capacity until queue throughput, database contention, provider rate
 limits, storage growth, noisy-neighbor behavior, and recovery have been measured.
+
+### Target data flow and benchmark contract
+
+GitHub selection/event → authenticated, quota-checked job admission → leased
+worker → bounded read-only collectors → versioned snapshots → deterministic
+facts/candidates → optional funded intelligence → citation/admission guards →
+repository-bound evidence graph → founder findings/coverage → customer click
+and action receipt → reviewable repair PR → human merge → recheck. Paid provider
+snapshots and minimized traffic aggregates join only through current explicit
+repository bindings. This is the target flow; the source map and ledger disclose
+which links are incomplete. Document changed producer, consumer, storage, trust
+boundary, failure/retry behavior, and cost owner in the ledger for every change
+to this flow. Do not introduce a parallel source of truth.
+
+Benchmark detection and system behavior separately. Before detector changes,
+freeze commit/archive identities, labeled vulnerability/negative populations,
+supported scope, model/version/prompt/settings, and run budgets. Record TP, FP,
+FN, precision (TP/(TP+FP)), recall (TP/(TP+FN)), false-critical counts, unread
+coverage, sample sizes, and uncertainty; zero denominators mean unavailable,
+not 100%. Candidate recall is not end-to-end recall. Use held-out labels not
+used for tuning, compare before/after on the same population, and report missed
+cases as well as wins. Store bounded machine-readable results, never a new MD.
+Do not invent a passing quality threshold after seeing results; propose and
+record release thresholds before the release benchmark.
+
+System benchmarks must name workload and environment, distinguish accounts
+from simultaneous scans, and measure queue wait, throughput, p50/p95 latency,
+retry/recovery, database contention, tenant fairness, provider rate limits,
+storage/retention, and cost per completed run. Fault tests cover stale workers,
+disconnect/reconnect, partial reads, exhausted AI budget, offline hosts, and
+duplicate delivery. Local mocks and queue admission are not production capacity
+or model accuracy evidence. Paid benchmark runs require Felipe's approval.
 
 ## Approval and safety boundaries
 
 - Read-only collection and analysis may run within the customer's selected
   scope. A write, PR, provider change, enforcement rule, merge, or deployment is
   a distinct action with an audit record.
-- ShipLock may draft or open a PR when the customer has enabled that workflow;
-  it never approves or merges its own PR. Authorization/business-policy changes
-  require human judgment and are not machine-authored as if mechanical.
+- ShipLock may show a PR proposal, but each branch/PR write requires its own
+  customer click and audit receipt. It never approves or merges its own PR.
+  Authorization/business-policy changes require human judgment and are not
+  machine-authored as if mechanical.
 - Do not read customer application rows. Schema, policy definitions, counts, and
   synthetic replica data are the allowed evidence surface.
 - Never claim that a connected account is secure. Say what was read, what was
@@ -213,6 +318,9 @@ the proving ground and native-agent distribution are not launch-proven.
   checks class and observed citations, `findings.ts` computes confidence and
   severity ceilings, and `lib/proving/` alone may earn `proven`. A model skip or
   malformed response is shown in Coverage and cannot resolve an old finding.
+  This path currently uses ShipLock's `ANTHROPIC_API_KEY` directly; `lib/env.ts`
+  requires that key at startup. Neither one-time first-scan funding nor a
+  customer-funded intelligence adapter is implemented.
 - `lib/monitoring/{registry,collectors,run,findings,diff}.ts` collects provider
   evidence through registered adapters. `lib/graph/{repositorySource,
   databaseSource,repositoryDatabase,graphRun,attackPaths}.ts` admits scoped
@@ -236,6 +344,10 @@ the proving ground and native-agent distribution are not launch-proven.
 - No agent-intelligence connector currently returns bounded code-navigation
   evidence to the graph. Existing MCP tools expose ShipLock facts/actions to an
   agent; they do not make the customer's agent ShipLock's autonomous worker.
+  There is no customer-key funding separation, ChatGPT result callback, or
+  proven recurring customer-funded AI path. `app/api/audit/route.ts` enqueues
+  through the existing access gate; it does not enforce the new once-per-account
+  first-scan entitlement or free/paid feature matrix.
 - `supabase/migrations/` is the schema/RLS source. 053–066 are local and
   unapplied. `docs/CORPUS.json`, `scripts/corpus.cjs`, and dated evaluation JSON
   are reproducibility data, not current accuracy marketing claims.
@@ -283,7 +395,17 @@ lives only in `docs/MASTER-PLAN-PROGRESS.md`.
   A package is not a finished phase. Preserve unrelated working-tree changes.
 - Keep `AGENTS.md` as deep, stable product/architecture/implementation context.
   Do not edit it for routine progress, and do not change it at all without
-  Felipe's explicit approval.
+  Felipe's explicit approval, an explicit request to edit it, or his explicit
+  change to the product plan that requires reconciliation. Report any such edit.
+- Execute one numbered reviewable item at a time. Before starting, announce its
+  number, intended outcome, and scope. Before moving to another item, update the
+  master ledger and report completed versus partial/blocked work. Never silently
+  skip an unfinished prerequisite or mark a phase complete from a substep.
+- Agents have implementation freedom inside the approved contract: choose
+  helpers, tests, and proven-dead-code cleanup without asking for every detail.
+  Record meaningful design/deletion decisions and reasons. New/reordered future
+  items may be added to the ledger only with an explicit report of scope and
+  dependencies; product/approval/spend changes still require Felipe's decision.
 - Before editing: read this file and the master ledger fully; run `git status`,
   inspect relevant code, callers, tests, migrations, and current framework docs.
   Before handing off: inspect `git diff`, check for stale cross-references and
@@ -326,9 +448,16 @@ not proof its CLI is installed, and neither agent may silently activate it.
 
 ## Documentation hygiene and handoff
 
+Maintain a single active handoff near the top of the master ledger: date, active
+step/item, completed changes, unfinished siblings, changed files, actual test
+results (including failures/skips), decisions, blockers, and exact next action.
+At takeover, reconcile that record with Git status/diff before editing. Claude
+and Codex work sequentially against the same record; do not overwrite the
+previous agent's unfinished work or infer completion from its last message.
+
 `AGENTS.md` is stable policy and code orientation; the master ledger is dynamic
 status and the exact next package. These are the only two non-skill Markdown
-files in the repo. Change this file only with Felipe's explicit approval;
+files in the repo. Change this file only under Felipe's authority described above;
 write all ordinary implementation progress to the master ledger. Date every
 master-ledger update; identify the exact section/step/item finished,
 evidence/tests, incomplete sibling items, and next
@@ -338,6 +467,7 @@ retired narrative, use Git history rather than a parallel README/spec/handoff.
 Completed steps may be compacted out of the active queue only after their key
 proof and remaining caveats are retained in the ledger; do not erase unfinished
 2/3/4 work just because a later step started.
+Do not create any additional project Markdown without Felipe's explicit request.
 Keep all other project Markdown out of the repo, including a second agent
 guide, generated handoff notes, and a repo-local `.claude` tree. Skill Markdown
 under `.agents/skills/` is the sole exception.
