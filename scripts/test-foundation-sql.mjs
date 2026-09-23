@@ -32,6 +32,7 @@ try {
   await db.exec(await readFile(new URL("../supabase/migrations/070_repair_action_receipts.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/071_pull_request_reviews.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/072_pull_request_fix_receipts.sql", import.meta.url), "utf8"));
+  await db.exec(await readFile(new URL("../supabase/migrations/073_pull_request_alerts.sql", import.meta.url), "utf8"));
   await db.query("insert into auth.users values ($1),($2)", [u1,u2]);
   await db.query("insert into public.user_profiles(id) values($1),($2)", [u1,u2]);
   await check("connection epochs backfill the existing fingerprint and ignore blank credentials", async () => {
@@ -565,6 +566,10 @@ try {
     await db.exec("reset role");
     const row=(await db.query("select verdict,head_ref,same_repository,jsonb_array_length(findings) n from public.pull_request_reviews where id=$1",[id])).rows[0];
     assert.deepEqual(row,{verdict:"warn",head_ref:"feature/orders",same_repository:true,n:1});
+    // 9A: the blocking store admitted exactly one alert job for this PR head,
+    // and re-storing the same head never adds another.
+    const alerts=(await db.query("select n.job_id,j.kind from public.pull_request_notifications n join public.execution_jobs j on j.id=n.job_id where n.review_id=$1",[id])).rows;
+    assert.equal(alerts.length,1); assert.equal(alerts[0].kind,"notification");
     await db.exec("set role service_role");
   });
   await check("a fix-before-merge click binds to the caller's own same-repository review", async () => {
@@ -585,8 +590,19 @@ try {
     assert.equal((await db.query("select review_id from public.repair_action_receipts where id=$1",[receipt])).rows[0].review_id,review);
     await db.exec("set role service_role");
   });
+  await check("a pull request that only warns admits no alert", async () => {
+    const job=(await db.query("select public.enqueue_pull_request_check($1,$2,'review-pr-11',11,$3) as id",[u1,r1,"f".repeat(40)])).rows[0].id;
+    await db.exec("reset role");
+    const token=(await db.query("update public.execution_jobs set status='running',lease_token=gen_random_uuid(),lease_until=now()+interval '5 minutes' where id=$1 returning lease_token",[job])).rows[0].lease_token;
+    await db.exec("set role service_role");
+    const id=(await db.query("select public.persist_pull_request_review($1,$2,$3,$4) as id",[u1,job,token,JSON.stringify({pullRequestNumber:11,headSha:"f".repeat(40),verdict:"warn",coverageComplete:true,findings:[]})])).rows[0].id;
+    await db.exec("reset role");
+    assert.equal((await db.query("select count(*)::int n from public.pull_request_notifications where review_id=$1",[id])).rows[0].n,0);
+    await db.exec("set role service_role");
+  });
   await check("client roles cannot read or write pull-request reviews", async () => {
     await db.exec("reset role; set role authenticated");
+    await assert.rejects(db.query("select * from public.pull_request_notifications"));
     await assert.rejects(db.query("select * from public.pull_request_reviews"));
     await assert.rejects(db.query("select public.persist_pull_request_review($1,$1,$1,'{}'::jsonb)",[u1]));
     await db.exec("reset role; set role service_role");
