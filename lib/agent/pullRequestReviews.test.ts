@@ -29,7 +29,7 @@ beforeEach(() => {
 describe("getRecentPullRequestReviews", () => {
   it("returns the caller's recent reviews with findings and PR metadata", async () => {
     expect(await getRecentPullRequestReviews("u1")).toEqual([{
-      id: row.id, repository: "acme/app", number: 9, title: "Add orders API", url: row.url,
+      id: row.id, repository: "acme/app", number: 9, headSha: "c".repeat(40), title: "Add orders API", url: row.url,
       headRef: "feature/orders", sameRepository: true, verdict: "block", coverageComplete: true,
       checkedAt: row.checked_at, findings: row.findings,
     }]);

@@ -15,7 +15,7 @@ const rowSchema = z.object({
 });
 
 export type PullRequestReviewView = {
-  id: string; repository: string; number: number; title: string | null; url: string | null;
+  id: string; repository: string; number: number; headSha: string; title: string | null; url: string | null;
   headRef: string | null; sameRepository: boolean | null;
   verdict: "pass" | "warn" | "block"; coverageComplete: boolean; checkedAt: string;
   findings: z.infer<typeof findingSchema>[];
@@ -33,7 +33,7 @@ export async function getRecentPullRequestReviews(userId: string, limit = 20): P
     if (!row.success) return [];
     const r = row.data;
     return [{
-      id: r.id, repository: r.repositories.full_name, number: r.pull_request_number, title: r.title, url: r.url,
+      id: r.id, repository: r.repositories.full_name, number: r.pull_request_number, headSha: r.head_sha, title: r.title, url: r.url,
       headRef: r.head_ref, sameRepository: r.same_repository, verdict: r.verdict,
       coverageComplete: r.coverage_complete, checkedAt: r.checked_at, findings: r.findings,
     }];

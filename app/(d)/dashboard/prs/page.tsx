@@ -152,8 +152,8 @@ const verdictLabel: Record<PullRequestReviewView["verdict"], string> = {
  * introduced, where, and how much of it we could read. */
 function aiLine(ai: AiActivity, review: PullRequestReviewView): string {
   if (!ai.available) return "state unknown.";
-  const check = aiCheckForPullRequest(ai.checks, review.repository, review.number);
-  return check ? aiStateLabel[check.state] : "none requested for this pull request. Not checked by AI.";
+  const check = aiCheckForPullRequest(ai.checks, review.repository, review.number, review.headSha);
+  return check ? aiStateLabel[check.state] : "none requested for this commit. Not checked by AI.";
 }
 
 function CheckedPullRequests({ reviews, ai }: { reviews: PullRequestReviewView[]; ai: AiActivity }) {

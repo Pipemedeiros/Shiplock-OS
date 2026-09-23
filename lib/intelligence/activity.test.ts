@@ -73,7 +73,9 @@ describe("AI check states (10B-2d)", () => {
       { ...base, taskId: "old", pullRequest: 7, state: "expired" },
       { ...base, taskId: "other", repository: "acme/web", pullRequest: 7, state: "proposal" },
     ];
-    expect(aiCheckForPullRequest(checks, "acme/app", 7)?.taskId).toBe("new");
-    expect(aiCheckForPullRequest(checks, "acme/app", 8)).toBeNull();
+    expect(aiCheckForPullRequest(checks, "acme/app", 7, "a")?.taskId).toBe("new");
+    expect(aiCheckForPullRequest(checks, "acme/app", 8, "a")).toBeNull();
+    // A check on an older push is not about the code now under review.
+    expect(aiCheckForPullRequest(checks, "acme/app", 7, "b")).toBeNull();
   });
 });

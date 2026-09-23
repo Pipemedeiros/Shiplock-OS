@@ -67,7 +67,9 @@ export async function getAiActivity(userId: string, now = Date.now()): Promise<A
   }
 }
 
-/** The newest AI check on a pull request (checks arrive newest first). */
-export function aiCheckForPullRequest(checks: AiCheck[], repository: string, pullRequest: number): AiCheck | null {
-  return checks.find((check) => check.kind === "pr" && check.repository === repository && check.pullRequest === pullRequest) ?? null;
+/** The newest AI check on a pull request at exactly this head commit (checks
+ * arrive newest first). A check of an older push is not about this code. */
+export function aiCheckForPullRequest(checks: AiCheck[], repository: string, pullRequest: number, headSha: string): AiCheck | null {
+  return checks.find((check) => check.kind === "pr" && check.repository === repository
+    && check.pullRequest === pullRequest && check.commit === headSha) ?? null;
 }
