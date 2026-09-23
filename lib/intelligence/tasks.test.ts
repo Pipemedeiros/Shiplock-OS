@@ -45,10 +45,15 @@ describe("getIntelligenceTask", () => {
   it("returns the owner's task with paths, hashes, and limits, never source or funding claims", async () => {
     const task = await getIntelligenceTask(userId, taskId);
     expect(task).toMatchObject({ identity: { taskId, tenantId: userId, repositoryId, commit }, host: "api",
-      repository: "acme/app", permission: "propose_only", funding: "unverified", status: "pending",
+      repository: "acme/app", permission: "propose_only", funding: "customer_api_key", status: "pending",
       sources: [{ path, sourceHash: hash(before) }] });
     expect(JSON.stringify(task)).not.toContain("productionBrowserSourceMaps");
     expect(mocks.filters).toHaveBeenCalledWith("intelligence_tasks", "user_id", userId);
+  });
+
+  it("labels funding: API mode runs on the customer's key; a pull host's funding is not verified (10B-2e)", async () => {
+    mocks.task.mockResolvedValue({ data: { ...row, host: "codex" }, error: null });
+    expect(await getIntelligenceTask(userId, taskId)).toMatchObject({ funding: "unverified" });
   });
 
   it("returns null for another tenant's or unknown task", async () => {

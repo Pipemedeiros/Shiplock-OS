@@ -778,9 +778,20 @@ try {
     await assert.rejects(save("Ab_9","nothex"));
     await assert.rejects(db.query("insert into public.intelligence_credentials(user_id,provider,key_encrypted,key_hint,epoch) values ($1,'openai','v1:'||repeat('c',40),'Ab_9',$2)",[u2,"e".repeat(64)]));
   });
+  await check("an API-mode task can be claimed for a model call exactly once", async () => {
+    await approve("api","off","off",50000,1000000);
+    const t=(await db.query("select public.create_intelligence_task($1,$2,$3,'api','x',$4,now()+interval '10 minutes','intel-claim-1') as id",[u1,r1,"a".repeat(40),sources])).rows[0].id;
+    const claim=(task,user=u1)=>db.query("select public.claim_api_intelligence_task($1,$2) as ok",[user,task]).then((x)=>x.rows[0].ok);
+    assert.equal(await claim(t,u2),false);
+    assert.equal(await claim(t),true);
+    assert.equal(await claim(t),false);
+    const codex=(await (async()=>{await approve("codex");return newTask("intel-claim-2");})()).rows[0].id;
+    assert.equal(await claim(codex),false);
+  });
   await check("client roles cannot touch intelligence tasks", async () => {
     await db.exec("reset role; set role authenticated");
     await assert.rejects(db.query("select * from public.intelligence_credentials"));
+    await assert.rejects(db.query("select public.claim_api_intelligence_task($1,$1)",[u1]));
     await db.exec("reset role; set role service_role");
     await db.exec("reset role; set role authenticated");
     await assert.rejects(db.query("select * from public.intelligence_scan_jobs"));

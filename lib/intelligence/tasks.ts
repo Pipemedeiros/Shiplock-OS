@@ -58,8 +58,9 @@ export async function getIntelligenceTask(userId: string, taskId: string) {
     host: task.host, repository: task.repositories.full_name, instruction: task.instruction,
     // Paths and hashes only: the agent reads its own checkout at this commit.
     sources: task.sources, permission: "propose_only" as const,
-    // Who pays for inference is not verified by ShipLock (review item c).
-    funding: "unverified" as const,
+    // API mode runs on the customer's saved key (10B-2e); for a pull host,
+    // who pays for inference is not verified by ShipLock.
+    funding: task.host === "api" ? "customer_api_key" as const : "unverified" as const,
     status: expired ? "expired" as const : task.status, expiresAt: task.expires_at,
     limits: { citations: 16, edits: 3, resultBytes: 64_000 },
     resultSchema: z.toJSONSchema(durableResultSchema),

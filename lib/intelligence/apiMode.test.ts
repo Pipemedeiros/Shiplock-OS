@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const state = vi.hoisted(() => ({ view: vi.fn(), submit: vi.fn(), key: vi.fn(), file: vi.fn(), create: vi.fn(), clientKeys: [] as string[] }));
+const state = vi.hoisted(() => ({ view: vi.fn(), submit: vi.fn(), key: vi.fn(), file: vi.fn(), create: vi.fn(), rpc: vi.fn(), clientKeys: [] as string[] }));
+vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ rpc: state.rpc }) }));
 vi.mock("./tasks", () => ({ getIntelligenceTask: state.view, submitIntelligenceResult: state.submit }));
 vi.mock("./credential", () => ({ loadApiKey: state.key }));
 vi.mock("@/lib/deep/github", () => ({ getFile: state.file }));
@@ -35,6 +36,7 @@ beforeEach(() => {
   state.key.mockResolvedValue({ apiKey: customerKey, epoch: "e".repeat(64) });
   state.file.mockResolvedValue("export async function GET() {}\n");
   state.submit.mockResolvedValue({ outcome: "accepted" });
+  state.rpc.mockResolvedValue({ data: true, error: null });
   state.create.mockResolvedValue(answer(JSON.stringify(modelResult)));
 });
 
@@ -68,6 +70,19 @@ describe("API-key mode (10B-2e-2)", () => {
     expect(state.create).not.toHaveBeenCalled();
     state.view.mockResolvedValue(null);
     expect(await runApiModeTask(input)).toBe("skipped");
+  });
+
+  it("claims the task before the one paid call; an already-claimed task is never called again", async () => {
+    await runApiModeTask(input);
+    expect(state.rpc).toHaveBeenCalledWith("claim_api_intelligence_task", { p_user: ids.tenantId, p_task: ids.taskId });
+    expect(state.rpc.mock.invocationCallOrder[0]).toBeLessThan(state.create.mock.invocationCallOrder[0]);
+    vi.clearAllMocks();
+    state.rpc.mockResolvedValue({ data: false, error: null });
+    expect(await runApiModeTask(input)).toBe("skipped");
+    expect(state.create).not.toHaveBeenCalled();
+    state.rpc.mockResolvedValue({ data: null, error: { message: "down" } });
+    await expect(runApiModeTask(input)).rejects.toThrow();
+    expect(state.create).not.toHaveBeenCalled();
   });
 
   it("refuses to call when the run budget cannot cover the files plus an answer", async () => {

@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { getFile } from "@/lib/deep/github";
+import { getSupabaseAdmin } from "@/lib/supabase";
 import { loadApiKey } from "./credential";
 import { getIntelligenceTask, submitIntelligenceResult } from "./tasks";
 
@@ -60,6 +61,13 @@ export async function runApiModeTask(input: Input): Promise<Outcome> {
   const task = { identity, host: "api", instruction: view.instruction, repository: view.repository };
   const body = files.map((f) => `FILE ${f.path} (sourceHash ${f.sourceHash}), numbered for reference only:\n`
     + f.content.split("\n").map((line, i) => `${i + 1}: ${line}`).join("\n")).join("\n\n");
+
+  // Claim before the one paid call. A retried job (say, after a crash between
+  // the call and the submit) finds the claim and never calls again; the task
+  // then expires and reads "not checked". Storage failure: retry, nothing spent.
+  const claim = await getSupabaseAdmin().rpc("claim_api_intelligence_task", { p_user: input.userId, p_task: input.taskId });
+  if (claim.error) throw new Error("claim_unavailable");
+  if (claim.data !== true) return "skipped";
 
   // Explicit key and no retries: the SDK would otherwise read ShipLock's
   // ANTHROPIC_API_KEY from the environment, and a retry is a second charge.
