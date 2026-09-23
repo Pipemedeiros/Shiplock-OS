@@ -33,6 +33,7 @@ try {
   await db.exec(await readFile(new URL("../supabase/migrations/071_pull_request_reviews.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/072_pull_request_fix_receipts.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/073_pull_request_alerts.sql", import.meta.url), "utf8"));
+  await db.exec(await readFile(new URL("../supabase/migrations/074_intelligence_tasks.sql", import.meta.url), "utf8"));
   await db.query("insert into auth.users values ($1),($2)", [u1,u2]);
   await db.query("insert into public.user_profiles(id) values($1),($2)", [u1,u2]);
   await check("connection epochs backfill the existing fingerprint and ignore blank credentials", async () => {
@@ -605,6 +606,60 @@ try {
     await assert.rejects(db.query("select * from public.pull_request_notifications"));
     await assert.rejects(db.query("select * from public.pull_request_reviews"));
     await assert.rejects(db.query("select public.persist_pull_request_review($1,$1,$1,'{}'::jsonb)",[u1]));
+    await db.exec("reset role; set role service_role");
+  });
+  // 10B-1: durable customer-intelligence tasks bound to tenant, selected
+  // repository, commit, and the GitHub installation they were created under.
+  const sources=JSON.stringify([{path:"next.config.ts",sourceHash:"1".repeat(64)}]);
+  const newTask=(key,user=u1,repo=r1,minutes=10)=>db.query(
+    "select public.create_intelligence_task($1,$2,$3,'codex','Propose the source-map fix.',$4,now()+make_interval(mins=>$5),$6) as id",
+    [user,repo,"a".repeat(40),sources,minutes,key]);
+  const submit=(task,status,digest,user=u1)=>db.query("select public.submit_intelligence_result($1,$2,$3,$4,$5) as outcome",
+    [user,task,status,JSON.stringify({status,summary:"s"}),digest]);
+  await check("an intelligence task is created once per key for the caller's selected repository", async () => {
+    await db.exec("reset role; update public.user_profiles set github_installation_id=42,github_connected_at=now()-interval '1 day' where id=$1".replace("$1",`'${u1}'`)+"; set role service_role");
+    const id=(await newTask("intel-1")).rows[0].id;
+    assert.equal((await newTask("intel-1")).rows[0].id,id);
+    await assert.rejects(newTask("intel-2",u1,r2));
+    await assert.rejects(newTask("intel-3",u1,r1,24*60+5));
+    await assert.rejects(db.query("select public.create_intelligence_task($1,$2,$3,'codex','x',$4,now()+interval '5 minutes','intel-4')",
+      [u1,r1,"a".repeat(40),JSON.stringify([{path:"../.env",sourceHash:"1".repeat(64)}])]));
+    await assert.rejects(db.query("select public.create_intelligence_task($1,$2,$3,'gpt','x',$4,now()+interval '5 minutes','intel-5')",[u1,r1,"a".repeat(40),sources]));
+  });
+  await check("results are owner-only, final once, and exact replays return the same outcome", async () => {
+    const id=(await newTask("intel-6")).rows[0].id;
+    await assert.rejects(submit(id,"proposal_received","2".repeat(64),u2));
+    assert.equal((await submit(id,"proposal_received","2".repeat(64))).rows[0].outcome,"accepted");
+    assert.equal((await submit(id,"proposal_received","2".repeat(64))).rows[0].outcome,"replayed");
+    await assert.rejects(submit(id,"needs_human","3".repeat(64)));
+    await assert.rejects(submit(id,"applied","4".repeat(64)));
+  });
+  await check("expiry, reinstall, deselection, and cancellation stop new results but keep accepted ones readable", async () => {
+    const accepted=(await newTask("intel-7")).rows[0].id;
+    await submit(accepted,"needs_human","5".repeat(64));
+    const expiring=(await newTask("intel-8")).rows[0].id;
+    const reinstall=(await newTask("intel-9")).rows[0].id;
+    const cancelled=(await newTask("intel-10")).rows[0].id;
+    assert.equal((await db.query("select public.cancel_intelligence_task($1,$2) as ok",[u1,cancelled])).rows[0].ok,true);
+    await assert.rejects(submit(cancelled,"unavailable","6".repeat(64)));
+    await db.exec("reset role");
+    await db.query("update public.intelligence_tasks set expires_at=now()-interval '1 second' where id in ($1,$2)",[expiring,accepted]);
+    await db.exec("set role service_role");
+    await assert.rejects(submit(expiring,"unavailable","7".repeat(64)));
+    assert.equal((await submit(accepted,"needs_human","5".repeat(64))).rows[0].outcome,"replayed");
+    await db.exec("reset role");
+    await db.query("update public.user_profiles set github_connected_at=now() where id=$1",[u1]);
+    await db.exec("set role service_role");
+    await assert.rejects(submit(reinstall,"unavailable","8".repeat(64)));
+    await db.exec("reset role");
+    assert.deepEqual((await db.query("select status,result_digest from public.intelligence_tasks where id=$1",[accepted])).rows[0],{status:"needs_human",result_digest:"5".repeat(64)});
+    await db.exec("set role service_role");
+  });
+  await check("client roles cannot touch intelligence tasks", async () => {
+    await db.exec("reset role; set role authenticated");
+    await assert.rejects(db.query("select * from public.intelligence_tasks"));
+    await assert.rejects(newTask("intel-client"));
+    await assert.rejects(db.query("select public.submit_intelligence_result($1,$1,'unavailable','{}'::jsonb,$2)",[u1,"9".repeat(64)]));
     await db.exec("reset role; set role service_role");
   });
   await check("client roles cannot commit provider results", async () => {
