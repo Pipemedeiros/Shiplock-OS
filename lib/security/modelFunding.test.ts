@@ -9,9 +9,9 @@ import { describe, expect, it } from "vitest";
 // 2026-09-23 removal of /api/deep/github/reason (a signed-in POST that spent
 // ShipLock's key with no bound) is why this exists.
 const ALLOWED: Record<string, string> = {
-  "lib/agent/attack.ts": "audit hypotheses; the first-scan credit that should bound it is open work (AGENTS.md)",
-  "lib/analyzer.ts": "legacy scan report; bearer-gated /api/scan (open: bound or remove with the first-scan credit)",
-  "lib/graph/narrative.ts": "graph narrative with timeout; open: bound with the first-scan credit",
+  "lib/agent/attack.ts": "audit hypotheses; called only when the first-scan credit is claimed (3G-1)",
+  "lib/analyzer.ts": "legacy scan report; off unless SHIPLOCK_FUNDED_SCAN_REPORT=true (3G-2)",
+  "lib/graph/narrative.ts": "graph narrative; off unless SHIPLOCK_FUNDED_NARRATIVES=true (3G-2)",
   "lib/graph/defender.ts": "unused per AGENTS.md; must not gain a caller without a bound",
   "lib/proving/agent.ts": "proving ground; not launch-proven per AGENTS.md",
   "lib/intelligence/apiMode.ts": "customer-funded: explicit customer key only, never ShipLock's",

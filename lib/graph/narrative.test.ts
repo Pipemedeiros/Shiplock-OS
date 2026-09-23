@@ -41,6 +41,14 @@ describe("generateNarratives", () => {
   beforeEach(() => {
     createMock.mockReset();
     process.env.ANTHROPIC_API_KEY = "sk-ant-test";
+    process.env.SHIPLOCK_FUNDED_NARRATIVES = "true";
+  });
+
+  it("spends nothing unless ShipLock-funded narratives are explicitly on (3G-2)", async () => {
+    delete process.env.SHIPLOCK_FUNDED_NARRATIVES;
+    const result = await generateNarratives([path()]);
+    expect(createMock).not.toHaveBeenCalled();
+    expect(result.accepted.size).toBe(0);
   });
 
   it("accepts a grounded narrative", async () => {

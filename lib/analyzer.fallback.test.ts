@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ScanResult } from "./scanner";
 
 // 1E-3: the deterministic fallback report must not warn about a check that
@@ -17,6 +17,17 @@ vi.mock("@anthropic-ai/sdk", () => {
 });
 
 import { analyzeResult } from "./analyzer";
+
+beforeEach(() => { sdkCreate.mockClear(); process.env.SHIPLOCK_FUNDED_SCAN_REPORT = "true"; });
+
+describe("the legacy scan report spends ShipLock's key only when explicitly on (3G-2)", () => {
+  it("returns the deterministic report and makes no model call by default", async () => {
+    delete process.env.SHIPLOCK_FUNDED_SCAN_REPORT;
+    const result = await analyzeResult({ tables: [] } as unknown as ScanResult);
+    expect(sdkCreate).not.toHaveBeenCalled();
+    expect(result.issues).toBeDefined();
+  });
+});
 
 const scan = (over: Partial<ScanResult>) => ({ tables: [], ...over }) as unknown as ScanResult;
 

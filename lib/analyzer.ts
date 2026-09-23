@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { ScanResult } from "./scanner";
+import { shiplockFundedCallAllowed } from "@/lib/funding";
 
 // ── Result types ──────────────────────────────────────────────────────────────
 
@@ -566,6 +567,9 @@ function selectModel(scan: ScanResult): string {
 // ── Analyser ──────────────────────────────────────────────────────────────────
 
 export async function analyzeResult(scan: ScanResult): Promise<AnalysisResult> {
+  // ShipLock-funded and unbounded per scan: off unless explicitly enabled
+  // (3G-2). The deterministic report is the same one used on any model failure.
+  if (!shiplockFundedCallAllowed("scan-report")) return buildFallback(scan);
   // ScanResult never contains the anon key — serialising it is safe by design.
   const userMessage = JSON.stringify(scan, null, 2);
 

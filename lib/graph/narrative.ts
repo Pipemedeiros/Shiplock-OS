@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { AttackPath } from "./attackPaths";
 import { checkNarrative, type NarrativeProposal } from "./narrativeGuard";
+import { shiplockFundedCallAllowed } from "@/lib/funding";
 
 // Human-readable explanations for correlated findings.
 //
@@ -110,6 +111,9 @@ function parseProposals(raw: string): { id: string; proposal: NarrativeProposal 
  */
 export async function generateNarratives(paths: AttackPath[]): Promise<NarrativeResult> {
   if (paths.length === 0) return EMPTY;
+  // ShipLock-funded and recurring: off unless explicitly enabled (3G-2). The
+  // deterministic template wording stands in, exactly as on any model failure.
+  if (!shiplockFundedCallAllowed("graph-narrative")) return EMPTY;
   if (!process.env.ANTHROPIC_API_KEY) return EMPTY;
 
   // Bounded per call. More than a handful of new correlated paths in one pass is
