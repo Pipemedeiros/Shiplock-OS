@@ -41,7 +41,7 @@ describe("provider collectors forward the registry signal", () => {
 
   it("direct Postgres", async () => {
     await directPostgresCollector.run(ctx({}));
-    expect(runners.postgres).toHaveBeenCalledWith("user-1", { signal });
+    expect(runners.postgres).toHaveBeenCalledWith("user-1", { signal, commit: undefined });
   });
 
   it("Vercel environment audit", async () => {
@@ -65,5 +65,13 @@ describe("endpoint and app-surface collectors forward the registry signal", () =
   it("app surface", async () => {
     await appSurfaceCollector.run(ctx({ monitored_app_url: "https://app.example.com" } as Partial<MonitoredProfile>));
     expect(runners.exposed).toHaveBeenCalledWith("user-1", "https://app.example.com", { signal });
+  });
+});
+
+describe("3F-C2c-2: provider collectors forward the fenced commit", () => {
+  it("direct Postgres", async () => {
+    const commit = vi.fn();
+    await directPostgresCollector.run({ ...ctx({}), commit });
+    expect(runners.postgres).toHaveBeenCalledWith("user-1", { signal, commit });
   });
 });

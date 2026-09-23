@@ -225,7 +225,7 @@ export const directPostgresCollector: CollectorSpec = {
     // deep_findings with their own archive-on-resolve contract, so its findings
     // must not also enter the snapshot and be diffed a second time.
     const { runDirectPostgresScan } = await import("@/lib/deep/postgresDirectRun");
-    const result = await runDirectPostgresScan(ctx.profile.id, { signal: ctx.signal });
+    const result = await runDirectPostgresScan(ctx.profile.id, { signal: ctx.signal, commit: ctx.commit });
     if (!result.ok) throw new Error(`Direct Postgres collection failed: ${result.reason ?? "unknown"}`);
     return { newFindings: result.newFindings as Finding[] | undefined };
   },

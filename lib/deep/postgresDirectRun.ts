@@ -10,6 +10,8 @@ import {
   PostgresConnectionError,
 } from "./postgresDirect";
 import { CollectorShapeError } from "./apiSchemas";
+import type { Finding } from "@/lib/monitoring/findings";
+import type { ProviderCommit } from "@/lib/monitoring/registry";
 import type { GithubFinding } from "./githubScan";
 
 // Running the direct-Postgres collector and persisting what it found.
@@ -37,7 +39,8 @@ export interface DirectScanOutcome {
     | "not_read_only"
     | "shape_mismatch"
     | "scan_failed"
-    | "aborted";
+    | "aborted"
+    | "not_committed";
 }
 
 interface ProfileRow {
@@ -86,7 +89,7 @@ const ABORTED: DirectScanOutcome = { ok: false, findings: 0, reason: "aborted" }
 
 export async function runDirectPostgresScan(
   userId: string,
-  { signal }: { signal?: AbortSignal } = {},
+  { signal, commit }: { signal?: AbortSignal; commit?: ProviderCommit } = {},
 ): Promise<DirectScanOutcome> {
   const admin = getSupabaseAdmin();
 
@@ -94,6 +97,7 @@ export async function runDirectPostgresScan(
   if (!loaded) return { ok: false, findings: 0, reason: "not_connected" };
 
   let findings: GithubFinding[];
+  let committed: Finding[] | undefined;
   try {
     const connection = parseConnectionString(loaded.raw);
     const facts = await collectDirectFacts(connection, undefined, signal);
@@ -110,24 +114,36 @@ export async function runDirectPostgresScan(
     // Raw facts for the reasoner, not our verdicts. `authzProvider` is stamped
     // explicitly rather than left to inference, so this stays correct if a
     // non-Postgres collector is ever added alongside it.
-    await saveFacts(
-      userId,
-      "db",
-      {
-        authzProvider: "postgres-rls",
-        policies: facts.policies,
-        scanTables: facts.scanTables,
-        // Replaced as one transport-local object. It cannot borrow old advisors,
-        // auth config or table observations from another database producer.
-        directPostgresSnapshot: {
-          collector: "postgres-direct", authzProvider: "postgres-rls",
-          connectionFingerprint: loaded.fingerprint, recordedAt: new Date().toISOString(),
-          completeness: "unknown", policies: facts.policies, scanTables: facts.scanTables,
-        },
+    const dbFacts = {
+      authzProvider: "postgres-rls" as const,
+      policies: facts.policies,
+      scanTables: facts.scanTables,
+      // Replaced as one transport-local object. It cannot borrow old advisors,
+      // auth config or table observations from another database producer.
+      directPostgresSnapshot: {
+        collector: "postgres-direct" as const, authzProvider: "postgres-rls" as const,
+        connectionFingerprint: loaded.fingerprint, recordedAt: new Date().toISOString(),
+        completeness: "unknown" as const, policies: facts.policies, scanTables: facts.scanTables,
       },
-      { merge: true }
-    );
+    };
 
+    if (commit) {
+      // Monitor worker: facts and findings commit together under the job's
+      // lease and this connection epoch, or not at all (3F-C2c).
+      try {
+        committed = await commit({
+          transport: "postgres-direct", identity: loaded.fingerprint, facts: dbFacts,
+          findings, retire: true,
+        });
+      } catch {
+        console.error(`[postgresDirect] result not committed for ${userId}`);
+        return { ok: false, findings: 0, reason: "not_committed" };
+      }
+    } else {
+      await saveFacts(userId, "db", dbFacts, { merge: true });
+    }
+
+    // A display timestamp, not evidence; written after the evidence commit.
     await admin
       .from("user_profiles")
       .update({ postgres_last_scan_at: new Date().toISOString() })
@@ -168,7 +184,9 @@ export async function runDirectPostgresScan(
     return { ok: false, findings: 0, reason: "scan_failed" };
   }
 
+  if (committed) return { ok: true, findings: findings.length, newFindings: committed as GithubFinding[] };
   if (signal?.aborted) return ABORTED;
+  // Legacy synchronous path (dashboard route) until 3F-C2c-5 queues it.
   // Same persistence contract as the Supabase path: insert what is newly active,
   // archive what has since been fixed. Shares the `policy` source so a customer
   // who migrates between transports keeps one continuous finding history rather

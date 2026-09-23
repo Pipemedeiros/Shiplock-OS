@@ -32,7 +32,27 @@ export interface CollectorContext {
   /** Registry supplies a fresh timeout signal for each run. Direct callers may
    * omit it. Transports must explicitly consume it; this is not a write fence. */
   signal?: AbortSignal;
+  /** Monitor-worker only: commits a provider result under the job's lease and
+   * the collected connection identity (migration 068). Absent for legacy
+   * synchronous callers, which keep their own writes until 3F-C2c-5. */
+  commit?: ProviderCommit;
 }
+
+/** One provider transport's collected result, committed atomically. */
+export interface ProviderResult {
+  transport: "postgres-direct" | "supabase-management" | "vercel" | "app-surface";
+  /** Connection epoch read with the credential, or the app URL for app-surface. */
+  identity: string;
+  facts?: Record<string, unknown>;
+  findings: (Finding & { packageName?: string | null; version?: string | null;
+    vulnId?: string | null; cveId?: string | null })[];
+  /** Archive active findings absent from this result (except under `unread`). */
+  retire: boolean;
+  unread?: string[];
+}
+
+/** Resolves to the findings the commit newly inserted; throws if fenced out. */
+export type ProviderCommit = (result: ProviderResult) => Promise<Finding[]>;
 
 /**
  * What a collector hands back.

@@ -45,7 +45,7 @@ beforeEach(() => {
 
 it("runs a provider-only customer from current database context", async () => {
   await executeMonitorJob(job);
-  expect(state.run).toHaveBeenCalledWith({ ...providerOnly, email: null },"scheduled_48h");
+  expect(state.run).toHaveBeenCalledWith({ ...providerOnly, email: null },"scheduled_48h",undefined,expect.any(Function));
   expect(state.filters).toHaveBeenCalledWith("monitoring_job_context","job_id",job.id);
   expect(state.filters).toHaveBeenCalledWith("user_profiles","id",job.user_id);
 });
@@ -116,4 +116,14 @@ it("claims at most one monitor job", async () => {
   state.claim.mockResolvedValueOnce(job);state.execute.mockResolvedValueOnce(undefined);
   expect(await runNextMonitorJob()).toBe(true);
   expect(state.execute).toHaveBeenCalledWith(job,[executeMonitorJob]);
+});
+
+it("gives collectors a commit bound to this job's lease (3F-C2c-2)",async()=>{
+  await executeMonitorJob(job);
+  const commit=state.run.mock.calls[0][3] as (result:unknown)=>Promise<unknown>;
+  state.rpc.mockResolvedValueOnce({data:[],error:null});
+  await commit({transport:"postgres-direct",identity:"a".repeat(64),findings:[],retire:true});
+  expect(state.rpc).toHaveBeenCalledWith("persist_provider_monitor_result",expect.objectContaining({
+    p_user:job.user_id,p_job:job.id,p_token:job.lease_token,
+  }));
 });

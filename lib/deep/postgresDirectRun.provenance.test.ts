@@ -170,3 +170,32 @@ describe("2D-2: direct-Postgres identity is the connection epoch", () => {
     expect(await runDirectPostgresScan("u")).toEqual({ ok: false, findings: 0, reason: "not_connected" });
   });
 });
+
+describe("3F-C2c-2: fenced commit from the monitor worker", () => {
+  it("commits through the fenced function and writes nothing itself", async () => {
+    const created = [{ id: "policy:x", severity: "CRITICAL", title: "t", consequence: "c" }];
+    const commit = vi.fn().mockResolvedValue(created);
+    const result = await runDirectPostgresScan("u", { commit });
+    expect(result).toEqual({ ok: true, findings: 1, newFindings: created });
+    expect(commit).toHaveBeenCalledWith(expect.objectContaining({
+      transport: "postgres-direct", identity: epoch, retire: true,
+      facts: expect.objectContaining({
+        authzProvider: "postgres-rls", policies,
+        directPostgresSnapshot: expect.objectContaining({ connectionFingerprint: epoch }),
+      }),
+    }));
+    expect(commit.mock.calls[0][0].findings).toHaveLength(1);
+    expect(mocks.upsert).not.toHaveBeenCalled();
+    expect(mocks.insert).not.toHaveBeenCalled();
+    expect(mocks.archive).not.toHaveBeenCalled();
+  });
+
+  it("reports a rejected commit as not committed", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const commit = vi.fn().mockRejectedValue(new Error("Provider result was not committed"));
+      expect(await runDirectPostgresScan("u", { commit })).toEqual({ ok: false, findings: 0, reason: "not_committed" });
+      expect(mocks.insert).not.toHaveBeenCalled();
+    } finally { log.mockRestore(); }
+  });
+});

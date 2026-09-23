@@ -4,7 +4,7 @@ import type { Finding } from "./findings";
 import { diffSnapshots } from "./diff";
 import { sendNewFindingsAlert } from "./alerts";
 import { saveFacts } from "@/lib/graph/graphRun";
-import { runCollectors, type CollectorSpec } from "./registry";
+import { runCollectors, type CollectorSpec, type ProviderCommit } from "./registry";
 import { DEFAULT_COLLECTORS } from "./collectors";
 import type { MonitoredProfile, TriggerSource } from "./types";
 
@@ -28,6 +28,7 @@ async function executeMonitoringPass(
   // entry rather than an edit to this function.
   collectors: readonly CollectorSpec[],
   sendAlert: boolean,
+  commit?: ProviderCommit,
 ): Promise<{ newFindingsCount: number; newFindings: Finding[]; writesSucceeded: boolean }> {
   const admin = getSupabaseAdmin();
   const anonKey = profile.monitored_anon_key_encrypted
@@ -49,6 +50,7 @@ async function executeMonitoringPass(
     anonKey,
     triggerSource,
     previousFindings,
+    commit,
   });
 
   // Snapshot findings are the current state of everything checked this pass;
@@ -139,6 +141,7 @@ export function runMonitoringPassForWorker(
   profile: MonitoredProfile,
   triggerSource: TriggerSource,
   collectors: readonly CollectorSpec[] = DEFAULT_COLLECTORS,
+  commit?: ProviderCommit,
 ) {
-  return executeMonitoringPass(profile,triggerSource,collectors,false);
+  return executeMonitoringPass(profile,triggerSource,collectors,false,commit);
 }
