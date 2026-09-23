@@ -71,6 +71,10 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ runId: receipt.run_id, status: "queued" }, { status: 202 });
   } catch (err) {
+    // Provisional hard cap (migration 082): tell the customer, do not alarm the logs.
+    if (err instanceof Error && err.message === "audit_quota_reached") {
+      return NextResponse.json({ error: "You have run 20 audits in the last 24 hours, the current limit. Scheduled and pull request checks keep running; try a manual audit again later." }, { status: 429 });
+    }
     console.error("[api/audit] enqueue failed:", err instanceof Error ? err.message : "unknown error");
     return NextResponse.json({ error: "The audit could not be queued." }, { status: 503 });
   }

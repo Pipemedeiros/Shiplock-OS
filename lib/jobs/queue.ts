@@ -28,6 +28,7 @@ export async function enqueueAuditJob(
   const { data, error } = await getSupabaseAdmin().rpc("enqueue_repository_audit", {
     p_user: userId, p_repository: repositoryId, p_key: key, p_trigger: trigger,
   });
+  if (error?.message?.includes("audit quota reached")) throw new Error("audit_quota_reached");
   if (error) throw new Error("Audit could not be queued");
   return auditReceipt.parse(z.array(auditReceipt).length(1).parse(data)[0]);
 }

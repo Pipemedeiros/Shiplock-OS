@@ -40,6 +40,7 @@ try {
   await db.exec(await readFile(new URL("../supabase/migrations/079_intelligence_credentials.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/080_ai_fix_receipts.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/081_first_scan_credit.sql", import.meta.url), "utf8"));
+  await db.exec(await readFile(new URL("../supabase/migrations/082_manual_audit_quota.sql", import.meta.url), "utf8"));
   await db.query("insert into auth.users values ($1),($2)", [u1,u2]);
   await db.query("insert into public.user_profiles(id) values($1),($2)", [u1,u2]);
   await check("connection epochs backfill the existing fingerprint and ignore blank credentials", async () => {
@@ -836,6 +837,23 @@ try {
     await db.query("delete from public.audit_runs where id=$1",[a.run]);
     assert.equal((await db.query("select count(*)::int as n from public.first_scan_credits where github_installation_id=42")).rows[0].n,1);
     await db.exec("set role service_role");
+  });
+  // 3H-1: a hard daily cap on manual audits per account; scheduled work is unaffected.
+  await check("manual audits are capped at 20 per account per rolling day, replays and scheduled runs excepted", async () => {
+    await db.exec("reset role");
+    await db.query("delete from public.execution_jobs where user_id=$1 and kind='audit'",[u2]);
+    // Earlier checks left manual-default runs for u2; top up to exactly 19 in the window.
+    const existing=(await db.query("select count(*)::int as n from public.audit_runs where user_id=$1 and trigger='manual' and started_at>now()-interval '24 hours'",[u2])).rows[0].n;
+    assert.ok(existing<=19);
+    await db.query("insert into public.audit_runs(user_id,repository_id,full_name,status,trigger,started_at) select $1,$2,'acme/two','complete','manual',now()-interval '1 hour' from generate_series(1,$3::int)",[u2,r2,19-existing]);
+    await db.query("insert into public.audit_runs(user_id,repository_id,full_name,status,trigger,started_at) values ($1,$2,'acme/two','complete','manual',now()-interval '25 hours')",[u2,r2]);
+    await db.exec("set role service_role");
+    const manual=(key,trigger="manual")=>db.query("select * from public.enqueue_repository_audit($1,$2,$3,$4)",[u2,r2,key,trigger]).then((x)=>x.rows[0]);
+    const twentieth=await manual("quota-20");
+    assert.ok(twentieth.run_id);
+    assert.deepEqual(await manual("quota-20"),twentieth);                   // idempotent replay is not a new run
+    await assert.rejects(manual("quota-21"),/audit quota reached/);         // the 21st in 24h is refused
+    assert.ok((await manual("quota-sched","scheduled")).run_id);           // scheduled work is not a manual click
   });
   await check("client roles cannot touch intelligence tasks", async () => {
     await db.exec("reset role; set role authenticated");

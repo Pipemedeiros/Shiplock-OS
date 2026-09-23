@@ -94,3 +94,10 @@ it("queues an every-PR intelligence scan only at a full head commit, and reports
   rpc.mockResolvedValue({ data: null, error: { message: "private" } });
   await expect(enqueuePullRequestIntelligence(id, id, 7, "a".repeat(40))).rejects.toThrow("could not be queued");
 });
+
+it("reports the manual audit quota distinctly so the customer can be told (3H-1)", async () => {
+  rpc.mockResolvedValue({ data: null, error: { message: "audit quota reached" } });
+  await expect(enqueueAuditJob(id, id, "manual:x")).rejects.toThrow("audit_quota_reached");
+  rpc.mockResolvedValue({ data: null, error: { message: "private detail" } });
+  await expect(enqueueAuditJob(id, id, "manual:y")).rejects.toThrow("Audit could not be queued");
+});
