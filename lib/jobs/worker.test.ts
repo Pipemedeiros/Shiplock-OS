@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
-const state = vi.hoisted(() => ({ pr: vi.fn(), audit: vi.fn(), graph: vi.fn(), source:vi.fn(),dependency:vi.fn(),monitor:vi.fn(),notification:vi.fn() }));
+const state = vi.hoisted(() => ({ pr: vi.fn(), audit: vi.fn(), graph: vi.fn(), source:vi.fn(),dependency:vi.fn(),monitor:vi.fn(),notification:vi.fn(),repair:vi.fn() }));
 vi.mock("./prCheckWorker", () => ({ runNextPullRequestCheckJob: state.pr }));
 vi.mock("./auditWorker", () => ({ runNextAuditJob: state.audit }));
 vi.mock("./sourceWorker",()=>({runNextSourceJob:state.source}));
@@ -7,9 +7,10 @@ vi.mock("./graphWorker",()=>({runNextGraphJob:state.graph}));
 vi.mock("./dependencyWorker",()=>({runNextDependencyJob:state.dependency}));
 vi.mock("./monitorWorker",()=>({runNextMonitorJob:state.monitor}));
 vi.mock("./notificationWorker",()=>({runNextNotificationJob:state.notification}));
+vi.mock("./repairWorker",()=>({runNextRepairJob:state.repair}));
 import { runNextJob } from "./worker";
 
-beforeEach(() => { vi.clearAllMocks(); state.pr.mockResolvedValue(false); state.audit.mockResolvedValue(false); state.graph.mockResolvedValue(false); state.source.mockResolvedValue(false);state.dependency.mockResolvedValue(false);state.monitor.mockResolvedValue(false);state.notification.mockResolvedValue(false); });
+beforeEach(() => { vi.clearAllMocks(); state.pr.mockResolvedValue(false); state.audit.mockResolvedValue(false); state.graph.mockResolvedValue(false); state.source.mockResolvedValue(false);state.dependency.mockResolvedValue(false);state.monitor.mockResolvedValue(false);state.notification.mockResolvedValue(false);state.repair.mockResolvedValue(false); });
 it("prioritizes latency-sensitive PR checks", async () => {
   state.pr.mockResolvedValue(true);
   expect(await runNextJob()).toBe(true);
@@ -43,4 +44,7 @@ it("drains provider monitoring after repository work",async()=>{
   state.monitor.mockResolvedValue(true);
   expect(await runNextJob()).toBe(true);
   expect(state.monitor).toHaveBeenCalledOnce();
+});
+it("runs a clicked repair before background scans (3F-C2d)",async()=>{
+  state.repair.mockResolvedValue(true);expect(await runNextJob()).toBe(true);expect(state.repair).toHaveBeenCalledOnce();expect(state.audit).not.toHaveBeenCalled();
 });

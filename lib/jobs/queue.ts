@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
-export const JobKind = z.enum(["audit", "source", "monitor", "dependency", "graph", "pr-check", "notification"]);
+export const JobKind = z.enum(["audit", "source", "monitor", "dependency", "graph", "pr-check", "notification", "repair"]);
 export type JobKind = z.infer<typeof JobKind>;
 export const AuditTrigger = z.enum(["manual", "pull_request", "scheduled"]);
 export type AuditTrigger = z.infer<typeof AuditTrigger>;

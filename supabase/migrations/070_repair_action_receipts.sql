@@ -15,7 +15,9 @@ create table public.repair_action_receipts (
   job_id uuid not null unique,
   user_id uuid not null references auth.users(id) on delete cascade,
   repository_id uuid not null,
-  action text not null check (action in ('finding-fix-pr','dependency-bump-pr')),
+  -- risk-fix-pr: an agent finding from the Risks board; finding-fix-pr: a scan
+  -- or provider finding from a fix card (may carry the customer's edit).
+  action text not null check (action in ('risk-fix-pr','finding-fix-pr','dependency-bump-pr')),
   finding_id text check (finding_id is null or length(finding_id) between 1 and 400),
   -- The customer's reviewed version of the fix, when they edited it. Authored
   -- by the customer; bounded like the request that carried it.
@@ -30,7 +32,8 @@ create table public.repair_action_receipts (
   updated_at timestamptz not null default now(),
   foreign key (job_id, user_id) references public.execution_jobs(id, user_id) on delete cascade,
   foreign key (repository_id, user_id) references public.repositories(id, user_id) on delete cascade,
-  check ((action = 'finding-fix-pr') = (finding_id is not null)),
+  check ((action <> 'dependency-bump-pr') = (finding_id is not null)),
+  check (action = 'finding-fix-pr' or edited_content is null),
   check ((status = 'opened') = (pr_url is not null and pr_number is not null)),
   check ((status in ('failed','uncertain')) = (failure_code is not null))
 );
@@ -46,8 +49,9 @@ returns uuid language plpgsql security definer set search_path = pg_catalog, pub
 declare v_job uuid; v_receipt public.repair_action_receipts;
 begin
   if p_key is null or length(p_key) not between 1 and 200
-    or p_action is null or p_action not in ('finding-fix-pr','dependency-bump-pr')
-    or ((p_action = 'finding-fix-pr') <> (p_finding is not null))
+    or p_action is null or p_action not in ('risk-fix-pr','finding-fix-pr','dependency-bump-pr')
+    or ((p_action <> 'dependency-bump-pr') <> (p_finding is not null))
+    or (p_action <> 'finding-fix-pr' and p_edited is not null)
     or (p_finding is not null and length(p_finding) not between 1 and 400)
     or (p_edited is not null and length(p_edited) > 60000) then
     raise exception 'invalid repair request';

@@ -502,6 +502,8 @@ try {
     await assert.rejects(requestRepair(u1,r2,"click-x"));
     await assert.rejects(requestRepair(u1,r1,"click-y","merge-pr"));
     await assert.rejects(requestRepair(u1,r1,"click-z","finding-fix-pr",null));
+    await assert.rejects(requestRepair(u1,r1,"click-w","risk-fix-pr","agent:x","edited text"));
+    assert.ok((await requestRepair(u1,r1,"click-v","risk-fix-pr","agent:x")).rows[0].receipt);
     await db.exec("reset role");
     const row=(await db.query("select r.status,r.finding_id,j.kind,j.status as job_status from public.repair_action_receipts r join public.execution_jobs j on j.id=r.job_id where r.id=$1",[receipt])).rows[0];
     assert.deepEqual(row,{status:"queued",finding_id:"rls:orders",kind:"repair",job_status:"queued"});
