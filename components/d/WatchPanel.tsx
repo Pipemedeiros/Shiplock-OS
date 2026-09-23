@@ -6,10 +6,10 @@ import type { ScanTimelineEntry } from "@/lib/scanHistory";
 // only; paywall-sensitive content (fix/codefix) never reaches these props.
 
 const TRIGGER_LABELS: Record<WatchLogEntry["trigger"], string> = {
-  manual: "manual audit · 16 checks",
-  deploy: "deploy re-scan · 16 checks",
+  manual: "manual audit · 15 checks",
+  deploy: "deploy re-scan · 15 checks",
   hourly: "hourly pass · critical checks",
-  scheduled_48h: "deep scan · 16 checks",
+  scheduled_48h: "deep scan · 15 checks",
 };
 
 const DEEP_SCAN_INTERVAL_MS = 48 * 60 * 60 * 1000;

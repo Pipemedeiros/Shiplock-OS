@@ -7,7 +7,7 @@ import { LockMark } from "@/components/d/Brand";
 // 10:2025 (fetched directly from owasp.org/Top10/2025/ during research, not
 // reconstructed from memory or a secondary source). Each entry's "ShipLock
 // coverage" line is honest about the gap between the category and what our
-// 16 checks (lib/scanner.ts) actually test — several categories are
+// 15 live checks (lib/scanner.ts; the mass-assignment write probe is retired) actually test — several categories are
 // genuinely uncovered today, and that's stated plainly rather than
 // stretched into a false mapping.
 export const dynamic = "force-dynamic";
@@ -152,7 +152,7 @@ export default function OwaspPage() {
                 OWASP is the industry-standard list of the ten risk categories that cause the
                 most real-world application breaches. This page explains each one for people who
                 didn&apos;t write their own backend by hand, what it means, what it looks like in
-                an app whose code was largely AI-written, and, honestly, which of our 16 checks
+                an app whose code was largely AI-written, and, honestly, which of our 15 live checks
                 actually cover it today and which don&apos;t yet.
               </p>
             </div>
@@ -211,7 +211,7 @@ export default function OwaspPage() {
             <p className="dxd-eyebrow">Want the honest scan</p>
             <h2 className="dxd-h2">See exactly what these look like in your app.</h2>
             <p className="dxd-lede">
-              ShipLock runs 16 real checks against your live app and the database behind it.
+              ShipLock runs 15 real checks against your live app and the database behind it.
               No invented categories, no vague grades.
             </p>
             <div style={{ marginTop: 20 }}>

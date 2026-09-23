@@ -100,7 +100,7 @@ unauthAccess fields: tested, results[]  (tableName, accessible, rowCount)
     anon key is required.
   → Fix: enable RLS and enforce JWT authentication on the Supabase API gateway.
 
-• All results accessible: false OR tested: false → GOOD.
+• All results accessible: false → GOOD.
 
 ═══════════════════════════════════════════════════════════
 CHECK 5 — SLOP SQUATTING  (slopSquatting)
@@ -108,7 +108,7 @@ CHECK 5 — SLOP SQUATTING  (slopSquatting)
 slopSquatting fields: tested, packageJsonAccessible, suspiciousPackages[]
 Each package has: name, reason ("NOT_FOUND"|"VERY_NEW"), createdAt?
 
-• packageJsonAccessible: false OR tested: false → No finding needed.
+• packageJsonAccessible: false → No finding needed.
 
 • reason "NOT_FOUND"
   → CRITICAL. AI tools sometimes invent package names. Attackers register
@@ -123,13 +123,15 @@ CHECK 6 — MASS ASSIGNMENT  (massAssignment)
 ═══════════════════════════════════════════════════════════
 massAssignment fields: tested, results[]  (tableName, vulnerable)
 
-• Any result with vulnerable: true
+• ShipLock no longer sends this write probe to production, so it now always
+  arrives as tested: false. Treat it like any other untested check.
+• Any result with vulnerable: true (older scans only)
   → CRITICAL. The API accepted a PATCH containing privileged fields
     (is_paid, is_admin, role). An attacker could escalate their own privileges.
     Fix: use column-level security in RLS policies, or add a trigger that
     strips privileged fields from client updates.
 
-• All vulnerable: false OR tested: false → GOOD.
+• All vulnerable: false → GOOD.
 
 ═══════════════════════════════════════════════════════════
 CHECK 7 — AUTH SECURITY  (authSecurity)
@@ -157,7 +159,7 @@ idor fields: tested, results[]  (tableName, rowsAccessible)
     Fix: add RLS policies using auth.uid() = user_id to restrict each user
     to their own rows only.
 
-• All rowsAccessible: false OR tested: false → GOOD.
+• All rowsAccessible: false → GOOD.
 
 ═══════════════════════════════════════════════════════════
 CHECK 9 — SECRETS EXPOSURE  (secretsExposure)
@@ -184,7 +186,7 @@ secureAuth fields: tested, loginRateLimited
     Fix: enable auth rate limiting in Supabase Auth settings or add a
     reverse proxy with rate limiting in front of the auth endpoint.
 
-• loginRateLimited: true OR tested: false → No issue needed.
+• loginRateLimited: true → No issue needed.
 
 ═══════════════════════════════════════════════════════════
 CHECK 11 — HTTPS ENFORCEMENT  (httpsCheck)
@@ -210,7 +212,7 @@ botProtection fields: tested, rateLimitHeadersPresent
     hammer the endpoint undetected.
     Fix: add rate limiting headers via Supabase Edge Functions or a CDN layer.
 
-• rateLimitHeadersPresent: true OR tested: false → No issue needed.
+• rateLimitHeadersPresent: true → No issue needed.
 
 ═══════════════════════════════════════════════════════════
 CHECK 13 — INPUT VALIDATION  (inputValidation)
@@ -228,7 +230,7 @@ inputValidation fields: tested, sqlErrorExposed
     key — low risk on its own, and normal for this stack. Optional hardening,
     not a hole." Do NOT inflate its severity. Do NOT imply injection.
 
-• sqlErrorExposed: false OR tested: false → GOOD.
+• sqlErrorExposed: false → GOOD.
 
 ═══════════════════════════════════════════════════════════
 CHECK 14 — CORS CONFIGURATION  (corsConfig)
@@ -247,7 +249,7 @@ corsConfig fields: tested, wildcardOrigin, allowOriginValue
     Do NOT inflate its severity. Do NOT claim a logged-in user can be
     tricked into authenticated requests — that's false for this auth model.
 
-• wildcardOrigin: false OR tested: false → GOOD.
+• wildcardOrigin: false → GOOD.
 
 ═══════════════════════════════════════════════════════════
 CHECK 15 — STACK TRACE EXPOSURE  (stackTraceCheck)
@@ -260,7 +262,7 @@ stackTraceCheck fields: tested, exposed
     Fix: configure your error handler to return only generic error messages
     in production, and log detailed errors server-side only.
 
-• exposed: false OR tested: false → GOOD.
+• exposed: false → GOOD.
 
 ═══════════════════════════════════════════════════════════
 CHECK 16 — PUBLIC STORAGE BUCKETS  (publicBuckets)
@@ -284,7 +286,7 @@ root of a public bucket: .env, credentials.json, id_rsa, .pem, etc.)
     only saying the bucket is public — this is no longer a theoretical
     risk, a secret-looking file is sitting there right now.
 
-• publicBuckets[] empty OR tested: false → GOOD.
+• publicBuckets[] empty → GOOD.
 
 ═══════════════════════════════════════════════════════════
 CODEFIX FIELD (required for every issue)
@@ -312,9 +314,14 @@ OUTPUT RULES
 ═══════════════════════════════════════════════════════════
 • Plain English — no jargon, no CVE numbers, NO letter grade
 • One sentence title; real-world consequence; exact SQL or config fix
+• tested: false means the check did not run or its target could not be read.
+  It is never a pass and never GOOD. Do not raise one issue per untested
+  check; raise a single INFO issue titled "N checks could not be verified"
+  that names them, and never describe them as safe
 • Do not raise issues for checks that passed
 • The summary is one honest sentence about what's open (e.g. "One critical issue
-  and two warnings" or "Everything held") — never a grade
+  and two warnings" or "Everything held") — never a grade. Say "Everything
+  held" only when every check was tested
 • Return ONLY valid JSON:
 {
   "issues": [{
@@ -479,9 +486,24 @@ function buildFallback(scan: ScanResult): AnalysisResult {
     });
   }
 
+  // A check that did not run is not a pass (1E-5): name them, never hide them.
+  const unverified = Object.entries(scan as unknown as Record<string, unknown>)
+    .filter(([, check]) => (check as { tested?: unknown } | null)?.tested === false)
+    .map(([name]) => name);
+  if (unverified.length > 0) {
+    issues.push({
+      severity:    "INFO",
+      title:       `${unverified.length} check${unverified.length === 1 ? "" : "s"} could not be verified`,
+      consequence: `These did not run or could not be read, so they are unknown, not safe: ${unverified.join(", ")}.`,
+      fix:         "Run the scan again. If a check stays unverified, its target is unreachable or not exposed to the anon key.",
+    });
+  }
+
   const summary = issues.length === 0
     ? "All checks passed. No security issues found."
-    : `Found ${criticals} critical issue${criticals !== 1 ? "s" : ""} and ${warnings} warning${warnings !== 1 ? "s" : ""}. AI analysis was unavailable — results are based on raw check data.`;
+    : `Found ${criticals} critical issue${criticals !== 1 ? "s" : ""} and ${warnings} warning${warnings !== 1 ? "s" : ""}` +
+      (unverified.length > 0 ? `, and ${unverified.length} check${unverified.length === 1 ? "" : "s"} could not be verified` : "") +
+      ". AI analysis was unavailable, so results are based on raw check data.";
 
   return { issues, summary };
 }
