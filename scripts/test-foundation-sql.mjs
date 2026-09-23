@@ -620,6 +620,7 @@ try {
     [user,task,status,JSON.stringify({status,summary:"s"}),digest]);
   await check("an intelligence task is created once per key for the caller's selected repository", async () => {
     await db.exec("reset role; update public.user_profiles set github_installation_id=42,github_connected_at=now()-interval '1 day' where id=$1".replace("$1",`'${u1}'`)+"; set role service_role");
+    await db.query("select public.approve_intelligence_connection($1,'codex','weekly','daily',50000,1000000)",[u1]);
     const id=(await newTask("intel-1")).rows[0].id;
     assert.equal((await newTask("intel-1")).rows[0].id,id);
     await assert.rejects(newTask("intel-2",u1,r2));
@@ -691,6 +692,18 @@ try {
     await assert.rejects(approve("codex","weekly","daily",500,1000000));
     await assert.rejects(approve("codex","weekly","daily",50000,10000));
   });
+  await check("tasks need an active approval for that host, and switching hosts cancels the old host's work", async () => {
+    await approve("codex");
+    const old=(await newTask("intel-gate-1")).rows[0].id;
+    await assert.rejects(db.query("select public.create_intelligence_task($1,$2,$3,'claude-code','x',$4,now()+interval '10 minutes','intel-gate-2')",[u1,r1,"a".repeat(40),sources]), /intelligence not approved/);
+    await approve("claude-code");
+    await db.exec("reset role");
+    assert.equal((await db.query("select status from public.intelligence_tasks where id=$1",[old])).rows[0].status,"cancelled");
+    await db.exec("set role service_role");
+    await assert.rejects(newTask("intel-gate-3"), /intelligence not approved/);
+    // An exact replay returns the same, now cancelled, task: no new work.
+    assert.equal((await newTask("intel-gate-1")).rows[0].id,old);
+  });
   await check("revoking the connection cancels pending tasks and a chatgpt host can hold tasks", async () => {
     await approve("chatgpt");
     const pending=(await db.query("select public.create_intelligence_task($1,$2,$3,'chatgpt','x',$4,now()+interval '10 minutes','intel-rev-1') as id",[u1,r1,"a".repeat(40),sources])).rows[0].id;
@@ -699,6 +712,7 @@ try {
     assert.equal((await db.query("select status from public.intelligence_tasks where id=$1",[pending])).rows[0].status,"cancelled");
     assert.ok((await db.query("select revoked_at from public.intelligence_connections where user_id=$1",[u1])).rows[0].revoked_at);
     await db.exec("set role service_role");
+    await assert.rejects(db.query("select public.create_intelligence_task($1,$2,$3,'chatgpt','x',$4,now()+interval '10 minutes','intel-rev-2')",[u1,r1,"a".repeat(40),sources]), /intelligence not approved/);
   });
   await check("client roles cannot touch intelligence tasks", async () => {
     await db.exec("reset role; set role authenticated");

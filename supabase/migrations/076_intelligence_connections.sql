@@ -6,7 +6,9 @@
 -- one row per account. It never approves a branch/PR write: every PR still
 -- needs its own customer click. For pull hosts the budgets are advisory (the
 -- host spends its own allowance); only a ShipLock-run API-key mode can
--- enforce them. No credential is stored here. Revoking cancels pending tasks.
+-- enforce them. No credential is stored here. New tasks require an active
+-- approval for their host; revoking, or approving another host, cancels
+-- pending tasks.
 
 create table public.intelligence_connections (
   user_id uuid primary key references auth.users(id) on delete cascade,
@@ -67,6 +69,11 @@ begin
     return v_task.id;
   end if;
 
+  -- New work only for the host the customer approved, while approved.
+  if not exists(select 1 from public.intelligence_connections
+      where user_id = p_user and host = p_host and revoked_at is null) then
+    raise exception 'intelligence not approved';
+  end if;
   if not exists(select 1 from public.repositories where id = p_repository and user_id = p_user and selected = true) then
     raise exception 'repository unavailable';
   end if;
@@ -96,6 +103,9 @@ begin
     run_token_budget = excluded.run_token_budget, monthly_token_budget = excluded.monthly_token_budget,
     approved_at = now(), revoked_at = null, updated_at = now()
   returning approved_at into v_at;
+  -- A different host was approved: the old host's queued work is withdrawn.
+  update public.intelligence_tasks set status = 'cancelled'
+    where user_id = p_user and status = 'pending' and host <> p_host;
   return v_at;
 end $$;
 

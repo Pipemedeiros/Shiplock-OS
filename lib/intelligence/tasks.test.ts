@@ -120,6 +120,13 @@ describe("createIntelligenceTask", () => {
     await expect(createIntelligenceTask({ userId, repositoryId, commit, host: "api", instruction: "x", paths: [path], minutes: 10, key: "k3" })).rejects.toThrow("source_unreadable");
     expect(mocks.rpc).not.toHaveBeenCalled();
   });
+
+  it("reports a missing or revoked approval distinctly (10B-2b gate)", async () => {
+    mocks.task.mockResolvedValue({ data: { full_name: "acme/app" }, error: null });
+    mocks.rpc.mockResolvedValue({ data: null, error: { message: "intelligence not approved" } });
+    const { createIntelligenceTask } = await import("./tasks");
+    await expect(createIntelligenceTask({ userId, repositoryId, commit, host: "codex", instruction: "x", paths: [path], minutes: 10, key: "k4" })).rejects.toThrow("intelligence_not_approved");
+  });
 });
 
 describe("listPendingIntelligenceTasks (10B-2a)", () => {

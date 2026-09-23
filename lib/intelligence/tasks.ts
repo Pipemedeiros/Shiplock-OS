@@ -146,6 +146,7 @@ export async function createIntelligenceTask(input: {
     p_instruction: input.instruction, p_sources: sources,
     p_expires_at: new Date(Date.now() + input.minutes * 60_000).toISOString(), p_key: input.key,
   });
+  if (error?.message?.includes("intelligence not approved")) throw new Error("intelligence_not_approved");
   const id = z.uuid().safeParse(data);
   if (error || !id.success) throw new Error("task_not_created");
   return id.data;
