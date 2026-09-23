@@ -889,6 +889,28 @@ try {
     await token(11);
     await db.exec("set role service_role");
   });
+  // 3H-3: pin the queue's per-tenant fairness (characterization; migration 056).
+  await check("a claim skips a tenant that already has a running job, so one busy tenant cannot starve others", async () => {
+    await db.exec("reset role");
+    const fa="aaaaaaaa-0000-4000-8000-00000000fa01", fb="aaaaaaaa-0000-4000-8000-00000000fb02";
+    await db.query("insert into auth.users values ($1),($2) on conflict do nothing",[fa,fb]);
+    await db.query("insert into public.user_profiles(id) values ($1),($2) on conflict do nothing",[fa,fb]);
+    // Earlier checks leave running jobs behind; the global cap (8 running) would
+    // otherwise mask the per-tenant rule this check pins.
+    await db.query("update public.execution_jobs set status='dead',lease_token=null,lease_until=null where status='running' or (kind='notification' and status='queued')");
+    // Tenant A: three old queued jobs plus one running. Tenant B: one newer queued job.
+    for (const n of [1,2,3]) await db.query("insert into public.execution_jobs(user_id,kind,deduplication_key,run_after,created_at) values ($1,'notification',$2,now()-make_interval(mins=>$3),now()-make_interval(mins=>$3))",[fa,`fair-a-${n}`,60-n]);
+    await db.query("insert into public.execution_jobs(user_id,kind,deduplication_key,status,lease_token,lease_until,attempts) values ($1,'notification','fair-a-running','running','bbbbbbbb-0000-4000-8000-000000000001',now()+interval '5 minutes',1)",[fa]);
+    await db.query("insert into public.execution_jobs(user_id,kind,deduplication_key,run_after,created_at) values ($1,'notification','fair-b-1',now()-interval '1 minute',now()-interval '1 minute')",[fb]);
+    await db.exec("set role service_role");
+    const claimed=(await db.query("select user_id,deduplication_key from public.claim_execution_job('notification',60)")).rows;
+    assert.deepEqual(claimed,[{user_id:fb,deduplication_key:"fair-b-1"}]);
+    // With both tenants now busy, nothing else is claimed for this kind.
+    assert.deepEqual((await db.query("select id from public.claim_execution_job('notification',60)")).rows,[]);
+    await db.exec("reset role");
+    await db.query("update public.execution_jobs set status='dead',lease_token=null,lease_until=null where user_id in ($1,$2)",[fa,fb]);
+    await db.exec("set role service_role");
+  });
   await check("client roles cannot touch intelligence tasks", async () => {
     await db.exec("reset role; set role authenticated");
     await assert.rejects(db.query("select * from public.first_scan_credits"));
