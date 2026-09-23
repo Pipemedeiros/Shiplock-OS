@@ -325,7 +325,9 @@ function analyzeKey(anonKey: string): KeyAnalysis {
 
 interface ProbeResult { exists: boolean; accessible: boolean; }
 
-async function probeTable(restBase: string, tableName: string, anonKey: string, signal?: AbortSignal): Promise<ProbeResult> {
+async function probeTable(
+  restBase: string, tableName: string, anonKey: string, signal?: AbortSignal, unread: string[] = [],
+): Promise<ProbeResult> {
   try {
     const url      = `${restBase}/${encodeURIComponent(tableName)}?limit=1`;
     const response = await fetch(url, {
@@ -341,15 +343,20 @@ async function probeTable(restBase: string, tableName: string, anonKey: string, 
       } catch { return { exists: true, accessible: false }; }
     }
     return { exists: true, accessible: false };
-  } catch { return { exists: false, accessible: false }; }
+  } catch {
+    // Not "missing": a table we could not probe skips every per-table check.
+    unread.push(`rls:${tableName}`, `unauth_access:${tableName}`, `mass_assignment:${tableName}`);
+    return { exists: false, accessible: false };
+  }
 }
 
 // Fetch rowsecurity status for all public tables in one request.
 // Returns a map of tableName → rlsEnabled (true = RLS on, false = RLS off).
-// Returns empty map if pg_tables is not accessible; callers must handle gracefully.
+// Returns null if pg_tables is not readable, so callers can tell an unread RLS
+// state apart from a readable schema with no public tables.
 async function fetchRlsStatusMap(
   restBase: string, anonKey: string, signal?: AbortSignal
-): Promise<Map<string, boolean>> {
+): Promise<Map<string, boolean> | null> {
   const map = new Map<string, boolean>();
   try {
     const url = `${restBase}/pg_tables?schemaname=eq.public&select=tablename,rowsecurity`;
@@ -357,15 +364,15 @@ async function fetchRlsStatusMap(
       method: "GET", headers: makeHeaders(anonKey),
       signal: requestSignal(signal, TIMEOUT_MS),
     });
-    if (!res.ok) return map;
+    if (!res.ok) return null;
     const rows = await res.json() as Array<{ tablename: string; rowsecurity: boolean }>;
-    if (!Array.isArray(rows)) return map;
+    if (!Array.isArray(rows)) return null;
     for (const row of rows) {
       if (typeof row.tablename === "string") {
         map.set(row.tablename, row.rowsecurity === true);
       }
     }
-  } catch { /* network error — return empty map, callers fall back */ }
+  } catch { return null; }
   return map;
 }
 
@@ -396,7 +403,7 @@ async function fetchTablePolicies(
 // ── Check 3: Rate limiting ─────────────────────────────────────────────────────
 
 async function checkRateLimiting(
-  restBase: string, anonKey: string, testTable: string | null, signal?: AbortSignal
+  restBase: string, anonKey: string, testTable: string | null, signal?: AbortSignal, unread: string[] = [],
 ): Promise<RateLimitCheck> {
   const endpoint = testTable
     ? `${restBase}/${encodeURIComponent(testTable)}?limit=0`
@@ -411,6 +418,8 @@ async function checkRateLimiting(
   );
   const valid       = statuses.filter((s) => s > 0);
   const rateLimited = valid.some((s) => s === 429);
+  // Failed requests neither prove nor disprove a limit.
+  if (!rateLimited && valid.length < statuses.length) unread.push("no_rate_limiting");
   return {
     tested: true, endpoint, requests: RATE_LIMIT_REQS,
     successes: valid.filter((s) => s >= 200 && s < 300).length, rateLimited,
@@ -420,7 +429,7 @@ async function checkRateLimiting(
 // ── Check 4: Unauthenticated access ───────────────────────────────────────────
 
 async function checkUnauthAccess(
-  restBase: string, exposedTableNames: string[], signal?: AbortSignal
+  restBase: string, exposedTableNames: string[], signal?: AbortSignal, unread: string[] = [],
 ): Promise<UnauthAccessCheck> {
   if (exposedTableNames.length === 0) return { tested: false, results: [] };
   const results = await Promise.all(
@@ -432,11 +441,15 @@ async function checkUnauthAccess(
           headers: { Accept: "application/json" }, // Deliberately omit apikey + Authorization
           signal: requestSignal(signal, TIMEOUT_MS),
         });
+        if (response.status >= 500) unread.push(`unauth_access:${name}`);
         if (!response.ok) return { tableName: name, accessible: false, rowCount: 0 };
         const rows  = await response.json() as unknown[];
         const count = Array.isArray(rows) ? rows.length : 0;
         return { tableName: name, accessible: count > 0, rowCount: count };
-      } catch { return { tableName: name, accessible: false, rowCount: 0 }; }
+      } catch {
+        unread.push(`unauth_access:${name}`);
+        return { tableName: name, accessible: false, rowCount: 0 };
+      }
     })
   );
   return { tested: true, results };
@@ -498,7 +511,7 @@ async function slopSquattingCheck(supabaseUrl: string, signal?: AbortSignal): Pr
 const MASS_ASSIGN_PAYLOAD = JSON.stringify({ is_paid: true, is_admin: true, role: "admin" });
 
 async function massAssignmentCheck(
-  restBase: string, anonKey: string, exposedTables: string[], signal?: AbortSignal
+  restBase: string, anonKey: string, exposedTables: string[], signal?: AbortSignal, unread: string[] = [],
 ): Promise<MassAssignmentCheck> {
   if (exposedTables.length === 0) return { tested: false, results: [] };
   const results = await Promise.all(
@@ -511,8 +524,12 @@ async function massAssignmentCheck(
           body:    MASS_ASSIGN_PAYLOAD,
           signal:  requestSignal(signal, TIMEOUT_MS),
         });
+        if (res.status >= 500) unread.push(`mass_assignment:${name}`);
         return { tableName: name, vulnerable: res.ok };
-      } catch { return { tableName: name, vulnerable: false }; }
+      } catch {
+        unread.push(`mass_assignment:${name}`);
+        return { tableName: name, vulnerable: false };
+      }
     })
   );
   return { tested: true, results };
@@ -520,7 +537,9 @@ async function massAssignmentCheck(
 
 // ── Check 7: Auth security ────────────────────────────────────────────────────
 
-async function checkAuthSecurity(supabaseUrl: string, anonKey: string, signal?: AbortSignal): Promise<AuthSecurityCheck> {
+async function checkAuthSecurity(
+  supabaseUrl: string, anonKey: string, signal?: AbortSignal, unread: string[] = [],
+): Promise<AuthSecurityCheck> {
   try {
     // The admin user-list endpoint requires service_role — anon key must be blocked.
     const res = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
@@ -528,16 +547,19 @@ async function checkAuthSecurity(supabaseUrl: string, anonKey: string, signal?: 
       signal:  requestSignal(signal, SHORT_TIMEOUT),
     });
     // 403 / 401 = correctly blocked. 200 = admin endpoint accessible with anon key = bad.
+    if (res.status >= 500) unread.push("auth_admin_endpoint");
     return { tested: true, adminEndpointBlocked: !res.ok };
   } catch {
-    return { tested: true, adminEndpointBlocked: true }; // network error → assume blocked
+    // Reported as blocked for the one-off report, but never as a verified fix.
+    unread.push("auth_admin_endpoint");
+    return { tested: true, adminEndpointBlocked: true };
   }
 }
 
 // ── Check 8: IDOR ─────────────────────────────────────────────────────────────
 
 async function checkIdor(
-  restBase: string, anonKey: string, tableNames: string[], signal?: AbortSignal
+  restBase: string, anonKey: string, tableNames: string[], signal?: AbortSignal, unread: string[] = [],
 ): Promise<IdorCheck> {
   const targets = tableNames.filter(isUserSensitiveTable).slice(0, 10);
   if (targets.length === 0) return { tested: false, results: [] };
@@ -550,10 +572,14 @@ async function checkIdor(
           headers: { apikey: anonKey, Accept: "application/json" },
           signal:  requestSignal(signal, SHORT_TIMEOUT),
         });
+        if (res.status >= 500) unread.push(`idor:${name}`);
         if (!res.ok) return { tableName: name, rowsAccessible: false };
         const rows = await res.json() as unknown[];
         return { tableName: name, rowsAccessible: Array.isArray(rows) && rows.length > 0 };
-      } catch { return { tableName: name, rowsAccessible: false }; }
+      } catch {
+        unread.push(`idor:${name}`);
+        return { tableName: name, rowsAccessible: false };
+      }
     })
   );
   return { tested: true, results };
@@ -563,19 +589,22 @@ async function checkIdor(
 
 const SECRET_FILES = ["/.env", "/.env.local", "/.env.production", "/.env.development"];
 
-async function checkSecretsExposure(supabaseUrl: string, signal?: AbortSignal): Promise<SecretsExposureCheck> {
+async function checkSecretsExposure(
+  supabaseUrl: string, signal?: AbortSignal, unread: string[] = [],
+): Promise<SecretsExposureCheck> {
   const exposedFiles: string[] = [];
   await Promise.all(
     SECRET_FILES.map(async (file) => {
       try {
         const res = await fetch(`${supabaseUrl}${file}`, { signal: requestSignal(signal, 4_000) });
+        if (res.status >= 500) unread.push("secrets_exposure");
         if (!res.ok) return;
         const text = await res.text();
         // Only flag if content contains key=value lines with sensitive-sounding names
         if (text.includes("=") && /KEY|SECRET|TOKEN|PASSWORD|PASS/i.test(text)) {
           exposedFiles.push(file);
         }
-      } catch { /* network error = safe */ }
+      } catch { unread.push("secrets_exposure"); }
     })
   );
   return { tested: true, exposedFiles };
@@ -583,7 +612,9 @@ async function checkSecretsExposure(supabaseUrl: string, signal?: AbortSignal): 
 
 // ── Check 10: Secure auth ─────────────────────────────────────────────────────
 
-async function checkSecureAuth(supabaseUrl: string, anonKey: string, signal?: AbortSignal): Promise<SecureAuthCheck> {
+async function checkSecureAuth(
+  supabaseUrl: string, anonKey: string, signal?: AbortSignal, unread: string[] = [],
+): Promise<SecureAuthCheck> {
   // Rapid-fire 5 login attempts with a dummy address; check for any 429 response
   const authUrl = `${supabaseUrl}/auth/v1/token?grant_type=password`;
   const payload = JSON.stringify({ email: "probe@scan.shiplock.dev", password: "xQ9!nope_invalid" });
@@ -597,7 +628,9 @@ async function checkSecureAuth(supabaseUrl: string, anonKey: string, signal?: Ab
       }).then((r) => r.status).catch(() => 0)
     )
   );
-  return { tested: true, loginRateLimited: statuses.some((s) => s === 429) };
+  const loginRateLimited = statuses.some((s) => s === 429);
+  if (!loginRateLimited && statuses.some((s) => s === 0)) unread.push("login_not_rate_limited");
+  return { tested: true, loginRateLimited };
 }
 
 // ── Check 11: HTTPS enforcement ───────────────────────────────────────────────
@@ -617,9 +650,13 @@ function checkHttps(supabaseUrl: string): HttpsCheck {
 // table in the path, same pattern checkInputValidation already uses, and
 // now tries two malformed shapes in parallel instead of one.
 async function checkStackTrace(
-  restBase: string, anonKey: string, testTable: string | null, signal?: AbortSignal
+  restBase: string, anonKey: string, testTable: string | null, signal?: AbortSignal, unread: string[] = [],
 ): Promise<StackTraceCheck> {
-  if (!testTable) return { tested: false, exposed: false };
+  // No probe-able table means this check did not run this pass.
+  if (!testTable) {
+    unread.push("stack_trace_exposed");
+    return { tested: false, exposed: false };
+  }
   const encoded = encodeURIComponent(testTable);
   const probeUrls = [
     `${restBase}/${encoded}?select=*&order=nonexistent_column.asc.nullslast.extra`,
@@ -637,6 +674,7 @@ async function checkStackTrace(
             text.includes(" at ")  || text.includes(".js:")
           );
         } catch {
+          unread.push("stack_trace_exposed");
           return false;
         }
       })
@@ -650,7 +688,7 @@ async function checkStackTrace(
 // ── Check 12: Bot protection ──────────────────────────────────────────────────
 
 async function checkBotProtection(
-  restBase: string, anonKey: string, testTable: string | null, signal?: AbortSignal
+  restBase: string, anonKey: string, testTable: string | null, signal?: AbortSignal, unread: string[] = [],
 ): Promise<BotProtectionCheck> {
   const url = testTable
     ? `${restBase}/${encodeURIComponent(testTable)}?limit=0`
@@ -666,6 +704,7 @@ async function checkBotProtection(
       res.headers.has("x-rate-limit");
     return { tested: true, rateLimitHeadersPresent: hasHeaders };
   } catch {
+    unread.push("no_rate_limit_headers");
     return { tested: false, rateLimitHeadersPresent: false };
   }
 }
@@ -673,9 +712,13 @@ async function checkBotProtection(
 // ── Check 13: Input validation ────────────────────────────────────────────────
 
 async function checkInputValidation(
-  restBase: string, anonKey: string, testTable: string | null, signal?: AbortSignal
+  restBase: string, anonKey: string, testTable: string | null, signal?: AbortSignal, unread: string[] = [],
 ): Promise<InputValidationCheck> {
-  if (!testTable) return { tested: false, sqlErrorExposed: false };
+  // No probe-able table means this check did not run this pass.
+  if (!testTable) {
+    unread.push("sql_error_exposed");
+    return { tested: false, sqlErrorExposed: false };
+  }
   const encoded = encodeURIComponent(testTable);
   // Two different shapes tried in parallel: an operator-injection attempt
   // (malformed filter value), and a type-coercion probe (a value that
@@ -700,6 +743,7 @@ async function checkInputValidation(
             text.includes("invalid input syntax")
           );
         } catch {
+          unread.push("sql_error_exposed");
           return false;
         }
       })
@@ -712,7 +756,9 @@ async function checkInputValidation(
 
 // ── Check 14: CORS configuration ─────────────────────────────────────────────
 
-async function checkCorsConfig(supabaseUrl: string, anonKey: string, signal?: AbortSignal): Promise<CorsConfigCheck> {
+async function checkCorsConfig(
+  supabaseUrl: string, anonKey: string, signal?: AbortSignal, unread: string[] = [],
+): Promise<CorsConfigCheck> {
   try {
     const res = await fetch(`${supabaseUrl}/rest/v1/`, {
       headers: {
@@ -725,6 +771,7 @@ async function checkCorsConfig(supabaseUrl: string, anonKey: string, signal?: Ab
     const wildcardOrigin   = allowOriginValue === "*";
     return { tested: true, wildcardOrigin, allowOriginValue };
   } catch {
+    unread.push("cors_wildcard");
     return { tested: false, wildcardOrigin: false, allowOriginValue: null };
   }
 }
@@ -756,7 +803,9 @@ async function checkCorsConfig(supabaseUrl: string, anonKey: string, signal?: Ab
 export async function scanProject(
   rawUrl:     string,
   rawAnonKey: string,
-  rawAppUrl?: string, signal?: AbortSignal
+  rawAppUrl?: string, signal?: AbortSignal,
+  /** Finding-ID prefixes this pass could not verify; never a clean answer. */
+  unread: string[] = [],
 ): Promise<ScanResult> {
 
   // Step 1: Sanitize inputs
@@ -801,6 +850,8 @@ export async function scanProject(
       .map((p) => p.slice(1));
   } catch (err) {
     if (err instanceof ScanError && err.code === "INVALID_CREDENTIALS") {
+      // Guessed names: a real table outside this list was never checked.
+      unread.push("rls:", "unauth_access:", "mass_assignment:", "idor:");
       tableNames = [...COMMON_TABLE_NAMES];
     } else {
       throw err;
@@ -810,7 +861,7 @@ export async function scanProject(
   // Step 4: Probe tables for existence + fetch authoritative RLS status from pg_tables.
   // These two fetches are independent so run them concurrently.
   const [probeResults, rlsStatusMap] = await Promise.all([
-    Promise.all(tableNames.map(async (name) => ({ name, ...(await probeTable(restBase, name, anonKey, signal)) }))),
+    Promise.all(tableNames.map(async (name) => ({ name, ...(await probeTable(restBase, name, anonKey, signal, unread)) }))),
     fetchRlsStatusMap(restBase, anonKey, signal),
   ]);
 
@@ -822,13 +873,18 @@ export async function scanProject(
         // A 200 response with rows does NOT mean RLS is off — the table may have
         // policies that intentionally permit anon SELECT (e.g. a public feedback table).
         // Fall back to true (safe default) if pg_tables was not accessible for this table.
-        const rlsReadable = rlsStatusMap.has(r.name);
-        const rlsEnabled = rlsReadable ? rlsStatusMap.get(r.name)! : true;
+        const rlsReadable = rlsStatusMap?.has(r.name) === true;
+        const rlsEnabled = rlsReadable ? rlsStatusMap!.get(r.name)! : true;
+        // Unread RLS also means the RLS-gated per-table checks were skipped.
+        if (rlsStatusMap && !rlsReadable) {
+          unread.push(`rls:${r.name}`, `unauth_access:${r.name}`, `mass_assignment:${r.name}`);
+        }
         const { policies, retrieved } = await fetchTablePolicies(restBase, r.name, anonKey, signal);
         return { name: r.name, rlsEnabled, rlsReadable, policies, policiesRetrieved: retrieved };
       })
   );
 
+  if (!rlsStatusMap) unread.push("rls:", "unauth_access:", "mass_assignment:");
   const exposedNames    = tables.filter((t) => !t.rlsEnabled).map((t) => t.name);
   const rateLimitTable  = tables[0]?.name ?? null;
 
@@ -849,20 +905,20 @@ export async function scanProject(
     stackTraceCheck,
     publicBuckets,
   ] = await Promise.all([
-    checkRateLimiting(restBase, anonKey, rateLimitTable, signal),
-    checkUnauthAccess(restBase, exposedNames, signal),
+    checkRateLimiting(restBase, anonKey, rateLimitTable, signal, unread),
+    checkUnauthAccess(restBase, exposedNames, signal, unread),
     slopSquattingCheck(appUrl ?? supabaseUrl, signal),
-    massAssignmentCheck(restBase, anonKey, exposedNames, signal),
-    checkAuthSecurity(supabaseUrl, anonKey, signal),
-    checkIdor(restBase, anonKey, tableNames, signal),
-    checkSecretsExposure(appUrl ?? supabaseUrl, signal),
-    checkSecureAuth(supabaseUrl, anonKey, signal),
+    massAssignmentCheck(restBase, anonKey, exposedNames, signal, unread),
+    checkAuthSecurity(supabaseUrl, anonKey, signal, unread),
+    checkIdor(restBase, anonKey, tableNames, signal, unread),
+    checkSecretsExposure(appUrl ?? supabaseUrl, signal, unread),
+    checkSecureAuth(supabaseUrl, anonKey, signal, unread),
     Promise.resolve(checkHttps(supabaseUrl)),
-    checkBotProtection(restBase, anonKey, rateLimitTable, signal),
-    checkInputValidation(restBase, anonKey, rateLimitTable, signal),
-    checkCorsConfig(supabaseUrl, anonKey, signal),
-    checkStackTrace(restBase, anonKey, rateLimitTable, signal),
-    checkPublicBuckets(supabaseUrl, anonKey, signal),
+    checkBotProtection(restBase, anonKey, rateLimitTable, signal, unread),
+    checkInputValidation(restBase, anonKey, rateLimitTable, signal, unread),
+    checkCorsConfig(supabaseUrl, anonKey, signal, unread),
+    checkStackTrace(restBase, anonKey, rateLimitTable, signal, unread),
+    checkPublicBuckets(supabaseUrl, anonKey, signal, unread),
   ]);
 
   return {
@@ -954,15 +1010,23 @@ async function listSuspiciousFiles(
   }
 }
 
-async function checkPublicBuckets(supabaseUrl: string, anonKey: string, signal?: AbortSignal): Promise<PublicBucketCheck> {
+async function checkPublicBuckets(
+  supabaseUrl: string, anonKey: string, signal?: AbortSignal, unread: string[] = [],
+): Promise<PublicBucketCheck> {
   try {
     const res = await fetch(`${supabaseUrl}/storage/v1/bucket`, {
       headers: makeHeaders(anonKey),
       signal:  requestSignal(signal, SHORT_TIMEOUT),
     });
-    if (!res.ok) return { tested: false, publicBuckets: [], suspiciousFiles: [] };
+    if (!res.ok) {
+      unread.push("public_bucket:");
+      return { tested: false, publicBuckets: [], suspiciousFiles: [] };
+    }
     const buckets = await res.json() as Array<{ name?: string; public?: boolean }>;
-    if (!Array.isArray(buckets)) return { tested: false, publicBuckets: [], suspiciousFiles: [] };
+    if (!Array.isArray(buckets)) {
+      unread.push("public_bucket:");
+      return { tested: false, publicBuckets: [], suspiciousFiles: [] };
+    }
 
     const publicBuckets = buckets
       .filter((b) => b.public === true && typeof b.name === "string")
@@ -983,6 +1047,7 @@ async function checkPublicBuckets(supabaseUrl: string, anonKey: string, signal?:
 
     return { tested: true, publicBuckets, suspiciousFiles };
   } catch {
+    unread.push("public_bucket:");
     return { tested: false, publicBuckets: [], suspiciousFiles: [] };
   }
 }
@@ -995,7 +1060,9 @@ export interface FastScanResult {
   timestamp:        string;
 }
 
-export async function scanCriticalChecks(rawUrl: string, rawAnonKey: string, signal?: AbortSignal): Promise<FastScanResult> {
+export async function scanCriticalChecks(
+  rawUrl: string, rawAnonKey: string, signal?: AbortSignal, unread: string[] = [],
+): Promise<FastScanResult> {
   let supabaseUrl: string;
   let anonKey:     string;
   try {
@@ -1024,6 +1091,7 @@ export async function scanCriticalChecks(rawUrl: string, rawAnonKey: string, sig
       .map((p) => p.slice(1));
   } catch (err) {
     if (err instanceof ScanError && err.code === "INVALID_CREDENTIALS") {
+      unread.push("rls:");
       tableNames = [...COMMON_TABLE_NAMES];
     } else {
       throw err;
@@ -1033,17 +1101,22 @@ export async function scanCriticalChecks(rawUrl: string, rawAnonKey: string, sig
   // RLS presence — one batched pg_tables query for every table's rowsecurity
   // flag, no per-table policy-detail fetch.
   const rlsStatusMap = await fetchRlsStatusMap(restBase, anonKey, signal);
-  const tables: TableResult[] = tableNames.map((name) => ({
+  if (!rlsStatusMap) unread.push("rls:");
+  const tables: TableResult[] = tableNames.map((name) => {
+    const rlsReadable = rlsStatusMap?.has(name) === true;
+    if (rlsStatusMap && !rlsReadable) unread.push(`rls:${name}`);
+    return {
     name,
-    rlsEnabled:        rlsStatusMap.has(name) ? rlsStatusMap.get(name)! : true,
-    rlsReadable:       rlsStatusMap.has(name),
+    rlsEnabled:        rlsReadable ? rlsStatusMap!.get(name)! : true,
+    rlsReadable,
     policies:           [],
     policiesRetrieved: false,
-  }));
+    };
+  });
 
   const [secretsExposure, publicBuckets] = await Promise.all([
-    checkSecretsExposure(supabaseUrl, signal),
-    checkPublicBuckets(supabaseUrl, anonKey, signal),
+    checkSecretsExposure(supabaseUrl, signal, unread),
+    checkPublicBuckets(supabaseUrl, anonKey, signal, unread),
   ]);
 
   return {

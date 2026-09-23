@@ -54,12 +54,12 @@ describe("endpoint and app-surface collectors forward the registry signal", () =
   const url = { monitored_project_url: "https://abc.supabase.co" } as Partial<MonitoredProfile>;
   it("full Supabase endpoint scan", async () => {
     await supabaseScanCollector.run({ ...ctx(url), anonKey: "anon" });
-    expect(runners.scan).toHaveBeenCalledWith("https://abc.supabase.co", "anon", undefined, signal);
+    expect(runners.scan).toHaveBeenCalledWith("https://abc.supabase.co", "anon", undefined, signal, expect.any(Array));
   });
 
   it("hourly critical subset", async () => {
     await supabaseScanCollector.run({ ...ctx(url), anonKey: "anon", triggerSource: "hourly" });
-    expect(runners.critical).toHaveBeenCalledWith("https://abc.supabase.co", "anon", signal);
+    expect(runners.critical).toHaveBeenCalledWith("https://abc.supabase.co", "anon", signal, expect.any(Array));
   });
 
   it("app surface", async () => {

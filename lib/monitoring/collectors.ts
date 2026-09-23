@@ -25,6 +25,12 @@ function endpointOrigin(rawUrl: string, encryptedKey: string | null): Pick<Supab
   } catch { return undefined; }
 }
 
+/** Prior findings the pass could not re-check stay open; unread is not fixed. */
+function carryUnread(previous: Finding[], fresh: Finding[], unread: string[]): Finding[] {
+  const freshIds = new Set(fresh.map((f) => f.id));
+  return previous.filter((f) => !freshIds.has(f.id) && unread.some((p) => f.id.startsWith(p)));
+}
+
 // The collectors themselves. Each one is the body of what used to be an inline
 // branch in runMonitoringPass, moved here unchanged in behaviour so the
 // orchestrator can stay a spine rather than a ladder.
@@ -54,18 +60,21 @@ export const supabaseScanCollector: CollectorSpec = {
   async run(ctx) {
     const encryptedKey = ctx.profile.monitored_anon_key_encrypted;
     if (!ctx.profile.monitored_project_url || !ctx.anonKey) return {};
+    const unread: string[] = [];
     if (ctx.triggerSource === "hourly") {
       const fresh = extractCriticalFindings(
-        await scanCriticalChecks(ctx.profile.monitored_project_url, ctx.anonKey, ctx.signal)
+        await scanCriticalChecks(ctx.profile.monitored_project_url, ctx.anonKey, ctx.signal, unread)
       );
       const carriedForward = ctx.previousFindings.filter((f) => !isCriticalScopeFindingId(f.id));
-      return { snapshotFindings: [...carriedForward, ...fresh] };
+      const inScopeUnread = carryUnread(ctx.previousFindings.filter((f) => isCriticalScopeFindingId(f.id)), fresh, unread);
+      return { snapshotFindings: [...carriedForward, ...inScopeUnread, ...fresh] };
     }
 
     // Capture the supplied origin before any asynchronous collection. Later
     // profile changes must not relabel observations from the old target/key.
     const origin = endpointOrigin(ctx.profile.monitored_project_url, encryptedKey);
-    const scan = await scanProject(ctx.profile.monitored_project_url, ctx.anonKey, undefined, ctx.signal);
+    const scan = await scanProject(ctx.profile.monitored_project_url, ctx.anonKey, undefined, ctx.signal, unread);
+    const fresh = extractFindings(scan);
     const tableReports = (scan.tables ?? []).map((t) => ({
       name: t.name,
       rlsEnabled: t.rlsEnabled,
@@ -89,7 +98,7 @@ export const supabaseScanCollector: CollectorSpec = {
     } : undefined;
 
     return {
-      snapshotFindings: extractFindings(scan),
+      snapshotFindings: [...fresh, ...carryUnread(ctx.previousFindings, fresh, unread)],
       // Replace legacy flat reports with observed values only. The
       // self-contained endpoint snapshot is replaced even for zero reports,
       // without borrowing other transports' facts or claiming that zero means
