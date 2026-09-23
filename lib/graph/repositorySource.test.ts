@@ -15,6 +15,8 @@ vi.mock("@/lib/supabase", () => ({
 }));
 
 import { loadRepositoryReachability, loadRepositoryDependencies } from "./repositorySource";
+// Traffic binding has its own test (trafficBinding.test.ts); no traffic here.
+vi.mock("@/lib/traffic/graphFacts", () => ({ collectTrafficFacts: async () => [] }));
 import { loadReachabilityIndex, loadGraphInput, canRetireGraphFindings } from "./graphRun";
 import { findAttackPaths } from "./attackPaths";
 const snapshot = {

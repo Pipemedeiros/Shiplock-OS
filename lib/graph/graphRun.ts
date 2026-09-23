@@ -8,6 +8,7 @@ import type { TableInventory } from "@/lib/exposure/model";
 import { loadRepositoryReachability, loadRepositoryGraphSource } from "./repositorySource";
 import { loadCurrentDatabaseEvidence } from "./databaseSource";
 import { loadRepositoryDatabaseEvidence, projectRepositoryDatabaseEvidence } from "./repositoryDatabase";
+import { collectTrafficFacts } from "@/lib/traffic/graphFacts";
 
 // Persistence and execution for the reasoner.
 //
@@ -234,16 +235,20 @@ export async function saveFacts(
  * Neither mode guesses a join or merges two possibly different databases.
  */
 export async function loadGraphInput(userId: string, repositoryId?: string): Promise<GraphInput> {
-  // Source is admitted only for an explicit selected repository. Traffic and
-  // runtime observations still have no verified repository binding.
+  // Source is admitted only for an explicit selected repository. Traffic joins
+  // only through a repository-bound traffic site; runtime still has no binding.
   if (repositoryId !== undefined) {
     const source = await loadRepositoryGraphSource(userId, repositoryId);
     if (source.sourceCoverage === "unknown") return source;
     const databaseEvidence = await loadRepositoryDatabaseEvidence(userId, repositoryId);
+    // Only traffic bound to this repository through a traffic site (2F-2b);
+    // account-wide, unbound traffic never corroborates a repository.
+    const trafficHotPaths = await collectTrafficFacts(userId, repositoryId);
     return {
       ...source,
       databaseEvidence,
       ...projectRepositoryDatabaseEvidence(databaseEvidence),
+      ...(trafficHotPaths.length > 0 ? { trafficHotPaths } : {}),
     };
   }
   const { data, error } = await getSupabaseAdmin()

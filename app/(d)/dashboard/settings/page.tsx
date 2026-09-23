@@ -7,6 +7,7 @@ import { SupabasePanel } from "@/components/d/SupabasePanel";
 import { PostgresPanel } from "@/components/d/PostgresPanel";
 import { VerifiedPanel } from "@/components/d/VerifiedPanel";
 import { IntelligencePanel } from "@/components/d/IntelligencePanel";
+import { TrafficSites } from "@/components/d/TrafficSites";
 import { BILLING_ENABLED } from "@/lib/access";
 
 /**
@@ -24,7 +25,7 @@ export default async function SettingsPage() {
     admin
       .from("user_profiles")
       .select(
-        "github_installation_id, supabase_mgmt_token_encrypted, supabase_mgmt_project_ref, monitored_project_url, monitored_anon_key_encrypted, postgres_dsn_encrypted, postgres_display, verified_report_enabled, verified_report_token, monitored_app_url"
+        "github_installation_id, is_paid, supabase_mgmt_token_encrypted, supabase_mgmt_project_ref, monitored_project_url, monitored_anon_key_encrypted, postgres_dsn_encrypted, postgres_display, verified_report_enabled, verified_report_token, monitored_app_url"
       )
       .eq("id", userId)
       .single(),
@@ -81,6 +82,15 @@ export default async function SettingsPage() {
         <div className="v3-card">
           <div className="v3-hd"><h2 className="v3-eyebrow">Your AI</h2></div>
           <div className="v3-card-p"><IntelligencePanel /></div>
+        </div>
+
+        {/* Traffic bound to a repository through a site (2F-2b). Enabled mirrors
+            the ingest rule (is_paid; free vs paid is parked by Felipe). */}
+        <div className="v3-card">
+          <div className="v3-hd"><h2 className="v3-eyebrow">Traffic, optional</h2></div>
+          <div className="v3-card-p">
+            <TrafficSites enabled={profile?.is_paid === true} repositories={repos.map((r) => ({ id: r.id, fullName: r.fullName }))} />
+          </div>
         </div>
 
         <div className="v3-card">

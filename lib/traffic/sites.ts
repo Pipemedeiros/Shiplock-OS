@@ -51,3 +51,14 @@ export async function revokeTrafficSite(userId: string, siteId: string): Promise
   if (error) throw new Error("traffic_site_unwritable");
   return data === true;
 }
+
+const listed = z.array(z.object({ id: z.uuid(), host: z.string(), created_at: z.string(),
+  repositories: z.object({ full_name: z.string() }) }));
+
+/** The caller's active sites, never their tokens. */
+export async function listTrafficSites(userId: string): Promise<{ siteId: string; host: string; repository: string; createdAt: string }[]> {
+  const { data, error } = await getSupabaseAdmin().from("traffic_sites")
+    .select("id, host, created_at, repositories(full_name)").eq("user_id", userId).is("revoked_at", null);
+  if (error) throw new Error("traffic_sites_unreadable");
+  return listed.parse(data ?? []).map((row) => ({ siteId: row.id, host: row.host, repository: row.repositories.full_name, createdAt: row.created_at }));
+}

@@ -31,7 +31,7 @@ export interface TrafficHotPath {
  * corroboration", which leaves attack paths at their base urgency rather than
  * inflating them.
  */
-export async function collectTrafficFacts(userId: string): Promise<TrafficHotPath[]> {
+export async function collectTrafficFacts(userId: string, repositoryId?: string): Promise<TrafficHotPath[]> {
   const admin = getSupabaseAdmin();
   const since = new Date(Date.now() - WINDOW_HOURS * 60 * 60 * 1000).toISOString();
 
@@ -52,10 +52,14 @@ export async function collectTrafficFacts(userId: string): Promise<TrafficHotPat
   }
   if (suspicious.size === 0) return [];
 
-  const { data: events } = await admin
+  // With a repository, count only events bound to it through a traffic site
+  // (2F-2a); without one, this is the account-scoped (legacy) view.
+  let eventsQuery = admin
     .from("traffic_events")
     .select("path")
-    .eq("user_id", userId)
+    .eq("user_id", userId);
+  if (repositoryId) eventsQuery = eventsQuery.eq("repository_id", repositoryId);
+  const { data: events } = await eventsQuery
     .gte("created_at", since)
     .in("source_id", [...suspicious])
     .limit(MAX_EVENTS);
