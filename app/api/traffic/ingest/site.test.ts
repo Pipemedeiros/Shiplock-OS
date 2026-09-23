@@ -1,0 +1,31 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { NextRequest } from "next/server";
+
+// 2F-2a: an event that arrives under a traffic site is recorded with that
+// site's repository; a legacy account token stays unbound.
+const mocks = vi.hoisted(() => ({ resolve: vi.fn(), ingest: vi.fn() }));
+vi.mock("@/lib/traffic/sites", () => ({ resolveTrafficToken: mocks.resolve }));
+vi.mock("@/lib/traffic/ingest", () => ({ ingestTrafficEvent: mocks.ingest }));
+vi.mock("@/lib/traffic/ingestLimit", () => ({ ingestLimiter: { allow: () => true } }));
+
+import { POST } from "./route";
+
+const req = () => new Request("https://shiplock.dev/api/traffic/ingest", { method: "POST",
+  headers: { "content-type": "application/json", "x-site": "11111111-1111-4111-8111-111111111111" },
+  body: JSON.stringify({ source_id: "s", path: "/login", method: "POST" }) }) as unknown as NextRequest;
+
+beforeEach(() => { vi.clearAllMocks(); mocks.ingest.mockResolvedValue({ action: "none" }); });
+
+describe("traffic ingest binds site traffic to its repository (2F-2a)", () => {
+  it("records a site event with its site and repository", async () => {
+    mocks.resolve.mockResolvedValue({ userId: "u1", email: null, siteId: "s1", repositoryId: "r1" });
+    expect(await (await POST(req())).json()).toEqual({ ok: true });
+    expect(mocks.ingest).toHaveBeenCalledWith(expect.objectContaining({ userId: "u1", siteId: "s1", repositoryId: "r1" }));
+  });
+
+  it("records a legacy account event unbound", async () => {
+    mocks.resolve.mockResolvedValue({ userId: "u1", email: null, siteId: null, repositoryId: null });
+    await POST(req());
+    expect(mocks.ingest).toHaveBeenCalledWith(expect.objectContaining({ siteId: null, repositoryId: null }));
+  });
+});

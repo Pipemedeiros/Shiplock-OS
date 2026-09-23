@@ -44,6 +44,9 @@ try {
   await db.exec(await readFile(new URL("../supabase/migrations/031_api_tokens.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/083_click_quotas.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/084_repair_merge.sql", import.meta.url), "utf8"));
+  for (const file of ["025_traffic_protection.sql", "026_session_traffic.sql", "027_traffic_alert_action.sql", "085_traffic_sites.sql"]) {
+    await db.exec(await readFile(new URL(`../supabase/migrations/${file}`, import.meta.url), "utf8"));
+  }
   await db.query("insert into auth.users values ($1),($2)", [u1,u2]);
   await db.query("insert into public.user_profiles(id) values($1),($2)", [u1,u2]);
   await check("connection epochs backfill the existing fingerprint and ignore blank credentials", async () => {
@@ -927,8 +930,34 @@ try {
     assert.ok((await db.query("select merged_at from public.repair_action_receipts where id=$1",[receipt])).rows[0].merged_at);
     await db.exec("set role service_role");
   });
+  // 2F-2a: traffic is bound to a repository through an explicit site.
+  await check("a traffic site binds one normalized host to the owner's selected repository, with its own token", async () => {
+    await db.exec("reset role");
+    await db.query("update public.repositories set selected=true where id in ($1,$2)",[r1,r3]);   // earlier checks deselect
+    await db.exec("set role service_role");
+    const site=(user,repo,host)=>db.query("select * from public.create_traffic_site($1,$2,$3)",[user,repo,host]).then((x)=>x.rows[0]);
+    const a=await site(u1,r1,"App.Example.com");
+    assert.match(a.ingest_token,/^[0-9a-f-]{36}$/);
+    await db.exec("reset role");
+    assert.deepEqual((await db.query("select host,repository_id,source from public.traffic_sites where id=$1",[a.site_id])).rows,[{host:"app.example.com",repository_id:r1,source:"snippet"}]);
+    await db.exec("set role service_role");
+    assert.deepEqual(await site(u1,r1,"app.example.com"),a);                 // same host, same repo: idempotent
+    await assert.rejects(site(u1,r3,"app.example.com"),/host already bound/); // one repository per host
+    await assert.rejects(site(u1,r2,"other.example.com"));                   // another tenant's repository
+    await assert.rejects(site(u1,r1,"https://bad host/"));                   // not a hostname
+    await assert.rejects(site(u1,r1,"localhost"));                           // not a public host
+    assert.equal((await db.query("select public.revoke_traffic_site($1,$2) as ok",[u2,a.site_id])).rows[0].ok,false);
+    assert.equal((await db.query("select public.revoke_traffic_site($1,$2) as ok",[u1,a.site_id])).rows[0].ok,true);
+    const b=await site(u1,r3,"app.example.com");                              // a revoked host can be rebound
+    assert.notEqual(b.ingest_token,a.ingest_token);
+    await db.exec("reset role");
+    await db.query("insert into public.traffic_events(user_id,source_id,path,method,site_id,repository_id) values ($1,'s','/x','GET',$2,$3)",[u1,b.site_id,r3]);
+    await db.exec("set role service_role");
+  });
   await check("client roles cannot touch intelligence tasks", async () => {
     await db.exec("reset role; set role authenticated");
+    await assert.rejects(db.query("select * from public.traffic_sites"));
+    await assert.rejects(db.query("select * from public.create_traffic_site($1,$2,'x.example.com')",[u1,r1]));
     await assert.rejects(db.query("select public.record_repair_merge($1,$1,1)",[u1]));
     await assert.rejects(db.query("select * from public.first_scan_credits"));
     await assert.rejects(db.query("select public.claim_first_scan_credit($1,$1,$1,$1)",[u1]));

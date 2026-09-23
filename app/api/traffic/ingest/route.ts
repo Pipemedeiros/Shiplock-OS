@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getSupabaseAdmin } from "@/lib/supabase";
 import { ingestTrafficEvent } from "@/lib/traffic/ingest";
+import { resolveTrafficToken } from "@/lib/traffic/sites";
 import { ingestLimiter } from "@/lib/traffic/ingestLimit";
 import { getClientIpHash } from "@/lib/rateLimit";
 
@@ -42,21 +42,17 @@ export async function POST(req: NextRequest) {
     const parsed = bodySchema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return ok();
 
-    const admin = getSupabaseAdmin();
-    const { data: profile } = await admin
-      .from("user_profiles")
-      .select("id, email, is_paid")
-      .eq("traffic_ingest_token", token)
-      .maybeSingle();
-
-    // Unknown token, or a lapsed subscriber — traffic protection pauses with
-    // the subscription, same as the rest of the watch. Answer generically.
-    if (!profile || !profile.is_paid) return ok();
+    // A site token binds the event to its repository (2F-2a); a legacy
+    // account token stays unbound. Unknown, lapsed, or deselected: generic ok.
+    const identity = await resolveTrafficToken(token);
+    if (!identity) return ok();
 
     const b = parsed.data;
     await ingestTrafficEvent({
-      userId: profile.id as string,
-      email: (profile.email as string | null) ?? null,
+      userId: identity.userId,
+      email: identity.email,
+      siteId: identity.siteId,
+      repositoryId: identity.repositoryId,
       event: {
         source_id: b.source_id,
         path: b.path,

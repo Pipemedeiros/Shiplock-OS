@@ -18,6 +18,9 @@ import { sendThreatAlert } from "./alerts";
 export async function ingestTrafficEvent(params: {
   userId: string;
   email: string | null;
+  /** Set when the event arrived under a repository-bound traffic site (2F-2a). */
+  siteId?: string | null;
+  repositoryId?: string | null;
   event: TrafficEvent;
 }): Promise<{ action: TrafficAction }> {
   const { userId, email, event } = params;
@@ -33,6 +36,8 @@ export async function ingestTrafficEvent(params: {
       method: event.method,
       ua: event.ua,
       session_id: event.session_id ?? null,
+      site_id: params.siteId ?? null,
+      repository_id: params.repositoryId ?? null,
     });
 
     const since = new Date(Date.now() - LOOKBACK_MS).toISOString();

@@ -17,9 +17,12 @@ vi.mock("@/lib/traffic/ingest", () => ({ ingestTrafficEvent: ingestTrafficEventM
 vi.mock("@/lib/traffic/blocklist", () => ({ getActiveBlocklist: getActiveBlocklistMock }));
 vi.mock("@/lib/supabase", () => ({
   getSupabaseAdmin: () => ({
-    from: () => ({
-      select: () => ({ eq: () => ({ single: singleMock, maybeSingle: maybeSingleMock }) }),
-    }),
+    from: (table: string) => {
+      // Legacy account tokens only: no traffic site matches in these tests.
+      const q = { select: () => q, eq: () => q, is: () => q, single: singleMock,
+        maybeSingle: table === "traffic_sites" ? async () => ({ data: null }) : maybeSingleMock };
+      return q;
+    },
   }),
 }));
 
@@ -49,7 +52,7 @@ describe("Traffic ingest — token gating fails closed", () => {
 
   it("lapsed (unpaid) subscriber → no processing", async () => {
     maybeSingleMock.mockResolvedValue({ data: { id: "u1", email: "a@b.com", is_paid: false } });
-    const res = await ingestPOST(ingestReq({ "x-site": "real-but-lapsed" }));
+    const res = await ingestPOST(ingestReq({ "x-site": "33333333-3333-4333-8333-333333333333" }));
     expect(await res.json()).toEqual({ ok: true });
     expect(ingestTrafficEventMock).not.toHaveBeenCalled();
   });
@@ -57,7 +60,7 @@ describe("Traffic ingest — token gating fails closed", () => {
   it("paid subscriber → processes the event", async () => {
     maybeSingleMock.mockResolvedValue({ data: { id: "u1", email: "a@b.com", is_paid: true } });
     ingestTrafficEventMock.mockResolvedValue({ action: "none" });
-    const res = await ingestPOST(ingestReq({ "x-site": "valid" }));
+    const res = await ingestPOST(ingestReq({ "x-site": "44444444-4444-4444-8444-444444444444" }));
     expect(await res.json()).toEqual({ ok: true });
     expect(ingestTrafficEventMock).toHaveBeenCalledOnce();
   });
@@ -78,7 +81,7 @@ describe("Traffic blocklist — never leaks another site's blocks", () => {
 
   it("lapsed subscriber → empty list (enforcement pauses with the subscription)", async () => {
     maybeSingleMock.mockResolvedValue({ data: { id: "u1", is_paid: false } });
-    const res = await blocklistGET(blReq("lapsed"));
+    const res = await blocklistGET(blReq("55555555-5555-4555-8555-555555555555"));
     expect(await res.json()).toEqual({ hashes: [], ttl: 30 });
     expect(getActiveBlocklistMock).not.toHaveBeenCalled();
   });

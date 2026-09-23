@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAdmin } from "@/lib/supabase";
 import { getActiveBlocklist } from "@/lib/traffic/blocklist";
+import { resolveTrafficToken } from "@/lib/traffic/sites";
 
 // Serves the active blocklist to the customer's middleware snippet. Same
 // per-site token auth (`?site=` or `x-site`). Fail-open on the serving side
@@ -15,16 +15,11 @@ export async function GET(req: NextRequest) {
     const token = new URL(req.url).searchParams.get("site") ?? req.headers.get("x-site");
     if (!token) return emptyList();
 
-    const admin = getSupabaseAdmin();
-    const { data: profile } = await admin
-      .from("user_profiles")
-      .select("id, is_paid")
-      .eq("traffic_ingest_token", token)
-      .maybeSingle();
+    // Same token model as ingest: a site token or the legacy account token.
+    const identity = await resolveTrafficToken(token);
+    if (!identity) return emptyList();
 
-    if (!profile || !profile.is_paid) return emptyList();
-
-    const hashes = await getActiveBlocklist(profile.id as string);
+    const hashes = await getActiveBlocklist(identity.userId);
     return NextResponse.json({ hashes, ttl: 30 }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
     console.error("[traffic/blocklist]", err instanceof Error ? err.message : err);
