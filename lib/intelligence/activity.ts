@@ -6,9 +6,12 @@ import { getIntelligenceConnection, type ConnectionView } from "./connection";
  * unanswered task is pending, expired, withdrawn, or unavailable: an AI check
  * that did not run is never shown as clean. */
 export type AiCheckState = "pending" | "expired" | "withdrawn" | "unavailable" | "needs_human" | "proposal";
+/** What the customer's AI said, as references only: never quoted source or
+ * edit bodies. It is the AI's claim, already checked against GitHub. */
+export type AiAnswer = { summary: string; citations: { path: string; startLine: number; endLine: number }[]; editedFiles: string[] };
 export type AiCheck = {
   taskId: string; repository: string; kind: "deep" | "pr" | "other"; pullRequest: number | null;
-  commit: string; state: AiCheckState; createdAt: string; expiresAt: string;
+  commit: string; state: AiCheckState; createdAt: string; expiresAt: string; answer: AiAnswer | null;
 };
 export type AiPause = "not_connected" | "revoked" | "budget" | null;
 export type AiActivity = { available: false } | { available: true; paused: AiPause; checks: AiCheck[] };
@@ -29,8 +32,23 @@ export function pausedReason(connection: ConnectionView): AiPause {
   return connection.monthReportedTokens >= connection.monthlyTokenBudget ? "budget" : null;
 }
 
+const answerSchema = z.object({
+  summary: z.string(),
+  citations: z.array(z.object({ path: z.string(), startLine: z.number(), endLine: z.number() })).default([]),
+  edits: z.array(z.object({ path: z.string() })).default([]),
+});
 const taskRow = z.object({ id: z.string(), commit_sha: z.string(), status: z.string(), expires_at: z.string(),
-  created_at: z.string(), idempotency_key: z.string(), repositories: z.object({ full_name: z.string() }) });
+  created_at: z.string(), idempotency_key: z.string(), repositories: z.object({ full_name: z.string() }),
+  result: z.unknown().optional() });
+
+function answerOf(status: string, result: unknown): AiAnswer | null {
+  if (status !== "needs_human" && status !== "proposal_received") return null;
+  const parsed = answerSchema.safeParse(result);
+  if (!parsed.success) return null;
+  return { summary: parsed.data.summary,
+    citations: parsed.data.citations.map(({ path, startLine, endLine }) => ({ path, startLine, endLine })),
+    editedFiles: parsed.data.edits.map((edit) => edit.path) };
+}
 const scanRow = z.object({ job_id: z.string(), scan: z.enum(["deep", "pr"]), pull_request_number: z.number().nullable() });
 const JOB_KEY = /^job:([0-9a-f-]{36})$/;
 
@@ -40,7 +58,7 @@ export async function getAiActivity(userId: string, now = Date.now()): Promise<A
     const [connection, tasks] = await Promise.all([
       getIntelligenceConnection(userId),
       admin.from("intelligence_tasks")
-        .select("id, commit_sha, status, expires_at, created_at, idempotency_key, repositories(full_name)")
+        .select("id, commit_sha, status, expires_at, created_at, idempotency_key, result, repositories(full_name)")
         .eq("user_id", userId).gt("created_at", new Date(now - 30 * 86_400_000).toISOString())
         .order("created_at", { ascending: false }).limit(50),
     ]);
@@ -59,7 +77,8 @@ export async function getAiActivity(userId: string, now = Date.now()): Promise<A
       const scan = scans.get(JOB_KEY.exec(row.idempotency_key)?.[1] ?? "");
       return { taskId: row.id, repository: row.repositories.full_name, kind: scan?.scan ?? "other",
         pullRequest: scan?.pull_request_number ?? null, commit: row.commit_sha,
-        state: aiStateOf(row.status, row.expires_at, now), createdAt: row.created_at, expiresAt: row.expires_at };
+        state: aiStateOf(row.status, row.expires_at, now), createdAt: row.created_at, expiresAt: row.expires_at,
+        answer: answerOf(row.status, row.result) };
     });
     return { available: true, paused: pausedReason(connection), checks };
   } catch {

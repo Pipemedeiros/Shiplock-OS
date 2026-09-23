@@ -40,9 +40,23 @@ export function AiChecks({ activity }: { activity: AiActivity }) {
       ) : (
         <div className="v3-list">
           {activity.checks.map((check) => (
-            <div key={check.taskId} className="v3-row-pad v3-between">
-              <span style={{ fontSize: 13 }}>{scope(check)} <span className="v3-small">at {check.commit.slice(0, 7)}</span></span>
-              <span className="v3-small">{aiStateLabel[check.state]}</span>
+            <div key={check.taskId} className="v3-row-pad">
+              <div className="v3-between">
+                <span style={{ fontSize: 13 }}>{scope(check)} <span className="v3-small">at {check.commit.slice(0, 7)}</span></span>
+                <span className="v3-small">{aiStateLabel[check.state]}</span>
+              </div>
+              {check.answer ? (
+                <div className="v3-small" style={{ marginTop: 6 }}>
+                  {/* Model text, rendered as plain text: a claim ShipLock checked against GitHub, not a verdict. */}
+                  <p>Your AI says: {check.answer.summary}</p>
+                  {check.answer.citations.length > 0 ? (
+                    <p>Cited: {check.answer.citations.map((c) => `${c.path}:${c.startLine}${c.endLine !== c.startLine ? `-${c.endLine}` : ""}`).join(", ")}</p>
+                  ) : null}
+                  {check.answer.editedFiles.length > 0 ? (
+                    <p>Proposed change to {check.answer.editedFiles.join(", ")}. Nothing is applied until you open a pull request and merge it.</p>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           ))}
         </div>

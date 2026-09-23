@@ -25,7 +25,15 @@ beforeEach(() => {
     { id: "t1", commit_sha: "a".repeat(40), status: "pending", expires_at: "2026-09-23T20:00:00Z", created_at: "2026-09-23T10:00:00Z",
       idempotency_key: `job:${job}`, repositories: { full_name: "acme/app" } },
     { id: "t2", commit_sha: "b".repeat(40), status: "pending", expires_at: "2026-09-22T20:00:00Z", created_at: "2026-09-22T10:00:00Z",
-      idempotency_key: "manual-1", repositories: { full_name: "acme/app" } },
+      idempotency_key: "manual-1", repositories: { full_name: "acme/app" }, result: null },
+    { id: "t3", commit_sha: "c".repeat(40), status: "needs_human", expires_at: "2026-09-22T20:00:00Z", created_at: "2026-09-21T10:00:00Z",
+      idempotency_key: "manual-2", repositories: { full_name: "acme/app" }, result: { summary: "Orders are read by id with no owner check.",
+        citations: [{ path: "app/api/orders/route.ts", startLine: 4, endLine: 6, quote: "q", sourceHash: "h" }],
+        edits: [], usage: { inputTokens: 10, outputTokens: 5 }, model: "m" } },
+    { id: "t4", commit_sha: "d".repeat(40), status: "proposal_received", expires_at: "2026-09-22T20:00:00Z", created_at: "2026-09-20T10:00:00Z",
+      idempotency_key: "manual-3", repositories: { full_name: "acme/app" }, result: { summary: "Disable production source maps.",
+        citations: [{ path: "next.config.ts", startLine: 2, endLine: 2, quote: "q", sourceHash: "h" }],
+        edits: [{ path: "next.config.ts", baseHash: "h", content: "SECRET-LOOKING CONTENT" }] } },
   ], error: null });
   state.scans.mockReturnValue({ data: [{ job_id: job, scan: "pr", pull_request_number: 7 }], error: null });
 });
@@ -51,8 +59,14 @@ describe("AI check states (10B-2d)", () => {
     const activity = await getAiActivity("u1", now);
     expect(activity).toMatchObject({ available: true, paused: null, checks: [
       { taskId: "t1", repository: "acme/app", kind: "pr", pullRequest: 7, state: "pending" },
-      { taskId: "t2", repository: "acme/app", kind: "other", pullRequest: null, state: "expired" },
+      { taskId: "t2", repository: "acme/app", kind: "other", pullRequest: null, state: "expired", answer: null },
+      { taskId: "t3", state: "needs_human", answer: { summary: "Orders are read by id with no owner check.",
+        citations: [{ path: "app/api/orders/route.ts", startLine: 4, endLine: 6 }], editedFiles: [] } },
+      { taskId: "t4", state: "proposal", answer: { summary: "Disable production source maps.",
+        citations: [{ path: "next.config.ts", startLine: 2, endLine: 2 }], editedFiles: ["next.config.ts"] } },
     ] });
+    // The dashboard view carries references, never quoted source or edit bodies.
+    expect(JSON.stringify(activity)).not.toContain("SECRET-LOOKING");
     expect(state.filters).toHaveBeenCalledWith("intelligence_tasks", "eq", "user_id", "u1");
     expect(state.filters).toHaveBeenCalledWith("intelligence_scan_jobs", "eq", "user_id", "u1");
     expect(state.filters).toHaveBeenCalledWith("intelligence_scan_jobs", "in", "job_id", [job]);
@@ -67,7 +81,7 @@ describe("AI check states (10B-2d)", () => {
   });
 
   it("finds the newest AI check for a pull request", () => {
-    const base = { repository: "acme/app", kind: "pr", commit: "a", createdAt: "x", expiresAt: "x" } as const;
+    const base = { repository: "acme/app", kind: "pr", commit: "a", createdAt: "x", expiresAt: "x", answer: null } as const;
     const checks: AiCheck[] = [
       { ...base, taskId: "new", pullRequest: 7, state: "pending" },
       { ...base, taskId: "old", pullRequest: 7, state: "expired" },
