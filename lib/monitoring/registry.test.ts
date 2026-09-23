@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { runCollectors, type CollectorSpec, type CollectorContext } from "./registry";
 
 const ctx: CollectorContext = {
@@ -63,6 +63,55 @@ describe("runCollectors — isolation", () => {
     expect(outcomes[0]).toMatchObject({ id: "hangs", status: "timeout" });
     expect(outcomes[1]).toMatchObject({ id: "after", status: "ok" });
     expect(results).toHaveLength(1);
+  });
+});
+
+describe("runCollectors — cancellation", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("aborts timed-out work and excludes an abort-triggered late result", async () => {
+    vi.useFakeTimers();
+    let expired: AbortSignal | undefined;
+    let next: AbortSignal | undefined;
+    const pending = runCollectors([
+      spec({ id: "expires", timeoutMs: 20, run: (context) => {
+        expired = context.signal;
+        return new Promise((resolve) => context.signal?.addEventListener("abort", () => {
+          resolve({ snapshotFindings: [{ id: "late" }] as never });
+        }, { once: true }));
+      } }),
+      spec({ id: "next", run: async (context) => { next = context.signal; return {}; } }),
+    ], ctx);
+    await vi.advanceTimersByTimeAsync(20);
+    const result = await pending;
+    expect(expired?.aborted).toBe(true);
+    expect(expired?.reason).toMatchObject({ name: "CollectorTimeout" });
+    expect(next).toBeDefined();
+    expect(next).not.toBe(expired);
+    expect(next?.aborted).toBe(false);
+    expect(result.outcomes.map((outcome) => outcome.status)).toEqual(["timeout", "ok"]);
+    expect(result.results).toEqual([{}]);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("clears timers after success and synchronous failure without aborting later", async () => {
+    vi.useFakeTimers();
+    const signals: AbortSignal[] = [];
+    const result = await runCollectors([
+      spec({ id: "ok", run: async (context) => {
+        if (context.signal) signals.push(context.signal);
+        return {};
+      } }),
+      spec({ id: "throws", run: (context) => {
+        if (context.signal) signals.push(context.signal);
+        throw new Error("synchronous failure");
+      } }),
+    ], ctx);
+    expect(signals).toHaveLength(2);
+    expect(result.outcomes.map((outcome) => outcome.status)).toEqual(["ok", "failed"]);
+    expect(vi.getTimerCount()).toBe(0);
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(signals.every((signal) => !signal.aborted)).toBe(true);
   });
 });
 

@@ -29,6 +29,9 @@ export interface CollectorContext {
   triggerSource: TriggerSource;
   /** The previous snapshot's findings, for collectors that carry state forward. */
   previousFindings: Finding[];
+  /** Registry supplies a fresh timeout signal for each run. Direct callers may
+   * omit it. Transports must explicitly consume it; this is not a write fence. */
+  signal?: AbortSignal;
 }
 
 /**
@@ -69,9 +72,9 @@ export interface CollectorSpec {
   /** Triggers this collector runs on. Anything absent here simply never runs. */
   eligibleTriggers: readonly TriggerSource[];
   /**
-   * Wall-clock budget. The whole pass shares a 60s serverless ceiling, so a
-   * collector that hangs on a customer's dead host must be cut loose rather
-   * than allowed to consume the budget the remaining collectors need.
+   * Per-collector wait budget. On expiry the registry aborts its signal and
+   * excludes late output. Cooperative transport cancellation and lease-fenced
+   * persistence remain necessary; a timeout cannot undo a remote write.
    */
   timeoutMs: number;
   /**
@@ -106,15 +109,20 @@ class CollectorTimeout extends Error {
 /**
  * Races a collector against its own budget.
  *
- * Note this bounds how long we WAIT, not how long the underlying work runs —
- * a fetch already in flight keeps going until its own signal fires. That is
- * acceptable and deliberate: the thing being protected is the pass's shared
- * wall-clock budget, not the remote host.
+ * Settle the timeout before notifying work, so even a collector that resolves
+ * synchronously from its abort listener cannot admit output after expiration.
+ * Non-cooperative work can still continue; this helper is not a commit fence.
  */
-function withTimeout<T>(id: string, ms: number, work: Promise<T>): Promise<T> {
+function withTimeout<T>(id: string, ms: number, run: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const controller = new AbortController();
   return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new CollectorTimeout(id, ms)), ms);
-    work.then(
+    const timer = setTimeout(() => {
+      const error = new CollectorTimeout(id, ms);
+      reject(error);
+      controller.abort(error);
+    }, ms);
+    // A synchronous collector throw must follow the same timer-cleanup path.
+    Promise.resolve().then(() => run(controller.signal)).then(
       (value) => {
         clearTimeout(timer);
         resolve(value);
@@ -156,7 +164,8 @@ export async function runCollectors(
 
     const started = Date.now();
     try {
-      const result = await withTimeout(spec.id, spec.timeoutMs, spec.run(ctx));
+      const result = await withTimeout(spec.id, spec.timeoutMs,
+        (signal) => spec.run({ ...ctx, signal }));
       results.push(result);
       outcomes.push({
         id: spec.id,
