@@ -34,6 +34,7 @@ try {
   await db.exec(await readFile(new URL("../supabase/migrations/072_pull_request_fix_receipts.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/073_pull_request_alerts.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/074_intelligence_tasks.sql", import.meta.url), "utf8"));
+  await db.exec(await readFile(new URL("../supabase/migrations/075_intelligence_retention.sql", import.meta.url), "utf8"));
   await db.query("insert into auth.users values ($1),($2)", [u1,u2]);
   await db.query("insert into public.user_profiles(id) values($1),($2)", [u1,u2]);
   await check("connection epochs backfill the existing fingerprint and ignore blank credentials", async () => {
@@ -655,7 +656,28 @@ try {
     assert.deepEqual((await db.query("select status,result_digest from public.intelligence_tasks where id=$1",[accepted])).rows[0],{status:"needs_human",result_digest:"5".repeat(64)});
     await db.exec("set role service_role");
   });
+  await check("intelligence results and dead tasks are purged on a bounded schedule", async () => {
+    await db.exec("reset role; update public.user_profiles set github_connected_at=now()-interval '2 days' where id='"+u1+"'; set role service_role");
+    const fresh=(await newTask("intel-ret-1")).rows[0].id;
+    await submit(fresh,"needs_human","a".repeat(64));
+    const old=(await newTask("intel-ret-2")).rows[0].id;
+    await submit(old,"needs_human","b".repeat(64));
+    const dead=(await newTask("intel-ret-3")).rows[0].id;
+    const pending=(await newTask("intel-ret-4")).rows[0].id;
+    await db.exec("reset role");
+    await db.query("update public.intelligence_tasks set completed_at=now()-interval '31 days' where id=$1",[old]);
+    await db.query("update public.intelligence_tasks set expires_at=now()-interval '2 days' where id=$1",[dead]);
+    await db.exec("set role service_role");
+    assert.ok((await db.query("select public.purge_intelligence_tasks() as n")).rows[0].n>=2);
+    await db.exec("reset role");
+    const left=(await db.query("select id from public.intelligence_tasks where id = any($1)",[[fresh,old,dead,pending]])).rows.map((r)=>r.id).sort();
+    assert.deepEqual(left,[fresh,pending].sort());
+    await db.exec("set role service_role");
+  });
   await check("client roles cannot touch intelligence tasks", async () => {
+    await db.exec("reset role; set role authenticated");
+    await assert.rejects(db.query("select public.purge_intelligence_tasks()"));
+    await db.exec("reset role; set role service_role");
     await db.exec("reset role; set role authenticated");
     await assert.rejects(db.query("select * from public.intelligence_tasks"));
     await assert.rejects(newTask("intel-client"));

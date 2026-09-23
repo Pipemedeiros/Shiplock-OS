@@ -10,6 +10,7 @@ const collectTrafficFactsMock = vi.fn();
 const saveFactsMock = vi.fn();
 const sendWeeklyDigestMock = vi.fn();
 const pruneOldTrafficMock = vi.fn();
+const purgeIntelligenceMock = vi.fn();
 const enqueueJobMock = vi.fn();
 
 let tableRows: Record<string, unknown[]> = {};
@@ -22,6 +23,7 @@ vi.mock("@/lib/jobs/scheduler", () => ({
 }));
 vi.mock("@/lib/jobs/queue", () => ({ enqueueJob: enqueueJobMock }));
 vi.mock("@/lib/traffic/prune", () => ({ pruneOldTraffic: pruneOldTrafficMock }));
+vi.mock("@/lib/intelligence/retention", () => ({ purgeIntelligenceTasks: purgeIntelligenceMock }));
 vi.mock("@/lib/graph/graphRun", () => ({
   runGraphReasoner: runGraphReasonerMock,
   saveFacts: saveFactsMock,
@@ -77,6 +79,7 @@ describe("GET /api/monitor/scheduled — durable source admission", () => {
     collectTrafficFactsMock.mockResolvedValue([]);
     sendWeeklyDigestMock.mockResolvedValue(false);
     pruneOldTrafficMock.mockResolvedValue({ ok: true });
+    purgeIntelligenceMock.mockResolvedValue({ ok: true, purged: 2 });
     enqueueJobMock.mockResolvedValue("11111111-1111-4111-8111-111111111111");
   });
 
@@ -131,5 +134,11 @@ describe("GET /api/monitor/scheduled — durable source admission", () => {
     expect(response.status).toBe(200);
     expect(body.sourceJobsAdmitted).toBe(4);
     expect(admitSourcesMock).toHaveBeenCalledOnce();
+  });
+
+  it("purges expired intelligence tasks on the daily pass (10B-1d)", async () => {
+    const body = await (await GET(request())).json();
+    expect(purgeIntelligenceMock).toHaveBeenCalledOnce();
+    expect(body).toMatchObject({ intelligencePurged: 2 });
   });
 });

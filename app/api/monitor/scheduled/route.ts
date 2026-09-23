@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { pruneOldTraffic } from "@/lib/traffic/prune";
+import { purgeIntelligenceTasks } from "@/lib/intelligence/retention";
 import { saveFacts } from "@/lib/graph/graphRun";
 import { collectTrafficFacts } from "@/lib/traffic/graphFacts";
 import { sendWeeklyDigest } from "@/lib/monitoring/digest";
@@ -56,6 +57,8 @@ export async function GET(req: NextRequest) {
   // allows only daily-frequency crons, so we reuse this entry rather than add
   // one). Fail-soft — never affects the monitoring result.
   const pruned = await pruneOldTraffic();
+  // Same daily entry bounds customer-intelligence results (10B-1d).
+  const intelligence = await purgeIntelligenceTasks();
 
   // Traffic observations run before graph admission. Dependency rechecks were
   // admitted above as separate leased jobs. The graph itself is also leased: a
@@ -141,6 +144,7 @@ export async function GET(req: NextRequest) {
     succeeded: monitoringAdmission.admitted,
     failed: monitoringAdmission.failed,
     pruned: pruned.ok,
+    intelligencePurged: intelligence.purged,
     monitorJobsAdmitted: monitoringAdmission.admitted,
     monitorAdmissionsFailed: monitoringAdmission.failed,
     monitorAdmissionLimited: monitoringAdmission.limited,
