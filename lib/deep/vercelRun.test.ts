@@ -253,3 +253,36 @@ describe("2D-2: Vercel identity is the connection epoch", () => {
     expect(facts.envVars[0].connectionFingerprint).toBe("9".repeat(64));
   });
 });
+
+describe("3F-C2c-4: fenced commit from the monitor worker", () => {
+  beforeEach(() => {
+    decryptMock.mockReset().mockReturnValue("plaintext-access-token");
+    listProjectsMock.mockReset().mockResolvedValue([{ id: "p1", name: "site-one" }]);
+    listProjectEnvMock.mockReset().mockResolvedValue([
+      { key: "NEXT_PUBLIC_SECRET_TOKEN", value: "a-long-enough-secret-value-here" },
+    ]);
+    selectChainMock.mockReset().mockResolvedValue({ data: [] });
+    insertMock.mockReset().mockResolvedValue({ data: null, error: null });
+    saveFactsMock.mockReset().mockResolvedValue(undefined);
+    syncVercelRepositoryLinksMock.mockReset().mockResolvedValue(new Map());
+  });
+
+  it("commits runtime facts and env findings through the fence without retiring", async () => {
+    const created = [{ id: "vercel:site-one:NEXT_PUBLIC_SECRET_TOKEN:client_exposed_secret", severity: "CRITICAL", title: "t", consequence: "c" }];
+    const commit = vi.fn().mockResolvedValue(created);
+    const result = await runVercelEnvAudit("user-1", "cipher", EPOCH, null, { commit });
+    expect(result.newFindings).toEqual(created);
+    expect(commit).toHaveBeenCalledWith(expect.objectContaining({
+      transport: "vercel", identity: EPOCH, retire: false,
+      facts: expect.objectContaining({ providersRead: ["vercel"] }),
+    }));
+    expect(saveFactsMock).not.toHaveBeenCalled();
+    expect(insertMock).not.toHaveBeenCalled();
+  });
+
+  it("propagates a fenced rejection so the collector fails", async () => {
+    const commit = vi.fn().mockRejectedValue(new Error("Provider result was not committed"));
+    await expect(runVercelEnvAudit("user-1", "cipher", EPOCH, null, { commit })).rejects.toThrow("not committed");
+    expect(insertMock).not.toHaveBeenCalled();
+  });
+});

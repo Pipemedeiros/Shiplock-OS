@@ -4,6 +4,7 @@ import { saveFacts } from "@/lib/graph/graphRun";
 import { listProjects, listProjectEnv } from "./vercel";
 import { auditEnv, type EnvFinding } from "./envaudit";
 import type { RuntimeEnvFact } from "@/lib/graph/graph";
+import type { ProviderCommit } from "@/lib/monitoring/registry";
 import { syncVercelRepositoryLinks } from "./providerRepositoryMap";
 
 const MAX_PROJECTS = 20;
@@ -19,7 +20,7 @@ export async function runVercelEnvAudit(
   /** Epoch read in the same profile row as `encryptedToken` (migration 067). */
   connectionEpoch: string,
   teamId: string | null,
-  { signal }: { signal?: AbortSignal } = {},
+  { signal, commit }: { signal?: AbortSignal; commit?: ProviderCommit } = {},
 ): Promise<{
   total: number;
   newCount: number;
@@ -87,6 +88,17 @@ export async function runVercelEnvAudit(
   // list after a failed read would tell the reasoner we looked and found
   // nothing, which is the `rulesRead` mistake on a new surface.
   signal?.throwIfAborted();
+  if (commit) {
+    // Monitor worker: runtime facts and env findings commit together under the
+    // job's lease and this connection epoch (3F-C2c). Vercel findings have
+    // never been archived here, so the commit does not retire either.
+    const created = await commit({
+      transport: "vercel", identity: connectionEpoch,
+      ...(reachedAnyProject ? { facts: { providersRead: ["vercel"], envVars: graphEnvVars } } : {}),
+      findings: all, retire: false,
+    });
+    return { total: all.length, newCount: created.length, findings: all, newFindings: created as EnvFinding[] };
+  }
   if (reachedAnyProject) {
     await saveFacts(
       userId,

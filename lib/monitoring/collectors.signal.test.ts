@@ -46,7 +46,7 @@ describe("provider collectors forward the registry signal", () => {
 
   it("Vercel environment audit", async () => {
     await vercelEnvCollector.run(ctx({ vercel_access_token_encrypted: "enc", vercel_connection_epoch: "e".repeat(64), vercel_team_id: "team" } as Partial<MonitoredProfile>));
-    expect(runners.vercel).toHaveBeenCalledWith("user-1", "enc", "e".repeat(64), "team", { signal });
+    expect(runners.vercel).toHaveBeenCalledWith("user-1", "enc", "e".repeat(64), "team", { signal, commit: undefined });
   });
 });
 
@@ -64,11 +64,19 @@ describe("endpoint and app-surface collectors forward the registry signal", () =
 
   it("app surface", async () => {
     await appSurfaceCollector.run(ctx({ monitored_app_url: "https://app.example.com" } as Partial<MonitoredProfile>));
-    expect(runners.exposed).toHaveBeenCalledWith("user-1", "https://app.example.com", { signal });
+    expect(runners.exposed).toHaveBeenCalledWith("user-1", "https://app.example.com", { signal, commit: undefined });
   });
 });
 
 describe("3F-C2c-2: provider collectors forward the fenced commit", () => {
+  it("Vercel and app surface", async () => {
+    const commit = vi.fn();
+    await vercelEnvCollector.run({ ...ctx({ vercel_access_token_encrypted: "enc", vercel_connection_epoch: "e".repeat(64) } as Partial<MonitoredProfile>), commit });
+    expect(runners.vercel).toHaveBeenCalledWith("user-1", "enc", "e".repeat(64), null, { signal, commit });
+    await appSurfaceCollector.run({ ...ctx({ monitored_app_url: "https://app.example.com" } as Partial<MonitoredProfile>), commit });
+    expect(runners.exposed).toHaveBeenCalledWith("user-1", "https://app.example.com", { signal, commit });
+  });
+
   it("Supabase Management", async () => {
     const commit = vi.fn();
     await supabaseManagementCollector.run({ ...ctx({}), commit });

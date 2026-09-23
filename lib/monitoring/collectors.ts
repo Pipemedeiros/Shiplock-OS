@@ -161,7 +161,7 @@ export const appSurfaceCollector: CollectorSpec = {
   appliesTo: (ctx) => ctx.profile.monitoring_enabled !== false
     && Boolean(ctx.profile.monitored_app_url),
   async run(ctx) {
-    const result = await runExposedPathScan(ctx.profile.id, ctx.profile.monitored_app_url!, { signal: ctx.signal });
+    const result = await runExposedPathScan(ctx.profile.id, ctx.profile.monitored_app_url!, { signal: ctx.signal, commit: ctx.commit });
     return { newFindings: result.newFindings as Finding[] };
   },
 };
@@ -206,7 +206,7 @@ export const vercelEnvCollector: CollectorSpec = {
       ctx.profile.vercel_access_token_encrypted as string,
       ctx.profile.vercel_connection_epoch as string,
       ctx.profile.vercel_team_id ?? null,
-      { signal: ctx.signal },
+      { signal: ctx.signal, commit: ctx.commit },
     );
     return { newFindings: result.newFindings };
   },

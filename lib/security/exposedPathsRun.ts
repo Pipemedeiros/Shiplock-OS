@@ -1,4 +1,5 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
+import type { ProviderCommit } from "@/lib/monitoring/registry";
 import { probeExposedPaths, type ExposedFinding } from "./exposedPaths";
 import { auditShippedBundle } from "./bundleAudit";
 import { auditEmailAuth, nodeTxtResolver, domainFromUrl, isSharedHost } from "./emailAuth";
@@ -24,8 +25,8 @@ import { analyzeOriginPosture, collectOriginPosture, fetchOriginHeaders, nodeDns
 export async function runExposedPathScan(
   userId: string,
   appUrl: string,
-  { signal }: { signal?: AbortSignal } = {},
-): Promise<{ total: number; newCount: number; resolvedCount: number; newFindings: ExposedFinding[] }> {
+  { signal, commit }: { signal?: AbortSignal; commit?: ProviderCommit } = {},
+): Promise<{ total: number; newCount: number; resolvedCount?: number; newFindings: ExposedFinding[] }> {
   // Independent: a failure in one must not cost us the other's findings. Each
   // records the finding-ID prefixes it could not verify in `unread`; a probe
   // that throws outright leaves its whole family unread.
@@ -51,6 +52,14 @@ export async function runExposedPathScan(
   // active finding below. A cancelled pass must therefore write nothing at all.
   signal?.throwIfAborted();
   const findings = [...paths, ...bundle, ...email, ...origin];
+
+  if (commit) {
+    // Monitor worker: findings commit under the job's lease and the app URL it
+    // probed (3F-C2c); unread families are never archived. The fenced commit
+    // does not report an archive count, so none is claimed here.
+    const created = await commit({ transport: "app-surface", identity: appUrl, findings, retire: true, unread });
+    return { total: findings.length, newCount: created.length, newFindings: created as ExposedFinding[] };
+  }
 
   const admin = getSupabaseAdmin();
   const nowIso = new Date().toISOString();

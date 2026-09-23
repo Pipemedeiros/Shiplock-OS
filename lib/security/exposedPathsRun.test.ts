@@ -248,3 +248,29 @@ describe("runExposedPathScan — 1E-1 an unread check never resolves a finding",
     expect(updateInMock).not.toHaveBeenCalled();
   });
 });
+
+describe("runExposedPathScan — 3F-C2c-4 fenced commit", () => {
+  beforeEach(() => {
+    probeMock.mockReset().mockImplementation(async (_u: string, _s: unknown, unread: string[]) => {
+      unread.push("exposed:git_exposed");
+      return [finding("exposed:npmrc_exposed")];
+    });
+    auditMock.mockReset().mockResolvedValue([]);
+    emailMock.mockReset().mockResolvedValue([]);
+    selectChainMock.mockReset().mockResolvedValue({ data: [] });
+    insertMock.mockReset(); updateInMock.mockReset(); updateSpy.mockReset();
+  });
+
+  it("commits findings and unread prefixes through the fence and writes none itself", async () => {
+    const commit = vi.fn().mockResolvedValue([finding("exposed:npmrc_exposed")]);
+    const result = await runExposedPathScan("u1", "https://app.example.com", { commit });
+    expect(result.newFindings.map((f) => f.id)).toEqual(["exposed:npmrc_exposed"]);
+    expect(commit).toHaveBeenCalledWith(expect.objectContaining({
+      transport: "app-surface", identity: "https://app.example.com", retire: true,
+      unread: expect.arrayContaining(["exposed:git_exposed"]),
+    }));
+    expect(selectChainMock).not.toHaveBeenCalled();
+    expect(insertMock).not.toHaveBeenCalled();
+    expect(updateSpy).not.toHaveBeenCalled();
+  });
+});
