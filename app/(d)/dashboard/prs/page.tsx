@@ -2,6 +2,7 @@ import Link from "next/link";
 import { GitPullRequest, ArrowUpRight } from "lucide-react";
 import { requireDashboardSession } from "@/lib/dashboard";
 import { getOpenFindings } from "@/lib/agent/dashboardData";
+import { getRecentPullRequestReviews, type PullRequestReviewView } from "@/lib/agent/pullRequestReviews";
 import { Sev } from "@/components/v3/FindingParts";
 
 /**
@@ -23,7 +24,7 @@ export const metadata = { title: "Pull requests" };
 
 export default async function PullRequests() {
   const { userId } = await requireDashboardSession();
-  const findings = await getOpenFindings(userId);
+  const [findings, reviews] = await Promise.all([getOpenFindings(userId), getRecentPullRequestReviews(userId)]);
 
   const open = findings.filter((f) => f.fixPrUrl);
   const eligible = findings.filter((f) => !f.fixPrUrl && f.fixKind === "pr");
@@ -36,13 +37,15 @@ export default async function PullRequests() {
           <p className="v3-eyebrow">Opened by ShipLock, waiting on you</p>
           <h1 className="v3-serif">Pull requests</h1>
           <p className="v3-sub" style={{ marginTop: 8, maxWidth: 620 }}>
-            Each one is a branch of its own, off your default branch. We never merge, and we never
-            push to your default branch. Approving is yours.
+            Every pull request you open is checked, and each fix we open is a branch of its own. We
+            never merge, and we never push to your default branch. Approving is yours.
           </p>
         </div>
       </div>
 
       <div className="v3-stack">
+        <CheckedPullRequests reviews={reviews} />
+
         <div className="v3-card">
           <div className="v3-hd">
             <h2 className="v3-eyebrow">Open</h2>
@@ -51,8 +54,8 @@ export default async function PullRequests() {
           <div className="v3-card-p">
             {open.length === 0 ? (
               <p className="v3-small">
-                Nothing is waiting. When an audit finds something with a mechanical fix, the pull
-                request is opened here automatically.
+                Nothing is waiting. When a finding has a mechanical fix, open its pull request from
+                Risks. We open one only after you click.
               </p>
             ) : (
               <div className="v3-list">
@@ -91,8 +94,8 @@ export default async function PullRequests() {
             </div>
             <div className="v3-card-p">
               <p className="v3-small" style={{ marginBottom: 12 }}>
-                These have a mechanical fix and no pull request yet. Either the last audit hit its
-                per-run limit, or GitHub was unreachable when it finished. The next audit opens them.
+                These have a mechanical fix and no pull request yet. Open one from Risks when you
+                are ready; nothing is opened without your click.
               </p>
               <div className="v3-list">
                 {eligible.map((f) => (
@@ -133,5 +136,64 @@ export default async function PullRequests() {
         ) : null}
       </div>
     </>
+  );
+}
+
+const verdictLabel: Record<PullRequestReviewView["verdict"], string> = {
+  block: "Risk found, check failed",
+  warn: "Worth a look",
+  pass: "Nothing found",
+};
+
+/** Your own pull requests as ShipLock checked them (8B-2): what each one
+ * introduced, where, and how much of it we could read. */
+function CheckedPullRequests({ reviews }: { reviews: PullRequestReviewView[] }) {
+  return (
+    <div className="v3-card">
+      <div className="v3-hd">
+        <h2 className="v3-eyebrow">Checked on your pull requests</h2>
+        <span className="v3-small">{reviews.length} recent</span>
+      </div>
+      <div className="v3-card-p">
+        {reviews.length === 0 ? (
+          <p className="v3-small">
+            No pull request has been checked yet. Each new pull request on a selected repository is
+            checked automatically, and the result shows up here and on GitHub.
+          </p>
+        ) : (
+          <div className="v3-list">
+            {reviews.map((review) => (
+              <div key={review.id} className="v3-row-pad">
+                <div className="v3-between">
+                  <b style={{ fontWeight: 500, fontSize: 14 }}>
+                    {review.title ?? `Pull request #${review.number}`}
+                  </b>
+                  <span className="v3-small">{verdictLabel[review.verdict]}</span>
+                </div>
+                <p className="v3-small" style={{ marginTop: 3 }}>
+                  #{review.number} · {review.repository}
+                  {review.headRef ? ` · ${review.headRef}` : ""}
+                  {review.coverageComplete ? "" : " · partial check, some files were not read"}
+                </p>
+                {review.findings.map((finding) => (
+                  <div key={finding.id} style={{ marginTop: 8 }}>
+                    <div className="v3-between">
+                      <span style={{ fontSize: 13 }}>{finding.title}</span>
+                      <Sev severity={finding.severity} />
+                    </div>
+                    <p className="v3-small" style={{ marginTop: 2 }}>{finding.file}. {finding.evidence}</p>
+                  </div>
+                ))}
+                {review.url ? (
+                  <a href={review.url} target="_blank" rel="noreferrer" className="v3-btn v3-btn-sm v3-ghost" style={{ marginTop: 10 }}>
+                    Open on GitHub
+                  </a>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
