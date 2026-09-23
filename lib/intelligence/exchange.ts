@@ -10,7 +10,7 @@ const identitySchema = z.object({
   commit: z.string().regex(/^[a-f0-9]{40}$/), connectionEpoch: hash,
   attempt: z.number().int().min(1).max(100),
 }).strict();
-const hostSchema = z.enum(["codex", "claude-code"]);
+const hostSchema = z.enum(["codex", "claude-code", "api"]);
 const pathSchema = z.string().min(1).max(240).refine((path) =>
   !path.startsWith("/") && !path.includes("\\") &&
   !path.split("/").some((part) => part === ".." || part === "." || part === "") &&
