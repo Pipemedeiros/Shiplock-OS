@@ -57,7 +57,12 @@ function graphAuthConfig(config: Awaited<ReturnType<typeof fetchAuthConfig>>): S
   };
 }
 
-export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> {
+const ABORTED: PolicyScanOutcome = { ok: false, findings: 0, reason: "aborted" };
+
+export async function runPolicyScan(
+  userId: string,
+  { signal }: { signal?: AbortSignal } = {},
+): Promise<PolicyScanOutcome> {
   const admin = getSupabaseAdmin();
 
   const { data: row, error: profileError } = await admin
@@ -113,6 +118,10 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
     return { ok: false, findings: 0, reason: "auth_failed" };
   }
 
+  // The OAuth refresh above deliberately ignores cancellation: the provider may
+  // already have rotated the refresh token, and dropping the replacement would
+  // strand the connection. From here on, a cancelled pass reads and writes nothing.
+  if (signal?.aborted) return ABORTED;
   const connectionFingerprint = providerConnectionFingerprint(connectionCiphertext);
 
   let findings;
@@ -131,14 +140,14 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
     // costing the customer their scan. The graph still records that policies
     // were read, so nothing is silently reported as protected.
     const [policies, authConfig] = await Promise.all([
-      fetchPolicies(token.accessToken, projectRef),
-      fetchAuthConfig(token.accessToken, projectRef),
+      fetchPolicies(token.accessToken, projectRef, signal),
+      fetchAuthConfig(token.accessToken, projectRef, signal),
     ]);
 
     let advisors: Awaited<ReturnType<typeof fetchAdvisors>> = [];
     let advisorsOk = true;
     try {
-      advisors = await fetchAdvisors(token.accessToken, projectRef);
+      advisors = await fetchAdvisors(token.accessToken, projectRef, signal);
     } catch (err) {
       advisorsOk = false;
       console.error(
@@ -155,14 +164,14 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
       // B1/B2/B4/B5/B11 — same config object, no extra request.
       ...scanAuthPolicy(authConfig),
       // A5 — column grants to anon/authenticated. The bug we shipped ourselves.
-      ...analyzeGrants(await fetchColumnGrants(token.accessToken, projectRef)),
+      ...analyzeGrants(await fetchColumnGrants(token.accessToken, projectRef, signal)),
       // A8/A15/A16/A17 — what the database itself can reach.
-      ...scanExtensions(await fetchDatabaseCapabilities(token.accessToken, projectRef)),
+      ...scanExtensions(await fetchDatabaseCapabilities(token.accessToken, projectRef, signal)),
       // A12/A13 storage, A19 recovery posture.
-      ...scanStorage(await fetchStorageConfig(token.accessToken, projectRef)),
-      ...checkBackups(await fetchBackupConfig(token.accessToken, projectRef)),
+      ...scanStorage(await fetchStorageConfig(token.accessToken, projectRef, signal)),
+      ...checkBackups(await fetchBackupConfig(token.accessToken, projectRef, signal)),
       // A14 Realtime authorisation, A20 auth-hook claim integrity.
-      ...scanRealtimeAndHooks(await fetchRealtimeAndHooks(token.accessToken, projectRef)),
+      ...scanRealtimeAndHooks(await fetchRealtimeAndHooks(token.accessToken, projectRef, signal)),
     ];
 
     // Capture one self-contained project/credential observation. Do not fill
@@ -174,6 +183,7 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
       completeness: "unknown", policies, authConfig: storedAuthConfig,
       ...(advisorsOk ? { advisors } : {}),
     };
+    signal?.throwIfAborted();
     // Keep legacy flat observations for compatibility, but never persist the
     // loose auth config. Failed advisors remain omitted in the snapshot even
     // though the existing merge may retain an older flat advisor set.
@@ -188,9 +198,10 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
     // a value. Best-effort: a project we cannot enumerate simply has no
     // inventory, which the model reports as "we don't know" rather than zero.
     try {
-      const columns = await fetchSchemaColumns(token.accessToken, projectRef);
+      const columns = await fetchSchemaColumns(token.accessToken, projectRef, signal);
       const tables = [...new Set(columns.map((c) => c.table))];
-      const rowCounts = await fetchRowCounts(token.accessToken, projectRef, tables);
+      const rowCounts = await fetchRowCounts(token.accessToken, projectRef, tables, signal);
+      signal?.throwIfAborted();
       await saveFacts(
         userId,
         "db",
@@ -204,6 +215,7 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
       );
     }
 
+    signal?.throwIfAborted();
     // The proving ground. Inert unless the customer opted in AND the kill switch
     // is off — both default off in migration 040, so this changes nothing for
     // anyone until they ask for it. Wired here because this is the only place
@@ -247,7 +259,7 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
         }
 
         const schema = new Map<string, string[]>();
-        for (const c of await fetchSchemaColumns(token.accessToken, projectRef)) {
+        for (const c of await fetchSchemaColumns(token.accessToken, projectRef, signal)) {
           schema.set(c.table, [...(schema.get(c.table) ?? []), c.column]);
         }
 
@@ -259,6 +271,7 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
           policiesByTable.set(policy.tablename, list);
         }
 
+        signal?.throwIfAborted();
         const result = await runProvingGround({
           userId,
           customerToken: token.accessToken,
@@ -286,8 +299,11 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
     // E5-E7 runtime detection from the auth audit log. Zero friction: this
     // needs no snippet installed, only the Supabase connection they already
     // made. Best-effort — the log endpoint is experimental.
+    signal?.throwIfAborted();
     try {
-      await runAuthLogScan(userId, await fetchAuthAuditLog(token.accessToken, projectRef));
+      const events = await fetchAuthAuditLog(token.accessToken, projectRef, signal);
+      signal?.throwIfAborted();
+      await runAuthLogScan(userId, events);
     } catch (err) {
       console.error("[supabaseMgmt] auth log scan failed:", err instanceof Error ? err.message : err);
     }
@@ -303,6 +319,7 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
     // Supabase already knows the answer, because it needs the same URL to send
     // password-reset email. Only fills a BLANK value: a URL the customer typed
     // themselves is deliberate and always wins.
+    signal?.throwIfAborted();
     if (!row.monitored_app_url) {
       const derived = deriveAppUrl(authConfig);
       if (derived) {
@@ -318,6 +335,7 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
       }
     }
   } catch (err) {
+    if (signal?.aborted) return ABORTED;
     // A shape mismatch is reported distinctly from a generic failure, because it
     // means something different and needs a different response: a transient
     // network error resolves itself, an API contract change needs us to ship a
@@ -341,6 +359,7 @@ export async function runPolicyScan(userId: string): Promise<PolicyScanOutcome> 
     return { ok: false, findings: 0, reason: "scan_failed" };
   }
 
+  if (signal?.aborted) return ABORTED;
   // Same persistence shape as lib/deep/githubRun.ts: insert only findings that
   // aren't already active, and archive the ones that have since been fixed.
   // deep_findings has no unique constraint on (user_id, finding_id), so this is

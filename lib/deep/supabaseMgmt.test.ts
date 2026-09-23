@@ -1,5 +1,8 @@
-import { describe, it, expect } from "vitest";
-import { assertReadOnly, buildRowCountSql, quoteIdent } from "./supabaseMgmt";
+import { describe, it, expect, vi } from "vitest";
+import {
+  assertReadOnly, buildRowCountSql, quoteIdent, fetchPolicies, fetchAdvisors,
+  fetchAuthConfig, fetchBackupConfig, fetchAuthAuditLog,
+} from "./supabaseMgmt";
 
 // The guard that keeps AGENTS.md's non-negotiable true: ShipLock never writes a
 // customer's production database. The Management API query endpoint would
@@ -80,5 +83,30 @@ describe("schema inventory SQL", () => {
 
   it("quotes identifiers", () => {
     expect(quoteIdent("profiles")).toBe('"profiles"');
+  });
+});
+
+describe("3F-C2b: caller cancellation reaches Management API requests", () => {
+  it.each([
+    ["fetchPolicies", (signal: AbortSignal) => fetchPolicies("token", "ref", signal)],
+    ["fetchAdvisors", (signal: AbortSignal) => fetchAdvisors("token", "ref", signal)],
+    ["fetchAuthConfig", (signal: AbortSignal) => fetchAuthConfig("token", "ref", signal)],
+    ["fetchBackupConfig", (signal: AbortSignal) => fetchBackupConfig("token", "ref", signal)],
+    ["fetchAuthAuditLog", (signal: AbortSignal) => fetchAuthAuditLog("token", "ref", signal)],
+  ])("%s aborts its in-flight fetch when the collector signal aborts", async (_name, call) => {
+    let seen: AbortSignal | undefined;
+    const fetchMock = vi.fn((_url: unknown, init?: RequestInit) => {
+      seen = init?.signal ?? undefined;
+      return new Promise<Response>(() => {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const caller = new AbortController();
+      void call(caller.signal).catch(() => {});
+      await Promise.resolve();
+      expect(seen?.aborted).toBe(false);
+      caller.abort(new Error("collector timed out"));
+      expect(seen?.aborted).toBe(true);
+    } finally { vi.unstubAllGlobals(); }
   });
 });

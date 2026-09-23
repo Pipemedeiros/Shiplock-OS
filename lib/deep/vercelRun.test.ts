@@ -53,7 +53,7 @@ describe("runVercelEnvAudit", () => {
     listProjectsMock.mockResolvedValue([]);
     await runVercelEnvAudit("user-1", "cipher-text", null);
     expect(decryptMock).toHaveBeenCalledWith("cipher-text");
-    expect(listProjectsMock).toHaveBeenCalledWith("plaintext-access-token", null);
+    expect(listProjectsMock).toHaveBeenCalledWith("plaintext-access-token", null, undefined);
   });
 
   it("audits every project's env and persists only findings not already active", async () => {
@@ -191,6 +191,49 @@ describe("runVercelEnvAudit", () => {
 
     expect(result.total).toBe(0);
     expect(result.newCount).toBe(0);
+    expect(insertMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("3F-C2b: an aborted Vercel audit writes nothing", () => {
+  beforeEach(() => {
+    decryptMock.mockReset().mockReturnValue("plaintext-access-token");
+    selectChainMock.mockReset().mockResolvedValue({ data: [] });
+    insertMock.mockReset().mockResolvedValue({ data: null, error: null });
+    saveFactsMock.mockReset().mockResolvedValue(undefined);
+    syncVercelRepositoryLinksMock.mockReset().mockResolvedValue(new Map());
+  });
+
+  it("forwards the signal and stops before mapping, facts or findings when aborted mid-read", async () => {
+    const controller = new AbortController();
+    listProjectsMock.mockReset().mockImplementation(async () => {
+      controller.abort(new Error("collector timed out"));
+      return [{ id: "p1", name: "site-one" }];
+    });
+    listProjectEnvMock.mockReset().mockResolvedValue([
+      { key: "NEXT_PUBLIC_SECRET_TOKEN", value: "a-long-enough-secret-value-here" },
+    ]);
+    await expect(runVercelEnvAudit("user-1", "cipher", null, { signal: controller.signal }))
+      .rejects.toThrow("collector timed out");
+    expect(listProjectsMock).toHaveBeenCalledWith("plaintext-access-token", null, controller.signal);
+    expect(syncVercelRepositoryLinksMock).not.toHaveBeenCalled();
+    expect(saveFactsMock).not.toHaveBeenCalled();
+    expect(insertMock).not.toHaveBeenCalled();
+  });
+
+  it("does not treat an aborted project read as one skippable project", async () => {
+    const controller = new AbortController();
+    listProjectsMock.mockReset().mockResolvedValue([
+      { id: "p1", name: "one" }, { id: "p2", name: "two" },
+    ]);
+    listProjectEnvMock.mockReset().mockImplementation(async () => {
+      controller.abort(new Error("collector timed out"));
+      throw controller.signal.reason;
+    });
+    await expect(runVercelEnvAudit("user-1", "cipher", null, { signal: controller.signal }))
+      .rejects.toThrow("collector timed out");
+    expect(listProjectEnvMock).toHaveBeenCalledTimes(1);
+    expect(saveFactsMock).not.toHaveBeenCalled();
     expect(insertMock).not.toHaveBeenCalled();
   });
 });

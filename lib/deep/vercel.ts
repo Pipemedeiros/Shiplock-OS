@@ -5,6 +5,7 @@
 // This module only ever READS; it never creates/updates/deletes anything.
 import { env } from "@/lib/env";
 import type { VercelEnvVar } from "./envaudit";
+import { requestSignal } from "@/lib/abort";
 
 const API = "https://api.vercel.com";
 const TIMEOUT_MS = 10_000;
@@ -89,10 +90,12 @@ function githubRepository(link: unknown): VercelProject["gitRepository"] {
   };
 }
 
-export async function listProjects(accessToken: string, teamId: string | null): Promise<VercelProject[]> {
+export async function listProjects(
+  accessToken: string, teamId: string | null, signal?: AbortSignal,
+): Promise<VercelProject[]> {
   const res = await fetch(`${API}/v9/projects${teamQs(teamId)}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
-    signal: AbortSignal.timeout(TIMEOUT_MS),
+    signal: requestSignal(signal, TIMEOUT_MS),
   });
   if (!res.ok) throw new Error(`Vercel list projects HTTP ${res.status}`);
   const json = await res.json() as { projects?: Array<{ id: string; name: string; link?: unknown }> };
@@ -106,11 +109,11 @@ export async function listProjects(accessToken: string, teamId: string | null): 
 // non-sensitive vars; "sensitive"-typed vars come back without a value (null),
 // which is fine — the name-based client-exposure check still applies to them.
 export async function listProjectEnv(
-  accessToken: string, projectIdOrName: string, teamId: string | null
+  accessToken: string, projectIdOrName: string, teamId: string | null, signal?: AbortSignal,
 ): Promise<VercelEnvVar[]> {
   const res = await fetch(`${API}/v9/projects/${encodeURIComponent(projectIdOrName)}/env${teamQs(teamId, "decrypt=true")}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
-    signal: AbortSignal.timeout(TIMEOUT_MS),
+    signal: requestSignal(signal, TIMEOUT_MS),
   });
   if (!res.ok) throw new Error(`Vercel env read HTTP ${res.status}`);
   const json = await res.json() as { envs?: Array<{ key: string; value?: string | null; target?: string[]; type?: string }> };

@@ -168,9 +168,12 @@ export async function assertConnectableHost(
 export async function withReadOnlySession<T>(
   connection: ParsedConnection,
   fn: (query: <R>(sql: string, params?: unknown[]) => Promise<R[]>) => Promise<T>,
-  resolver: HostResolver = nodeHostResolver
+  resolver: HostResolver = nodeHostResolver,
+  signal?: AbortSignal,
 ): Promise<T> {
+  signal?.throwIfAborted();
   await assertConnectableHost(connection.host, resolver);
+  signal?.throwIfAborted();
 
   const client = new Client({
     connectionString: connection.dsn,
@@ -184,10 +187,16 @@ export async function withReadOnlySession<T>(
     // `rejectUnauthorized: false` reads as carelessness.
     ssl: { rejectUnauthorized: false },
   });
+  // pg has no AbortSignal support. Ending the client closes the socket, which
+  // rejects any in-flight query; the rejection is reported as the abort reason.
+  const onAbort = () => { client.end().catch(() => {}); };
+  signal?.addEventListener("abort", onAbort, { once: true });
 
   try {
     await client.connect();
   } catch (err) {
+    signal?.removeEventListener("abort", onAbort);
+    signal?.throwIfAborted();
     const message = err instanceof Error ? err.message : String(err);
     // Never echo the DSN back; it carries the password.
     throw new PostgresConnectionError(
@@ -199,15 +208,24 @@ export async function withReadOnlySession<T>(
   }
 
   try {
+    signal?.throwIfAborted();
     await client.query("BEGIN TRANSACTION READ ONLY");
     const query = async <R>(sql: string, params?: unknown[]): Promise<R[]> => {
-      const res = await client.query(sql, params as never);
-      return res.rows as R[];
+      try {
+        const res = await client.query(sql, params as never);
+        signal?.throwIfAborted();
+        return res.rows as R[];
+      } catch (err) {
+        signal?.throwIfAborted();
+        throw err;
+      }
     };
     const out = await fn(query);
+    signal?.throwIfAborted();
     await client.query("COMMIT");
     return out;
   } finally {
+    signal?.removeEventListener("abort", onAbort);
     await client.end().catch(() => {});
   }
 }
@@ -325,7 +343,8 @@ export interface DirectDbFacts {
  */
 export async function collectDirectFacts(
   connection: ParsedConnection,
-  resolver: HostResolver = nodeHostResolver
+  resolver: HostResolver = nodeHostResolver,
+  signal?: AbortSignal,
 ): Promise<DirectDbFacts> {
   return withReadOnlySession(
     connection,
@@ -363,6 +382,7 @@ export async function collectDirectFacts(
         grants,
       };
     },
-    resolver
+    resolver,
+    signal,
   );
 }

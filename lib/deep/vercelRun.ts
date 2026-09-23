@@ -16,7 +16,8 @@ const MAX_PROJECTS = 20;
 export async function runVercelEnvAudit(
   userId: string,
   encryptedToken: string,
-  teamId: string | null
+  teamId: string | null,
+  { signal }: { signal?: AbortSignal } = {},
 ): Promise<{
   total: number;
   newCount: number;
@@ -26,7 +27,9 @@ export async function runVercelEnvAudit(
   const admin = getSupabaseAdmin();
   const accessToken = decrypt(encryptedToken);
 
-  const projects = (await listProjects(accessToken, teamId)).slice(0, MAX_PROJECTS);
+  const projects = (await listProjects(accessToken, teamId, signal)).slice(0, MAX_PROJECTS);
+  // Every write below is skipped once the collector has been cancelled.
+  signal?.throwIfAborted();
   let repositoryByProject = new Map<string, string>();
   try {
     repositoryByProject = await syncVercelRepositoryLinks(userId, projects, encryptedToken);
@@ -45,8 +48,10 @@ export async function runVercelEnvAudit(
   for (const project of projects) {
     let envs;
     try {
-      envs = await listProjectEnv(accessToken, project.id, teamId);
+      envs = await listProjectEnv(accessToken, project.id, teamId, signal);
     } catch {
+      // Cancellation ends the pass; it is not one unreadable project.
+      signal?.throwIfAborted();
       continue; // a single unreadable project shouldn't fail the whole pass
     }
     reachedAnyProject = true;
@@ -79,6 +84,7 @@ export async function runVercelEnvAudit(
   // providersRead is written only when we actually reached a project. An empty
   // list after a failed read would tell the reasoner we looked and found
   // nothing, which is the `rulesRead` mistake on a new surface.
+  signal?.throwIfAborted();
   if (reachedAnyProject) {
     await saveFacts(
       userId,
@@ -97,6 +103,7 @@ export async function runVercelEnvAudit(
   const activeIds = new Set((existing ?? []).map((r) => r.finding_id as string));
 
   const fresh = all.filter((f) => !activeIds.has(f.id));
+  signal?.throwIfAborted();
   if (fresh.length > 0) {
     await admin.from("deep_findings").insert(
       fresh.map((f) => ({

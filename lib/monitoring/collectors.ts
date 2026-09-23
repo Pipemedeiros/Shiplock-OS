@@ -120,7 +120,7 @@ export const supabaseManagementCollector: CollectorSpec = {
   ),
   async run(ctx) {
     const { runPolicyScan } = await import("@/lib/deep/supabaseMgmtRun");
-    const result = await runPolicyScan(ctx.profile.id);
+    const result = await runPolicyScan(ctx.profile.id, { signal: ctx.signal });
     if (!result.ok) throw new Error(`Supabase Management collection failed: ${result.reason ?? "unknown"}`);
     return { newFindings: result.newFindings as Finding[] | undefined };
   },
@@ -194,6 +194,7 @@ export const vercelEnvCollector: CollectorSpec = {
       ctx.profile.id,
       ctx.profile.vercel_access_token_encrypted as string,
       ctx.profile.vercel_team_id ?? null,
+      { signal: ctx.signal },
     );
     return { newFindings: result.newFindings };
   },
@@ -212,7 +213,7 @@ export const directPostgresCollector: CollectorSpec = {
     // deep_findings with their own archive-on-resolve contract, so its findings
     // must not also enter the snapshot and be diffed a second time.
     const { runDirectPostgresScan } = await import("@/lib/deep/postgresDirectRun");
-    const result = await runDirectPostgresScan(ctx.profile.id);
+    const result = await runDirectPostgresScan(ctx.profile.id, { signal: ctx.signal });
     if (!result.ok) throw new Error(`Direct Postgres collection failed: ${result.reason ?? "unknown"}`);
     return { newFindings: result.newFindings as Finding[] | undefined };
   },

@@ -36,7 +36,8 @@ export interface DirectScanOutcome {
     | "blocked_host"
     | "not_read_only"
     | "shape_mismatch"
-    | "scan_failed";
+    | "scan_failed"
+    | "aborted";
 }
 
 interface ProfileRow {
@@ -79,7 +80,12 @@ async function loadConnection(userId: string): Promise<{ raw: string; fingerprin
  * there", and the second would silently downgrade real findings to clean.
  * `saveFacts` is called with `merge: true` for the same reason.
  */
-export async function runDirectPostgresScan(userId: string): Promise<DirectScanOutcome> {
+const ABORTED: DirectScanOutcome = { ok: false, findings: 0, reason: "aborted" };
+
+export async function runDirectPostgresScan(
+  userId: string,
+  { signal }: { signal?: AbortSignal } = {},
+): Promise<DirectScanOutcome> {
   const admin = getSupabaseAdmin();
 
   const loaded = await loadConnection(userId);
@@ -88,7 +94,7 @@ export async function runDirectPostgresScan(userId: string): Promise<DirectScanO
   let findings: GithubFinding[];
   try {
     const connection = parseConnectionString(loaded.raw);
-    const facts = await collectDirectFacts(connection);
+    const facts = await collectDirectFacts(connection, undefined, signal);
 
     findings = [
       ...analyzePolicies(facts.policies),
@@ -98,6 +104,7 @@ export async function runDirectPostgresScan(userId: string): Promise<DirectScanO
       ...analyzeGrants(facts.grants),
     ];
 
+    signal?.throwIfAborted();
     // Raw facts for the reasoner, not our verdicts. `authzProvider` is stamped
     // explicitly rather than left to inference, so this stays correct if a
     // non-Postgres collector is ever added alongside it.
@@ -124,6 +131,8 @@ export async function runDirectPostgresScan(userId: string): Promise<DirectScanO
       .update({ postgres_last_scan_at: new Date().toISOString() })
       .eq("id", userId);
   } catch (err) {
+    // A cancelled pass is neither a connection nor a scan failure; write nothing.
+    if (signal?.aborted) return ABORTED;
     if (err instanceof PostgresConnectionError) {
       // Expected, actionable states — not incidents. The panel shows the reason.
       console.error(`[postgresDirect] ${err.code} for ${userId}`);
@@ -157,6 +166,7 @@ export async function runDirectPostgresScan(userId: string): Promise<DirectScanO
     return { ok: false, findings: 0, reason: "scan_failed" };
   }
 
+  if (signal?.aborted) return ABORTED;
   // Same persistence contract as the Supabase path: insert what is newly active,
   // archive what has since been fixed. Shares the `policy` source so a customer
   // who migrates between transports keeps one continuous finding history rather

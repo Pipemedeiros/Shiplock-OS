@@ -89,7 +89,7 @@ describe("Step 2C-3-C2-A: Supabase Management project and credential provenance"
     });
     expect(state.facts.directPostgresSnapshot).toEqual({ old: "preserve" });
     expect(state.facts._evidence).toMatchObject({ fields: { supabaseManagementSnapshot: { completeness: "unknown" } } });
-    expect(mocks.policies).toHaveBeenCalledWith("private-access", project);
+    expect(mocks.policies).toHaveBeenCalledWith("private-access", project, undefined);
     expect(mocks.upsert.mock.calls[0][0].user_id).toBe("u");
     expect(mocks.proving).not.toHaveBeenCalled();
     expect(state.facts.authConfig).toEqual({ disable_signup: false, mailer_autoconfirm: true });
@@ -237,6 +237,43 @@ describe("Step 2C-3-C2-A: Supabase Management project and credential provenance"
       expect(await runPolicyScan("u")).toMatchObject({ ok: true });
       expect(state.facts.supabaseManagementSnapshot).toEqual({ old: "preserve" });
       expect(log).toHaveBeenCalled();
+    } finally { log.mockRestore(); }
+  });
+});
+
+describe("3F-C2b: an aborted Supabase Management pass writes no evidence", () => {
+  it("forwards the signal to reads and stops before facts, findings, or proving", async () => {
+    const controller = new AbortController();
+    mocks.policies.mockImplementation(async () => {
+      controller.abort(new Error("collector timed out"));
+      return policies;
+    });
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const result = await runPolicyScan("u", { signal: controller.signal });
+      expect(result).toEqual({ ok: false, findings: 0, reason: "aborted" });
+      expect(mocks.policies).toHaveBeenCalledWith("private-access", project, controller.signal);
+      expect(mocks.upsert).not.toHaveBeenCalled();
+      expect(mocks.insert).not.toHaveBeenCalled();
+      expect(mocks.archive).not.toHaveBeenCalled();
+      expect(mocks.proving).not.toHaveBeenCalled();
+    } finally { log.mockRestore(); }
+  });
+
+  it("still stores a rotated OAuth token so an abort cannot strand the connection", async () => {
+    const controller = new AbortController();
+    mocks.usable.mockImplementation(async () => {
+      controller.abort(new Error("collector timed out"));
+      return { token: { accessToken: "private-access", refreshToken: "private-refresh", expiresAt: null }, refreshed: true };
+    });
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const result = await runPolicyScan("u", { signal: controller.signal });
+      expect(mocks.usable).toHaveBeenCalledWith(profile);
+      expect(mocks.refreshWrite).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({ ok: false, findings: 0, reason: "aborted" });
+      expect(mocks.policies).not.toHaveBeenCalled();
+      expect(mocks.upsert).not.toHaveBeenCalled();
     } finally { log.mockRestore(); }
   });
 });

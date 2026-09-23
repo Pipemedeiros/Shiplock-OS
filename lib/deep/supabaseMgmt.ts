@@ -14,6 +14,7 @@
 
 import { z } from "zod";
 import { decrypt } from "@/lib/crypto";
+import { requestSignal } from "@/lib/abort";
 import {
   ColumnGrantRow,
   parseObject,
@@ -180,7 +181,8 @@ async function runReadQuery<T>(
   projectRef: string,
   sql: string,
   source: string,
-  schema: z.ZodType<T>
+  schema: z.ZodType<T>,
+  signal?: AbortSignal,
 ): Promise<T[]> {
   assertReadOnly(sql);
 
@@ -191,6 +193,7 @@ async function runReadQuery<T>(
       "content-type": "application/json",
     },
     body: JSON.stringify({ query: sql, read_only: true }),
+    signal,
   });
   if (!res.ok) throw new Error(`Supabase query HTTP ${res.status}`);
   return parseRows(source, schema, await res.json());
@@ -212,7 +215,9 @@ export async function listProjects(accessToken: string): Promise<MgmtProject[]> 
 }
 
 /** Every RLS policy on the public schema — the input policyScan.ts wants. */
-export async function fetchPolicies(accessToken: string, projectRef: string): Promise<PgPolicy[]> {
+export async function fetchPolicies(
+  accessToken: string, projectRef: string, signal?: AbortSignal,
+): Promise<PgPolicy[]> {
   // The schema normalises `roles` (array or "{a,b}" string) via PgRoleArray, so
   // the hand-rolled branch that used to live here is gone — one place to be
   // wrong instead of two, since the direct-Postgres transport reads the same
@@ -224,7 +229,8 @@ export async function fetchPolicies(accessToken: string, projectRef: string): Pr
        FROM pg_policies
       WHERE schemaname = 'public'`,
     "fetchPolicies",
-    PgPolicyRow
+    PgPolicyRow,
+    signal,
   );
 }
 
@@ -250,13 +256,14 @@ export async function fetchPolicies(accessToken: string, projectRef: string): Pr
  */
 export async function fetchAdvisors(
   accessToken: string,
-  projectRef: string
+  projectRef: string,
+  signal?: AbortSignal,
 ): Promise<SupabaseAdvisor[]> {
   let json: unknown;
   try {
     const res = await fetch(
       `${API}/v1/projects/${encodeURIComponent(projectRef)}/advisors/security`,
-      { headers: { authorization: `Bearer ${accessToken}` } }
+      { headers: { authorization: `Bearer ${accessToken}` }, signal }
     );
     if (!res.ok) return [];
     json = await res.json();
@@ -293,11 +300,13 @@ export interface SupabaseAuthConfig {
 
 export async function fetchAuthConfig(
   accessToken: string,
-  projectRef: string
+  projectRef: string,
+  signal?: AbortSignal,
 ): Promise<SupabaseAuthConfig | null> {
   try {
     const res = await fetch(`${API}/v1/projects/${encodeURIComponent(projectRef)}/config/auth`, {
       headers: { authorization: `Bearer ${accessToken}` },
+      signal,
     });
     if (!res.ok) return null;
     const json = await res.json();
@@ -329,7 +338,8 @@ export interface SchemaColumn {
 
 export async function fetchSchemaColumns(
   accessToken: string,
-  projectRef: string
+  projectRef: string,
+  signal?: AbortSignal,
 ): Promise<SchemaColumn[]> {
   const rows = await runReadQuery(
     accessToken,
@@ -338,7 +348,8 @@ export async function fetchSchemaColumns(
      where table_schema = 'public'
      order by table_name, ordinal_position`,
     "fetchSchemaColumns",
-    SchemaColumnRow
+    SchemaColumnRow,
+    signal,
   );
   return rows.map((r) => ({ table: r.table_name, column: r.column_name }));
 }
@@ -370,12 +381,13 @@ export function buildRowCountSql(tables: string[]): string | null {
 export async function fetchRowCounts(
   accessToken: string,
   projectRef: string,
-  tables: string[]
+  tables: string[],
+  signal?: AbortSignal,
 ): Promise<Map<string, number>> {
   const sql = buildRowCountSql(tables);
   if (!sql) return new Map();
   try {
-    const rows = await runReadQuery(accessToken, projectRef, sql, "fetchRowCounts", RowCountRow);
+    const rows = await runReadQuery(accessToken, projectRef, sql, "fetchRowCounts", RowCountRow, signal);
     const out = new Map<string, number>();
     // PgCount already coerced the bigint-as-string case and dropped non-finite
     // values, so this is a plain copy rather than a second parsing attempt.
@@ -405,7 +417,8 @@ const AUTH_LOG_HOURS = 24; // the endpoint's documented maximum range
 
 export async function fetchAuthAuditLog(
   accessToken: string,
-  projectRef: string
+  projectRef: string,
+  signal?: AbortSignal,
 ): Promise<Record<string, unknown>[]> {
   const iso = (d: Date) => d.toISOString();
   const end = new Date();
@@ -422,7 +435,7 @@ export async function fetchAuthAuditLog(
   try {
     const res = await fetch(url, {
       headers: { authorization: `Bearer ${accessToken}` },
-      signal: AbortSignal.timeout(15_000),
+      signal: requestSignal(signal, 15_000),
     });
     if (!res.ok) return [];
     const json = await res.json();
@@ -436,7 +449,8 @@ export async function fetchAuthAuditLog(
 /** A5 — column grants held by the roles a browser can reach. */
 export async function fetchColumnGrants(
   accessToken: string,
-  projectRef: string
+  projectRef: string,
+  signal?: AbortSignal,
 ): Promise<{ grantee: string; table: string; column: string; privilege: string }[]> {
   try {
     const rows = await runReadQuery(
@@ -444,7 +458,8 @@ export async function fetchColumnGrants(
       projectRef,
       GRANT_INVENTORY_SQL,
       "fetchColumnGrants",
-      ColumnGrantRow
+      ColumnGrantRow,
+      signal,
     );
     return rows.map((r) => ({
       grantee: r.grantee,
@@ -468,7 +483,8 @@ export async function fetchColumnGrants(
  */
 export async function fetchDatabaseCapabilities(
   accessToken: string,
-  projectRef: string
+  projectRef: string,
+  signal?: AbortSignal,
 ): Promise<{
   extensions?: { name: string; schema: string }[];
   networkGrants?: { schema: string; name: string; grantee: string }[];
@@ -480,7 +496,7 @@ export async function fetchDatabaseCapabilities(
   // an unreadable capability list read as a clean one.
   const attempt = async <T>(sql: string, source: string, schema: z.ZodType<T>) => {
     try {
-      return await runReadQuery(accessToken, projectRef, sql, source, schema);
+      return await runReadQuery(accessToken, projectRef, sql, source, schema, signal);
     } catch {
       return undefined;
     }
@@ -499,14 +515,15 @@ export async function fetchDatabaseCapabilities(
 /** A12/A13 — storage buckets and the policies governing their objects. */
 export async function fetchStorageConfig(
   accessToken: string,
-  projectRef: string
+  projectRef: string,
+  signal?: AbortSignal,
 ): Promise<{ buckets?: BucketRow[]; policies?: StoragePolicyRow[] }> {
   // `undefined` on failure, never `[]` — the caller distinguishes "we could not
   // look" from "we looked and there was nothing", and collapsing them would make
   // an unreadable capability list read as a clean one.
   const attempt = async <T>(sql: string, source: string, schema: z.ZodType<T>) => {
     try {
-      return await runReadQuery(accessToken, projectRef, sql, source, schema);
+      return await runReadQuery(accessToken, projectRef, sql, source, schema, signal);
     } catch {
       return undefined;
     }
@@ -528,12 +545,13 @@ export async function fetchStorageConfig(
  */
 export async function fetchBackupConfig(
   accessToken: string,
-  projectRef: string
+  projectRef: string,
+  signal?: AbortSignal,
 ): Promise<{ pitrEnabled: boolean; walgEnabled: boolean } | null> {
   try {
     const res = await fetch(`${API}/v1/projects/${encodeURIComponent(projectRef)}/database/backups`, {
       headers: { authorization: `Bearer ${accessToken}` },
-      signal: AbortSignal.timeout(15_000),
+      signal: requestSignal(signal, 15_000),
     });
     if (!res.ok) return null;
     const json = (await res.json()) as { pitr_enabled?: unknown; walg_enabled?: unknown };
@@ -550,14 +568,15 @@ export async function fetchBackupConfig(
 /** A14/A20 — Realtime publication state and auth hook definitions. */
 export async function fetchRealtimeAndHooks(
   accessToken: string,
-  projectRef: string
+  projectRef: string,
+  signal?: AbortSignal,
 ): Promise<{ realtimeTables?: RealtimeTableRow[]; authHooks?: AuthHookRow[] }> {
   // `undefined` on failure, never `[]` — the caller distinguishes "we could not
   // look" from "we looked and there was nothing", and collapsing them would make
   // an unreadable capability list read as a clean one.
   const attempt = async <T>(sql: string, source: string, schema: z.ZodType<T>) => {
     try {
-      return await runReadQuery(accessToken, projectRef, sql, source, schema);
+      return await runReadQuery(accessToken, projectRef, sql, source, schema, signal);
     } catch {
       return undefined;
     }

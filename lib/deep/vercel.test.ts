@@ -165,3 +165,25 @@ describe("lib/deep/vercel", () => {
     });
   });
 });
+
+describe("3F-C2b: caller cancellation reaches the Vercel request", () => {
+  const originalFetch = global.fetch;
+  afterEach(() => { global.fetch = originalFetch; });
+
+  it.each([
+    ["listProjects", (signal: AbortSignal) => listProjects("token", null, signal)],
+    ["listProjectEnv", (signal: AbortSignal) => listProjectEnv("token", "proj", null, signal)],
+  ])("%s aborts its in-flight fetch when the collector signal aborts", async (_name, call) => {
+    let seen: AbortSignal | undefined;
+    global.fetch = vi.fn((_url: unknown, init?: RequestInit) => {
+      seen = init?.signal ?? undefined;
+      return new Promise<Response>(() => {});
+    }) as unknown as typeof fetch;
+    const caller = new AbortController();
+    void call(caller.signal).catch(() => {});
+    await Promise.resolve();
+    expect(seen?.aborted).toBe(false);
+    caller.abort(new Error("collector timed out"));
+    expect(seen?.aborted).toBe(true);
+  });
+});

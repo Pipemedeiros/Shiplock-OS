@@ -138,3 +138,22 @@ describe("Step 2C-3-C1: direct-Postgres connection provenance", () => {
     } finally { log.mockRestore(); }
   });
 });
+
+describe("3F-C2b: an aborted direct-Postgres pass writes no evidence", () => {
+  it("forwards the signal to collection and stops before facts or findings", async () => {
+    const controller = new AbortController();
+    mocks.collect.mockImplementation(async () => {
+      controller.abort(new Error("collector timed out"));
+      return facts;
+    });
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const result = await runDirectPostgresScan("u", { signal: controller.signal });
+      expect(result).toEqual({ ok: false, findings: 0, reason: "aborted" });
+      expect(mocks.collect).toHaveBeenCalledWith(expect.any(Object), undefined, controller.signal);
+      expect(mocks.upsert).not.toHaveBeenCalled();
+      expect(mocks.insert).not.toHaveBeenCalled();
+      expect(mocks.archive).not.toHaveBeenCalled();
+    } finally { log.mockRestore(); }
+  });
+});
