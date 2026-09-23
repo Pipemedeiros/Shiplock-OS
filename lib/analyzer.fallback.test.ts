@@ -3,7 +3,7 @@ import type { ScanResult } from "./scanner";
 
 // 1E-3: the deterministic fallback report must not warn about a check that
 // never got a response. The model client is mocked to fail; no API call is made.
-const sdkCreate = vi.hoisted(() => vi.fn(async (_request: { system: string }) => { throw new Error("offline"); }));
+const sdkCreate = vi.hoisted(() => vi.fn<(request: { system: string }) => Promise<never>>(async () => { throw new Error("offline"); }));
 vi.mock("@anthropic-ai/sdk", () => {
   class Anthropic {
     static APIError = class extends Error {};

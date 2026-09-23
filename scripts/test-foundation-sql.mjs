@@ -720,7 +720,7 @@ try {
   await check("the monthly budget stops new tasks once agent-reported usage reaches it", async () => {
     await approve("codex","off","off",1000,10000);
     const t=(await newTask("intel-budget-1")).rows[0].id;
-    const usage=(n)=>db.query("select public.intelligence_month_usage($1) as n",[u1]).then((x)=>Number(x.rows[0].n));
+    const usage=()=>db.query("select public.intelligence_month_usage($1) as n",[u1]).then((x)=>Number(x.rows[0].n));
     assert.equal(await usage(),0);
     await db.query("select public.submit_intelligence_result($1,$2,'unavailable',$3,$4)",
       [u1,t,JSON.stringify({status:"unavailable",usage:{inputTokens:6000,outputTokens:5000}}),"7".repeat(64)]);
