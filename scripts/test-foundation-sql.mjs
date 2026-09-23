@@ -38,6 +38,7 @@ try {
   await db.exec(await readFile(new URL("../supabase/migrations/076_intelligence_connections.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/077_intelligence_scans.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/079_intelligence_credentials.sql", import.meta.url), "utf8"));
+  await db.exec(await readFile(new URL("../supabase/migrations/080_ai_fix_receipts.sql", import.meta.url), "utf8"));
   await db.query("insert into auth.users values ($1),($2)", [u1,u2]);
   await db.query("insert into public.user_profiles(id) values($1),($2)", [u1,u2]);
   await check("connection epochs backfill the existing fingerprint and ignore blank credentials", async () => {
@@ -787,6 +788,24 @@ try {
     assert.equal(await claim(t),false);
     const codex=(await (async()=>{await approve("codex");return newTask("intel-claim-2");})()).rows[0].id;
     assert.equal(await claim(codex),false);
+  });
+  await check("a clicked AI fix is receipted only for the owner's answered proposal with edits (10B-3b)", async () => {
+    await approve("codex","off","off");
+    const answered=(status,key,edits)=>newTask(key).then(async (x)=>{const id=x.rows[0].id;
+      await db.query("select public.submit_intelligence_result($1,$2,$3,$4,$5)",[u1,id,status,JSON.stringify({status,summary:"s",edits}),key.padEnd(64,"0").replace(/[^0-9a-f]/g,"a").slice(0,64)]);return id;});
+    const proposal=await answered("proposal_received","aa1",[{path:"next.config.ts",baseHash:"1".repeat(64),content:"x"}]);
+    const human=await answered("needs_human","bb1",[]);
+    const ask=(task,user=u1,finding=task,key="ai-fix-1")=>db.query("select public.request_repair_action($1,$2,'ai-fix-pr',$3,null,$4,null,$5) as id",[user,r1,finding,key,task]).then((x)=>x.rows[0].id);
+    const receipt=await ask(proposal);
+    assert.equal(await ask(proposal),receipt);
+    await assert.rejects(ask(human,u1,human,"ai-fix-2"),/proposal unavailable/);
+    await assert.rejects(ask(proposal,u1,"other-finding","ai-fix-3"));
+    await assert.rejects(db.query("select public.request_repair_action($1,$2,'ai-fix-pr',$3,null,'ai-fix-4',null,null)",[u1,r1,proposal]));
+    await assert.rejects(db.query("select public.request_repair_action($1,$2,'risk-fix-pr','f',null,'ai-fix-5',null,$3)",[u1,r1,proposal]));
+    await db.exec("reset role");
+    assert.deepEqual((await db.query("select action,task_id,finding_id from public.repair_action_receipts where id=$1",[receipt])).rows,[{action:"ai-fix-pr",task_id:proposal,finding_id:proposal}]);
+    await db.query("update public.repair_action_receipts set status='failed',failure_code='source_changed' where id=$1",[receipt]);
+    await db.exec("set role service_role");
   });
   await check("client roles cannot touch intelligence tasks", async () => {
     await db.exec("reset role; set role authenticated");

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // 3F-C2d-2: a clicked repair opens its PR in the worker, under the job lease,
 // and every outcome lands on the customer's receipt.
-const mocks = vi.hoisted(() => ({ receipt: vi.fn(), rpc: vi.fn(), risk: vi.fn(), finding: vi.fn(), dependency: vi.fn(), pr: vi.fn(), heartbeat: vi.fn() }));
+const mocks = vi.hoisted(() => ({ receipt: vi.fn(), rpc: vi.fn(), risk: vi.fn(), finding: vi.fn(), dependency: vi.fn(), pr: vi.fn(), ai: vi.fn(), heartbeat: vi.fn() }));
 vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({
   rpc: mocks.rpc,
   from: () => ({ select: () => ({ eq: () => ({ maybeSingle: mocks.receipt }) }) }),
@@ -11,6 +11,7 @@ vi.mock("@/lib/fixes/riskFixPr", () => ({ openRiskFixPr: mocks.risk }));
 vi.mock("@/lib/fixes/findingFixPr", () => ({ openFindingFixPr: mocks.finding }));
 vi.mock("@/lib/deep/githubFixRun", () => ({ openDependencyBumpPr: mocks.dependency }));
 vi.mock("@/lib/fixes/pullRequestFixPr", () => ({ openPullRequestFixPr: mocks.pr }));
+vi.mock("@/lib/fixes/aiFixPr", () => ({ openAiFixPr: mocks.ai }));
 vi.mock("./queue", async (original) => ({
   ...await original<typeof import("./queue")>(),
   withLeaseHeartbeat: (_job: unknown, work: () => Promise<unknown>) => { mocks.heartbeat(); return work(); },
@@ -27,7 +28,7 @@ const job: ClaimedJob = {
 };
 const receipt = (over: Record<string, unknown> = {}) => ({ data: {
   user_id: job.user_id, repository_id: job.repository_id, action: "risk-fix-pr",
-  finding_id: "agent:orders-idor", edited_content: null, review_id: null, status: "queued", ...over,
+  finding_id: "agent:orders-idor", edited_content: null, review_id: null, task_id: null, status: "queued", ...over,
 }, error: null });
 const completed = () => mocks.rpc.mock.calls.filter(([name]) => name === "complete_repair_action").map(([, args]) => args);
 
@@ -71,6 +72,15 @@ describe("executeRepairJob", () => {
     await executeRepairJob(job);
     expect(mocks.pr).toHaveBeenCalledWith(job.user_id, "77777777-7777-4777-8777-777777777777", "diff:x", job.repository_id);
     expect(completed()[0]).toMatchObject({ p_status: "failed", p_failure: "fork_pull_request" });
+  });
+
+  it("opens a PR for the customer's AI proposal bound to its task (10B-3b)", async () => {
+    const task = "88888888-8888-4888-8888-888888888888";
+    mocks.receipt.mockResolvedValue(receipt({ action: "ai-fix-pr", finding_id: task, task_id: task }));
+    mocks.ai.mockResolvedValue({ status: "failed", code: "source_changed" });
+    await executeRepairJob(job);
+    expect(mocks.ai).toHaveBeenCalledWith(job.user_id, task, job.repository_id);
+    expect(completed()).toEqual([expect.objectContaining({ p_status: "failed", p_failure: "source_changed" })]);
   });
 
   it("records a permanent refusal as failed without retrying", async () => {

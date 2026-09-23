@@ -47,4 +47,10 @@ describe("requestRepairAction (3F-C2d-3)", () => {
     expect(mocks.rpc.mock.calls[0][1]).toMatchObject({ p_action: "pr-fix-pr", p_review: "rev-1" });
     vi.useRealTimers();
   });
+
+  it("binds an AI-fix click to its intelligence task (10B-3b)", async () => {
+    await requestRepairAction({ userId: "u1", repositoryId: "r1", action: "ai-fix-pr", findingId: "task-1", editedContent: null, taskId: "task-1" });
+    expect(mocks.rpc.mock.calls[0][1]).toMatchObject({ p_action: "ai-fix-pr", p_task: "task-1", p_finding: "task-1", p_review: null });
+    vi.useRealTimers();
+  });
 });

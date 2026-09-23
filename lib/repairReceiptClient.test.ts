@@ -39,6 +39,7 @@ describe("repairMessage", () => {
       { status: "failed", url: null, failure: "no_changes" },
       { status: "failed", url: null, failure: "fork_pull_request" },
       { status: "failed", url: null, failure: "pull_request_closed" },
+      { status: "failed", url: null, failure: "source_changed" },
       { status: "uncertain", url: null, failure: "delivery_unconfirmed" },
       { status: "queued", url: null, failure: null },
     ] as const) {
@@ -46,5 +47,6 @@ describe("repairMessage", () => {
       expect(message.length).toBeGreaterThan(10);
       expect(message).not.toMatch(/[—–]/);
     }
+    expect(repairMessage({ status: "failed", url: null, failure: "source_changed" })).toMatch(/changed since your AI read it/);
   });
 });

@@ -3,7 +3,7 @@
 export type RepairOutcome =
   | { status: "opened"; url: string; number: number }
   | { status: "failed"; code: "finding_unavailable" | "repository_unavailable" | "not_fixable" | "no_changes"
-      | "fork_pull_request" | "pull_request_closed" };
+      | "fork_pull_request" | "pull_request_closed" | "source_changed" };
 
 export function openedOutcome(url: string): RepairOutcome {
   const number = Number(url.split("/").pop());

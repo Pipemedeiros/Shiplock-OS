@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { AiActivity, AiCheck, AiCheckState } from "@/lib/intelligence/activity";
+import { AiFixButton } from "./AiFixButton";
 
 // The customer's own AI checks (10B-2d). Unanswered work says "not checked" in
 // plain words; nothing here may read as clean.
@@ -55,6 +56,7 @@ export function AiChecks({ activity }: { activity: AiActivity }) {
                   {check.answer.editedFiles.length > 0 ? (
                     <p>Proposed change to {check.answer.editedFiles.join(", ")}. Nothing is applied until you open a pull request and merge it.</p>
                   ) : null}
+                  {check.state === "proposal" && check.answer.editedFiles.length > 0 ? <AiFixButton taskId={check.taskId} /> : null}
                 </div>
               ) : null}
             </div>

@@ -7,12 +7,14 @@ import { runNextRepairJob } from "./repairWorker";
 export interface RepairRequest {
   userId: string;
   repositoryId: string;
-  action: "risk-fix-pr" | "finding-fix-pr" | "dependency-bump-pr" | "pr-fix-pr";
+  action: "risk-fix-pr" | "finding-fix-pr" | "dependency-bump-pr" | "pr-fix-pr" | "ai-fix-pr";
   /** Null only for a dependency bump, which covers the whole repository. */
   findingId: string | null;
   editedContent: string | null;
   /** Required for pr-fix-pr: the stored review whose head branch the fix targets. */
   reviewId?: string;
+  /** Required for ai-fix-pr: the answered intelligence task whose edits the PR carries. */
+  taskId?: string;
 }
 
 /**
@@ -27,6 +29,7 @@ export async function requestRepairAction(request: RepairRequest): Promise<strin
   const { data, error } = await getSupabaseAdmin().rpc("request_repair_action", {
     p_user: request.userId, p_repository: request.repositoryId, p_action: request.action,
     p_finding: request.findingId, p_edited: request.editedContent, p_review: request.reviewId ?? null,
+    p_task: request.taskId ?? null,
     p_key: `${request.action}:${request.findingId ?? request.repositoryId}:${edit}:${minute}`.slice(0, 200),
   });
   const receiptId = z.uuid().safeParse(data);

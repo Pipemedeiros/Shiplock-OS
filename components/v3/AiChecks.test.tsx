@@ -32,6 +32,14 @@ describe("AiChecks (10B-2d)", () => {
     expect(html).toContain("Proposed change to next.config.ts");
     expect(html).toContain("Your AI says");
     expect(html).not.toMatch(/clean|secure/i);
+    // Each PR needs its own click (10B-3b).
+    expect(html).toContain("Open a pull request");
+  });
+
+  it("offers no pull request for a finding that needs your judgment", () => {
+    const html = renderToStaticMarkup(<AiChecks activity={{ available: true, paused: null, checks: [check("needs_human", {
+      answer: { summary: "Orders have no owner check.", citations: [{ path: "a.ts", startLine: 1, endLine: 1 }], editedFiles: [] } })] }} />);
+    expect(html).not.toContain("Open a pull request");
   });
 
   it("says why new checks are paused, and admits when it cannot read state", () => {

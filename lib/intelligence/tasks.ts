@@ -34,7 +34,7 @@ type TaskRow = z.infer<typeof taskRowSchema>;
  * parameterless codemods would produce, and accepted by the edit guard.
  * Anything else (including authorization logic) needs a human. */
 const MECHANICAL: readonly Codemod[] = [disableProductionSourceMaps, addSecurityHeaders, addWorkflowPermissions, removeSecretLogging];
-function mechanicalEdit(file: Readonly<SourceFile>, proposed: string): boolean {
+export function mechanicalEdit(file: Readonly<SourceFile>, proposed: string): boolean {
   return MECHANICAL.some((codemod) => codemod({ path: file.path, content: file.content }, {} as never)?.content === proposed)
     && judgeEdit(file.path, file.content, proposed).safe;
 }

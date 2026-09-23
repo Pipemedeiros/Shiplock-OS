@@ -32,6 +32,7 @@ export function repairMessage(view: RepairView): string {
       case "finding_unavailable": return "This finding is no longer open, so there is nothing to fix.";
       case "fork_pull_request": return "This pull request comes from a fork, so ShipLock cannot push a fix to its branch. The change to make is listed above.";
       case "pull_request_closed": return "That pull request branch is gone, merged or deleted, so there is nothing to fix before merge.";
+      case "source_changed": return "That file has changed since your AI read it, so the proposal no longer applies. The next check will look at the new code.";
       case "no_changes": return "No vulnerable dependency here has a patched version yet, so there is nothing to bump.";
       default: return "GitHub refused the pull request. Try again.";
     }
