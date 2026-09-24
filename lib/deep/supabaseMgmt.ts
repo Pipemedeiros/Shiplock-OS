@@ -13,7 +13,7 @@
 // lives next to the transport is the one that survives a future refactor.
 
 import { z } from "zod";
-import { parseSchemaColumns, SCHEMA_COLUMNS_SQL, type SchemaColumn } from "./schemaColumns";
+import { ALL_SCHEMA_COLUMNS_SQL, type SchemaColumn } from "./schemaColumns";
 import { decrypt } from "@/lib/crypto";
 import { requestSignal } from "@/lib/abort";
 import {
@@ -342,12 +342,14 @@ export async function fetchSchemaColumns(
   const rows = await runReadQuery(
     accessToken,
     projectRef,
-    SCHEMA_COLUMNS_SQL,
+    ALL_SCHEMA_COLUMNS_SQL,
     "fetchSchemaColumns",
     SchemaColumnRow,
     signal,
   );
-  return parseSchemaColumns(rows.map((r) => ({ table: r.table_name, column: r.column_name, type: r.data_type })));
+  // Every column, for the exposure inventory; the bounded snapshot copy is
+  // derived by the caller (schemaColumns.boundedSchemaColumns).
+  return rows.map((r) => ({ table: r.table_name, column: r.column_name, type: r.data_type }));
 }
 
 /** Postgres identifier quoting, so an odd table name cannot break out. */

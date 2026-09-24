@@ -392,3 +392,13 @@ describe("Q8 / 2F-5b: the gateway traffic read leaves a snapshot", () => {
     expect(result.ok).toBe(true);
   });
 });
+
+describe("review of Q6a: an over-large or unusual schema never costs the exposure inventory", () => {
+  it("keeps the inventory for 3,001 columns and marks only the snapshot columns unread", async () => {
+    mocks.columns.mockResolvedValue(Array.from({ length: 3001 }, (_, i) => ({ table: "wide", column: `c${i}`, type: "text" })));
+    await run();
+    expect(state.facts.inventory).toBeDefined();
+    expect((state.facts.supabaseManagementSnapshot as { columns?: unknown }).columns).toBeUndefined();
+    expect(sent().unread).toContain("columns:");
+  });
+});

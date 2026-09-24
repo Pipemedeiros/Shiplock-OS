@@ -15,3 +15,8 @@ it("refuses malformed, duplicate or capped schemas rather than returning a parti
     expect(() => parseSchemaColumns(rows)).toThrow();
   }
 });
+
+it("accepts the column names real apps use, such as Prisma's camelCase (review of Q6a)", () => {
+  expect(parseSchemaColumns([{ table: "Order", column: "userId", type: "uuid" }, { table: "orders", column: "createdAt", type: "timestamp" }]))
+    .toHaveLength(2);
+});
