@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { pruneOldTraffic } from "@/lib/traffic/prune";
+import { pruneProviderSnapshots } from "@/lib/monitoring/snapshotRetention";
 import { purgeIntelligenceTasks } from "@/lib/intelligence/retention";
 import { saveFacts } from "@/lib/graph/graphRun";
 import { collectTrafficFacts } from "@/lib/traffic/graphFacts";
@@ -63,6 +64,8 @@ export async function GET(req: NextRequest) {
   const pruned = await pruneOldTraffic();
   // Same daily entry bounds customer-intelligence results (10B-1d).
   const intelligence = await purgeIntelligenceTasks();
+  // And provider evidence snapshots (5A-2).
+  const snapshots = await pruneProviderSnapshots();
 
   // Traffic observations run before graph admission. Dependency rechecks were
   // admitted above as separate leased jobs. The graph itself is also leased: a
@@ -149,6 +152,7 @@ export async function GET(req: NextRequest) {
     failed: monitoringAdmission.failed,
     pruned: pruned.ok,
     intelligencePurged: intelligence.purged,
+    providerSnapshotsPruned: snapshots.pruned,
     monitorJobsAdmitted: monitoringAdmission.admitted,
     monitorAdmissionsFailed: monitoringAdmission.failed,
     monitorAdmissionLimited: monitoringAdmission.limited,

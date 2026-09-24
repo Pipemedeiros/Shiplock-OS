@@ -123,3 +123,13 @@ describe("customer rechecks run every full-pass collector (3F-C2c-5)", () => {
   });
 });
 });
+
+describe("provider collectors name their transport (5A-2)", () => {
+  it("maps each provider collector to the transport its failures are recorded under", () => {
+    const byId = Object.fromEntries(DEFAULT_COLLECTORS.map((c) => [c.id, c.transport ?? null]));
+    expect(byId).toEqual({
+      "supabase-scan": null, "supabase-management": "supabase-management", "postgres-direct": "postgres-direct",
+      "vercel-env": "vercel", "app-surface": "app-surface",
+    });
+  });
+});

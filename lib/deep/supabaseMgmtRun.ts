@@ -229,6 +229,7 @@ export async function runPolicyScan(
       committed = await commit({
         transport: "supabase-management", identity: connectionFingerprint,
         facts: dbFacts, findings, retire: true, unread,
+        snapshot: { scope: projectRef, failed: unread },
       });
     } catch {
       console.error(`[supabaseMgmt] result not committed for ${userId}`);

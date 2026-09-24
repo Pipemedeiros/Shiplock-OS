@@ -56,6 +56,7 @@ export async function runExposedPathScan(
   // Findings commit under the monitor job's lease and the app URL it probed
   // (3F-C2c); unread families are never archived. The fenced commit does not
   // report an archive count, so none is claimed here.
-  const created = await commit({ transport: "app-surface", identity: appUrl, findings, retire: true, unread });
+  const created = await commit({ transport: "app-surface", identity: appUrl, findings, retire: true, unread,
+    snapshot: { scope: new URL(appUrl).host, failed: unread } });
   return { total: findings.length, newCount: created.length, newFindings: created as ExposedFinding[] };
 }

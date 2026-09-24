@@ -997,9 +997,70 @@ try {
     await assert.rejects(db.query("select public.submit_intelligence_result($1,$1,'unavailable','{}'::jsonb,$2)",[u1,"9".repeat(64)]));
     await db.exec("reset role; set role service_role");
   });
-  await check("client roles cannot commit provider results", async () => {
+  // 5A-2: every provider pass leaves one append-only snapshot of what it read.
+  await db.exec("reset role");
+  await db.exec(await readFile(new URL("../supabase/migrations/087_provider_snapshots.sql", import.meta.url), "utf8"));
+  await db.exec("grant select on public.provider_snapshots to service_role; set role service_role");
+  const mEpoch = "c".repeat(64);
+  await db.exec("reset role");
+  await db.query("update public.user_profiles set supabase_mgmt_token_encrypted='m-cipher-2',supabase_mgmt_connection_epoch=$2 where id=$1",[legacy,mEpoch]);
+  await db.exec("set role service_role");
+  const persistSnapshot = (job, transport, identity, findings, retire, unread, snapshot) => db.query(
+    "select public.persist_provider_monitor_result($1,$2,$3,$4,$5,null,$6,$7,$8,$9) as created",
+    [legacy, job.id, job.token, transport, identity, JSON.stringify(findings), retire, JSON.stringify(unread), JSON.stringify(snapshot)]);
+  const snapshots = async (transport) => (await db.query(
+    "select job_id, scope, completeness, unread, reason, finding_count from public.provider_snapshots where user_id=$1 and transport=$2 order by id",
+    [legacy, transport])).rows;
+  await check("a provider commit appends one snapshot in the same transaction", async () => {
+    const job = await monitorJob("5a2-snapshot");
+    await persistSnapshot(job,"postgres-direct",pEpoch,[providerFinding("policy:s1")],true,["grants:"],{scope:"db.example.com",failed:["grants:"]});
+    await persistSnapshot(job,"postgres-direct",pEpoch,[providerFinding("policy:s1")],true,[],{scope:"db.example.com",failed:[]});
+    assert.deepEqual(await snapshots("postgres-direct"),[
+      {job_id:job.id,scope:"db.example.com",completeness:"partial",unread:["grants:"],reason:null,finding_count:1},
+      {job_id:job.id,scope:"db.example.com",completeness:"complete",unread:[],reason:null,finding_count:1},
+    ]);
+    // A fenced-out commit leaves no snapshot either.
+    await assert.rejects(persistSnapshot(job,"postgres-direct","b".repeat(64),[],true,[],{scope:"db.example.com",failed:[]}));
+    assert.equal((await snapshots("postgres-direct")).length,2);
+  });
+  await check("direct Postgres and Supabase findings never retire each other", async () => {
+    const job = await monitorJob("5a2-sources");
+    await persistSnapshot(job,"supabase-management",mEpoch,[providerFinding("policy:shared"),providerFinding("auth_policy:mfa_unavailable")],true,[],{scope:"proj",failed:[]});
+    await persistSnapshot(job,"postgres-direct",pEpoch,[providerFinding("policy:shared")],true,[],{scope:"db.example.com",failed:[]});
+    await persistSnapshot(job,"postgres-direct",pEpoch,[],true,[],{scope:"db.example.com",failed:[]});
+    assert.deepEqual(await activeProvider("postgres-direct"),[]);
+    assert.deepEqual(await activeProvider("policy"),["auth_policy:mfa_unavailable","policy:shared"]);
+  });
+  await check("a failed provider read is recorded only under the live lease", async () => {
+    const job = await monitorJob("5a2-failed");
+    await db.query("select public.record_provider_read_failure($1,$2,$3,'vercel','team_1','auth_failed')",[legacy,job.id,job.token]);
+    assert.deepEqual((await snapshots("vercel")).map((r)=>[r.completeness,r.reason,r.scope]),[["failed","auth_failed","team_1"]]);
+    await assert.rejects(db.query("select public.record_provider_read_failure($1,$2,$3,'vercel',null,'auth_failed')",[legacy,job.id,u2]));
+    await assert.rejects(db.query("select public.record_provider_read_failure($1,$2,$3,'vercel',null,'Not A Code')",[legacy,job.id,job.token]));
+    await assert.rejects(db.query("select public.record_provider_read_failure($1,$2,$3,'github',null,'auth_failed')",[legacy,job.id,job.token]));
+  });
+  await check("snapshot payloads are bounded and typed", async () => {
+    const job = await monitorJob("5a2-shape");
+    await assert.rejects(persistSnapshot(job,"postgres-direct",pEpoch,[],false,[],{scope:"x".repeat(257),failed:[]}));
+    await assert.rejects(persistSnapshot(job,"postgres-direct",pEpoch,[],false,[],{scope:"db",failed:"grants:"}));
+    await assert.rejects(persistSnapshot(job,"postgres-direct",pEpoch,[],false,[],{scope:"db",failed:[7]}));
+    await assert.rejects(persistSnapshot(job,"postgres-direct",pEpoch,[],false,[],null));
+  });
+  await check("pruning keeps 30 days and the latest snapshot per transport", async () => {
+    await db.exec("reset role");
+    await db.query("update public.provider_snapshots set observed_at=now()-interval '40 days' where user_id=$1",[legacy]);
+    await db.exec("set role service_role");
+    const pruned=(await db.query("select public.prune_provider_snapshots() as n")).rows[0].n;
+    assert.equal(pruned,3);
+    assert.deepEqual((await db.query("select transport from public.provider_snapshots where user_id=$1 order by transport",[legacy])).rows.map((r)=>r.transport),
+      ["postgres-direct","supabase-management","vercel"]);
+  });
+  await check("client roles cannot commit provider results or read snapshots", async () => {
     await db.exec("reset role; set role authenticated");
-    await assert.rejects(db.query("select public.persist_provider_monitor_result($1,$1,$1,'postgres-direct','x',null,'[]'::jsonb,false,'[]'::jsonb)",[legacy]));
+    await assert.rejects(db.query("select public.persist_provider_monitor_result($1,$1,$1,'postgres-direct','x',null,'[]'::jsonb,false,'[]'::jsonb,'{}'::jsonb)",[legacy]));
+    await assert.rejects(db.query("select * from public.provider_snapshots"));
+    await assert.rejects(db.query("select public.record_provider_read_failure($1,$1,$1,'vercel',null,'auth_failed')",[legacy]));
+    await assert.rejects(db.query("select public.prune_provider_snapshots()"));
     await db.exec("reset role");
   });
   console.log(`${checks} SQL checks passed. Single-connection PostgreSQL WASM; multi-session contention and hosted Supabase remain unverified.`);

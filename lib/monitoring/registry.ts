@@ -36,6 +36,9 @@ export interface CollectorContext {
    * the collected connection identity (migration 068). Absent for legacy
    * synchronous callers, which keep their own writes until 3F-C2c-5. */
   commit?: ProviderCommit;
+  /** Monitor-worker only: records a provider pass that read nothing usable,
+   * under the job's lease (migration 087), so Coverage can say it failed. */
+  recordFailure?: ProviderFailure;
 }
 
 /** One provider transport's collected result, committed atomically. */
@@ -49,10 +52,29 @@ export interface ProviderResult {
   /** Archive active findings absent from this result (except under `unread`). */
   retire: boolean;
   unread?: string[];
+  /** The append-only record of this read (5A-2, migration 087): the scope it
+   * covered (project ref, host, team; never a secret) and the finding-ID
+   * prefixes whose read failed. Families a transport never reads are not
+   * failures and stay out of `failed`. */
+  snapshot: { scope: string | null; failed: string[] };
 }
 
 /** Resolves to the findings the commit newly inserted; throws if fenced out. */
 export type ProviderCommit = (result: ProviderResult) => Promise<Finding[]>;
+
+export type ProviderFailure = (transport: ProviderResult["transport"], reason: string) => Promise<void>;
+
+/** A provider runner's known failure, with a short code safe to store. Any
+ * other error is recorded as "failed": its message may carry provider text. */
+export class ProviderReadError extends Error {
+  readonly reason: string;
+  constructor(reason: string) {
+    const safe = /^[a-z_]{1,64}$/.test(reason) ? reason : "failed";
+    super(`provider read failed: ${safe}`);
+    this.name = "ProviderReadError";
+    this.reason = safe;
+  }
+}
 
 /**
  * What a collector hands back.
@@ -89,6 +111,9 @@ export interface CollectorSpec {
   /** Stable id, used in logs and to identify the collector in a snapshot. */
   id: string;
   layer: Layer;
+  /** The provider transport this collector reads, when it reads one; a failed
+   * or timed-out pass is then recorded as that transport's snapshot. */
+  transport?: ProviderResult["transport"];
   /** Triggers this collector runs on. Anything absent here simply never runs. */
   eligibleTriggers: readonly TriggerSource[];
   /**
@@ -205,6 +230,12 @@ export async function runCollectors(
         `[monitor] collector ${spec.id} ${timedOut ? "timed out" : "failed"} for user ${ctx.profile.id}:`,
         err instanceof Error ? err.message : err
       );
+      if (spec.transport && ctx.recordFailure) {
+        const reason = timedOut ? "timeout" : err instanceof ProviderReadError ? err.reason : "failed";
+        await ctx.recordFailure(spec.transport, reason).catch(() => {
+          console.error(`[monitor] failure record for ${spec.id} was not stored for user ${ctx.profile.id}`);
+        });
+      }
     }
   }
 

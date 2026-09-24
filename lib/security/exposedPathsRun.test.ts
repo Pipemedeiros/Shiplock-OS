@@ -43,7 +43,8 @@ describe("runExposedPathScan", () => {
     auditMock.mockResolvedValue([finding("bundle:shipped_secret:supabase_service_role_jwt")]);
     emailMock.mockResolvedValue([finding("email_auth:dmarc_missing")]);
     const result = await run();
-    expect(sent()).toMatchObject({ transport: "app-surface", identity: url, retire: true });
+    expect(sent()).toMatchObject({ transport: "app-surface", identity: url, retire: true, snapshot: { scope: "app.example.com" } });
+    expect(sent().snapshot.failed).toEqual(sent().unread);
     expect(sent()).not.toHaveProperty("facts");
     expect(sentIds()).toEqual(["bundle:shipped_secret:supabase_service_role_jwt", "email_auth:dmarc_missing", "exposed:git_exposed"]);
     expect(result).toMatchObject({ total: 3, newCount: 3 });
@@ -65,6 +66,7 @@ describe("runExposedPathScan", () => {
     await run();
     expect(sentIds()).toEqual([id]);
     expect(sent().unread).toContain(prefix);
+    expect(sent().snapshot.failed).toContain(prefix);
   });
 
   it("sends the unread prefixes a probe recorded", async () => {

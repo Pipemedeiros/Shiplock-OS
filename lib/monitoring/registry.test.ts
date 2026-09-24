@@ -1,5 +1,5 @@
 import { afterEach, describe, it, expect, vi } from "vitest";
-import { runCollectors, type CollectorSpec, type CollectorContext } from "./registry";
+import { runCollectors, ProviderReadError, type CollectorSpec, type CollectorContext } from "./registry";
 
 const ctx: CollectorContext = {
   profile: {
@@ -173,5 +173,38 @@ describe("runCollectors — extensibility", () => {
     const { outcomes } = await runCollectors([slowish], ctx);
 
     expect(outcomes[0].durationMs).toBeGreaterThanOrEqual(10);
+  });
+});
+
+describe("Step 5A-2: a failed provider pass leaves a record", () => {
+  const quiet = () => vi.spyOn(console, "error").mockImplementation(() => {});
+  it("records the runner's reason code under the collector's transport", async () => {
+    const log = quiet();
+    const recordFailure = vi.fn(async () => {});
+    await runCollectors([
+      spec({ id: "mgmt", transport: "supabase-management", run: async () => { throw new ProviderReadError("auth_failed"); } }),
+      spec({ id: "pg", transport: "postgres-direct", run: async () => { throw new Error("socket said: secret dsn"); } }),
+      spec({ id: "plain", run: async () => { throw new Error("no transport"); } }),
+    ], { ...ctx, recordFailure });
+    log.mockRestore();
+    expect(recordFailure.mock.calls).toEqual([["supabase-management", "auth_failed"], ["postgres-direct", "failed"]]);
+  });
+  it("records a timeout, and a recorder failure never breaks the pass", async () => {
+    vi.useFakeTimers();
+    const log = quiet();
+    const recordFailure = vi.fn(async () => { throw new Error("db down"); });
+    const done = runCollectors([
+      spec({ id: "slow", transport: "vercel", timeoutMs: 10, run: () => new Promise(() => {}) }),
+      spec({ id: "ok", run: async () => ({ snapshotFindings: [] }) }),
+    ], { ...ctx, recordFailure });
+    await vi.advanceTimersByTimeAsync(20);
+    const result = await done;
+    vi.useRealTimers(); log.mockRestore();
+    expect(recordFailure).toHaveBeenCalledWith("vercel", "timeout");
+    expect(result.outcomes.map((o) => o.status)).toEqual(["timeout", "ok"]);
+  });
+  it("keeps an unsafe reason out of the record", () => {
+    expect(new ProviderReadError("Bad Reason!").reason).toBe("failed");
+    expect(new ProviderReadError("not_committed").reason).toBe("not_committed");
   });
 });

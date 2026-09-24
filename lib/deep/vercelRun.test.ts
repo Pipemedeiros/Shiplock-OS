@@ -47,7 +47,7 @@ describe("runVercelEnvAudit", () => {
     listProjectsMock.mockResolvedValue([{ id: "p1", name: "site-one" }]);
     listProjectEnvMock.mockResolvedValue(secretEnv);
     const result = await run();
-    expect(sent()).toMatchObject({ transport: "vercel", identity: EPOCH, retire: false });
+    expect(sent()).toMatchObject({ transport: "vercel", identity: EPOCH, retire: false, snapshot: { scope: null, failed: [] } });
     expect(sent().findings.map((finding) => finding.id)).toEqual(["vercel:site-one:NEXT_PUBLIC_SECRET_TOKEN:client_exposed_secret"]);
     expect(result).toMatchObject({ total: 1, newCount: 1 });
     expect(result.newFindings).toEqual(sent().findings);
@@ -73,6 +73,8 @@ describe("runVercelEnvAudit", () => {
     const result = await run();
     expect(result.total).toBe(1);
     expect(result.findings[0].id).toContain("healthy-project");
+    // 5A-2: the snapshot says which project could not be read.
+    expect(sent().snapshot).toEqual({ scope: null, failed: ["vercel:broken-project:"] });
   });
 
   it("fails closed when projects exist but none of their environments are readable", async () => {

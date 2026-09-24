@@ -84,11 +84,6 @@ async function loadConnection(userId: string): Promise<{ raw: string; fingerprin
  * there", and the second would silently downgrade real findings to clean.
  * The fenced commit merges these keys into existing facts for the same reason.
  */
-// Supabase Management findings share this transport's finding source, and a
-// customer can connect both. This pass reads only policies and grants, so it
-// must never retire the families only the Supabase transport reads (5A-1).
-const NOT_READ_HERE = ["advisor:", "auth_", "extensions:", "realtime:", "storage:"];
-
 const ABORTED: DirectScanOutcome = { ok: false, findings: 0, reason: "aborted" };
 
 export async function runDirectPostgresScan(
@@ -105,6 +100,7 @@ export async function runDirectPostgresScan(
   try {
     const connection = parseConnectionString(loaded.raw);
     const facts = await collectDirectFacts(connection, undefined, signal);
+    const failed = facts.grants === null ? ["grants:"] : [];
 
     findings = [
       ...analyzePolicies(facts.policies),
@@ -136,7 +132,10 @@ export async function runDirectPostgresScan(
     try {
       committed = await commit({
         transport: "postgres-direct", identity: loaded.fingerprint, facts: dbFacts,
-        findings, retire: true, unread: [...NOT_READ_HERE, ...(facts.grants === null ? ["grants:"] : [])],
+        findings, retire: true, unread: failed,
+        // No scope: a database host is kept out of stored evidence; the
+        // connection epoch already identifies the connection.
+        snapshot: { scope: null, failed },
       });
     } catch {
       console.error(`[postgresDirect] result not committed for ${userId}`);
@@ -249,6 +248,6 @@ export async function disconnectDirectPostgres(userId: string): Promise<void> {
     .from("deep_findings")
     .update({ archived_at: new Date().toISOString() })
     .eq("user_id", userId)
-    .eq("source", "policy")
+    .eq("source", "postgres-direct")
     .is("archived_at", null);
 }

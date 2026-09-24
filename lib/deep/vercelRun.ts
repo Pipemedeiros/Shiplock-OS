@@ -44,6 +44,7 @@ export async function runVercelEnvAudit(
   const all: EnvFinding[] = [];
   const graphEnvVars: RuntimeEnvFact[] = [];
   let reachedAnyProject = false;
+  const unreadProjects: string[] = [];
 
   for (const project of projects) {
     let envs;
@@ -52,6 +53,7 @@ export async function runVercelEnvAudit(
     } catch {
       // Cancellation ends the pass; it is not one unreadable project.
       signal?.throwIfAborted();
+      unreadProjects.push(`vercel:${project.name}:`);
       continue; // a single unreadable project shouldn't fail the whole pass
     }
     reachedAnyProject = true;
@@ -92,6 +94,7 @@ export async function runVercelEnvAudit(
     transport: "vercel", identity: connectionEpoch,
     ...(reachedAnyProject ? { facts: { providersRead: ["vercel"], envVars: graphEnvVars } } : {}),
     findings: all, retire: false,
+    snapshot: { scope: teamId, failed: unreadProjects },
   });
   return { total: all.length, newCount: created.length, findings: all, newFindings: created as EnvFinding[] };
 }

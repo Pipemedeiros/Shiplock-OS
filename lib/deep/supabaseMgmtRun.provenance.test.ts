@@ -327,6 +327,7 @@ describe("Step 5A-1: a failed Supabase read never retires that family's findings
     await complete();
     await run();
     expect(sent().unread).toEqual([]);
+    expect(sent().snapshot).toEqual({ scope: project, failed: [] });
   });
 
   it("marks each failed read's finding family unread", async () => {
@@ -346,5 +347,6 @@ describe("Step 5A-1: a failed Supabase read never retires that family's findings
       "extensions:cron_", "extensions:network_callable_by_public_role",
       "grants:", "storage:no_pitr", "storage:unrestricted_uploads:",
     ]);
+    expect(sent().snapshot.failed).toEqual(sent().unread);
   });
 });

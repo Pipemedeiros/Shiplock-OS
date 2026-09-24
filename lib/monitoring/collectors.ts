@@ -6,7 +6,7 @@ import {
   isCriticalScopeFindingId,
   type Finding,
 } from "./findings";
-import type { CollectorContext, CollectorSpec, ProviderCommit } from "./registry";
+import { ProviderReadError, type CollectorContext, type CollectorSpec, type ProviderCommit } from "./registry";
 import type { SupabaseEndpointSnapshot } from "@/lib/graph/graphRun";
 import { currentConnectionEpoch } from "@/lib/deep/providerRepositoryMap";
 import { validateSupabaseUrl } from "@/lib/sanitize";
@@ -130,6 +130,7 @@ export const supabaseScanCollector: CollectorSpec = {
 export const supabaseManagementCollector: CollectorSpec = {
   id: "supabase-management",
   layer: "db",
+  transport: "supabase-management",
   eligibleTriggers: ["manual", "deploy", "scheduled_48h"],
   timeoutMs: 30_000,
   appliesTo: (ctx) => Boolean(
@@ -138,7 +139,7 @@ export const supabaseManagementCollector: CollectorSpec = {
   async run(ctx) {
     const { runPolicyScan } = await import("@/lib/deep/supabaseMgmtRun");
     const result = await runPolicyScan(ctx.profile.id, { signal: ctx.signal, commit: requireCommit(ctx) });
-    if (!result.ok) throw new Error(`Supabase Management collection failed: ${result.reason ?? "unknown"}`);
+    if (!result.ok) throw new ProviderReadError(result.reason ?? "failed");
     return { newFindings: result.newFindings as Finding[] | undefined };
   },
 };
@@ -163,6 +164,7 @@ export const supabaseManagementCollector: CollectorSpec = {
 export const appSurfaceCollector: CollectorSpec = {
   id: "app-surface",
   layer: "app-surface",
+  transport: "app-surface",
   eligibleTriggers: ["manual", "deploy", "scheduled_48h"],
   timeoutMs: 30_000,
   appliesTo: (ctx) => ctx.profile.monitoring_enabled !== false
@@ -198,6 +200,7 @@ export const appSurfaceCollector: CollectorSpec = {
 export const vercelEnvCollector: CollectorSpec = {
   id: "vercel-env",
   layer: "runtime",
+  transport: "vercel",
   // Not hourly. Environment variables change when someone deploys or edits
   // them, not minute to minute, and the hourly pass is the one with a budget.
   eligibleTriggers: ["manual", "deploy", "scheduled_48h"],
@@ -222,6 +225,7 @@ export const vercelEnvCollector: CollectorSpec = {
 export const directPostgresCollector: CollectorSpec = {
   id: "postgres-direct",
   layer: "db",
+  transport: "postgres-direct",
   eligibleTriggers: ["manual", "deploy", "scheduled_48h"],
   // A TCP connect plus four catalogue queries, against a database that may be
   // cold-starting on a serverless plan.
@@ -233,7 +237,7 @@ export const directPostgresCollector: CollectorSpec = {
     // must not also enter the snapshot and be diffed a second time.
     const { runDirectPostgresScan } = await import("@/lib/deep/postgresDirectRun");
     const result = await runDirectPostgresScan(ctx.profile.id, { signal: ctx.signal, commit: requireCommit(ctx) });
-    if (!result.ok) throw new Error(`Direct Postgres collection failed: ${result.reason ?? "unknown"}`);
+    if (!result.ok) throw new ProviderReadError(result.reason ?? "failed");
     return { newFindings: result.newFindings as Finding[] | undefined };
   },
 };
