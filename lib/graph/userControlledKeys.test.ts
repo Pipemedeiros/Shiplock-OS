@@ -32,4 +32,9 @@ describe("findUserControlledDeletes", () => {
     expect(one(`await s3.send(new PutObjectCommand({ Key: parsedInput.key }));`)).toEqual([]);
     expect(one(`const r = rm(parsedInput.x);`)).toEqual([]);
   });
+
+  it("a caller's own directory does not contain a raw name that can climb out with ../", () => {
+    expect(one(`await fs.promises.unlink(path.join(UPLOAD_DIR, session.user.id, parsedInput.name));`)).toHaveLength(1);
+    expect(one(`await fs.promises.unlink(path.join(UPLOAD_DIR, session.user.id, path.basename(parsedInput.name)));`)).toEqual([]);
+  });
 });

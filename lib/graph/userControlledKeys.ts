@@ -59,13 +59,14 @@ export function findUserControlledDeletes(body: string, entry: string): UserCont
   const ownerScoped = new Set<string>(); // variables holding owner-filtered results
   const ownerChecks = new Map<string, string[]>(); // variable -> roots an owner-filtered check named
   const allowSets = new Set<string>();
+  const identityDerived = new Set<string>(); // untainted values built from the caller's id
   const buckets = new Set<string>();
   const out: UserControlledDelete[] = [];
 
   const isIdentity = (e: ts.Node): boolean => IDENTITY_TEXT.test(text(e)) || (ts.isIdentifier(e) && identities.has(e.text));
   const mentionsIdentity = (e: ts.Node): boolean => {
     let found = false;
-    const visit = (n: ts.Node) => { if (found) return; if (isIdentity(n)) { found = true; return; } ts.forEachChild(n, visit); };
+    const visit = (n: ts.Node) => { if (found) return; if (isIdentity(n) || (ts.isIdentifier(n) && identityDerived.has(n.text))) { found = true; return; } ts.forEachChild(n, visit); };
     visit(e);
     return found;
   };
@@ -161,15 +162,17 @@ export function findUserControlledDeletes(body: string, entry: string): UserCont
       }
       return null;
     }
-    if (call.arguments.some((a) => mentionsIdentity(a))) return null;
     const receiverTaint = receiver ? taintOf(receiver) : null;
     const argTaint = call.arguments.map((a) => taintOf(a)).find((t) => t !== null) ?? null;
     if (PASS_THROUGH.has(name)) {
       const t = receiverTaint ?? argTaint;
       if (!t) return null;
+      // A path joined under the caller's own directory is theirs only if `../` was stripped.
+      if (call.arguments.some((a) => mentionsIdentity(a)) && (name !== "join" && name !== "resolve" || t.basename)) return null;
       if ((name === "get" || name === "getAll") && !t.source.includes(".")) return { ...t, source: `${t.source}.get` };
       return { ...t, basename: name === "basename" ? true : t.basename, joined: t.joined || name === "join" || name === "resolve" };
     }
+    if (call.arguments.some((a) => mentionsIdentity(a))) return null;
     if (callee === "JSON.parse") return argTaint;
     return null;
   }
@@ -178,7 +181,7 @@ export function findUserControlledDeletes(body: string, entry: string): UserCont
     if (ts.isIdentifier(name)) {
       if (!t) { taint.delete(name.text); return; }
       // A row gets its own root, so a check on this row clears only this row.
-      taint.set(name.text, t.row ? { ...t, root: name.text } : t);
+      taint.set(name.text, t.row || t.joined ? { ...t, root: name.text } : t);
       return;
     }
     if (ts.isObjectBindingPattern(name)) {
@@ -207,7 +210,8 @@ export function findUserControlledDeletes(body: string, entry: string): UserCont
       const eq = k === ts.SyntaxKind.EqualsEqualsEqualsToken || k === ts.SyntaxKind.EqualsEqualsToken;
       const ne = k === ts.SyntaxKind.ExclamationEqualsEqualsToken || k === ts.SyntaxKind.ExclamationEqualsToken;
       if (eq || ne) {
-        const side = isIdentity(c.right) ? taintOf(c.left) : isIdentity(c.left) ? taintOf(c.right) : null;
+        const trusted = (e: ts.Expression) => isIdentity(e) || (mentionsIdentity(e) && !taintOf(e));
+        const side = trusted(c.right) ? taintOf(c.left) : trusted(c.left) ? taintOf(c.right) : null;
         if (!side) return [];
         const owned = eq === whenTrue;
         return [{ root: side.root, kind: owned ? "owned" : "notOwned" }];
@@ -219,7 +223,8 @@ export function findUserControlledDeletes(body: string, entry: string): UserCont
       const receiver = ts.isPropertyAccessExpression(c.expression) ? unwrap(c.expression.expression) : null;
       let root: string | null = null, kind: "owned" | "prefix" = "owned";
       if ((name === "startsWith" || name === "includes") && receiver && c.arguments.some((a) => mentionsIdentity(a))) {
-        root = taintOf(receiver)?.root ?? null; kind = name === "startsWith" ? "prefix" : "owned";
+        const checked = taintOf(receiver);
+        root = checked?.root ?? null; kind = name === "startsWith" && !checked?.joined ? "prefix" : "owned";
       } else if ((name === "includes" || name === "has") && receiver) {
         const isAllow = (ts.isArrayLiteralExpression(receiver) && receiver.elements.every((el) => ts.isStringLiteral(el)))
           || (ts.isIdentifier(receiver) && (allowSets.has(receiver.text) || ownerScoped.has(receiver.text)));
@@ -276,6 +281,7 @@ export function findUserControlledDeletes(body: string, entry: string): UserCont
       if (init && ts.isIdentifier(node.name)) {
         const u = unwrap(init);
         if (isIdentity(u)) identities.add(node.name.text);
+        else if (mentionsIdentity(u) && !taintOf(u)) identityDerived.add(node.name.text);
         if (ts.isNewExpression(u) && text(u.expression) === "Set" && u.arguments?.[0] && ts.isArrayLiteralExpression(u.arguments[0])
           && u.arguments[0].elements.every((el) => ts.isStringLiteral(el))) allowSets.add(node.name.text);
         if (/\.storage\.from\(/.test(text(u)) && !/\.remove\(/.test(text(u))) buckets.add(node.name.text);
@@ -303,6 +309,14 @@ export function findUserControlledDeletes(body: string, entry: string): UserCont
       const t = taintOf(node.expression);
       if (ts.isVariableDeclarationList(node.initializer)) for (const d of node.initializer.declarations) bind(d.name, t);
       walk(node.statement);
+      return;
+    }
+    if (ts.isTryStatement(node)) {
+      const saved = new Map(cleared);
+      walk(node.tryBlock);
+      if (node.catchClause && !exits(node.catchClause.block)) { cleared.clear(); for (const [k, v] of saved) cleared.set(k, v); }
+      if (node.catchClause) walk(node.catchClause.block);
+      if (node.finallyBlock) walk(node.finallyBlock);
       return;
     }
     if (ts.isIfStatement(node)) {
@@ -334,6 +348,15 @@ export function findUserControlledDeletes(body: string, entry: string): UserCont
       return;
     }
     if (ts.isNewExpression(node)) { ts.forEachChild(node, walk); checkSink(node); return; }
+    if ((ts.isArrowFunction(node) || ts.isFunctionExpression(node) || ts.isFunctionDeclaration(node))) {
+      for (const p of node.parameters) {
+        if (!ts.isObjectBindingPattern(p.name)) continue;
+        for (const el of p.name.elements) {
+          const key = el.propertyName ? el.propertyName.getText() : ts.isIdentifier(el.name) ? el.name.text : "";
+          if (INPUT_ROOTS.has(key) && !(ts.isIdentifier(el.name) && el.name.text === key)) bind(el.name, make(key, key));
+        }
+      }
+    }
     if (ts.isFunctionDeclaration(node) && ts.isSourceFile(node.parent)) {
       // Only exported functions are callable entries (server actions); a
       // private helper's parameters are whatever its callers pass.
