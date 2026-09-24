@@ -28,6 +28,7 @@ export interface DashboardFinding {
   fixKind: FixKind;
   claims: Claim[];
   repository: string | null;
+  repositoryId: string | null;
   detectedAt: string;
   fixPrUrl: string | null;
   fixPrNumber: number | null;
@@ -101,6 +102,7 @@ export async function getOpenFindings(userId: string): Promise<DashboardFinding[
         fixKind: (row.fix_kind as FixKind) ?? "manual",
         claims: Array.isArray(row.claims) ? (row.claims as Claim[]) : [],
         repository: repo?.full_name ?? null,
+        repositoryId: (row.repository_id as string) ?? null,
         detectedAt: String(row.detected_at),
         fixPrUrl: (row.fix_pr_url as string) ?? null,
         fixPrNumber: (row.fix_pr_number as number) ?? null,

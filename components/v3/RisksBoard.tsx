@@ -9,6 +9,8 @@ import type { Confidence, FixKind } from "@/lib/agent/findings";
 import type { DashboardFinding } from "@/lib/agent/dashboardData";
 import { Chain, Claims, Conf, Sev } from "./FindingParts";
 import { repairMessage, waitForRepair } from "@/lib/repairReceiptClient";
+import type { ProofOffer } from "@/lib/proving/proofStatus";
+import { ProofPanel } from "./ProofButton";
 
 /**
  * The list and the inspector, side by side.
@@ -25,7 +27,7 @@ const FIX_NOTE: Record<FixKind, string> = {
   manual: "This is a decision about your architecture, not a mechanical change. The call is yours.",
 };
 
-export function RisksBoard({ findings }: { findings: DashboardFinding[] }) {
+export function RisksBoard({ findings, proofs = {} }: { findings: DashboardFinding[]; proofs?: Record<string, ProofOffer> }) {
   const [severity, setSeverity] = useState<Severity | "all">("all");
   const [confidence, setConfidence] = useState<Confidence | "all">("all");
   const [selectedId, setSelectedId] = useState<string>(findings[0]?.rowId ?? "");
@@ -100,14 +102,14 @@ export function RisksBoard({ findings }: { findings: DashboardFinding[] }) {
             ))}
           </div>
 
-          {selected ? <Inspector finding={selected} /> : null}
+          {selected ? <Inspector finding={selected} proof={proofs[selected.rowId] ?? null} /> : null}
         </div>
       )}
     </>
   );
 }
 
-function Inspector({ finding }: { finding: DashboardFinding }) {
+function Inspector({ finding, proof }: { finding: DashboardFinding; proof: ProofOffer | null }) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("why");
   const [busy, setBusy] = useState(false);
@@ -137,6 +139,11 @@ function Inspector({ finding }: { finding: DashboardFinding }) {
 
       <div className="v3-card-p">
         {tab === "why" ? <Claims claims={finding.claims} /> : null}
+        {tab === "why" && proof ? (
+          <div style={{ marginTop: 16 }}>
+            <ProofPanel key={finding.rowId} repositoryId={proof.repositoryId} findingId={proof.findingId} table={proof.table} view={proof.view} />
+          </div>
+        ) : null}
 
         {tab === "fix" ? (
           <div className="v3-stack" style={{ gap: 16 }}>

@@ -1,10 +1,12 @@
 import { requireDashboardSession } from "@/lib/dashboard";
 import { getOpenFindings } from "@/lib/agent/dashboardData";
 import { RisksBoard } from "@/components/v3/RisksBoard";
+import { getProofViews, proofOffers, provingEnabled } from "@/lib/proving/proofStatus";
 
 export default async function Risks() {
   const { userId } = await requireDashboardSession();
-  const findings = await getOpenFindings(userId);
+  const [findings, enabled, views] = await Promise.all([getOpenFindings(userId), provingEnabled(userId), getProofViews(userId)]);
+  const proofs = proofOffers(findings, enabled, views);
 
   return (
     <>
@@ -14,7 +16,7 @@ export default async function Risks() {
           <h1 className="v3-serif">Every way in, and the check that is missing.</h1>
         </div>
       </div>
-      <RisksBoard findings={findings} />
+      <RisksBoard findings={findings} proofs={proofs} />
     </>
   );
 }

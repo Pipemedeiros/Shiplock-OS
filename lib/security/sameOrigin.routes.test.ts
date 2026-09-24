@@ -24,6 +24,7 @@ const routes: [string, () => Promise<{ POST: (request: Request) => Promise<Respo
   ["stack/detect", () => import("@/app/api/stack/detect/route")],
   ["traffic/sites", () => import("@/app/api/traffic/sites/route")],
   ["proving/authorize", () => import("@/app/api/proving/authorize/route")],
+  ["proving/run", () => import("@/app/api/proving/run/route")],
   ["fix/rate-limit", () => import("@/app/api/fix/rate-limit/route")],
   ["fix/preview", () => import("@/app/api/fix/preview/route")],
 ];

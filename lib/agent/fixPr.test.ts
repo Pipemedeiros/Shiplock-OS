@@ -18,7 +18,7 @@ const finding: DashboardFinding = {
     { claim: "The route resolves a user but never a workspace.", origin: "routes", verified: true },
     { claim: "This looks exploitable.", origin: "agent", verified: false },
   ],
-  repository: "acme/app",
+  repository: "acme/app", repositoryId: null,
   detectedAt: "2026-08-28T00:00:00Z",
   fixPrUrl: null,
   fixPrNumber: null,
