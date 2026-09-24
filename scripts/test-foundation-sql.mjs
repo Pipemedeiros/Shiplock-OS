@@ -1126,6 +1126,45 @@ try {
     // An expired authorization no longer counts toward the outstanding limit.
     await authorize(u1,r1,"rls:orders","public.t7","p-7");
   });
+  // Q6 / 6A-2: a proof job consumes its authorization and records one run.
+  await db.exec("reset role");
+  await db.exec(await readFile(new URL("../supabase/migrations/091_proof_jobs.sql", import.meta.url), "utf8"));
+  await db.exec("set role service_role");
+  const proofAuth = async (key, table="public.orders") => (await authorize(u1,r1,"policy:public.orders:read",table,key)).rows[0].id;
+  const proofClaim = async (jobId) => {
+    await db.exec("reset role");
+    const token=(await db.query("update public.execution_jobs set status='running',lease_token=gen_random_uuid(),lease_until=now()+interval '5 minutes',attempts=1 where id=$1 returning lease_token",[jobId])).rows[0].lease_token;
+    await db.exec("set role service_role");
+    return token;
+  };
+  await check("a proof job consumes its authorization once, atomically", async () => {
+    await db.exec("reset role");
+    await db.query("update public.proof_authorizations set status='revoked' where user_id=$1 and status='issued'",[u1]);
+    await db.exec("set role service_role");
+    const auth=await proofAuth("q6-1");
+    const job=(await db.query("select public.enqueue_proof_job($1,$2) as id",[u1,auth])).rows[0].id;
+    const row=(await db.query("select kind, repository_id, deduplication_key from public.execution_jobs where id=$1",[job])).rows[0];
+    assert.deepEqual(row,{kind:"proof",repository_id:r1,deduplication_key:`proof:${auth}`});
+    assert.equal((await db.query("select status from public.proof_authorizations where id=$1",[auth])).rows[0].status,"consumed");
+    await assert.rejects(db.query("select public.enqueue_proof_job($1,$2)",[u1,auth]));
+    await assert.rejects(db.query("select public.enqueue_proof_job($1,$2)",[u2,await proofAuth("q6-2")]));
+    // A refused enqueue leaves the other account's authorization unconsumed.
+    assert.equal((await db.query("select count(*)::int n from public.proof_authorizations where idempotency_key='q6-2' and status='issued'")).rows[0].n,1);
+  });
+  await check("a proof run is recorded once, only under the live proof lease", async () => {
+    const auth=await proofAuth("q6-3");
+    const job=(await db.query("select public.enqueue_proof_job($1,$2) as id",[u1,auth])).rows[0].id;
+    const token=await proofClaim(job);
+    const record=(t,outcome,reason,n)=>db.query("select public.record_proof_run($1,$2,$3,$4,$5,$6)",[u1,job,t,outcome,reason,n]);
+    await assert.rejects(record(u2,"ran",null,4));
+    await assert.rejects(record(token,"proven",null,4));
+    await assert.rejects(record(token,"could_not_test",null,0));
+    await assert.rejects(record(token,"ran",null,201));
+    await record(token,"reproduced",null,7);
+    await assert.rejects(record(token,"ran",null,4));
+    const run=(await db.query("select authorization_id, finding_id, table_name, outcome, statements_run from public.proof_runs where job_id=$1",[job])).rows;
+    assert.deepEqual(run,[{authorization_id:auth,finding_id:"policy:public.orders:read",table_name:"public.orders",outcome:"reproduced",statements_run:7}]);
+  });
   await check("client roles cannot commit provider results or read snapshots", async () => {
     await db.exec("reset role; set role authenticated");
     await assert.rejects(db.query("select public.persist_provider_monitor_result($1,$1,$1,'postgres-direct','x',null,'[]'::jsonb,false,'[]'::jsonb,'{}'::jsonb)",[legacy]));
@@ -1137,6 +1176,9 @@ try {
     await assert.rejects(db.query("select public.authorize_proof($1,$2,'rls:x','public.x','k')",[u1,r1]));
     await assert.rejects(db.query("select public.consume_proof_authorization($1,$1)",[u1]));
     await assert.rejects(db.query("select public.revoke_proof_authorization($1,$1)",[u1]));
+    await assert.rejects(db.query("select * from public.proof_runs"));
+    await assert.rejects(db.query("select public.enqueue_proof_job($1,$1)",[u1]));
+    await assert.rejects(db.query("select public.record_proof_run($1,$1,$1,'ran',null,1)",[u1]));
     await db.exec("reset role");
   });
   console.log(`${checks} SQL checks passed. Single-connection PostgreSQL WASM; multi-session contention and hosted Supabase remain unverified.`);
