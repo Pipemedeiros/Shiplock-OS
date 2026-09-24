@@ -318,9 +318,13 @@ the proving ground and native-agent distribution are not launch-proven.
   checks class and observed citations, `findings.ts` computes confidence and
   severity ceilings, and `lib/proving/` alone may earn `proven`. A model skip or
   malformed response is shown in Coverage and cannot resolve an old finding.
-  This path currently uses ShipLock's `ANTHROPIC_API_KEY` directly; `lib/env.ts`
-  requires that key at startup. Neither one-time first-scan funding nor a
-  customer-funded intelligence adapter is implemented.
+  ShipLock's own key funds this path only when `lib/agent/firstScanCredit.ts`
+  claims the account's single first-scan credit for the run's live audit lease;
+  every later run skips reasoning and says so. Any other ShipLock-funded model
+  call must pass `lib/funding.ts` (off unless its flag is exactly `"true"`).
+  Customer-funded AI runs through `lib/intelligence/` (an encrypted customer API
+  key, or approved tasks an MCP host picks up) and never falls back to
+  ShipLock's key; `lib/security/modelFunding.test.ts` pins every model client.
 - `lib/monitoring/{registry,collectors,run,findings,diff}.ts` collects provider
   evidence through registered adapters. `lib/graph/{repositorySource,
   databaseSource,repositoryDatabase,graphRun,attackPaths}.ts` admits scoped
@@ -343,17 +347,20 @@ the proving ground and native-agent distribution are not launch-proven.
   scan/PR endpoints return 403 until they share durable admission and a
   separate approval receipt. Distribution and agent-intelligence callbacks
   remain unverified; do not describe native-agent parity as shipped.
-- No agent-intelligence connector currently returns bounded code-navigation
-  evidence to the graph. Existing MCP tools expose ShipLock facts/actions to an
-  agent; they do not make the customer's agent ShipLock's autonomous worker.
-  There is no customer-key funding separation, ChatGPT result callback, or
-  proven recurring customer-funded AI path. `app/api/audit/route.ts` enqueues
-  through the existing access gate; it does not enforce the new once-per-account
-  first-scan entitlement or free/paid feature matrix.
-- `supabase/migrations/` is the schema/RLS source. Production has every
-  migration through 085 (released 2026-09-23 with its code; each stored
-  statement is md5-verified against its file). Any newer file is local until
-  released the same way. `docs/CORPUS.json`, `scripts/corpus.cjs`, and dated evaluation JSON
+- Customer intelligence is a standing approval per host
+  (`intelligence_connections`) that ShipLock turns into durable, bounded tasks;
+  an MCP host or the API-key worker answers them, and the server verifies each
+  answer against GitHub before it reaches the dashboard. ShipLock cannot start
+  a dormant agent, so tasks wait visibly as pending. No ChatGPT host exists, and
+  no host has been proven end to end with a real customer; do not describe
+  native-agent parity or recurring customer-funded AI as shipped. Manual
+  clicks have daily caps whose numbers are provisional; the free/paid feature
+  matrix is not implemented.
+- `supabase/migrations/` is the schema/RLS source. Which migrations
+  production has, and the next free number, live in the ledger's production
+  snapshot, never here. A migration is released only with Felipe's approval,
+  together with the code that needs it, and its stored statement is
+  md5-verified against the file. `docs/CORPUS.json`, `scripts/corpus.cjs`, and dated evaluation JSON
   are reproducibility data, not current accuracy marketing claims.
 
 ### Security and quality invariants
@@ -377,12 +384,38 @@ model runs without Felipe's approval.
 
 New migrations and working packages still require deployment-grade
 verification (hosted grants, advisors, smoke) before production use; the
-local PGlite suite does not prove hosted behavior. Remaining master work includes connection
-epochs and traffic binding, a production always-on worker plus migration of all
-remaining producers, provider evidence contracts, safe proof execution,
-detection quality, the approval/repair loop, continuous monitoring, native-agent
-polish, traffic recommendations, and measured scale/economics. Exact status
-lives only in `docs/MASTER-PLAN-PROGRESS.md`.
+local PGlite suite does not prove hosted behavior. What remains, in order,
+and its exact status live only in `docs/MASTER-PLAN-PROGRESS.md`.
+
+## Interface and copy
+
+- The founder is the first reader: every finding states consequence, evidence,
+  and the next safe action in plain words; the evidence stays one click away
+  for an engineer to challenge.
+- Unread, partial, pending, and model-skipped are shown as such, never as
+  quiet, clean, or passing. Never say an account or app is secure.
+- Customer-facing copy uses a calm security-engineer voice, respects the
+  reader's intelligence, and has no dashes or AI filler.
+- Build on the live UI in `app/(d)/` and its shared components with real
+  tenant data; no mock or prototype screens.
+- Onboarding, as built: sign in; install the GitHub App; select a repository;
+  run the one funded first audit; connect your own AI (offered to every
+  account, free included); then optional provider connections and traffic.
+  Each step says what it unlocks and works without the later ones.
+
+## Agent roles
+
+- Felipe decides product, pricing, spend, releases, and approvals.
+- Claude orchestrates: writes and orders the work queue in the ledger, reviews
+  every Codex commit, and releases (remote migrations, push, deploy checks)
+  only with Felipe's approval. Claude is the only agent that edits this file,
+  and only with Felipe's approval.
+- Codex implements queue items. In the ledger it only ticks its own item's
+  checkbox when acceptance is fully met and appends reports; it never edits
+  this file, rewrites or reorders the plan, pushes, deploys, applies remote
+  migrations, publishes packages, changes provider settings, or makes paid
+  calls. When a decision is Felipe's, it stops and reports `BLOCKED`.
+- Both agents leave the working tree clean after every commit.
 
 ## Felipe's working agreement
 
@@ -460,8 +493,10 @@ At takeover, reconcile that record with Git status/diff before editing. Claude
 and Codex work sequentially against the same record; do not overwrite the
 previous agent's unfinished work or infer completion from its last message.
 
-`AGENTS.md` is stable policy and code orientation; the master ledger is dynamic
-status and the exact next package. These are the only two non-skill Markdown
+`AGENTS.md` is the stable product spec, architecture, design rules, workflow,
+and code orientation; the master ledger is dynamic status and the exact next
+package. Keep status out of this file: migration numbers, commit hashes,
+release dates, queue items, and parked decisions belong in the ledger. These are the only two non-skill Markdown
 files in the repo. Change this file only under Felipe's authority described above;
 write all ordinary implementation progress to the master ledger. Date every
 master-ledger update; identify the exact section/step/item finished,
