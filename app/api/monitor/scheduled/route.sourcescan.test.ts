@@ -28,6 +28,8 @@ vi.mock("@/lib/jobs/queue", () => ({ enqueueJob: enqueueJobMock }));
 vi.mock("@/lib/traffic/prune", () => ({ pruneOldTraffic: pruneOldTrafficMock }));
 vi.mock("@/lib/intelligence/retention", () => ({ purgeIntelligenceTasks: purgeIntelligenceMock }));
 vi.mock("@/lib/monitoring/snapshotRetention", () => ({ pruneProviderSnapshots: pruneSnapshotsMock }));
+const freshnessMock = vi.fn();
+vi.mock("@/lib/monitoring/freshness", () => ({ admitFreshnessRechecks: freshnessMock }));
 vi.mock("@/lib/graph/graphRun", () => ({
   runGraphReasoner: runGraphReasonerMock,
   saveFacts: saveFactsMock,
@@ -86,6 +88,7 @@ describe("GET /api/monitor/scheduled — durable source admission", () => {
     pruneOldTrafficMock.mockResolvedValue({ ok: true });
     purgeIntelligenceMock.mockResolvedValue({ ok: true, purged: 2 });
     pruneSnapshotsMock.mockResolvedValue({ ok: true, pruned: 5 });
+    freshnessMock.mockResolvedValue({ admitted: 3, failed: 0 });
     enqueueJobMock.mockResolvedValue("11111111-1111-4111-8111-111111111111");
   });
 
@@ -150,6 +153,6 @@ describe("GET /api/monitor/scheduled — durable source admission", () => {
     const body = await (await GET(request())).json();
     expect(purgeIntelligenceMock).toHaveBeenCalledOnce();
     expect(pruneSnapshotsMock).toHaveBeenCalledOnce();
-    expect(body).toMatchObject({ intelligencePurged: 2, providerSnapshotsPruned: 5 });
+    expect(body).toMatchObject({ intelligencePurged: 2, providerSnapshotsPruned: 5, freshnessAdmitted: 3, freshnessFailed: 0 });
   });
 });

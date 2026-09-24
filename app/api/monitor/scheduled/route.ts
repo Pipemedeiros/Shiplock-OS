@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { pruneOldTraffic } from "@/lib/traffic/prune";
 import { pruneProviderSnapshots } from "@/lib/monitoring/snapshotRetention";
+import { admitFreshnessRechecks } from "@/lib/monitoring/freshness";
 import { purgeIntelligenceTasks } from "@/lib/intelligence/retention";
 import { saveFacts } from "@/lib/graph/graphRun";
 import { collectTrafficFacts } from "@/lib/traffic/graphFacts";
@@ -66,6 +67,8 @@ export async function GET(req: NextRequest) {
   const intelligence = await purgeIntelligenceTasks();
   // And provider evidence snapshots (5A-2).
   const snapshots = await pruneProviderSnapshots();
+  // Stale, failed or partial provider evidence gets one extra pass a day (Q11).
+  const freshness = await admitFreshnessRechecks();
 
   // Traffic observations run before graph admission. Dependency rechecks were
   // admitted above as separate leased jobs. The graph itself is also leased: a
@@ -153,6 +156,8 @@ export async function GET(req: NextRequest) {
     pruned: pruned.ok,
     intelligencePurged: intelligence.purged,
     providerSnapshotsPruned: snapshots.pruned,
+    freshnessAdmitted: freshness.admitted,
+    freshnessFailed: freshness.failed,
     monitorJobsAdmitted: monitoringAdmission.admitted,
     monitorAdmissionsFailed: monitoringAdmission.failed,
     monitorAdmissionLimited: monitoringAdmission.limited,
