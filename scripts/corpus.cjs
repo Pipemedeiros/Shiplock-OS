@@ -102,12 +102,75 @@ function loadProductModules() {
   };
 }
 
-async function evaluate() {
-  // Block SDK transports too, not merely fetch. Offline tests must remain free
-  // even if a future imported helper unexpectedly attempts a model request.
+// The deterministic stage shared by evaluate and holdout: routes, reasoning
+// order and the candidates ShipLock would ask a model about. No model call.
+async function analyzePin(product, pin) {
+  global.fetch = async (url) => {
+    if (url !== endpoint(pin)) throw new Error(`Network forbidden during evaluation: ${url}`);
+    return new Response(Readable.toWeb(fs.createReadStream(archivePath(pin))));
+  };
+  const archive = await product.fetchRepoArchive("offline-placeholder", pin.repository, pin.commit);
+  const routes = product.collectRoutes(archive.files);
+  const stack = product.detectStack(archive.files);
+  const tables = [...new Set([...product.extractTables(archive.files), ...routes.flatMap((route) => route.tables)])].sort();
+  const domain = product.inferDomain(tables, routes, product.extractColumns(archive.files));
+  const files = new Map(archive.files.map((file) => [file.path, file]));
+  const notes = product.crossTenantNotes(routes, files);
+  const noted = new Set(notes.map((note) => note.path));
+  const reasoned = routes.filter((route) => !noted.has(route.path));
+  const prompted = product.rankRoutes(reasoned.filter((route) => route.tables.length > 0), new Set(domain.sensitive))
+    .slice(0, product.MAX_PROMPT_ROUTES);
+  const candidates = prompted.filter((route) => route.identityReadable && route.ownershipReadable &&
+    route.dataReadable && route.machineGateReadable && route.serviceRoleReadable &&
+    ((!route.authenticated && !route.machineGated) || !route.ownershipFiltered));
+  return { archive, routes, stack, tables, domain, files, notes, reasoned, prompted, candidates };
+}
+
+function blockNetwork() {
   for (const protocol of [require("node:http"), require("node:https")]) {
     protocol.request = protocol.get = () => { throw new Error("Network forbidden during evaluation"); };
   }
+}
+
+// Step 7B: the deterministic candidate stage against independent held-out
+// labels (docs/evaluation/labels-*-holdout-*.json), keyed by route file.
+async function holdout(labelsFile) {
+  blockNetwork();
+  const labelDoc = JSON.parse(fs.readFileSync(path.resolve(root, labelsFile), "utf8"));
+  const pin = manifest.repositories.find((candidate) => candidate.repository === labelDoc.labels[0].repository);
+  if (!pin) throw new Error("Labels name a repository that is not pinned in docs/CORPUS.json");
+  if (await fileHash(archivePath(pin)) !== pin.archiveSha256 || pin.archiveSha256 !== labelDoc.archive.sha256) {
+    throw new Error(`${pin.id}: archive checksum does not match the labels' archive`);
+  }
+  const product = loadProductModules();
+  const { routes, prompted, candidates } = await analyzePin(product, pin);
+  // Route files are repository-relative, the same form the labels use.
+  const byFile = (set) => new Set(set.map((route) => route.file));
+  const observed = byFile(routes), promptedFiles = byFile(prompted), candidateFiles = byFile(candidates);
+  const rows = labelDoc.labels.map((label) => ({ route: label.route, verdict: label.verdict,
+    observed: observed.has(label.route), prompted: promptedFiles.has(label.route), candidate: candidateFiles.has(label.route) }));
+  const of = (verdict) => rows.filter((row) => row.verdict === verdict);
+  const rate = (hit, all) => all.length ? hit.length / all.length : null;
+  const positives = of("vulnerable"), negatives = of("benign");
+  const result = {
+    experiment: "held-out-candidate-stage", capturedAt: new Date().toISOString(),
+    head: execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim(),
+    labels: labelsFile, thresholds: "docs/evaluation/thresholds-corpus-a-holdout-2026-09.json",
+    repository: pin.repository, commit: pin.commit, modelCalls: 0, paidApiSpendUsd: 0,
+    routesInInventory: routes.length, promptedRoutes: prompted.length, candidateRoutes: candidates.length,
+    positives: positives.length, negatives: negatives.length, contested: of("contested").length,
+    candidateRecall: rate(positives.filter((row) => row.candidate), positives),
+    falseCandidateRate: rate(negatives.filter((row) => row.candidate), negatives),
+    unobserved: rows.filter((row) => !row.observed).map((row) => row.route),
+    rows,
+  };
+  console.log(JSON.stringify(result, null, 2));
+}
+
+async function evaluate() {
+  // Block SDK transports too, not merely fetch. Offline tests must remain free
+  // even if a future imported helper unexpectedly attempts a model request.
+  blockNetwork();
   // Verify EVERY pin before generating outputs. Missing/corrupt archives fail
   // loudly and never produce a smaller corpus that appears more accurate.
   for (const pin of manifest.repositories) {
@@ -120,26 +183,9 @@ async function evaluate() {
   const write = (name, value) => fsp.writeFile(path.join(output, name), JSON.stringify(value, null, 2) + "\n", { flag: "wx" });
   const records = [];
   for (const pin of manifest.repositories) {
-    // The production loader itself consumes the cached archive. All other
-    // fetches throw; the runner never invokes proposeAttacks or any SDK call.
-    global.fetch = async (url) => {
-      if (url !== endpoint(pin)) throw new Error(`Network forbidden during evaluation: ${url}`);
-      return new Response(Readable.toWeb(fs.createReadStream(archivePath(pin))));
-    };
-    const archive = await product.fetchRepoArchive("offline-placeholder", pin.repository, pin.commit);
-    const routes = product.collectRoutes(archive.files);
-    const stack = product.detectStack(archive.files);
-    const tables = [...new Set([...product.extractTables(archive.files), ...routes.flatMap((route) => route.tables)])].sort();
-    const domain = product.inferDomain(tables, routes, product.extractColumns(archive.files));
-    const files = new Map(archive.files.map((file) => [file.path, file]));
-    const notes = product.crossTenantNotes(routes, files);
-    const noted = new Set(notes.map((note) => note.path));
-    const reasoned = routes.filter((route) => !noted.has(route.path));
-    const prompted = product.rankRoutes(reasoned.filter((route) => route.tables.length > 0), new Set(domain.sensitive))
-      .slice(0, product.MAX_PROMPT_ROUTES);
-    const candidates = prompted.filter((route) => route.identityReadable && route.ownershipReadable &&
-      route.dataReadable && route.machineGateReadable && route.serviceRoleReadable &&
-      ((!route.authenticated && !route.machineGated) || !route.ownershipFiltered));
+    // The production loader itself consumes the cached archive (analyzePin);
+    // all other fetches throw; the runner never invokes proposeAttacks.
+    const { archive, routes, stack, tables, domain, files, notes, reasoned, prompted, candidates } = await analyzePin(product, pin);
     const gates = product.possessionGates(routes, files);
     const labels = manifest.labels.filter((label) => label.repository === pin.id);
     const proposals = labels.map((label) => ({
@@ -202,8 +248,10 @@ async function main() {
     }
   } else if (process.argv[2] === "evaluate") {
     await evaluate();
+  } else if (process.argv[2] === "holdout" && process.argv[3]) {
+    await holdout(process.argv[3]);
   } else {
-    throw new Error("Usage: node scripts/corpus.cjs acquire|evaluate");
+    throw new Error("Usage: node scripts/corpus.cjs acquire|evaluate|holdout <labels.json>");
   }
 }
 
