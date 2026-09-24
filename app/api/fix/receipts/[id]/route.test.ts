@@ -15,16 +15,21 @@ const get = (receiptId = id) => GET(new Request(`https://shiplock.dev/api/fix/re
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.pro.mockResolvedValue({ userId: "u1" });
-  mocks.read.mockResolvedValue({ data: { status: "opened", pr_url: "https://github.com/acme/app/pull/9", failure_code: null }, error: null });
+  mocks.read.mockResolvedValue({ data: { status: "opened", pr_url: "https://github.com/acme/app/pull/9", failure_code: null, merged_at: null }, error: null });
 });
 
 describe("GET /api/fix/receipts/[id] (3F-C2d-3)", () => {
   it("returns the caller's own receipt status, scoped by user", async () => {
     const res = await get();
-    expect(await res.json()).toEqual({ status: "opened", url: "https://github.com/acme/app/pull/9", failure: null });
+    expect(await res.json()).toEqual({ status: "opened", url: "https://github.com/acme/app/pull/9", failure: null, mergedAt: null });
     expect(res.headers.get("Cache-Control")).toBe("no-store");
     expect(mocks.filters).toHaveBeenCalledWith("user_id", "u1");
     expect(mocks.filters).toHaveBeenCalledWith("id", id);
+  });
+
+  it("says when the customer merged the pull request (Q1 / 8-R2)", async () => {
+    mocks.read.mockResolvedValue({ data: { status: "opened", pr_url: "https://github.com/acme/app/pull/9", failure_code: null, merged_at: "2026-09-23T12:00:00.000Z" }, error: null });
+    expect(await (await get()).json()).toMatchObject({ mergedAt: "2026-09-23T12:00:00.000Z" });
   });
 
   it("returns 404 for another tenant's or unknown receipt", async () => {

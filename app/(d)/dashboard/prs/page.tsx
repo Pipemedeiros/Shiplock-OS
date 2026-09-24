@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { GitPullRequest, ArrowUpRight } from "lucide-react";
 import { requireDashboardSession } from "@/lib/dashboard";
 import { getOpenFindings } from "@/lib/agent/dashboardData";
 import { getRecentPullRequestReviews, type PullRequestReviewView } from "@/lib/agent/pullRequestReviews";
@@ -7,6 +6,8 @@ import { Sev } from "@/components/v3/FindingParts";
 import { PullRequestFixButton } from "@/components/v3/PullRequestFixButton";
 import { aiCheckForPullRequest, getAiActivity, type AiActivity } from "@/lib/intelligence/activity";
 import { aiStateLabel } from "@/components/v3/AiChecks";
+import { OpenedPullRequests } from "@/components/v3/OpenedPullRequests";
+import { getOpenedPullRequests } from "@/lib/fixes/openedPullRequests";
 
 /**
  * The pull requests ShipLock opened, waiting on a human.
@@ -27,9 +28,9 @@ export const metadata = { title: "Pull requests" };
 
 export default async function PullRequests() {
   const { userId } = await requireDashboardSession();
-  const [findings, reviews, ai] = await Promise.all([getOpenFindings(userId), getRecentPullRequestReviews(userId), getAiActivity(userId)]);
+  const [findings, reviews, ai, opened] = await Promise.all([getOpenFindings(userId), getRecentPullRequestReviews(userId),
+    getAiActivity(userId), getOpenedPullRequests(userId)]);
 
-  const open = findings.filter((f) => f.fixPrUrl);
   const eligible = findings.filter((f) => !f.fixPrUrl && f.fixKind === "pr");
   const manual = findings.filter((f) => !f.fixPrUrl && f.fixKind !== "pr");
 
@@ -49,45 +50,8 @@ export default async function PullRequests() {
       <div className="v3-stack">
         <CheckedPullRequests reviews={reviews} ai={ai} />
 
-        <div className="v3-card">
-          <div className="v3-hd">
-            <h2 className="v3-eyebrow">Open</h2>
-            <span className="v3-small">{open.length} waiting for approval</span>
-          </div>
-          <div className="v3-card-p">
-            {open.length === 0 ? (
-              <p className="v3-small">
-                Nothing is waiting. When a finding has a mechanical fix, open its pull request from
-                Risks. We open one only after you click.
-              </p>
-            ) : (
-              <div className="v3-list">
-                {open.map((f) => (
-                  <a
-                    key={f.rowId}
-                    href={f.fixPrUrl as string}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="v3-pr-row"
-                  >
-                    <GitPullRequest size={16} className="v3-pr-icon" />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="v3-between">
-                        <b style={{ fontWeight: 500, fontSize: 14 }}>{f.title}</b>
-                        <Sev severity={f.severity} />
-                      </div>
-                      <p className="v3-small" style={{ marginTop: 3 }}>
-                        #{f.fixPrNumber ?? "?"} · {f.repository}
-                        {f.entry ? ` · ${f.entry}` : ""}
-                      </p>
-                    </div>
-                    <ArrowUpRight size={15} className="v3-pr-go" />
-                  </a>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+        {/* Every lane's clicked pull request, open or merged (Q1 / 8-R2). */}
+        <OpenedPullRequests opened={opened} />
 
         {eligible.length > 0 ? (
           <div className="v3-card">

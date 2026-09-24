@@ -4,6 +4,8 @@ export interface RepairView {
   status: "queued" | "opened" | "failed" | "uncertain";
   url: string | null;
   failure: string | null;
+  /** Set once the customer merged the pull request (084). */
+  mergedAt?: string | null;
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
