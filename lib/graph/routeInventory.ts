@@ -286,7 +286,7 @@ export function extractTables(src: string): string[] {
 //
 // Widening auth recognition can only cause us to MISS a finding, never to
 // invent one, which is the direction this file's header already commits to.
-const STRONG_USER_AUTH_RE =
+export const STRONG_USER_AUTH_RE =
   /\b(auth\.getUser\s*\(|auth\.getSession\s*\(|getUser\s*\(|getSession\s*\(|requireDashboardSession|getServerSession|currentUser\s*\(|verifyJwt|jwtVerify|await\s+auth\s*\(|clerkClient|verify[A-Za-z]*Session[A-Za-z]*\s*\()/i;
 
 /**
