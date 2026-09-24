@@ -11,6 +11,7 @@ vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ from: (table: stri
     traffic_alert_log: [{ source_id: "bad" }],
     traffic_blocklist: [],
     traffic_events: [{ path: "/api/orders" }, { path: "/api/orders" }],
+    traffic_route_observations: [{ path: "/auth/v1/token", suspicious_requests: 25 }, { path: "/api/orders", suspicious_requests: 1 }],
   };
   const q: Record<string, unknown> = {};
   for (const m of ["select", "gte", "limit", "in"]) q[m] = () => q;
@@ -35,8 +36,10 @@ beforeEach(() => { vi.clearAllMocks(); });
 describe("traffic reaches a repository only through its bound sites (2F)", () => {
   it("uses only events bound to this repository, never account-wide graph facts", async () => {
     const input = await loadGraphInput("u1", "r1");
-    expect(input.trafficHotPaths).toEqual([{ path: "/api/orders", suspiciousRequests: 2 }]);
+    // Snippet events and Supabase gateway observations for this repository, merged (2F-4).
+    expect(input.trafficHotPaths).toEqual([{ path: "/auth/v1/token", suspiciousRequests: 25 }, { path: "/api/orders", suspiciousRequests: 3 }]);
     expect(state.filters).toHaveBeenCalledWith("traffic_events", "repository_id", "r1");
+    expect(state.filters).toHaveBeenCalledWith("traffic_route_observations", "repository_id", "r1");
     expect(state.reads).not.toHaveBeenCalledWith("graph_facts");
   });
 

@@ -27,6 +27,11 @@ export function TrafficSitesView({ enabled, repositories, sites, created, busy, 
         ShipLock. If ShipLock is down, your app is unaffected. We use it to tell which of a repository&apos;s findings
         are being probed right now. Kept for 48 hours.
       </p>
+      <p style={note}>
+        If you connected Supabase and linked it to a repository, ShipLock also reads its API request log with nothing to
+        install, and stores only the paths suspicious clients hit, never their addresses. With neither the snippet nor a
+        connected Supabase project, ShipLock sees no traffic at all, and says so rather than reporting quiet.
+      </p>
       {!enabled ? (
         <p style={note}>Traffic observation is not enabled for this account yet.</p>
       ) : repositories.length === 0 ? (

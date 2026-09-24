@@ -318,6 +318,18 @@ export async function runPolicyScan(
       console.error("[supabaseMgmt] auth log scan failed:", err instanceof Error ? err.message : err);
     }
 
+    // 2F-4: no-install traffic from the Supabase API gateway log, judged per
+    // source and stored only for repositories confirmed for this project.
+    // Best-effort; an unreadable log leaves prior observations as they were.
+    signal?.throwIfAborted();
+    try {
+      const { collectSupabaseEdgeTraffic } = await import("@/lib/traffic/edgeCollect");
+      const edge = await collectSupabaseEdgeTraffic(userId, token.accessToken, projectRef, signal);
+      if (edge.status === "unread") console.error("[supabaseMgmt] gateway log unread; traffic observations unchanged");
+    } catch (err) {
+      console.error("[supabaseMgmt] gateway traffic collection failed:", err instanceof Error ? err.message : err);
+    }
+
     // Unit 5: work out the app URL instead of asking for it.
     //
     // The onboarding field for this was optional, so people skipped it, and

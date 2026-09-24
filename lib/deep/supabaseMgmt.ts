@@ -446,6 +446,50 @@ export async function fetchAuthAuditLog(
   }
 }
 
+// ── API gateway request log (2F-4) ─────────────────────────────────────────
+//
+// Supabase's documented Management API log query (Debugging projects:
+// GET /v1/projects/{ref}/analytics/endpoints/logs.all) over `edge_logs`, the
+// gateway in front of the REST, auth and storage APIs. Read-only. Only the
+// fields needed to judge a client are selected; the IP is hashed by the caller
+// on arrival and never stored. Field names were confirmed on ShipLock's own
+// project (request.path, request.method, response.status_code, client IP); a
+// customer project's response is validated row by row and an unrecognized
+// shape reads as "unread", never as quiet.
+const EDGE_LOG_HOURS = 6;
+
+export async function fetchEdgeRequestLog(
+  accessToken: string,
+  projectRef: string,
+  signal?: AbortSignal,
+): Promise<{ ok: boolean; rows: Record<string, unknown>[] }> {
+  const end = new Date();
+  const start = new Date(end.getTime() - EDGE_LOG_HOURS * 60 * 60 * 1000);
+  const sql = [
+    "select cast(timestamp as string) as ts, request.method as method, request.path as path,",
+    "response.status_code as status, headers.cf_connecting_ip as ip",
+    "from edge_logs cross join unnest(metadata) as metadata",
+    "cross join unnest(metadata.request) as request cross join unnest(metadata.response) as response",
+    "cross join unnest(request.headers) as headers",
+    "order by timestamp desc limit 5000",
+  ].join(" ");
+  const url =
+    `${API}/v1/projects/${encodeURIComponent(projectRef)}/analytics/endpoints/logs.all` +
+    `?iso_timestamp_start=${encodeURIComponent(start.toISOString())}` +
+    `&iso_timestamp_end=${encodeURIComponent(end.toISOString())}` +
+    `&sql=${encodeURIComponent(sql)}`;
+  try {
+    const res = await fetch(url, { headers: { authorization: `Bearer ${accessToken}` }, signal: requestSignal(signal, 15_000) });
+    if (!res.ok) return { ok: false, rows: [] };
+    const json = await res.json();
+    if (json && typeof json === "object" && "error" in json && json.error) return { ok: false, rows: [] };
+    const rows = Array.isArray(json) ? json : (json?.result ?? json?.data);
+    return Array.isArray(rows) ? { ok: true, rows: rows as Record<string, unknown>[] } : { ok: false, rows: [] };
+  } catch {
+    return { ok: false, rows: [] };
+  }
+}
+
 /** A5 — column grants held by the roles a browser can reach. */
 export async function fetchColumnGrants(
   accessToken: string,

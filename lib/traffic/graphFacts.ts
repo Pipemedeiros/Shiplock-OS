@@ -50,24 +50,40 @@ export async function collectTrafficFacts(userId: string, repositoryId?: string)
     const id = (row as { source_id?: unknown }).source_id;
     if (typeof id === "string") suspicious.add(id);
   }
-  if (suspicious.size === 0) return [];
-
-  // With a repository, count only events bound to it through a traffic site
-  // (2F-2a); without one, this is the account-scoped (legacy) view.
-  let eventsQuery = admin
-    .from("traffic_events")
-    .select("path")
-    .eq("user_id", userId);
-  if (repositoryId) eventsQuery = eventsQuery.eq("repository_id", repositoryId);
-  const { data: events } = await eventsQuery
-    .gte("created_at", since)
-    .in("source_id", [...suspicious])
-    .limit(MAX_EVENTS);
 
   const counts = new Map<string, number>();
-  for (const row of (events ?? []) as { path?: unknown }[]) {
-    if (typeof row.path !== "string") continue;
-    counts.set(row.path, (counts.get(row.path) ?? 0) + 1);
+  if (suspicious.size > 0) {
+    // With a repository, count only events bound to it through a traffic site
+    // (2F-2a); without one, this is the account-scoped (legacy) view.
+    let eventsQuery = admin
+      .from("traffic_events")
+      .select("path")
+      .eq("user_id", userId);
+    if (repositoryId) eventsQuery = eventsQuery.eq("repository_id", repositoryId);
+    const { data: events } = await eventsQuery
+      .gte("created_at", since)
+      .in("source_id", [...suspicious])
+      .limit(MAX_EVENTS);
+    for (const row of (events ?? []) as { path?: unknown }[]) {
+      if (typeof row.path !== "string") continue;
+      counts.set(row.path, (counts.get(row.path) ?? 0) + 1);
+    }
+  }
+
+  // Provider-log observations for this repository (2F-4: Supabase gateway),
+  // already judged per source upstream; merged with snippet counts per path.
+  if (repositoryId) {
+    const { data: observed } = await admin
+      .from("traffic_route_observations")
+      .select("path, suspicious_requests")
+      .eq("user_id", userId)
+      .eq("repository_id", repositoryId)
+      .gte("observed_at", since)
+      .limit(MAX_PATHS * 2);
+    for (const row of (observed ?? []) as { path?: unknown; suspicious_requests?: unknown }[]) {
+      if (typeof row.path !== "string" || typeof row.suspicious_requests !== "number") continue;
+      counts.set(row.path, (counts.get(row.path) ?? 0) + row.suspicious_requests);
+    }
   }
 
   return [...counts.entries()]

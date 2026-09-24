@@ -27,6 +27,11 @@ export async function pruneOldTraffic(): Promise<{ ok: boolean }> {
       .from("traffic_alert_log")
       .delete()
       .lt("alerted_at", new Date(now - ALERT_RETENTION_MS).toISOString());
+    // Provider-log observations (2F-4) share the 48h event horizon.
+    await admin
+      .from("traffic_route_observations")
+      .delete()
+      .lt("observed_at", new Date(now - EVENT_RETENTION_MS).toISOString());
     return { ok: true };
   } catch (err) {
     console.error("[traffic] prune failed:", err instanceof Error ? err.message : err);

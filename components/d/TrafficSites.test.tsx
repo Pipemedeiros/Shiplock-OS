@@ -13,6 +13,9 @@ describe("TrafficSites (2F-2b)", () => {
     expect(out).toContain("never goes through ShipLock");
     expect(out).toContain("If ShipLock is down, your app is unaffected");
     expect(out).toContain("acme/app");
+    // No-install path (2F-4) and the honest empty state.
+    expect(out).toContain("reads its API request log with nothing to install");
+    expect(out).toContain("ShipLock sees no traffic at all");
   });
 
   it("shows a new site's snippet once, and lists sites without tokens", () => {

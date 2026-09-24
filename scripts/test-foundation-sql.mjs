@@ -44,7 +44,7 @@ try {
   await db.exec(await readFile(new URL("../supabase/migrations/031_api_tokens.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/083_click_quotas.sql", import.meta.url), "utf8"));
   await db.exec(await readFile(new URL("../supabase/migrations/084_repair_merge.sql", import.meta.url), "utf8"));
-  for (const file of ["025_traffic_protection.sql", "026_session_traffic.sql", "027_traffic_alert_action.sql", "085_traffic_sites.sql"]) {
+  for (const file of ["025_traffic_protection.sql", "026_session_traffic.sql", "027_traffic_alert_action.sql", "085_traffic_sites.sql", "086_traffic_observations.sql"]) {
     await db.exec(await readFile(new URL(`../supabase/migrations/${file}`, import.meta.url), "utf8"));
   }
   await db.query("insert into auth.users values ($1),($2)", [u1,u2]);
@@ -954,8 +954,22 @@ try {
     await db.query("insert into public.traffic_events(user_id,source_id,path,method,site_id,repository_id) values ($1,'s','/x','GET',$2,$3)",[u1,b.site_id,r3]);
     await db.exec("set role service_role");
   });
+  // 2F-4: provider-log traffic observations, replaced per run, bounded, no IPs.
+  await check("traffic observations are replaced per repository and source, bounded, and refuse a foreign repository", async () => {
+    const replace=(user,repo,paths)=>db.query("select public.replace_traffic_observations($1,$2,'supabase',$3) as n",[user,repo,JSON.stringify(paths)]).then((x)=>x.rows[0].n);
+    assert.equal(await replace(u1,r1,[{path:"/auth/v1/token",suspiciousRequests:25},{path:"/rest/v1/orders",suspiciousRequests:3}]),2);
+    assert.equal(await replace(u1,r1,[{path:"/rest/v1/orders",suspiciousRequests:7}]),1);
+    await db.exec("reset role");
+    assert.deepEqual((await db.query("select path,suspicious_requests from public.traffic_route_observations where user_id=$1 and repository_id=$2",[u1,r1])).rows,[{path:"/rest/v1/orders",suspicious_requests:7}]);
+    await db.exec("set role service_role");
+    await assert.rejects(replace(u1,r2,[{path:"/x",suspiciousRequests:1}]));
+    await assert.rejects(replace(u1,r1,Array.from({length:21},(_,i)=>({path:`/p${i}`,suspiciousRequests:1}))));
+    await assert.rejects(replace(u1,r1,[{path:"",suspiciousRequests:1}]));
+    assert.equal(await replace(u1,r1,[]),0);
+  });
   await check("client roles cannot touch intelligence tasks", async () => {
     await db.exec("reset role; set role authenticated");
+    await assert.rejects(db.query("select * from public.traffic_route_observations"));
     await assert.rejects(db.query("select * from public.traffic_sites"));
     await assert.rejects(db.query("select * from public.create_traffic_site($1,$2,'x.example.com')",[u1,r1]));
     await assert.rejects(db.query("select public.record_repair_merge($1,$1,1)",[u1]));
