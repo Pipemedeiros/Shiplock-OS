@@ -8,6 +8,7 @@ import { getProviderCoverage } from "@/lib/monitoring/providerCoverage";
 import { ProviderCoverage } from "@/components/v3/ProviderCoverage";
 import { getTrafficSources } from "@/lib/traffic/sourceStatus";
 import { TrafficSources } from "@/components/v3/TrafficSources";
+import { getHotRoutes } from "@/lib/traffic/hotRoutes";
 
 /**
  * What the last audit did not reach.
@@ -21,6 +22,8 @@ export default async function Coverage() {
   const { userId } = await requireDashboardSession();
   const [runs, evidence, ai, providers, traffic] = await Promise.all([getRuns(userId, 1), getEvidenceCoverage(userId),
     getAiActivity(userId), getProviderCoverage(userId), getTrafficSources(userId)]);
+  // GitHub tree reads for rate-limit offers; any failure just offers nothing.
+  const hotRoutes = await getHotRoutes(userId).catch(() => ({}));
   const latest = runs[0];
 
   return (
@@ -53,7 +56,7 @@ export default async function Coverage() {
         <div className="v3-hd">
           <h2 className="v3-eyebrow">Traffic</h2>
         </div>
-        <div className="v3-card-p"><TrafficSources sources={traffic} /></div>
+        <div className="v3-card-p"><TrafficSources sources={traffic} offers={hotRoutes} /></div>
       </div>
 
       <div className="v3-card" style={{ marginBottom: 24 }}>

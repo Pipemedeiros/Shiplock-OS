@@ -1,4 +1,6 @@
 import type { GatewayState, TrafficSourceStatus } from "@/lib/traffic/sourceStatus";
+import type { HotRouteOffer } from "@/lib/traffic/hotRoutes";
+import { RateLimitOffers } from "./RateLimitButton";
 
 // Per repository, where ShipLock's traffic view comes from (Q3). No source is
 // said plainly, never shown as quiet.
@@ -16,7 +18,9 @@ function gatewayLine(item: TrafficSourceStatus): string | null {
   return text[item.gateway];
 }
 
-export function TrafficSources({ sources }: { sources: { available: boolean; items: TrafficSourceStatus[] } }) {
+export function TrafficSources({ sources, offers = {} }: {
+  sources: { available: boolean; items: TrafficSourceStatus[] }; offers?: Record<string, HotRouteOffer[]>;
+}) {
   if (!sources.available) return <p>We could not load traffic sources. Whether any traffic is read is unknown.</p>;
   if (sources.items.length === 0) return <p className="v3-small">Select a repository first; traffic is shown per repository.</p>;
   return (
@@ -29,6 +33,7 @@ export function TrafficSources({ sources }: { sources: { available: boolean; ite
             {item.sites > 0 ? <><br />{item.sites} snippet {item.sites === 1 ? "site" : "sites"} sending request metadata.</> : null}
             {gateway ? <><br />{gateway}</> : null}
             {!item.hasSource ? <><br />No traffic source: ShipLock sees no traffic for this repository.</> : null}
+            <RateLimitOffers repositoryId={item.repositoryId} offers={offers[item.repositoryId] ?? []} />
           </li>
         );
       })}
