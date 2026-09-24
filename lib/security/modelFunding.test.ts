@@ -36,4 +36,23 @@ describe("model clients are an allowlisted, reviewed set", () => {
     expect(code).toMatch(/new Anthropic\(\{ apiKey: credential\.apiKey/);
     expect(code).not.toMatch(/ANTHROPIC_API_KEY\b(?![^\n]*environment)/);
   });
+
+  // Q10: cost per run must be measurable, so each model client's response
+  // leaves a usage receipt, in the client or the caller that owns the run.
+  // `defender.ts` has no caller; `proving/agent.ts` records with the Q6 worker.
+  const RECEIPT_OWNER: Record<string, string | null> = {
+    "lib/agent/attack.ts": "lib/agent/audit.ts",
+    "lib/analyzer.ts": "lib/analyzer.ts",
+    "lib/graph/narrative.ts": "lib/graph/graphRun.ts",
+    "lib/intelligence/apiMode.ts": "lib/intelligence/apiMode.ts",
+    "lib/graph/defender.ts": null,
+    "lib/proving/agent.ts": null,
+  };
+  it("every model client's usage is receipted by it or its run owner", () => {
+    expect(Object.keys(RECEIPT_OWNER).sort()).toEqual(Object.keys(ALLOWED).sort());
+    for (const [client, owner] of Object.entries(RECEIPT_OWNER)) {
+      if (!owner) continue;
+      expect({ client, records: /\brecordModelUsage\(/.test(readFileSync(owner, "utf8")) }).toEqual({ client, records: true });
+    }
+  });
 });
