@@ -12,5 +12,6 @@ describe("ShipLock-funded model calls outside the first-scan credit (3G-2)", () 
     process.env.SHIPLOCK_FUNDED_NARRATIVES = "true";
     expect(shiplockFundedCallAllowed("graph-narrative")).toBe(true);
     expect(shiplockFundedCallAllowed("scan-report")).toBe(false);
+    expect(shiplockFundedCallAllowed("proving")).toBe(false);
   });
 });

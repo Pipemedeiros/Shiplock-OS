@@ -12,6 +12,7 @@ import {
 import { buildControlProbeSql, buildLeakProbeSql } from "./replica";
 import { buildGateSql, buildOwnershipFix, judgeFix, buildFixApplySql, type GateReading } from "./fixValidation";
 import { claudeProposer, runAdversarialAgent, type Proposer } from "./agent";
+import { shiplockFundedCallAllowed } from "@/lib/funding";
 
 // The proving ground, end to end.
 //
@@ -136,7 +137,11 @@ async function proveTable(
   }
 
   // The fixed probe found nothing. Only now is a model call worth making: the
-  // agent looks for shapes the single equality test cannot express.
+  // agent looks for shapes the single equality test cannot express. That call
+  // spends ShipLock's key, so without an injected proposer it needs the
+  // explicit funding flag (6-0); otherwise the table stays unproven, not clean.
+  const propose = ctx.propose ?? (shiplockFundedCallAllowed("proving") ? claudeProposer() : null);
+  if (!propose) return null;
   const { finding } = await runAdversarialAgent(
     {
       schema: arena.schema,
@@ -149,7 +154,7 @@ async function proveTable(
       })),
     },
     (sql) => arena.run(sql),
-    ctx.propose ?? claudeProposer()
+    propose
   );
 
   return finding ? { id: finding.id, severity: finding.severity, title: finding.title, consequence: finding.consequence, proven: true } : null;

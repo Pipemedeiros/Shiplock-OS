@@ -37,16 +37,15 @@ describe("arena selection", () => {
     runOnBranchMock.mockReset().mockResolvedValue([]);
   });
 
-  // Higher fidelity means fewer findings we have to caveat.
-  it("prefers a branch when one is available", async () => {
+  // 6-0: a branch lives on the customer's own, billable project and needs a
+  // per-test authorization receipt (6A) that does not exist yet.
+  it("never creates a branch on the customer's project", async () => {
     attemptMock.mockResolvedValue({ handle: { ref: "branch-1", target: {} } });
     const { arena } = await openArena(request(), host());
-    expect(arena?.kind).toBe("branch");
-    expect(arena?.schema).toBe("public");
+    expect(attemptMock).not.toHaveBeenCalled();
+    expect(arena?.kind).toBe("replica");
   });
 
-  // The customer pays for ShipLock and nothing else, so this path must work on
-  // every plan.
   it("falls back to a replica when Branching is unavailable", async () => {
     attemptMock.mockResolvedValue({ handle: null, failure: "plan_required" });
     const h = host();
@@ -84,13 +83,6 @@ describe("teardown", () => {
   beforeEach(() => {
     attemptMock.mockReset();
     deleteMock.mockReset().mockResolvedValue(true);
-  });
-
-  it("deletes the branch", async () => {
-    attemptMock.mockResolvedValue({ handle: { ref: "branch-1", target: {} } });
-    const { arena } = await openArena(request(), host());
-    await arena!.teardown();
-    expect(deleteMock).toHaveBeenCalledWith("t", "branch-1");
   });
 
   it("drops the replica schema", async () => {

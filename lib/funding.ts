@@ -8,6 +8,8 @@
 const FLAGS = {
   "graph-narrative": "SHIPLOCK_FUNDED_NARRATIVES",
   "scan-report": "SHIPLOCK_FUNDED_SCAN_REPORT",
+  // The proving ground's adversarial agent (6-0). Dormant until Step 6.
+  proving: "SHIPLOCK_FUNDED_PROVING",
 } as const;
 
 export function shiplockFundedCallAllowed(purpose: keyof typeof FLAGS): boolean {
