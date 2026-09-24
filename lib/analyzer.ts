@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { recordModelUsage } from "@/lib/cost/modelUsage";
 import type { ScanResult } from "./scanner";
 import { shiplockFundedCallAllowed } from "@/lib/funding";
 
@@ -566,7 +567,7 @@ function selectModel(scan: ScanResult): string {
 
 // ── Analyser ──────────────────────────────────────────────────────────────────
 
-export async function analyzeResult(scan: ScanResult): Promise<AnalysisResult> {
+export async function analyzeResult(scan: ScanResult, userId?: string): Promise<AnalysisResult> {
   // ShipLock-funded and unbounded per scan: off unless explicitly enabled
   // (3G-2). The deterministic report is the same one used on any model failure.
   if (!shiplockFundedCallAllowed("scan-report")) return buildFallback(scan);
@@ -591,6 +592,10 @@ export async function analyzeResult(scan: ScanResult): Promise<AnalysisResult> {
       }
     );
     console.log(`[analyzer] model=${model} input_tokens=${response.usage.input_tokens} output_tokens=${response.usage.output_tokens}`);
+    // Q10: a usage receipt for the account whose scan this was.
+    if (userId) {
+      await recordModelUsage({ userId, purpose: "scan_report", model, usage: response.usage, stopReason: response.stop_reason ?? null });
+    }
   } catch (err) {
     if (err instanceof Anthropic.APIConnectionTimeoutError) {
       console.error("[analyzer] Claude API timed out after 30 s — using fallback analysis");
