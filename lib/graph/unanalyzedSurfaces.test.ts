@@ -48,3 +48,26 @@ describe("after 7E-3, only what is still unread is disclosed", () => {
     expect(note?.why).toContain("4 files define tRPC procedures");
   });
 });
+
+describe("after 7G-2, analyzed tRPC procedures leave the unread list", () => {
+  const stack = { tools: [], authUnknown: false, databaseUnknown: false };
+  const note = (u: Parameters<typeof buildCoverage>[13]) =>
+    buildCoverage(stack, false, 0, true, 0, 0, [], false, false, [], false, [], false, u).find((n) => n.name === "Server actions and tRPC procedures");
+  it("names analyzed procedures and says router exposure was assumed, not traced", () => {
+    const n = note({ serverActionFiles: 0, trpcFiles: 39, analyzedActions: 0, analyzedProcedures: 161 });
+    expect(n?.why).toContain("161 tRPC procedures were analyzed like routes");
+    expect(n?.why).toMatch(/treated as reachable/);
+    expect(n?.why).not.toMatch(/tRPC procedures were not/);
+    expect(`${n?.why} ${n?.effect}`).not.toMatch(/[–—]/);
+  });
+  it("still says tRPC was not read when none of its procedures could be", () => {
+    const n = note({ serverActionFiles: 3, trpcFiles: 4, analyzedActions: 2, analyzedProcedures: 0 });
+    expect(n?.why).toContain("2 server actions the browser can call were analyzed like routes");
+    expect(n?.why).toMatch(/tRPC procedures were not/);
+  });
+  it("names both kinds when both were analyzed", () => {
+    const n = note({ serverActionFiles: 19, trpcFiles: 5, analyzedActions: 55, analyzedProcedures: 34 });
+    expect(n?.why).toContain("55 server actions the browser can call and 34 tRPC procedures were analyzed like routes");
+    expect(n?.why).toContain("server-only helpers were not");
+  });
+});

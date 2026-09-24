@@ -90,7 +90,7 @@ function loadProductModules() {
     loaded,
     ...require("../lib/deep/repoArchive.ts"),
     ...require("../lib/graph/routeInventory.ts"),
-    ...require("../lib/graph/serverActionFacts.ts"),
+    ...require("../lib/graph/applicationEntries.ts"),
     ...require("../lib/agent/attack.ts"),
     ...require("../lib/agent/attackGuard.ts"),
     ...require("../lib/agent/stack.ts"),
@@ -111,8 +111,9 @@ async function analyzePin(product, pin) {
     return new Response(Readable.toWeb(fs.createReadStream(archivePath(pin))));
   };
   const archive = await product.fetchRepoArchive("offline-placeholder", pin.repository, pin.commit);
-  // Route handlers plus entry server actions, as the audit sees them (7E-3).
-  const routes = [...product.collectRoutes(archive.files), ...product.serverActionRoutes(archive.files)];
+  // Route handlers, entry server actions and tRPC procedures, exactly as the
+  // audit sees them (7E-3, 7G-2).
+  const { routes } = product.applicationEntries(archive.files);
   const stack = product.detectStack(archive.files);
   const tables = [...new Set([...product.extractTables(archive.files), ...routes.flatMap((route) => route.tables)])].sort();
   const domain = product.inferDomain(tables, routes, product.extractColumns(archive.files));

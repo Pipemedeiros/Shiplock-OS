@@ -5,13 +5,13 @@ import { fetchRepoArchive, type ArchiveFile } from "@/lib/deep/repoArchive";
 import { scanSecrets } from "@/lib/deep/githubScan";
 import { scanCredentialHandling } from "@/lib/deep/credentialHandling";
 import { scanNextConfigEnv } from "@/lib/deep/nextConfigEnv";
-import { collectRoutes, type RouteFact } from "@/lib/graph/routeInventory";
+import type { RouteFact } from "@/lib/graph/routeInventory";
 import { proposeAttacks, riskyRoutesOmitted, routesOmitted } from "./attack";
 import { claimFirstScanCredit } from "./firstScanCredit";
 import { recordModelUsage } from "@/lib/cost/modelUsage";
 import { crossTenantNotes, renderCrossTenantNote } from "./crossTenantNotes";
 import { countUnanalyzedSurfaces } from "@/lib/graph/unanalyzedSurfaces";
-import { serverActionRoutes } from "@/lib/graph/serverActionFacts";
+import { applicationEntries } from "@/lib/graph/applicationEntries";
 import { detectStack, routeAnalysisSupport, type StackReport } from "./stack";
 import { buildFindings, type AgentFinding } from "./findings";
 import { possessionGates } from "./possessionGate";
@@ -83,7 +83,7 @@ export function buildCoverage(
   wholesaleRejected = false,
   crossTenant: string[] = [],
   reasoningParseFailed = false,
-  unanalyzed: { serverActionFiles: number; trpcFiles: number; analyzedActions?: number } = { serverActionFiles: 0, trpcFiles: 0 },
+  unanalyzed: { serverActionFiles: number; trpcFiles: number; analyzedActions?: number; analyzedProcedures?: number } = { serverActionFiles: 0, trpcFiles: 0 },
 ): CoverageNote[] {
   const notes: CoverageNote[] = [];
   const routeSupport = routeAnalysisSupport(stack);
@@ -100,13 +100,26 @@ export function buildCoverage(
   // with the counts, because an audit that reasoned over the routes and stays
   // silent here reads as complete.
   if (unanalyzed.serverActionFiles + unanalyzed.trpcFiles > 0) {
-    const analyzed = unanalyzed.analyzedActions ?? 0;
+    const actions = unanalyzed.analyzedActions ?? 0;
+    const procedures = unanalyzed.analyzedProcedures ?? 0;
     const parts = [
       unanalyzed.serverActionFiles ? `${unanalyzed.serverActionFiles} ${unanalyzed.serverActionFiles === 1 ? "file defines" : "files define"} server actions` : "",
       unanalyzed.trpcFiles ? `${unanalyzed.trpcFiles} ${unanalyzed.trpcFiles === 1 ? "file defines" : "files define"} tRPC procedures` : "",
     ].filter(Boolean).join(" and ");
-    const analyzedPart = analyzed
-      ? ` ${analyzed} server ${analyzed === 1 ? "action" : "actions"} the browser can call ${analyzed === 1 ? "was" : "were"} analyzed like routes; server-only helpers and tRPC procedures were not.`
+    const analyzedList = [
+      actions ? `${actions} server ${actions === 1 ? "action" : "actions"} the browser can call` : "",
+      procedures ? `${procedures} tRPC ${procedures === 1 ? "procedure" : "procedures"}` : "",
+    ].filter(Boolean);
+    const unread = [
+      unanalyzed.serverActionFiles ? "server-only helpers" : "",
+      unanalyzed.trpcFiles && !procedures ? "tRPC procedures" : "",
+    ].filter(Boolean).join(" and ");
+    // Step 7G: whether a router is actually served over HTTP is not traced
+    // (routers often come from a workspace package we do not resolve), so
+    // every procedure is treated as callable. Said, because it is an assumption.
+    const analyzedPart = analyzedList.length
+      ? ` ${analyzedList.join(" and ")} ${actions + procedures === 1 ? "was" : "were"} analyzed like routes${unread ? `; ${unread} were not` : ""}.` +
+        (procedures ? " Every tRPC procedure was treated as reachable from the internet; which routers your app serves was not traced." : "")
       : " They can read and change data, and this audit analyzes route handlers only.";
     notes.push({
       name: "Server actions and tRPC procedures",
@@ -365,10 +378,11 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
         : "no known framework, auth provider or database identified",
     );
 
-    // Route handlers plus the server actions the browser can call (7E-3):
-    // one fact shape, so ranking, the prompt and the guard treat both alike.
-    const actionRoutes = serverActionRoutes(archive.files);
-    const routes = [...collectRoutes(archive.files), ...actionRoutes];
+    // Route handlers, the server actions the browser can call (7E-3) and
+    // tRPC procedures (7G): one fact shape, so ranking, the prompt and the
+    // guard treat them alike.
+    const entries = applicationEntries(archive.files);
+    const routes = entries.routes;
     const withData = routes.filter((r) => r.tables.length > 0);
     step(
       `${routes.length} application entries mapped`,
@@ -566,7 +580,7 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       agent.admitted.length === 0 && (agent.unmatchedEntries ?? []).length > 0,
       notes.map(renderCrossTenantNote),
       agent.parseFailed === true,
-      { ...countUnanalyzedSurfaces(archive.files), analyzedActions: actionRoutes.length },
+      { ...countUnanalyzedSurfaces(archive.files), analyzedActions: entries.actions, analyzedProcedures: entries.procedures },
     );
 
     step("Audit complete", `${findings.length} open ${findings.length === 1 ? "path" : "paths"}`);
