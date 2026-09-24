@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { RepairPreviewPanel } from "./RepairPreview";
 import { repairMessage, waitForRepair } from "@/lib/repairReceiptClient";
 
 /** One click, one PR for a change the customer's own AI proposed (10B-3b).
@@ -39,9 +40,7 @@ export function AiFixButton({ taskId }: { taskId: string }) {
   }
   return (
     <div style={{ marginTop: 6 }}>
-      <button type="button" className="v3-btn v3-btn-sm v3-primary" disabled={busy} onClick={open}>
-        {busy ? "Opening…" : "Open a pull request"}
-      </button>
+      <RepairPreviewPanel body={{ lane: "ai", taskId }} busy={busy} onOpen={open} />
       {message ? <p className="v3-small" style={{ marginTop: 4 }}>{message}</p> : null}
     </div>
   );

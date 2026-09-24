@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { createSign } from "crypto";
 import { env } from "@/lib/env";
 import type { Severity } from "@/lib/types";
@@ -197,7 +198,54 @@ export async function queryOsv(deps: Dep[]): Promise<{ dep: Dep; vulns: OsvVuln[
 // default branch and never merges. Requires the App's Contents + Pull requests
 // write permissions (see AGENTS.md).
 
+// Preview mode (Q13 / Step 8): a repair lane runs its real planning code, but
+// every write is recorded here instead of sent, and the lane stops at "open
+// pull request", so nothing after it (such as recording the PR) runs. Outside
+// capturePreview nothing changes. Only ghWrite and the PR-recovery read
+// consult it, so a new write helper must go through ghWrite.
+export type PreviewCapture =
+  | { status: "planned"; token: string; repository: string; branch: string; base: string; title: string; body: string;
+      files: { path: string; content: string }[] }
+  | { status: "already_open"; url: string }
+  | { status: "not_planned"; result: unknown };
+type Recording = { token: string; files: { path: string; content: string }[] };
+const previewStore = new AsyncLocalStorage<Recording>();
+class PreviewStop extends Error {
+  constructor(readonly capture: PreviewCapture) { super("preview stop"); }
+}
+
+export async function capturePreview(lane: () => Promise<unknown>): Promise<PreviewCapture> {
+  try {
+    const result = await previewStore.run({ token: "", files: [] }, lane);
+    return { status: "not_planned", result };
+  } catch (err) {
+    if (err instanceof PreviewStop) return err.capture;
+    throw err;
+  }
+}
+
+function recordWrite(recording: Recording, token: string, path: string, method: string, body: unknown): unknown {
+  recording.token = token;
+  const payload = (body ?? {}) as { content?: string; title?: string; head?: string; base?: string; body?: string };
+  const contents = /^\/repos\/([^/]+\/[^/]+)\/contents\/(.+)$/.exec(path);
+  if (method === "PUT" && contents) {
+    recording.files.push({ path: contents[2].split("/").map(decodeURIComponent).join("/"),
+      content: Buffer.from(payload.content ?? "", "base64").toString("utf8") });
+    return {};
+  }
+  const pulls = /^\/repos\/([^/]+\/[^/]+)\/pulls$/.exec(path);
+  if (method === "POST" && pulls) {
+    throw new PreviewStop({ status: "planned", token, repository: pulls[1], branch: payload.head ?? "", base: payload.base ?? "",
+      title: payload.title ?? "", body: payload.body ?? "", files: recording.files });
+  }
+  if (method === "POST" && /\/git\/refs$/.test(path)) return {};
+  // Any other write in preview mode is refused, never sent.
+  throw new Error(`GitHub ${method} ${path} is not allowed in preview`);
+}
+
 async function ghWrite(token: string, path: string, method: string, body: unknown) {
+  const recording = previewStore.getStore();
+  if (recording) return recordWrite(recording, token, path, method, body);
   const res = await fetch(`${API}${path}`, {
     method,
     headers: { ...GH_HEADERS, Authorization: `token ${token}`, "Content-Type": "application/json" },
@@ -271,7 +319,9 @@ export async function findOpenPullRequestForBranch(
   );
   if (!res.ok) throw new Error(`GitHub list pull requests HTTP ${res.status}`);
   const rows = (await res.json()) as Array<{ html_url?: unknown }>;
-  return typeof rows[0]?.html_url === "string" ? rows[0].html_url : null;
+  const url = typeof rows[0]?.html_url === "string" ? rows[0].html_url : null;
+  if (url && previewStore.getStore()) throw new PreviewStop({ status: "already_open", url });
+  return url;
 }
 
 export interface PullRequestMeta {

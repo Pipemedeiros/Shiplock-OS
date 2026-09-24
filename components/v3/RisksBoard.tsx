@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { RepairPreviewPanel } from "./RepairPreview";
 import { useRouter } from "next/navigation";
 import { GitPullRequest, ShieldCheck, Wrench } from "lucide-react";
 import type { Severity } from "@/lib/types";
@@ -154,11 +155,12 @@ function Inspector({ finding }: { finding: DashboardFinding }) {
                 Review pull request #{finding.fixPrNumber}
               </a>
             ) : finding.fixKind === "pr" ? (
-              <button
-                className="v3-btn v3-btn-sm v3-primary"
-                disabled={busy}
-                style={{ alignSelf: "flex-start" }}
-                onClick={async () => {
+              // Q13: preview exactly what the pull request would write, then click.
+              <RepairPreviewPanel
+                key={finding.id}
+                body={{ lane: "risk", findingId: finding.id }}
+                busy={busy}
+                onOpen={async () => {
                   setBusy(true);
                   setError(null);
                   try {
@@ -182,9 +184,7 @@ function Inspector({ finding }: { finding: DashboardFinding }) {
                     setBusy(false);
                   }
                 }}
-              >
-                {busy ? "Opening…" : "Open a pull request"}
-              </button>
+              />
             ) : null}
 
             {error ? <p className="v3-small" style={{ color: "var(--crit)" }}>{error}</p> : null}

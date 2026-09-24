@@ -15,7 +15,10 @@ const PR_OPENERS = [
   "lib/fixes/rateLimitPr.ts",
   "lib/fixes/riskFixPr.ts",
 ];
-const RECEIPTED_CALLERS = new Set(["lib/jobs/repairWorker.ts", "lib/fixes/findingFixPr.ts"]);
+const RECEIPTED_CALLERS = new Set(["lib/jobs/repairWorker.ts", "lib/fixes/findingFixPr.ts",
+  // Q13: runs lanes only inside capturePreview, where no GitHub write is sent
+  // (pinned by the capture-only test below and lib/deep/github.preview.test.ts).
+  "lib/fixes/preview.ts"]);
 
 function sources(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -40,5 +43,13 @@ describe("pull requests are opened only behind a customer click", () => {
         && new RegExp(`from "(@/lib/${stem}|\\./${base})"`).test(readFileSync(file, "utf8")));
       for (const importer of importers) expect({ opener, importer, allowed: RECEIPTED_CALLERS.has(importer) }).toEqual({ opener, importer, allowed: true });
     }
+  });
+
+  it("the preview module runs lanes only inside capturePreview (Q13)", () => {
+    const code = readFileSync("lib/fixes/preview.ts", "utf8");
+    expect(code).toMatch(/capturePreview\(\(\) => runLane\(userId, request\)\)/);
+    expect(code.match(/\brunLane\(/g)?.length).toBe(2);
+    expect(code).not.toMatch(/export (async )?function runLane/);
+    expect(code).not.toMatch(/\bopenPullRequest\(|\bputFile\(|\bcreateBranch\(/);
   });
 });

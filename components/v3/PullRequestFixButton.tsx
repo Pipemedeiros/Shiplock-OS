@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { repairMessage, waitForRepair } from "@/lib/repairReceiptClient";
+import { RepairPreviewPanel } from "./RepairPreview";
 
 /** One click, one fix PR into this pull request's branch (8B-3). ShipLock
  * opens it only after this click and never merges it. */
@@ -43,9 +44,8 @@ export function PullRequestFixButton({ reviewId, findingId }: { reviewId: string
   }
   return (
     <div style={{ marginTop: 6 }}>
-      <button type="button" className="v3-btn v3-btn-sm v3-primary" disabled={busy} onClick={requestFix}>
-        {busy ? "Opening the fix…" : "Fix before merge"}
-      </button>
+      {/* Q13: see exactly what the fix before merge would write, then click. */}
+      <RepairPreviewPanel body={{ lane: "pull-request", reviewId, findingId }} busy={busy} onOpen={requestFix} />
       {message ? <p className="v3-small" style={{ marginTop: 4 }}>{message}</p> : null}
     </div>
   );

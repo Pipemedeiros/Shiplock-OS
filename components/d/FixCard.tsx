@@ -5,6 +5,7 @@
 // deep-link (Supabase dashboard / secret rotation). Nothing here writes prod.
 
 import { useState } from "react";
+import { RepairPreviewPanel } from "@/components/v3/RepairPreview";
 import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
 import { repairMessage, waitForRepair } from "@/lib/repairReceiptClient";
 import { fixLane, type FixableFinding } from "@/lib/fixes/lane";
@@ -109,9 +110,10 @@ export function FixCard({ finding, projectRef }: { finding: FixableFinding; proj
             style={{ width: "100%", fontSize: 11, lineHeight: 1.5, padding: "10px 12px", background: "var(--d-porcelain)", border: "1px solid var(--d-line)", borderRadius: 8, resize: "vertical" }}
           />
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
-            <button type="button" className="dxd-btn dxd-btn-paper" onClick={openPr} disabled={busy || !content.trim()} style={{ fontSize: 12, padding: "6px 12px" }}>
-              {busy ? "Opening PR…" : lane.label}
-            </button>
+            {/* Q13: preview exactly what this edit would open; editing resets it. */}
+            {!prUrl && content.trim() ? (
+              <RepairPreviewPanel key={content} body={{ lane: "finding", findingId: finding.id, editedContent: content }} busy={busy} onOpen={openPr} />
+            ) : null}
             {prUrl && (
               <a href={prUrl} target="_blank" rel="noopener noreferrer" className="dxd-mono" style={{ fontSize: 12 }}>
                 View PR →

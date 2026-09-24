@@ -8,7 +8,7 @@ describe("RateLimitOffers (Q12-4)", () => {
       { file: "app/api/orders/[id]/route.ts", pattern: "/api/orders/:id", suspiciousRequests: 50 }]} />);
     expect(html).toContain("/api/orders/:id");
     expect(html).toContain("50 suspicious requests");
-    expect(html).toContain("Open a rate-limit pull request");
+    expect(html).toContain("Preview the pull request");
     expect(html).toMatch(/off until you turn it on/);
     expect(html).not.toMatch(/[–—]/);
   });

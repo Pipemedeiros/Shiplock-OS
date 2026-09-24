@@ -29,7 +29,7 @@ describe("TrafficSources (Q3)", () => {
   it("offers a rate-limit pull request under a repository with a matched hot route (Q12-4)", () => {
     const html = renderToStaticMarkup(<TrafficSources sources={{ available: true, items: [s({ repositoryId: "a", gateway: "read", observedAt: "2026-09-23T10:00:00.000Z", hasSource: true })] }}
       offers={{ a: [{ file: "app/api/orders/route.ts", pattern: "/api/orders", suspiciousRequests: 9 }] }} />);
-    expect(html).toContain("Open a rate-limit pull request");
+    expect(html).toContain("Preview the pull request");
     expect(html).toContain("/api/orders: 9 suspicious requests");
   });
   it("says when nothing could be loaded, and when no repository is selected", () => {

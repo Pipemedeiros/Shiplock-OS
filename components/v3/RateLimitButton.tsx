@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { repairMessage, waitForRepair } from "@/lib/repairReceiptClient";
 import type { HotRouteOffer } from "@/lib/traffic/hotRoutes";
+import { RepairPreviewPanel } from "./RepairPreview";
 
 /** One click, one rate-limit PR for a route observed traffic reached (Q12-4).
  * The PR adds one helper file that stays off until the customer turns it on;
@@ -36,9 +37,7 @@ function RateLimitButton({ repositoryId, routeFile }: { repositoryId: string; ro
   }
   return (
     <span>
-      <button type="button" className="v3-btn v3-btn-sm v3-ghost" onClick={request} disabled={busy}>
-        {busy ? "Opening…" : "Open a rate-limit pull request"}
-      </button>
+      <RepairPreviewPanel body={{ action: "rate-limit-pr", repositoryId, findingId: `traffic:${routeFile}` }} busy={busy} onOpen={request} />
       {message ? <span className="v3-small" style={{ marginLeft: 8 }}>{message}</span> : null}
     </span>
   );
