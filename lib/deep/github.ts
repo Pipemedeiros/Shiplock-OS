@@ -125,8 +125,21 @@ export async function listTree(token: string, fullName: string, branch: string):
   return (json.tree ?? []).filter((t) => t.type === "blob").map((t) => ({ path: t.path, size: t.size ?? 0 }));
 }
 
+/** In preview, a branch the lane "created" reads as its base commit, and a
+ * file the lane already "wrote" reads as what it wrote (Q13). */
+function previewRef(branch: string): string {
+  return previewStore.getStore()?.branches.get(branch) ?? branch;
+}
+function previewWritten(path: string, branch: string): string | undefined {
+  const recording = previewStore.getStore();
+  if (!recording?.branches.has(branch)) return undefined;
+  return recording.files.findLast((file) => file.path === path)?.content;
+}
+
 export async function getFile(token: string, fullName: string, path: string, branch: string): Promise<string | null> {
-  const res = await fetch(`${API}/repos/${fullName}/contents/${path.split("/").map(encodeURIComponent).join("/")}?ref=${encodeURIComponent(branch)}`, {
+  const written = previewWritten(path, branch);
+  if (written !== undefined) return written;
+  const res = await fetch(`${API}/repos/${fullName}/contents/${path.split("/").map(encodeURIComponent).join("/")}?ref=${encodeURIComponent(previewRef(branch))}`, {
     headers: { ...GH_HEADERS, Authorization: `token ${token}` },
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
@@ -208,7 +221,7 @@ export type PreviewCapture =
       files: { path: string; content: string }[] }
   | { status: "already_open"; url: string }
   | { status: "not_planned"; result: unknown };
-type Recording = { token: string; files: { path: string; content: string }[] };
+type Recording = { token: string; files: { path: string; content: string }[]; branches: Map<string, string> };
 const previewStore = new AsyncLocalStorage<Recording>();
 class PreviewStop extends Error {
   constructor(readonly capture: PreviewCapture) { super("preview stop"); }
@@ -216,7 +229,7 @@ class PreviewStop extends Error {
 
 export async function capturePreview(lane: () => Promise<unknown>): Promise<PreviewCapture> {
   try {
-    const result = await previewStore.run({ token: "", files: [] }, lane);
+    const result = await previewStore.run({ token: "", files: [], branches: new Map() }, lane);
     return { status: "not_planned", result };
   } catch (err) {
     if (err instanceof PreviewStop) return err.capture;
@@ -238,7 +251,11 @@ function recordWrite(recording: Recording, token: string, path: string, method: 
     throw new PreviewStop({ status: "planned", token, repository: pulls[1], branch: payload.head ?? "", base: payload.base ?? "",
       title: payload.title ?? "", body: payload.body ?? "", files: recording.files });
   }
-  if (method === "POST" && /\/git\/refs$/.test(path)) return {};
+  if (method === "POST" && /\/git\/refs$/.test(path)) {
+    const ref = payload as { ref?: string; sha?: string };
+    if (ref.ref?.startsWith("refs/heads/") && ref.sha) recording.branches.set(ref.ref.slice("refs/heads/".length), ref.sha);
+    return {};
+  }
   // Any other write in preview mode is refused, never sent.
   throw new Error(`GitHub ${method} ${path} is not allowed in preview`);
 }
@@ -258,6 +275,8 @@ async function ghWrite(token: string, path: string, method: string, body: unknow
 
 // SHA the branch currently points at (base for the new branch).
 export async function getBranchSha(token: string, fullName: string, branch: string): Promise<string> {
+  const created = previewStore.getStore()?.branches.get(branch);
+  if (created) return created;
   const res = await fetch(`${API}/repos/${fullName}/git/ref/heads/${encodeURIComponent(branch)}`, {
     headers: { ...GH_HEADERS, Authorization: `token ${token}` },
     signal: AbortSignal.timeout(TIMEOUT_MS),
@@ -275,7 +294,7 @@ export async function createBranch(token: string, fullName: string, branch: stri
 // Current blob sha of a file on a branch — required to update it via contents API.
 export async function getFileSha(token: string, fullName: string, path: string, branch: string): Promise<string | null> {
   const res = await fetch(
-    `${API}/repos/${fullName}/contents/${path.split("/").map(encodeURIComponent).join("/")}?ref=${encodeURIComponent(branch)}`,
+    `${API}/repos/${fullName}/contents/${path.split("/").map(encodeURIComponent).join("/")}?ref=${encodeURIComponent(previewRef(branch))}`,
     { headers: { ...GH_HEADERS, Authorization: `token ${token}` }, signal: AbortSignal.timeout(TIMEOUT_MS) }
   );
   if (!res.ok) return null;

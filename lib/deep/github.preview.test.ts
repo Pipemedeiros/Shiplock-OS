@@ -40,3 +40,30 @@ describe("capturePreview", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("capturePreview reads on the branch it pretended to create", () => {
+  it("reads the new branch as its base commit, and sees files the lane already wrote", async () => {
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method && init.method !== "GET") throw new Error("write sent");
+      urls.push(url);
+      if (url.includes("/contents/package.json")) {
+        return new Response(JSON.stringify({ sha: "f".repeat(40), encoding: "base64", content: Buffer.from("{}").toString("base64") }), { status: 200 });
+      }
+      return new Response("{}", { status: 404 });
+    }));
+    const { getBranchSha, getFile, getFileSha } = await import("./github");
+    const seen: unknown[] = [];
+    await capturePreview(async () => {
+      await createBranch("tok", "acme/app", "shiplock/new", "a".repeat(40));
+      seen.push(await getBranchSha("tok", "acme/app", "shiplock/new"));
+      seen.push(await getFileSha("tok", "acme/app", "package.json", "shiplock/new"));
+      await putFile("tok", "acme/app", "lib/x.ts", "shiplock/new", "written", undefined, "m");
+      seen.push(await getFile("tok", "acme/app", "lib/x.ts", "shiplock/new"));
+      return null;
+    });
+    expect(seen).toEqual(["a".repeat(40), "f".repeat(40), "written"]);
+    expect(urls.every((u) => !u.includes("ref=shiplock%2Fnew"))).toBe(true);
+    expect(urls.some((u) => u.includes(`ref=${"a".repeat(40)}`))).toBe(true);
+  });
+});
