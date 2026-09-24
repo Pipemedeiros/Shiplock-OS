@@ -78,13 +78,13 @@ export function AgentSetup({ host }: { host: Host }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  async function load() {
-    try {
-      const res = await fetch("/api/tokens", { headers: await authHeader() });
-      if (res.ok) setTokens(((await res.json()) as { tokens?: TokenMeta[] }).tokens ?? []);
-    } catch { /* the list is a convenience; creating still works */ }
-  }
-  useEffect(() => { void load(); }, []);
+  // The list is a convenience; creating still works if it cannot be read.
+  const fetchTokens = () => authHeader()
+    .then((headers) => fetch("/api/tokens", { headers }))
+    .then((res) => (res.ok ? res.json() as Promise<{ tokens?: TokenMeta[] }> : null))
+    .then((data) => { if (data) setTokens(data.tokens ?? []); }).catch(() => {});
+  const load = () => fetchTokens();
+  useEffect(() => { fetchTokens(); }, []);
 
   async function generate() {
     setBusy(true); setError("");

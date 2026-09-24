@@ -495,7 +495,7 @@ export async function fetchColumnGrants(
   accessToken: string,
   projectRef: string,
   signal?: AbortSignal,
-): Promise<{ grantee: string; table: string; column: string; privilege: string }[]> {
+): Promise<{ grantee: string; table: string; column: string; privilege: string }[] | null> {
   try {
     const rows = await runReadQuery(
       accessToken,
@@ -512,8 +512,8 @@ export async function fetchColumnGrants(
       privilege: r.privilege_type,
     }));
   } catch {
-    // Unknown is not a finding.
-    return [];
+    // Unknown is not a finding, and not "no grants": null keeps the family unread.
+    return null;
   }
 }
 

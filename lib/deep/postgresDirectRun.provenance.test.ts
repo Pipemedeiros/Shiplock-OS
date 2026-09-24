@@ -144,3 +144,16 @@ describe("3F-C2b: an aborted direct-Postgres pass commits nothing", () => {
     } finally { log.mockRestore(); }
   });
 });
+
+describe("Step 5A-1: an unreadable grant list keeps grant findings open", () => {
+  it("never retires the Supabase-only families it does not read", async () => {
+    await run();
+    expect([...sent().unread].sort()).toEqual(["advisor:", "auth_", "extensions:", "realtime:", "storage:"]);
+  });
+  it("marks grants unread when the grant query failed", async () => {
+    mocks.collect.mockResolvedValue({ policies: [], scanTables: [], grants: null });
+    await run();
+    expect(sent().retire).toBe(true);
+    expect(sent().unread).toContain("grants:");
+  });
+});

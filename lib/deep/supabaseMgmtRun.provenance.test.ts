@@ -311,3 +311,40 @@ describe("3F-C2c: fenced commit from the monitor worker", () => {
     } finally { log.mockRestore(); }
   });
 });
+
+describe("Step 5A-1: a failed Supabase read never retires that family's findings", () => {
+  const complete = async () => {
+    const api = await import("./supabaseMgmt");
+    vi.mocked(api.fetchColumnGrants).mockResolvedValueOnce([]);
+    vi.mocked(api.fetchDatabaseCapabilities).mockResolvedValueOnce({ extensions: [], networkGrants: [], cronJobs: [], foreignServers: [] });
+    vi.mocked(api.fetchStorageConfig).mockResolvedValueOnce({ buckets: [], policies: [] });
+    vi.mocked(api.fetchBackupConfig).mockResolvedValueOnce({ pitrEnabled: true, walgEnabled: true });
+    vi.mocked(api.fetchRealtimeAndHooks).mockResolvedValueOnce({ realtimeTables: [], authHooks: [] });
+    return api;
+  };
+
+  it("marks nothing unread when every read succeeded", async () => {
+    await complete();
+    await run();
+    expect(sent().unread).toEqual([]);
+  });
+
+  it("marks each failed read's finding family unread", async () => {
+    const api = await complete();
+    vi.mocked(api.fetchColumnGrants).mockReset().mockResolvedValueOnce(null);
+    vi.mocked(api.fetchDatabaseCapabilities).mockReset().mockResolvedValueOnce({ extensions: [], networkGrants: undefined, cronJobs: undefined, foreignServers: [] });
+    vi.mocked(api.fetchStorageConfig).mockReset().mockResolvedValueOnce({ buckets: undefined, policies: [] });
+    vi.mocked(api.fetchBackupConfig).mockReset().mockResolvedValueOnce(null);
+    vi.mocked(api.fetchRealtimeAndHooks).mockReset().mockResolvedValueOnce({ realtimeTables: [], authHooks: undefined });
+    mocks.advisors.mockRejectedValue(new Error("shape changed"));
+    mocks.auth.mockResolvedValue(null);
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try { await run(); } finally { log.mockRestore(); }
+    expect(sent().retire).toBe(true);
+    expect([...sent().unread!].sort()).toEqual([
+      "advisor:", "auth_hook:", "auth_policy:", "auth_redirect:", "auth_site_url:",
+      "extensions:cron_", "extensions:network_callable_by_public_role",
+      "grants:", "storage:no_pitr", "storage:unrestricted_uploads:",
+    ]);
+  });
+});

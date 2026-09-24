@@ -82,13 +82,12 @@ export function TrafficSites({ enabled, repositories }: { enabled: boolean; repo
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  async function load() {
-    try {
-      const res = await fetch("/api/traffic/sites");
-      if (res.ok) setSites(((await res.json()) as { sites?: Site[] }).sites ?? []);
-    } catch { /* the list is a convenience */ }
-  }
-  useEffect(() => { void load(); }, []);
+  // The list is a convenience: a failed read leaves it as it was.
+  const fetchSites = () => fetch("/api/traffic/sites")
+    .then((res) => (res.ok ? res.json() as Promise<{ sites?: Site[] }> : null))
+    .then((data) => { if (data) setSites(data.sites ?? []); }).catch(() => {});
+  const load = () => fetchSites();
+  useEffect(() => { fetchSites(); }, []);
 
   async function create(repositoryId: string, host: string) {
     setBusy(true); setError(""); setCreated(null);

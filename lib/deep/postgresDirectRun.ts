@@ -84,6 +84,11 @@ async function loadConnection(userId: string): Promise<{ raw: string; fingerprin
  * there", and the second would silently downgrade real findings to clean.
  * The fenced commit merges these keys into existing facts for the same reason.
  */
+// Supabase Management findings share this transport's finding source, and a
+// customer can connect both. This pass reads only policies and grants, so it
+// must never retire the families only the Supabase transport reads (5A-1).
+const NOT_READ_HERE = ["advisor:", "auth_", "extensions:", "realtime:", "storage:"];
+
 const ABORTED: DirectScanOutcome = { ok: false, findings: 0, reason: "aborted" };
 
 export async function runDirectPostgresScan(
@@ -106,7 +111,7 @@ export async function runDirectPostgresScan(
       // A5 — column grants to publicly reachable roles. Returns nothing on a
       // database without Supabase's role names, which is correct rather than
       // clean: no such role means no such exposure.
-      ...analyzeGrants(facts.grants),
+      ...analyzeGrants(facts.grants ?? []),
     ];
 
     signal?.throwIfAborted();
@@ -131,7 +136,7 @@ export async function runDirectPostgresScan(
     try {
       committed = await commit({
         transport: "postgres-direct", identity: loaded.fingerprint, facts: dbFacts,
-        findings, retire: true,
+        findings, retire: true, unread: [...NOT_READ_HERE, ...(facts.grants === null ? ["grants:"] : [])],
       });
     } catch {
       console.error(`[postgresDirect] result not committed for ${userId}`);

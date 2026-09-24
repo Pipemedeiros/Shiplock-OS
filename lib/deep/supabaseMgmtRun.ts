@@ -28,6 +28,7 @@ import { scanExtensions } from "./extensionScan";
 import { scanStorage, checkBackups } from "./storageScan";
 import { scanRealtimeAndHooks } from "./realtimeScan";
 import { deriveAppUrl } from "./deriveAppUrl";
+import { unreadSupabaseFamilies } from "./supabaseUnread";
 import type { SupabaseManagementSnapshot } from "@/lib/graph/graphRun";
 import { currentConnectionEpoch } from "./providerRepositoryMap";
 import { buildInventory } from "@/lib/exposure/model";
@@ -128,6 +129,7 @@ export async function runPolicyScan(
   if (signal?.aborted) return ABORTED;
 
   let findings;
+  let unread: string[] = [];
   let committed: Finding[];
   try {
     // POLICIES ARE LOAD-BEARING; ADVISORS CORROBORATE. The two get different
@@ -159,6 +161,14 @@ export async function runPolicyScan(
         err instanceof Error ? err.message : err
       );
     }
+    const [grants, capabilities, storage, backups, realtime] = await Promise.all([
+      fetchColumnGrants(token.accessToken, projectRef, signal),
+      fetchDatabaseCapabilities(token.accessToken, projectRef, signal),
+      fetchStorageConfig(token.accessToken, projectRef, signal),
+      fetchBackupConfig(token.accessToken, projectRef, signal),
+      fetchRealtimeAndHooks(token.accessToken, projectRef, signal),
+    ]);
+    unread = unreadSupabaseFamilies({ advisorsOk, authConfig, grants, capabilities, storage, backups, realtime });
     findings = [
       ...mergePolicyFindings(analyzePolicies(policies), mapAdvisors(advisors)),
       // B7 + Site URL. fetchAuthConfig returns null when the request fails, and
@@ -168,14 +178,14 @@ export async function runPolicyScan(
       // B1/B2/B4/B5/B11 — same config object, no extra request.
       ...scanAuthPolicy(authConfig),
       // A5 — column grants to anon/authenticated. The bug we shipped ourselves.
-      ...analyzeGrants(await fetchColumnGrants(token.accessToken, projectRef, signal)),
+      ...analyzeGrants(grants ?? []),
       // A8/A15/A16/A17 — what the database itself can reach.
-      ...scanExtensions(await fetchDatabaseCapabilities(token.accessToken, projectRef, signal)),
+      ...scanExtensions(capabilities),
       // A12/A13 storage, A19 recovery posture.
-      ...scanStorage(await fetchStorageConfig(token.accessToken, projectRef, signal)),
-      ...checkBackups(await fetchBackupConfig(token.accessToken, projectRef, signal)),
+      ...scanStorage(storage),
+      ...checkBackups(backups),
       // A14 Realtime authorisation, A20 auth-hook claim integrity.
-      ...scanRealtimeAndHooks(await fetchRealtimeAndHooks(token.accessToken, projectRef, signal)),
+      ...scanRealtimeAndHooks(realtime),
     ];
 
     // Capture one self-contained project/credential observation. Do not fill
@@ -218,7 +228,7 @@ export async function runPolicyScan(
     try {
       committed = await commit({
         transport: "supabase-management", identity: connectionFingerprint,
-        facts: dbFacts, findings, retire: true,
+        facts: dbFacts, findings, retire: true, unread,
       });
     } catch {
       console.error(`[supabaseMgmt] result not committed for ${userId}`);

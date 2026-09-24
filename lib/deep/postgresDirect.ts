@@ -330,7 +330,8 @@ const GRANT_SQL = `
 export interface DirectDbFacts {
   policies: PgPolicy[];
   scanTables: { name: string; rlsEnabled: boolean }[];
-  grants: ColumnGrant[];
+  /** null when the grant query failed. */
+  grants: ColumnGrant[] | null;
 }
 
 /**
@@ -357,7 +358,10 @@ export async function collectDirectFacts(
       const policies = parseRows("postgresDirect.policies", PgPolicyRow, await query(POLICY_SQL));
       const rawTables = parseRows("postgresDirect.rls", RlsStateRow, await query(RLS_SQL));
 
-      let grants: ColumnGrant[] = [];
+      // A Supabase-less database has no anon/authenticated roles and simply
+      // returns no rows. An exception is a failed read, not "no grants": null
+      // keeps the grant family unread so its open findings are not retired.
+      let grants: ColumnGrant[] | null;
       try {
         grants = parseRows("postgresDirect.grants", ColumnGrantRow, await query(GRANT_SQL)).map(
           (g) => ({
@@ -368,12 +372,7 @@ export async function collectDirectFacts(
           })
         );
       } catch {
-        // Tolerated: `column_privileges` exists everywhere, but the anon /
-        // authenticated role names are a Supabase convention, so a self-hosted
-        // database legitimately has none. An empty grant list means "no such
-        // role", which is a true statement about exposure — unlike an empty
-        // POLICY list, which would be a false one.
-        grants = [];
+        grants = null;
       }
 
       return {
