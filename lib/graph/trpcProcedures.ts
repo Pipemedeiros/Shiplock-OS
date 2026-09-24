@@ -4,7 +4,7 @@ import { resolveImport, stripComments } from "@/lib/deep/clientExposure";
 import { resolveViaTsconfigPaths } from "./tsconfigPaths";
 import { scriptKindFor } from "./declarations";
 import { extractTables, STRONG_USER_AUTH_RE, type RouteFact } from "./routeInventory";
-import { calls, middlewareAuthenticates, NOT_HELPERS } from "./serverActionFacts";
+import { calls, middlewareAuthenticates, NOT_HELPERS, QUERY_BUILDER, whereClauses } from "./serverActionFacts";
 
 /**
  * Facts for tRPC procedures (Step 7G-1), the tRPC counterpart of the server
@@ -49,12 +49,6 @@ function ctxGate(text: string): boolean {
   return gated;
 }
 const refuses = (text: string) => middlewareAuthenticates(text) || ctxGate(text);
-
-// Query-builder calls that carry ctx into a where clause rather than to a
-// helper that may narrow on its own (Drizzle operators and chain methods).
-const QUERY_BUILDER = new Set(["where", "and", "or", "not", "eq", "ne", "inArray", "notInArray", "isNull", "isNotNull",
-  "gt", "gte", "lt", "lte", "like", "ilike", "select", "from", "insert", "update", "delete", "set", "values",
-  "returning", "limit", "offset", "orderBy", "findFirst", "findMany", "leftJoin", "innerJoin", "sql", "Number", "toString"]);
 
 type Parsed = { file: RepoFile; sf: ts.SourceFile };
 
@@ -203,16 +197,6 @@ export function analyzeTrpcProcedures(files: RepoFile[]): TrpcProcedureFact[] {
   return facts.sort((a, b) => a.file.localeCompare(b.file) || a.name.localeCompare(b.name));
 }
 
-function balanced(text: string, open: number): string {
-  const close = text[open] === "(" ? ")" : "}";
-  let depth = 0;
-  for (let i = open; i < text.length; i++) {
-    if (text[i] === text[open]) depth++;
-    else if (text[i] === close && --depth === 0) return text.slice(open, i + 1);
-  }
-  return text.slice(open);
-}
-
 function fact(file: string, name: string, kind: TrpcProcedureFact["kind"], base: string,
   chain: { texts: string[]; gaps: string[]; via: Set<string> }, body: string): TrpcProcedureFact {
   const identity = chain.texts.join("\n");
@@ -227,7 +211,7 @@ function fact(file: string, name: string, kind: TrpcProcedureFact["kind"], base:
   const aliases = [...body.matchAll(/(?:const|let)\s+(\w+)\s*=\s*(?:\w+\.)?ctx\.\w+/g)].map((m) => m[1]);
   const names = [...new Set([...ctxKeys, ...destructured, ...aliases])].filter((k) => /^\w+$/.test(k) && k !== "ctx");
   const identityRef = new RegExp(`\\bctx\\.\\w+${names.map((k) => `|\\b${k}\\b`).join("")}`);
-  const wheres = [...body.matchAll(/\bwhere\s*:\s*\{|\.where\s*\(/g)].map((m) => balanced(body, (m.index ?? 0) + m[0].length - 1));
+  const wheres = whereClauses(body);
   const ownershipFiltered = tables.length > 0 && wheres.some((w) => identityRef.test(w));
   // "Not filtered" is claimed only when the resolver's own where clauses were
   // read and identity is not handed to a helper that may narrow on its own.

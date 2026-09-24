@@ -1,7 +1,7 @@
 import type { RepoFile } from "@/lib/deep/githubScan";
 import { resolveImport, stripComments } from "@/lib/deep/clientExposure";
 import { resolveViaTsconfigPaths } from "./tsconfigPaths";
-import { STRONG_USER_AUTH_RE, type RouteFact } from "./routeInventory";
+import { extractTables, STRONG_USER_AUTH_RE, type RouteFact } from "./routeInventory";
 import { findServerActionEntries } from "./serverActions";
 
 /**
@@ -32,7 +32,6 @@ const REFUSAL = /\bthrow\b|\bredirect\s*\(|\bunauthorized\b|\bnotFound\s*\(/i;
 export const middlewareAuthenticates = (text: string) =>
   STRONG_USER_AUTH_RE.test(text) || (MIDDLEWARE_LOADER.test(text) && REFUSAL.test(text));
 
-const PRISMA = /\bprisma\.(\w+)\.(?:find\w*|create\w*|update\w*|upsert|delete\w*|count|aggregate|groupBy)\s*\(/g;
 const IMPORT = /import\s*\{([^}]*)\}\s*from\s*["']([^"']+)["']/g;
 
 function exportSegment(content: string, name: string): string | null {
@@ -94,6 +93,28 @@ export function calls(text: string): { callee: string; args: string }[] {
   return out;
 }
 
+// Query-builder calls that carry ctx into a where clause rather than to a
+// helper that may narrow on its own (Drizzle operators and chain methods).
+export const QUERY_BUILDER = new Set(["where", "and", "or", "not", "eq", "ne", "inArray", "notInArray", "isNull", "isNotNull",
+  "gt", "gte", "lt", "lte", "like", "ilike", "select", "from", "insert", "update", "delete", "set", "values",
+  "returning", "limit", "offset", "orderBy", "findFirst", "findMany", "leftJoin", "innerJoin", "sql", "Number", "toString", "transaction"]);
+
+/** Text of a balanced (...) or {...} starting at `open`. */
+function balanced(text: string, open: number): string {
+  const close = text[open] === "(" ? ")" : "}";
+  let depth = 0;
+  for (let i = open; i < text.length; i++) {
+    if (text[i] === text[open]) depth++;
+    else if (text[i] === close && --depth === 0) return text.slice(open, i + 1);
+  }
+  return text.slice(open);
+}
+
+/** Every where clause in the text: Prisma `where: {...}` and Drizzle `.where(...)`. */
+export function whereClauses(text: string): string[] {
+  return [...text.matchAll(/\bwhere\s*:\s*\{|\.where\s*\(/g)].map((m) => balanced(text, (m.index ?? 0) + m[0].length - 1));
+}
+
 export function analyzeServerActions(files: RepoFile[]): ServerActionFact[] {
   const byPath = new Map(files.map((f) => [f.path, f]));
   return findServerActionEntries(files).map((entry) => {
@@ -115,21 +136,24 @@ export function analyzeServerActions(files: RepoFile[]): ServerActionFact[] {
     } else {
       authenticated = STRONG_USER_AUTH_RE.test(segment);
     }
-    const tables = [...new Set([...segment.matchAll(PRISMA)].map((m) => m[1]))].sort();
+    // Same table reading as routes and procedures (7H-2): Drizzle writes and
+    // Prisma transaction clients included.
+    const tables = extractTables(segment);
     // Identity values a where clause may narrow by: ctx keys the middleware
     // injects (destructured or accessed), and the session's user id.
     const ctxKeys = [...identitySource.matchAll(/ctx\s*:\s*\{([^}]*)\}/g)].flatMap((m) => m[1].split(",").map((k) => k.split(":")[0].trim()).filter(Boolean));
     const destructured = [...segment.matchAll(/const\s*\{([^}]*)\}\s*=\s*ctx\b/g)].flatMap((m) => m[1].split(",").map((k) => k.trim().split(/\s*:\s*/).pop()!));
     const identityNames = [...new Set([...ctxKeys, ...destructured])].filter((k) => /^\w+$/.test(k));
-    const narrowedBy = new RegExp(`where\\s*:\\s*\\{[^}]*(?:\\bctx\\.\\w+|${identityNames.map((k) => `\\b${k}\\.id\\b|\\b${k}Id\\b`).join("|") || "(?!)"}|session\\.user\\.id|userId\\s*:\\s*session)`);
-    const ownershipFiltered = tables.length > 0 && narrowedBy.test(segment);
+    const narrowedBy = new RegExp(`\\bctx\\.\\w+|${identityNames.map((k) => `\\b${k}\\.id\\b|\\b${k}Id\\b`).join("|") || "(?!)"}|session\\.user\\.id|userId\\s*:\\s*session`);
+    const wheres = whereClauses(segment);
+    const ownershipFiltered = tables.length > 0 && wheres.some((w) => narrowedBy.test(w));
     // "Not filtered" is claimed only when we read the action's own where
     // clauses and it does not hand the caller's identity to a helper that
     // may do the narrowing. Otherwise ownership is unreadable, never assumed.
     const identityRef = new RegExp(`\\bctx\\.\\w+${identityNames.map((k) => `|\\b${k}\\b`).join("")}`);
     const handedToHelper = calls(segment)
-      .some((call) => !NOT_HELPERS.has(call.callee) && identityRef.test(call.args));
-    const judgedWhere = /\bprisma\.\w+\.\w+\s*\(\s*\{[\s\S]*?\bwhere\s*:/.test(segment);
+      .some((call) => !NOT_HELPERS.has(call.callee) && !QUERY_BUILDER.has(call.callee) && identityRef.test(call.args));
+    const judgedWhere = wheres.length > 0;
     const ownershipReadable = identityReadable && (ownershipFiltered || (tables.length > 0 && judgedWhere && !handedToHelper));
     return { file: entry.file, name: entry.name, client, importedBy: entry.importedBy, identityReadable, identityGap,
       authenticated, tables, ownershipReadable, ownershipFiltered };

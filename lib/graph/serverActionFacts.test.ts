@@ -110,3 +110,20 @@ export const go = authActionClient.action(async ({ parsedInput }) => prisma.tag.
     expect(a).toMatchObject({ ownershipReadable: true, ownershipFiltered: false });
   });
 });
+
+describe("actions read the same tables as routes (7H-2)", () => {
+  const act = (body: string) => [safeAction, f("lib/actions/a.ts", `"use server";\nimport { authActionClient } from "./safe-action";
+export const go = authActionClient.action(async ({ parsedInput, ctx }) => { ${body} });`), ui('import { go } from "@/lib/actions/a";')];
+  it("reads a Drizzle write narrowed by ctx identity as filtered", () => {
+    const [a] = analyzeServerActions(act("const { workspace } = ctx; await db.update(tag).set({ name: parsedInput.name }).where(and(eq(tag.id, parsedInput.id), eq(tag.projectId, workspace.id)));"));
+    expect(a).toMatchObject({ tables: ["tag"], ownershipFiltered: true, ownershipReadable: true });
+  });
+  it("reads a Drizzle write narrowed only by input as readable and not filtered", () => {
+    const [a] = analyzeServerActions(act("await db.delete(tag).where(eq(tag.id, parsedInput.id));"));
+    expect(a).toMatchObject({ tables: ["tag"], ownershipFiltered: false, ownershipReadable: true });
+  });
+  it("reads a Prisma transaction client", () => {
+    const [a] = analyzeServerActions(act("await prisma.$transaction(async (tx) => { await tx.tag.delete({ where: { id: parsedInput.id, projectId: ctx.workspace.id } }); });"));
+    expect(a).toMatchObject({ tables: ["tag"], ownershipFiltered: true, ownershipReadable: true });
+  });
+});
