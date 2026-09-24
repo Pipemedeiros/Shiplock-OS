@@ -1187,6 +1187,29 @@ try {
     await assert.rejects(usage({purpose:"narrative",funded:"shiplock",model:""}));
     assert.equal((await db.query("select count(*)::int n from public.model_usage_receipts")).rows[0].n,3);
   });
+  // Q12-3 / Step 11: a clicked rate-limit PR needs observed traffic evidence.
+  await db.exec("reset role");
+  await db.exec(await readFile(new URL("../supabase/migrations/093_rate_limit_repairs.sql", import.meta.url), "utf8"));
+  await db.query("delete from public.traffic_route_observations where user_id=$1 and repository_id=$2",[u1,r1]);
+  // Earlier checks used u1's 30 daily repair clicks; age them out of the window.
+  await db.query("update public.repair_action_receipts set requested_at=now()-interval '2 days' where user_id=$1",[u1]);
+  await db.exec("set role service_role");
+  const rateLimit = (key, finding="traffic:app/api/orders/[id]/route.ts") => db.query(
+    "select public.request_repair_action($1,$2,'rate-limit-pr',$3,null,$4) as receipt",[u1,r1,finding,key]);
+  await check("a rate-limit repair requires observed traffic for that repository", async () => {
+    await assert.rejects(rateLimit("rl-1"));
+    await db.exec("reset role");
+    await db.query("insert into public.traffic_route_observations(user_id,repository_id,source,path,suspicious_requests) values($1,$2,'supabase','/api/orders/1',40)",[u1,r1]);
+    await db.exec("set role service_role");
+    const receipt=(await rateLimit("rl-1")).rows[0].receipt;
+    assert.equal((await rateLimit("rl-1")).rows[0].receipt,receipt);
+    await assert.rejects(rateLimit("rl-2","app/api/orders/route.ts"));
+    await assert.rejects(rateLimit("rl-3","traffic:"));
+    await assert.rejects(db.query("select public.request_repair_action($1,$2,'rate-limit-pr',$3,'edited',$4)",[u1,r1,"traffic:app/api/x/route.ts","rl-4"]));
+    await assert.rejects(db.query("select public.request_repair_action($1,$2,'rate-limit-pr',$3,null,$4)",[u2,r1,"traffic:app/api/x/route.ts","rl-5"]));
+    // Existing lanes still work.
+    await requestRepair(u1,r1,"rl-regression");
+  });
   await check("client roles cannot commit provider results or read snapshots", async () => {
     await db.exec("reset role; set role authenticated");
     await assert.rejects(db.query("select public.persist_provider_monitor_result($1,$1,$1,'postgres-direct','x',null,'[]'::jsonb,false,'[]'::jsonb,'{}'::jsonb)",[legacy]));

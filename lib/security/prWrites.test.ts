@@ -12,6 +12,7 @@ const PR_OPENERS = [
   "lib/fixes/aiFixPr.ts",
   "lib/fixes/prRun.ts",
   "lib/fixes/pullRequestFixPr.ts",
+  "lib/fixes/rateLimitPr.ts",
   "lib/fixes/riskFixPr.ts",
 ];
 const RECEIPTED_CALLERS = new Set(["lib/jobs/repairWorker.ts", "lib/fixes/findingFixPr.ts"]);

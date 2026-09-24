@@ -8,7 +8,7 @@ import { quotaCode } from "@/lib/quota";
 export interface RepairRequest {
   userId: string;
   repositoryId: string;
-  action: "risk-fix-pr" | "finding-fix-pr" | "dependency-bump-pr" | "pr-fix-pr" | "ai-fix-pr";
+  action: "risk-fix-pr" | "finding-fix-pr" | "dependency-bump-pr" | "pr-fix-pr" | "ai-fix-pr" | "rate-limit-pr";
   /** Null only for a dependency bump, which covers the whole repository. */
   findingId: string | null;
   editedContent: string | null;

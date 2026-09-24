@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // 3F-C2d-2: a clicked repair opens its PR in the worker, under the job lease,
 // and every outcome lands on the customer's receipt.
-const mocks = vi.hoisted(() => ({ receipt: vi.fn(), rpc: vi.fn(), risk: vi.fn(), finding: vi.fn(), dependency: vi.fn(), pr: vi.fn(), ai: vi.fn(), heartbeat: vi.fn() }));
+const mocks = vi.hoisted(() => ({ receipt: vi.fn(), rpc: vi.fn(), risk: vi.fn(), finding: vi.fn(), dependency: vi.fn(), pr: vi.fn(), ai: vi.fn(), rateLimit: vi.fn(), heartbeat: vi.fn() }));
 vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({
   rpc: mocks.rpc,
   from: () => ({ select: () => ({ eq: () => ({ maybeSingle: mocks.receipt }) }) }),
@@ -12,6 +12,7 @@ vi.mock("@/lib/fixes/findingFixPr", () => ({ openFindingFixPr: mocks.finding }))
 vi.mock("@/lib/deep/githubFixRun", () => ({ openDependencyBumpPr: mocks.dependency }));
 vi.mock("@/lib/fixes/pullRequestFixPr", () => ({ openPullRequestFixPr: mocks.pr }));
 vi.mock("@/lib/fixes/aiFixPr", () => ({ openAiFixPr: mocks.ai }));
+vi.mock("@/lib/fixes/rateLimitPr", () => ({ openRateLimitPr: mocks.rateLimit }));
 vi.mock("./queue", async (original) => ({
   ...await original<typeof import("./queue")>(),
   withLeaseHeartbeat: (_job: unknown, work: () => Promise<unknown>) => { mocks.heartbeat(); return work(); },
@@ -81,6 +82,14 @@ describe("executeRepairJob", () => {
     await executeRepairJob(job);
     expect(mocks.ai).toHaveBeenCalledWith(job.user_id, task, job.repository_id);
     expect(completed()).toEqual([expect.objectContaining({ p_status: "failed", p_failure: "source_changed" })]);
+  });
+
+  it("opens a rate-limit PR for the clicked route (Q12-3)", async () => {
+    mocks.receipt.mockResolvedValue(receipt({ action: "rate-limit-pr", finding_id: "traffic:app/api/orders/route.ts" }));
+    mocks.rateLimit.mockResolvedValue({ status: "opened", url: "https://github.com/acme/app/pull/3", number: 3 });
+    await executeRepairJob(job);
+    expect(mocks.rateLimit).toHaveBeenCalledWith(job.user_id, "traffic:app/api/orders/route.ts", job.repository_id);
+    expect(completed()).toEqual([expect.objectContaining({ p_status: "opened", p_number: 3 })]);
   });
 
   it("records a permanent refusal as failed without retrying", async () => {
