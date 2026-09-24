@@ -1,4 +1,5 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { SchemaColumns } from "./schemaColumns";
 import { decrypt } from "@/lib/crypto";
 import { currentConnectionEpoch, newConnectionEpoch } from "./providerRepositoryMap";
 import { analyzePolicies } from "./policyScan";
@@ -101,6 +102,8 @@ export async function runDirectPostgresScan(
     const connection = parseConnectionString(loaded.raw);
     const facts = await collectDirectFacts(connection, undefined, signal);
     const failed = facts.grants === null ? ["grants:"] : [];
+    const columns = SchemaColumns.safeParse(facts.columns);
+    if (!columns.success) failed.push("columns:");
 
     findings = [
       ...analyzePolicies(facts.policies),
@@ -124,6 +127,7 @@ export async function runDirectPostgresScan(
         collector: "postgres-direct" as const, authzProvider: "postgres-rls" as const,
         connectionFingerprint: loaded.fingerprint, recordedAt: new Date().toISOString(),
         completeness: "unknown" as const, policies: facts.policies, scanTables: facts.scanTables,
+        ...(columns.success ? { columns: columns.data } : {}),
       },
     };
 

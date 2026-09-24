@@ -81,6 +81,7 @@ export interface RepositorySourceSnapshot {
 
 /** Transport-local observation; connection provenance is not a repository link. */
 export interface DirectPostgresSnapshot {
+  columns?: import("@/lib/deep/schemaColumns").SchemaColumn[];
   collector: "postgres-direct";
   authzProvider: "postgres-rls";
   /** SHA-256 of stored ciphertext, never a DSN/password/host or plaintext hash. */
@@ -94,6 +95,7 @@ export interface DirectPostgresSnapshot {
 
 /** Management facts, without loose auth configuration or inferred repo links. */
 export interface SupabaseManagementSnapshot {
+  columns?: import("@/lib/deep/schemaColumns").SchemaColumn[];
   collector: "supabase-management";
   authzProvider: "postgres-rls";
   projectRef: string;

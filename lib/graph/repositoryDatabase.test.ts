@@ -12,8 +12,8 @@ vi.mock("./databaseSource", () => ({ loadCurrentDatabaseEvidence: mocks.current 
 vi.mock("@/lib/deep/databaseRepositoryBinding", () => ({ getDirectRepositoryBindings: mocks.direct }));
 vi.mock("@/lib/deep/supabaseRepositoryBinding", () => ({ getSupabaseRepositoryBindings: mocks.supabase }));
 const snapshots = {
-  directPostgresSnapshot: { connectionFingerprint: "direct" },
-  supabaseManagementSnapshot: { connectionFingerprint: "management", projectRef: "a" },
+  directPostgresSnapshot: { connectionFingerprint: "direct", columns: [{ table: "t", column: "owner_id", type: "uuid" }] },
+  supabaseManagementSnapshot: { connectionFingerprint: "management", projectRef: "a", columns: [{ table: "t", column: "owner_id", type: "uuid" }] },
   supabaseEndpointSnapshot: { connectionFingerprint: "endpoint", projectRef: "b", endpointUrl: "https://b.supabase.co", rlsReadability: "unknown", tableReports: [] },
 };
 const confirmation = { available: true, bindings: [{ repositoryId: "repo-a" }] };

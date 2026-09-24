@@ -88,6 +88,23 @@ beforeEach(() => {
 });
 
 describe("Step 2C-3-C2-A: Supabase Management project and credential provenance", () => {
+  it("Q6a stores bounded metadata only and marks failed columns unread", async () => {
+    const columns = [{ table: "invoices", column: "owner_id", type: "uuid" }];
+    mocks.columns.mockResolvedValue(columns.map(c => ({ ...c, value: "private-row" })));
+    await run();
+    expect((state.facts.supabaseManagementSnapshot as Record<string, unknown>).columns).toEqual(columns);
+    expect(JSON.stringify(sent())).not.toContain("private-row");
+    mocks.commit.mockClear();
+    mocks.columns.mockRejectedValue(new Error("unread"));
+    await run();
+    expect((state.facts.supabaseManagementSnapshot as Record<string, unknown>).columns).toBeUndefined();
+    expect(sent().snapshot?.failed).toContain("columns:");
+    mocks.commit.mockClear();
+    mocks.columns.mockResolvedValue(Array.from({ length: 3001 }, (_, i) => ({ table: "t", column: `c${i}`, type: "text" })));
+    await run();
+    expect((state.facts.supabaseManagementSnapshot as Record<string, unknown>).columns).toBeUndefined();
+    expect(sent().snapshot?.failed).toContain("columns:");
+  });
   it("persists only this pass's facts with project, opaque fingerprint and unknown completeness", async () => {
     state.facts.authConfig = { smtp_pass: "previous-private-smtp", mailer_autoconfirm: false };
     const result = await run();
@@ -96,7 +113,7 @@ describe("Step 2C-3-C2-A: Supabase Management project and credential provenance"
     expect(state.facts.supabaseManagementSnapshot).toEqual({
       collector: "supabase-management", authzProvider: "postgres-rls", projectRef: project,
       connectionFingerprint: "a".repeat(64), recordedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
-      completeness: "unknown", policies, advisors: [],
+      completeness: "unknown", policies, advisors: [], columns: [],
       authConfig: { disable_signup: false, mailer_autoconfirm: true },
     });
     expect(state.facts.directPostgresSnapshot).toEqual({ old: "preserve" });
@@ -291,7 +308,7 @@ describe("2D-2: Supabase Management identity is the connection epoch", () => {
 
 describe("3F-C2c: fenced commit from the monitor worker", () => {
   it("sends snapshot, inventory, and findings in one result without writing any itself", async () => {
-    mocks.columns.mockResolvedValue([{ table: "invoices", column: "id" }]);
+    mocks.columns.mockResolvedValue([{ table: "invoices", column: "id", type: "uuid" }]);
     await run();
     expect(sent().facts).toMatchObject({
       policies, supabaseManagementSnapshot: expect.objectContaining({ connectionFingerprint: "a".repeat(64) }),

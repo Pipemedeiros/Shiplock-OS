@@ -30,7 +30,7 @@ const epoch = "c".repeat(64);
 const dsn = "postgres://private-reader:private-password@private-db.example.com/private-db";
 const policies = [{ schemaname: "public", tablename: "invoices", policyname: "read", cmd: "SELECT", qual: "true", with_check: null, roles: ["anon"] }];
 const scanTables = [{ name: "invoices", rlsEnabled: true }];
-const facts = { policies, scanTables, grants: [] };
+const facts = { policies, scanTables, grants: [], columns: [] };
 const run = (options: { signal?: AbortSignal } = {}) => runDirectPostgresScan("u", { commit: mocks.commit, ...options });
 const sent = () => mocks.commit.mock.calls[0][0];
 /** Only the display timestamp may be written outside the fenced commit. */
@@ -45,6 +45,20 @@ beforeEach(() => {
 });
 
 describe("Step 2C-3-C1 / 3F-C2c: direct-Postgres result and provenance", () => {
+  it("Q6a stores metadata only and marks absent or over-budget columns unread", async () => {
+    const columns = [{ table: "invoices", column: "owner_id", type: "uuid" }];
+    mocks.collect.mockResolvedValue({ ...facts, columns: columns.map(c => ({ ...c, value: "private-row" })) });
+    await run();
+    expect(sent().facts.directPostgresSnapshot.columns).toEqual(columns);
+    expect(JSON.stringify(sent())).not.toContain("private-row");
+    for (const columns of [undefined, Array.from({ length: 201 }, (_, i) => ({ table: `t${i}`, column: "id", type: "uuid" }))]) {
+      mocks.commit.mockClear();
+      mocks.collect.mockResolvedValue({ ...facts, columns });
+      await run();
+      expect(sent().facts.directPostgresSnapshot.columns).toBeUndefined();
+      expect(sent().snapshot.failed).toContain("columns:");
+    }
+  });
   it("sends one self-contained snapshot bound to the connection epoch", async () => {
     const created = [{ id: "policy:x", severity: "CRITICAL", title: "t", consequence: "c" }];
     mocks.commit.mockResolvedValue(created);
@@ -55,7 +69,7 @@ describe("Step 2C-3-C1 / 3F-C2c: direct-Postgres result and provenance", () => {
       authzProvider: "postgres-rls", policies, scanTables,
       directPostgresSnapshot: {
         collector: "postgres-direct", authzProvider: "postgres-rls", completeness: "unknown",
-        connectionFingerprint: epoch, recordedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/), policies, scanTables,
+        connectionFingerprint: epoch, recordedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/), policies, scanTables, columns: [],
       },
     });
     expect(evidenceWrites()).toEqual([]);
@@ -152,7 +166,7 @@ describe("Step 5A-1: an unreadable grant list keeps grant findings open", () => 
     expect(sent().snapshot).toEqual({ scope: null, failed: [] });
   });
   it("marks grants unread when the grant query failed", async () => {
-    mocks.collect.mockResolvedValue({ policies: [], scanTables: [], grants: null });
+    mocks.collect.mockResolvedValue({ policies: [], scanTables: [], grants: null, columns: [] });
     await run();
     expect(sent().retire).toBe(true);
     expect(sent().unread).toEqual(["grants:"]);

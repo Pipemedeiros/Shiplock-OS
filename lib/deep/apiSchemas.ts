@@ -223,6 +223,7 @@ export const SupabaseAuthConfigObject = z.looseObject({});
 export const SchemaColumnRow = z.object({
   table_name: z.string(),
   column_name: z.string(),
+  data_type: z.string(),
 });
 
 export const RowCountRow = z.object({

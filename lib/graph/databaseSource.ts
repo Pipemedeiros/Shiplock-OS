@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { SchemaColumns } from "@/lib/deep/schemaColumns";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { validateSupabaseUrl } from "@/lib/sanitize";
 import { currentConnectionEpoch } from "@/lib/deep/providerRepositoryMap";
@@ -30,9 +31,10 @@ const base = z.object({
   // complete flag as permission to draw a negative conclusion.
   completeness: z.literal("unknown"),
 });
-const directSchema = base.extend({ collector: z.literal("postgres-direct"), policies, scanTables: tables });
+const directSchema = base.extend({ collector: z.literal("postgres-direct"), policies, scanTables: tables, columns: SchemaColumns.optional() });
 const managementSchema = base.extend({
   collector: z.literal("supabase-management"), projectRef: z.string().min(1).refine((value) => value === value.trim()), policies,
+  columns: SchemaColumns.optional(),
   advisors: z.array(SupabaseAdvisorRow).optional(),
   // Strip loose configuration even if an older writer stored credentials.
   authConfig: z.object({ disable_signup: z.boolean().optional(), mailer_autoconfirm: z.boolean().optional() }).nullable(),

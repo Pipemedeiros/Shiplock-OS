@@ -5,6 +5,7 @@
 // Everything here is read-only (see supabaseMgmt.ts's guard).
 
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { parseSchemaColumns } from "./schemaColumns";
 import { encrypt } from "@/lib/crypto";
 import {
   getUsableToken,
@@ -209,12 +210,14 @@ export async function runPolicyScan(
     // a value. Best-effort: a project we cannot enumerate simply has no
     // inventory, which the model reports as "we don't know" rather than zero.
     try {
-      const columns = await fetchSchemaColumns(token.accessToken, projectRef, signal);
+      const columns = parseSchemaColumns(await fetchSchemaColumns(token.accessToken, projectRef, signal));
+      supabaseManagementSnapshot.columns = columns;
       const tables = [...new Set(columns.map((c) => c.table))];
       const rowCounts = await fetchRowCounts(token.accessToken, projectRef, tables, signal);
       signal?.throwIfAborted();
       dbFacts.inventory = buildInventory(columns, rowCounts);
     } catch (err) {
+      if (!supabaseManagementSnapshot.columns) unread.push("columns:");
       console.error(
         "[supabaseMgmt] schema inventory failed:",
         err instanceof Error ? err.message : err

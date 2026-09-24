@@ -62,6 +62,13 @@ beforeEach(() => {
 });
 
 describe("Step 2C-3-C3-A: current-connection database admission through the actual graph loader", () => {
+  it("Q6a admits columns only from the current epoch and strips values", async () => {
+    const columns = [{ table: "invoices", column: "owner_id", type: "uuid" }];
+    facts({ directPostgresSnapshot: { ...direct, columns: columns.map(c => ({ ...c, value: "private" })) } });
+    expect((await input()).databaseEvidence?.snapshots.directPostgresSnapshot?.columns).toEqual(columns);
+    reads.user_profiles.mockResolvedValue({ data: { ...profile, postgres_connection_epoch: "f".repeat(64) } });
+    expect((await input()).databaseEvidence?.snapshots).toEqual({});
+  });
   it("keeps all three valid transports separate, without constructing a database/repository join", async () => {
     const result = await input();
     expect(result).toEqual({ databaseEvidence: { admission: "connection-matched", snapshots } });

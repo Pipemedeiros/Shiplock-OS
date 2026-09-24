@@ -13,6 +13,7 @@
 // lives next to the transport is the one that survives a future refactor.
 
 import { z } from "zod";
+import { parseSchemaColumns, SCHEMA_COLUMNS_SQL, type SchemaColumn } from "./schemaColumns";
 import { decrypt } from "@/lib/crypto";
 import { requestSignal } from "@/lib/abort";
 import {
@@ -331,10 +332,7 @@ export async function fetchAuthConfig(
 // never reads your users' data" is a customer-facing promise, and this is the
 // exact place it would be broken for a marginal accuracy gain.
 
-export interface SchemaColumn {
-  table: string;
-  column: string;
-}
+export type { SchemaColumn } from "./schemaColumns";
 
 export async function fetchSchemaColumns(
   accessToken: string,
@@ -344,14 +342,12 @@ export async function fetchSchemaColumns(
   const rows = await runReadQuery(
     accessToken,
     projectRef,
-    `select table_name, column_name from information_schema.columns
-     where table_schema = 'public'
-     order by table_name, ordinal_position`,
+    SCHEMA_COLUMNS_SQL,
     "fetchSchemaColumns",
     SchemaColumnRow,
     signal,
   );
-  return rows.map((r) => ({ table: r.table_name, column: r.column_name }));
+  return parseSchemaColumns(rows.map((r) => ({ table: r.table_name, column: r.column_name, type: r.data_type })));
 }
 
 /** Postgres identifier quoting, so an odd table name cannot break out. */

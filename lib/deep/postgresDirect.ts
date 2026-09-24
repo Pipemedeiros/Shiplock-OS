@@ -328,6 +328,7 @@ const GRANT_SQL = `
      AND grantee IN ('anon', 'authenticated', 'PUBLIC')`;
 
 export interface DirectDbFacts {
+  columns?: import("./schemaColumns").SchemaColumn[];
   policies: PgPolicy[];
   scanTables: { name: string; rlsEnabled: boolean }[];
   /** null when the grant query failed. */
@@ -362,6 +363,7 @@ export async function collectDirectFacts(
       // returns no rows. An exception is a failed read, not "no grants": null
       // keeps the grant family unread so its open findings are not retired.
       let grants: ColumnGrant[] | null;
+      await query("SAVEPOINT shiplock_grants");
       try {
         grants = parseRows("postgresDirect.grants", ColumnGrantRow, await query(GRANT_SQL)).map(
           (g) => ({
@@ -373,12 +375,28 @@ export async function collectDirectFacts(
         );
       } catch {
         grants = null;
+        await query("ROLLBACK TO SAVEPOINT shiplock_grants");
+      } finally {
+        await query("RELEASE SAVEPOINT shiplock_grants");
       }
 
+      // Recover an optional catalog-read failure inside the read-only transaction.
+      const { parseSchemaColumns, SCHEMA_COLUMNS_SQL } = await import("./schemaColumns");
+      let columns: import("./schemaColumns").SchemaColumn[] | undefined;
+      await query("SAVEPOINT shiplock_columns");
+      try {
+        const rows = await query<{ table_name: string; column_name: string; data_type: string }>(SCHEMA_COLUMNS_SQL);
+        columns = parseSchemaColumns(rows.map(r => ({ table: r.table_name, column: r.column_name, type: r.data_type })));
+      } catch {
+        await query("ROLLBACK TO SAVEPOINT shiplock_columns");
+      } finally {
+        await query("RELEASE SAVEPOINT shiplock_columns");
+      }
       return {
         policies,
         scanTables: rawTables.map((t) => ({ name: t.name, rlsEnabled: t.rls_enabled })),
         grants,
+        ...(columns === undefined ? {} : { columns }),
       };
     },
     resolver,
