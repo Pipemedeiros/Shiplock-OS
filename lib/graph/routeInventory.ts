@@ -228,7 +228,16 @@ const DRIZZLE_FROM_IDENT_RE = new RegExp(
   `(?<!\\b(?:${JS_BUILTIN_FROM})\\s*)\\.from\\s*\\(\\s*([A-Za-z_]\\w*)\\s*[),]`,
   "g",
 );
-const PRISMA_MODEL_RE = /\bprisma\s*\??\s*\.\s*([a-z][A-Za-z0-9_]*)\s*\.\s*(?:find|create|update|delete|upsert|count|aggregate)/g;
+// The Prisma client is not always named `prisma`: interactive transactions
+// hand it in as `tx` (corpus-a, corpus-d) and corpus-af injects `prismaClient`. Those
+// calls read as touching no table until Step 7H. Receivers are listed, not
+// generalised: `client.user.findMany` is as often an SDK as a database.
+const PRISMA_MODEL_RE = /\b(?:prisma|prismaClient|tx|trx)\s*\??\s*\.\s*([a-z][A-Za-z0-9_]*)\s*\.\s*(?:find|create|update|delete|upsert|count|aggregate)/g;
+// Drizzle writes name the table as the call's argument: db.insert(monitor),
+// tx.update(page), db.delete(member). Only the db / tx receivers the corpus
+// uses (286 and 62 writes): the same spelling on a Map, URLSearchParams, a
+// cookie store or an HMAC is not a table (Step 7H, negative fixtures).
+const DRIZZLE_WRITE_RE = /\b(?:db|tx|trx)\s*\.\s*(?:insert|update|delete)\s*\(\s*([A-Za-z_]\w*)\s*\)/g;
 
 /** Identifiers that are query-builder plumbing, not tables. */
 const NOT_A_TABLE = new Set([
@@ -254,7 +263,7 @@ export function extractTables(src: string): string[] {
     if (!inString(m.index)) out.add(`rpc:${m[1]}`);
   }
 
-  for (const re of [DRIZZLE_QUERY_RE, DRIZZLE_FROM_IDENT_RE, PRISMA_MODEL_RE]) {
+  for (const re of [DRIZZLE_QUERY_RE, DRIZZLE_FROM_IDENT_RE, DRIZZLE_WRITE_RE, PRISMA_MODEL_RE]) {
     re.lastIndex = 0;
     while ((m = re.exec(src)) !== null) {
       if (inString(m.index)) continue;
@@ -1244,9 +1253,12 @@ export function analyzeRouteFile(
     // can still be neutralised. A traced source arrives already prepared.
     const src = prepared ? raw : blankDeclarations(raw, path);
 
-    // Identity infrastructure (NextAuth options handed to getServerSession)
-    // resolves identity by definition, even when no pattern in it says so.
-    const resolvesIdentity = infra || STRONG_USER_AUTH_RE.test(src) || HEADER_READ_RE.test(src);
+    // Identity infrastructure (NextAuth options handed to getServerSession, or
+    // a NextAuth v5 module that builds `auth` with NextAuth({...})) resolves
+    // identity by definition, even when no pattern in it says so. Its sign-in
+    // callbacks write users and viewers; those writes are not the route's
+    // (Step 7H, corpus-e).
+    const resolvesIdentity = infra || STRONG_USER_AUTH_RE.test(src) || HEADER_READ_RE.test(src) || /\bNextAuth\s*\(/.test(src);
     // Only under an admin URL. corpus-a's withWorkspace() ALSO takes requiredRoles
     // -- a permission inside the caller's own workspace -- and the first
     // version of this rule made 59 workspace-scoped routes unreadable, hiding

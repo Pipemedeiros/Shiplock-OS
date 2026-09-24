@@ -95,6 +95,24 @@ describe("extractTables", () => {
   it("returns nothing when no query is made", () => {
     expect(extractTables("return new Response('ok')")).toEqual([]);
   });
+
+  // Step 7H: writes the corpus makes through db / tx (Drizzle) and through a
+  // Prisma client that is not named `prisma` read as touching no table.
+  it("reads Drizzle writes through db and a transaction", () => {
+    expect(extractTables("await db.insert(monitor).values(v); await tx.update(page).set(s); await ctx.db.delete(member).where(w);"))
+      .toEqual(["member", "monitor", "page"]);
+  });
+  it("reads Prisma calls through a transaction or a renamed client", () => {
+    expect(extractTables("await tx.poll.updateMany({}); await prismaClient.booking.findUnique({}); await trx.user.delete({});"))
+      .toEqual(["booking", "poll", "user"]);
+  });
+  it("does not read Map, store, hash or URL mutations as tables", () => {
+    expect(extractTables([
+      "searchParams.delete(key)", "url.searchParams.delete(name)", "store.delete(id)", "cookieStore.delete(name)",
+      "hmac.update(data)", "cache.delete(key)", "map.set(k, v)", "selected.delete(item)", "db.delete", "tx.update(",
+      "client.user.findMany({})",
+    ].join(";\n"))).toEqual([]);
+  });
 });
 
 describe("analyzeRouteFile", () => {
@@ -284,6 +302,20 @@ describe("gate classification — user session vs machine secret vs open", () =>
     );
     expect(routes[0].authenticated).toBe(true);
     expect(routes[0].via).toContain("lib/gate.ts");
+  });
+
+  // Step 7H: a NextAuth v5 config module (corpus-e) writes users and viewers
+  // from its sign-in callbacks. Once Drizzle writes were read, every page that
+  // calls auth() was credited with those tables.
+  it("does not credit a NextAuth v5 config module's own writes to routes that call auth()", () => {
+    const routes = collectRoutes(
+      files(
+        ["app/api/feed/route.ts", `import { auth } from "@/lib/auth";\nexport async function GET(){ const session = await auth(); return db.select().from(page) }`],
+        ["lib/auth.ts", `import NextAuth from "next-auth";\nexport const { handlers, auth } = NextAuth({ callbacks: { async signIn({ user }) { await db.update(viewer).set({ seen: 1 }); return true; } } });`]
+      )
+    );
+    expect(routes[0].tables).toEqual(["page"]);
+    expect(routes[0].authenticated).toBe(true);
   });
 
   it("finds tables reached through an imported helper", () => {
