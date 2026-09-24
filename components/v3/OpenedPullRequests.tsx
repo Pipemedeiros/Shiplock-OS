@@ -1,10 +1,18 @@
 import { GitPullRequest, ArrowUpRight } from "lucide-react";
 import type { OpenedPullRequest } from "@/lib/fixes/openedPullRequests";
+import type { CiState } from "@/lib/fixes/prCiStatus";
 
 const utc = (iso: string) => iso.slice(0, 16).replace("T", " ") + " UTC";
 
+const CI: Record<CiState, string> = {
+  passing: "passing", failing: "failing", pending: "still running",
+  none_visible: "no checks visible", unknown: "unknown",
+};
+
 /** Every pull request ShipLock opened after a click, open or merged (Q1). */
-export function OpenedPullRequests({ opened }: { opened: { available: boolean; items: OpenedPullRequest[] } }) {
+export function OpenedPullRequests({ opened, ci = {} }: {
+  opened: { available: boolean; items: OpenedPullRequest[] }; ci?: Record<string, CiState>;
+}) {
   const waiting = opened.items.filter((i) => !i.mergedAt).length;
   return (
     <div className="v3-card">
@@ -35,6 +43,9 @@ export function OpenedPullRequests({ opened }: { opened: { available: boolean; i
                       ? `Merged ${utc(pr.mergedAt)}. ShipLock is rechecking the default branch.`
                       : "Waiting for your review. ShipLock never merges."}
                   </p>
+                  {!pr.mergedAt && ci[pr.id] ? (
+                    <p className="v3-small" style={{ marginTop: 2 }}>CI, not run by ShipLock: {CI[ci[pr.id]]}</p>
+                  ) : null}
                 </div>
                 <ArrowUpRight size={15} className="v3-pr-go" />
               </a>

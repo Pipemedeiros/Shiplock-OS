@@ -303,6 +303,29 @@ export async function getPullRequest(token: string, fullName: string, number: nu
 }
 
 /**
+ * The customer's own check runs on a pull request's current head (Q2 / 8-CI).
+ * Read-only: two GETs. ShipLock's own check is excluded, so this is only what
+ * the customer's CI reported. Legacy commit statuses need a permission the
+ * App does not request, so they are invisible here, never "passing".
+ */
+export async function listPullRequestCheckRuns(
+  token: string, fullName: string, number: number, signal?: AbortSignal,
+): Promise<{ status: string; conclusion: string | null }[]> {
+  const headers = { ...GH_HEADERS, Authorization: `token ${token}` };
+  const timeout = () => signal ? AbortSignal.any([signal, AbortSignal.timeout(10_000)]) : AbortSignal.timeout(10_000);
+  const pr = await fetch(`${API}/repos/${fullName}/pulls/${number}`, { headers, signal: timeout() });
+  if (!pr.ok) throw new Error(`GitHub read pull request HTTP ${pr.status}`);
+  const sha = ((await pr.json()) as { head?: { sha?: unknown } }).head?.sha;
+  if (typeof sha !== "string" || !/^[a-f0-9]{40}$/.test(sha)) throw new Error("GitHub returned an unexpected pull request shape");
+  const res = await fetch(`${API}/repos/${fullName}/commits/${sha}/check-runs?filter=latest&per_page=100`, { headers, signal: timeout() });
+  if (!res.ok) throw new Error(`GitHub list check runs HTTP ${res.status}`);
+  const body = (await res.json()) as { check_runs?: Array<{ name?: unknown; status?: unknown; conclusion?: unknown }> };
+  return (body.check_runs ?? [])
+    .filter((run) => run.name !== "ShipLock" && typeof run.status === "string")
+    .map((run) => ({ status: run.status as string, conclusion: typeof run.conclusion === "string" ? run.conclusion : null }));
+}
+
+/**
  * Recent commits with their diffs, for the history secret scan (C2).
  *
  * HARD BOUNDED, because this is the most expensive thing we ask GitHub for: one

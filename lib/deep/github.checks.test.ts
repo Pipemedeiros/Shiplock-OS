@@ -44,3 +44,17 @@ it("recovers an already-open PR by deterministic head branch", async () => {
   await expect(findOpenPullRequestForBranch("token","acme/app","shiplock/fix-abc")).resolves.toBe("https://github.com/acme/app/pull/7");
   expect(fetchMock.mock.calls[0][0]).toContain("head=acme%3Ashiplock%2Ffix-abc");
 });
+
+it("lists the customer's check runs for a pull request's head, without ShipLock's own", async () => {
+  const fetchMock = vi.fn()
+    .mockResolvedValueOnce(new Response(JSON.stringify({ head: { sha: "b".repeat(40) } }), { status: 200 }))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ check_runs: [
+      { name: "ShipLock", status: "completed", conclusion: "failure" },
+      { name: "test", status: "completed", conclusion: "success" },
+    ] }), { status: 200 }));
+  vi.stubGlobal("fetch", fetchMock);
+  const { listPullRequestCheckRuns } = await import("./github");
+  expect(await listPullRequestCheckRuns("token", "acme/app", 9)).toEqual([{ status: "completed", conclusion: "success" }]);
+  expect(fetchMock.mock.calls[1][0]).toContain(`/commits/${"b".repeat(40)}/check-runs?filter=latest&per_page=100`);
+  expect(fetchMock.mock.calls.every((call) => !call[1]?.method || call[1].method === "GET")).toBe(true);
+});

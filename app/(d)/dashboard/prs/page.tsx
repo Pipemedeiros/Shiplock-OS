@@ -8,6 +8,7 @@ import { aiCheckForPullRequest, getAiActivity, type AiActivity } from "@/lib/int
 import { aiStateLabel } from "@/components/v3/AiChecks";
 import { OpenedPullRequests } from "@/components/v3/OpenedPullRequests";
 import { getOpenedPullRequests } from "@/lib/fixes/openedPullRequests";
+import { getCiStatuses } from "@/lib/fixes/prCiStatus";
 
 /**
  * The pull requests ShipLock opened, waiting on a human.
@@ -30,6 +31,7 @@ export default async function PullRequests() {
   const { userId } = await requireDashboardSession();
   const [findings, reviews, ai, opened] = await Promise.all([getOpenFindings(userId), getRecentPullRequestReviews(userId),
     getAiActivity(userId), getOpenedPullRequests(userId)]);
+  const ci = await getCiStatuses(userId, opened.items);
 
   const eligible = findings.filter((f) => !f.fixPrUrl && f.fixKind === "pr");
   const manual = findings.filter((f) => !f.fixPrUrl && f.fixKind !== "pr");
@@ -51,7 +53,7 @@ export default async function PullRequests() {
         <CheckedPullRequests reviews={reviews} ai={ai} />
 
         {/* Every lane's clicked pull request, open or merged (Q1 / 8-R2). */}
-        <OpenedPullRequests opened={opened} />
+        <OpenedPullRequests opened={opened} ci={ci} />
 
         {eligible.length > 0 ? (
           <div className="v3-card">
