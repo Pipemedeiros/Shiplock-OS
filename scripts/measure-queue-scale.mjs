@@ -81,6 +81,57 @@ try {
   await db.query("update public.execution_jobs set run_after=now()-interval '1 second' where id=$1", [stale.id]);
   await db.query("select public.advance_execution_job($1,$2,0,'succeeded')", [stillRunning.id, stillRunning.lease_token]);
   const replacement = (await db.query("select * from public.claim_execution_job('audit',120)")).rows[0];
+
+  // Q4 (2026-09-23): mixed kinds. Migrations 070/077 widened the kind list
+  // (repair, notification, intelligence); their other tables are not needed
+  // here, so only the kind check is widened, to exactly 077's list.
+  await db.exec(`alter table public.execution_jobs drop constraint execution_jobs_kind_check;
+    alter table public.execution_jobs add constraint execution_jobs_kind_check
+      check (kind in ('audit','source','monitor','dependency','graph','pr-check','notification','repair','intelligence'));
+    update public.execution_jobs set status='succeeded', lease_token=null, lease_until=null, finished_at=now() where status='running';`);
+  const otherKinds = ["source", "monitor", "dependency", "graph", "notification", "repair", "intelligence"];
+  const perKind = Math.min(accounts, 5_000);
+  for (const kind of otherKinds) {
+    await db.query(`insert into public.execution_jobs(user_id, kind, deduplication_key)
+      select id, $1, 'q4:'||$1 from auth.users order by id limit $2`, [kind, perKind]);
+  }
+  await db.query("update public.execution_jobs set run_after=now()-interval '1 second' where status='queued'");
+  // Q4_KIND_INDEX=1 loads migration 089's kind-first ready index, to compare
+  // against the pre-089 baseline on the same workload.
+  const kindIndex = process.env.Q4_KIND_INDEX === "1";
+  if (kindIndex) {
+    await db.exec(await readFile(new URL("../supabase/migrations/089_job_claim_kind_index.sql", import.meta.url), "utf8"));
+  }
+  const mixedQueued = (await db.query("select count(*)::int as n from public.execution_jobs where status='queued'")).rows[0].n;
+  const allKinds = ["audit", ...otherKinds];
+  const latencies = [];
+  let maxRunning = 0, maxPerKind = 0, maxPerTenant = 0, claims = 0, emptyClaims = 0;
+  const rounds = 60;
+  for (let round = 0; round < rounds; round++) {
+    for (const kind of allKinds) {
+      const t0 = performance.now();
+      const row = (await db.query("select * from public.claim_execution_job($1,120)", [kind])).rows[0];
+      latencies.push(performance.now() - t0);
+      if (row) claims++; else emptyClaims++;
+    }
+    const shape = (await db.query(`select
+      (select count(*)::int from public.execution_jobs where status='running') as running,
+      (select coalesce(max(n),0)::int from (select count(*) n from public.execution_jobs where status='running' group by kind) k) as per_kind,
+      (select coalesce(max(n),0)::int from (select count(*) n from public.execution_jobs where status='running' group by user_id) t) as per_tenant`)).rows[0];
+    maxRunning = Math.max(maxRunning, shape.running);
+    maxPerKind = Math.max(maxPerKind, shape.per_kind);
+    maxPerTenant = Math.max(maxPerTenant, shape.per_tenant);
+    // Workers finish everything they hold before the next round.
+    await db.exec("update public.execution_jobs set status='succeeded', lease_token=null, lease_until=null, finished_at=now() where status='running'");
+  }
+  latencies.sort((a, b) => a - b);
+  const pct = (p) => Math.round(latencies[Math.min(latencies.length - 1, Math.floor(p * latencies.length))] * 100) / 100;
+  const mixed = {
+    kindFirstReadyIndex: kindIndex, kinds: allKinds.length, queuedAtStart: mixedQueued, rounds, claimCalls: latencies.length, claims, emptyClaims,
+    claimMsP50: pct(0.5), claimMsP95: pct(0.95), claimMsMax: Math.round(latencies[latencies.length - 1] * 100) / 100,
+    maxRunningObserved: maxRunning, maxRunningPerKindObserved: maxPerKind, maxRunningPerTenantObserved: maxPerTenant,
+    globalLimitHeld: maxRunning <= 8, perKindLimitHeld: maxPerKind <= 2, perTenantLimitHeld: maxPerTenant <= 1,
+  };
   const finishedAt = performance.now();
 
   console.log(JSON.stringify({
@@ -98,6 +149,7 @@ try {
     staleAdvanceRejected,
     expiredJobReclaimed: replacement?.id === stale.id,
     replacementTokenChanged: replacement?.lease_token !== stale.lease_token,
+    mixed,
   }, null, 2));
 } finally {
   await db.close();

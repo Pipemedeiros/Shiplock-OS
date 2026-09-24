@@ -1,0 +1,82 @@
+{
+  "experiment": "mixed-kind-claims-50000-accounts",
+  "date": "2026-09-23",
+  "baseCommit": "8d39e6d",
+  "commands": [
+    "node scripts/measure-queue-scale.mjs 50000",
+    "Q4_KIND_INDEX=1 node scripts/measure-queue-scale.mjs 50000"
+  ],
+  "environment": {
+    "database": "@electric-sql/pglite 0.3.14, in-memory, single process, single connection",
+    "networkCalls": 0,
+    "providerCalls": 0,
+    "modelCalls": 0
+  },
+  "workload": "50000 accounts with one stale repository each (scheduled audit admission), then 5000 queued jobs for each of 7 more kinds (source, monitor, dependency, graph, notification, repair, intelligence), about 85000 queued in total; 60 rounds of one claim per kind, all running jobs finished between rounds. The kind check is widened to migration 077's list; other 070 to 083 tables are not loaded.",
+  "previous": "docs/evaluation/QUEUE-SCALE-2026-09-21.json (audit kind only, no mixed claims)",
+  "baseline_without_089": {
+    "seedMs": 1201,
+    "admissionMs": 6221,
+    "admissionCalls": 51,
+    "admitted": 50000,
+    "duplicateAdmission": {
+      "failed": 0,
+      "limited": false,
+      "admitted": 0,
+      "eligible": 0
+    },
+    "concurrentClaims": 2,
+    "distinctClaimTenants": 2,
+    "thirdAuditClaimBlockedByKindLimit": true,
+    "staleAdvanceRejected": true,
+    "expiredJobReclaimed": true,
+    "replacementTokenChanged": true,
+    "mixed": {
+      "kinds": 8,
+      "queuedAtStart": 84997,
+      "rounds": 60,
+      "claimCalls": 480,
+      "claims": 480,
+      "emptyClaims": 0,
+      "claimMsP50": 48.53,
+      "claimMsP95": 413.51,
+      "claimMsMax": 611.71,
+      "maxRunningObserved": 8,
+      "maxRunningPerKindObserved": 1,
+      "maxRunningPerTenantObserved": 1,
+      "globalLimitHeld": true,
+      "perKindLimitHeld": true,
+      "perTenantLimitHeld": true
+    }
+  },
+  "with_089_kind_first_index": {
+    "mixed": {
+      "kindFirstReadyIndex": true,
+      "kinds": 8,
+      "queuedAtStart": 84997,
+      "rounds": 60,
+      "claimCalls": 480,
+      "claims": 480,
+      "emptyClaims": 0,
+      "claimMsP50": 0.3,
+      "claimMsP95": 0.37,
+      "claimMsMax": 1.13,
+      "maxRunningObserved": 8,
+      "maxRunningPerKindObserved": 1,
+      "maxRunningPerTenantObserved": 1,
+      "globalLimitHeld": true,
+      "perKindLimitHeld": true,
+      "perTenantLimitHeld": true
+    }
+  },
+  "finding": "claim_execution_job ordered queued rows by run_after without kind, so a claim for a kind late in that order scanned the other kinds' queued rows: p95 413 ms, max 612 ms. Migration 089 adds a kind-first partial index: p95 0.37 ms, max 1.13 ms, same claims and fairness.",
+  "limitsObserved": "Global running <= 8, per tenant <= 1 held in every round. Per kind reached 1 in the mixed phase (one claim per kind per round); the per-kind limit of 2 is exercised by the audit-only phase (thirdAuditClaimBlockedByKindLimit).",
+  "capsNotMeasuredHere": "The per-account click caps (082, 083) are enforced and tested in scripts/test-foundation-sql.mjs; they are not load-tested here.",
+  "claimsNotSupported": [
+    "hosted Supabase throughput or contention",
+    "multi-worker lease contention",
+    "provider or GitHub rate-limit capacity",
+    "execution time of the jobs themselves",
+    "storage growth, recovery time, or production cost"
+  ]
+}

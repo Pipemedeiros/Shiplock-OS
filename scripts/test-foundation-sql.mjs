@@ -1070,6 +1070,13 @@ try {
     // The other transports still work after the check was widened.
     await db.query("select public.record_provider_read_failure($1,$2,$3,'vercel',null,'timeout')",[legacy,job.id,job.token]);
   });
+  await db.exec("reset role");
+  await db.exec(await readFile(new URL("../supabase/migrations/089_job_claim_kind_index.sql", import.meta.url), "utf8"));
+  await check("job claims have a kind-first ready index (089)", async () => {
+    const def=(await db.query("select indexdef from pg_indexes where indexname='execution_jobs_ready_kind'")).rows[0]?.indexdef ?? "";
+    assert.match(def,/\(kind, run_after, created_at, id\) WHERE \(status = 'queued'::text\)/);
+  });
+  await db.exec("set role service_role");
   await check("client roles cannot commit provider results or read snapshots", async () => {
     await db.exec("reset role; set role authenticated");
     await assert.rejects(db.query("select public.persist_provider_monitor_result($1,$1,$1,'postgres-direct','x',null,'[]'::jsonb,false,'[]'::jsonb,'{}'::jsonb)",[legacy]));
