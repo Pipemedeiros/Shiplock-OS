@@ -38,3 +38,13 @@ describe("Coverage states the unread surfaces", () => {
     expect(notes.find((n) => n.name === "Server actions and tRPC procedures")).toBeUndefined();
   });
 });
+
+describe("after 7E-3, only what is still unread is disclosed", () => {
+  const stack = { tools: [], authUnknown: false, databaseUnknown: false };
+  it("says analyzed entry actions are covered and names the rest", () => {
+    const notes = buildCoverage(stack, false, 0, true, 0, 0, [], false, false, [], false, [], false, { serverActionFiles: 10, trpcFiles: 4, analyzedActions: 7 });
+    const note = notes.find((n) => n.name === "Server actions and tRPC procedures");
+    expect(note?.why).toContain("7 server actions the browser can call were analyzed like routes");
+    expect(note?.why).toContain("4 files define tRPC procedures");
+  });
+});

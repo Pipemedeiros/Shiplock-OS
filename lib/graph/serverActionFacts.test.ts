@@ -76,3 +76,37 @@ export const del = authActionClient.action(async ({ ctx }) => prisma.space.delet
     expect(analyzeServerActions([client(""), action, form])[0]).toMatchObject({ authenticated: false });
   });
 });
+
+describe("ownership is read, never assumed (7E-3 fix)", () => {
+  const act = (body: string) => [safeAction, f("lib/actions/a.ts", `"use server";\nimport { authActionClient } from "./safe-action";
+export const go = authActionClient.action(async ({ parsedInput, ctx }) => { ${body} });`), ui('import { go } from "@/lib/actions/a";')];
+  it("is unreadable when the action delegates to helpers we did not trace", () => {
+    const [a] = analyzeServerActions(act("const link = await getLinkOrThrow({ linkId: parsedInput.id, workspaceId: ctx.workspace.id }); await prisma.link.update({ where: { id: link.id }, data: {} });"));
+    expect(a).toMatchObject({ ownershipReadable: false, ownershipFiltered: false });
+    const [b] = analyzeServerActions(act("await updateLinkForWorkspace(ctx.workspace, parsedInput);"));
+    expect(b).toMatchObject({ tables: [], ownershipReadable: false });
+  });
+  it("is unreadable for a create with no where clause to judge", () => {
+    const [a] = analyzeServerActions(act("await prisma.tag.create({ data: { name: parsedInput.name, projectId: ctx.workspace.id } });"));
+    expect(a).toMatchObject({ tables: ["tag"], ownershipReadable: false });
+  });
+});
+
+describe("server actions as audit entries (7E-3)", () => {
+  it("become route facts with an action path, so ranking and the guard judge them like routes", async () => {
+    const { serverActionRoutes } = await import("./serverActionFacts");
+    const routes = serverActionRoutes([safeAction,
+      f("lib/actions/open.ts", `"use server";\nimport { actionClient } from "./safe-action";
+export const lookup = actionClient.action(async ({ parsedInput }) => prisma.user.findUnique({ where: { email: parsedInput.email } }));`),
+      ui('import { lookup } from "@/lib/actions/open";')]);
+    expect(routes).toEqual([expect.objectContaining({ path: "action:lib/actions/open.ts#lookup", file: "lib/actions/open.ts", methods: ["ACTION"],
+      tables: ["user"], authenticated: false, identityReadable: true, ownershipFiltered: false, ownershipReadable: true, machineGated: false })]);
+  });
+
+  it("reads an unfiltered where as unscoped when identity is not handed elsewhere", async () => {
+    const { analyzeServerActions: run } = await import("./serverActionFacts");
+    const [a] = run([safeAction, f("lib/actions/b.ts", `"use server";\nimport { authActionClient } from "./safe-action";
+export const go = authActionClient.action(async ({ parsedInput }) => prisma.tag.delete({ where: { id: parsedInput.id } }));`), ui('import { go } from "@/lib/actions/b";')]);
+    expect(a).toMatchObject({ ownershipReadable: true, ownershipFiltered: false });
+  });
+});

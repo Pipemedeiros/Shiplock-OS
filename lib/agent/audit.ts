@@ -11,6 +11,7 @@ import { claimFirstScanCredit } from "./firstScanCredit";
 import { recordModelUsage } from "@/lib/cost/modelUsage";
 import { crossTenantNotes, renderCrossTenantNote } from "./crossTenantNotes";
 import { countUnanalyzedSurfaces } from "@/lib/graph/unanalyzedSurfaces";
+import { serverActionRoutes } from "@/lib/graph/serverActionFacts";
 import { detectStack, routeAnalysisSupport, type StackReport } from "./stack";
 import { buildFindings, type AgentFinding } from "./findings";
 import { possessionGates } from "./possessionGate";
@@ -82,7 +83,7 @@ export function buildCoverage(
   wholesaleRejected = false,
   crossTenant: string[] = [],
   reasoningParseFailed = false,
-  unanalyzed: { serverActionFiles: number; trpcFiles: number } = { serverActionFiles: 0, trpcFiles: 0 },
+  unanalyzed: { serverActionFiles: number; trpcFiles: number; analyzedActions?: number } = { serverActionFiles: 0, trpcFiles: 0 },
 ): CoverageNote[] {
   const notes: CoverageNote[] = [];
   const routeSupport = routeAnalysisSupport(stack);
@@ -99,14 +100,18 @@ export function buildCoverage(
   // with the counts, because an audit that reasoned over the routes and stays
   // silent here reads as complete.
   if (unanalyzed.serverActionFiles + unanalyzed.trpcFiles > 0) {
+    const analyzed = unanalyzed.analyzedActions ?? 0;
     const parts = [
       unanalyzed.serverActionFiles ? `${unanalyzed.serverActionFiles} ${unanalyzed.serverActionFiles === 1 ? "file defines" : "files define"} server actions` : "",
       unanalyzed.trpcFiles ? `${unanalyzed.trpcFiles} ${unanalyzed.trpcFiles === 1 ? "file defines" : "files define"} tRPC procedures` : "",
     ].filter(Boolean).join(" and ");
+    const analyzedPart = analyzed
+      ? ` ${analyzed} server ${analyzed === 1 ? "action" : "actions"} the browser can call ${analyzed === 1 ? "was" : "were"} analyzed like routes; server-only helpers and tRPC procedures were not.`
+      : " They can read and change data, and this audit analyzes route handlers only.";
     notes.push({
       name: "Server actions and tRPC procedures",
-      why: `${parts}. They can read and change data, and this audit analyzes route handlers only.`,
-      effect: "Whether those paths check who is calling is unknown, not clean. Nothing there was reported or cleared.",
+      why: `${parts}.${analyzedPart}`,
+      effect: "Whether the paths we did not analyze check who is calling is unknown, not clean. Nothing there was reported or cleared.",
     });
   }
 
@@ -360,7 +365,10 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
         : "no known framework, auth provider or database identified",
     );
 
-    const routes = collectRoutes(archive.files);
+    // Route handlers plus the server actions the browser can call (7E-3):
+    // one fact shape, so ranking, the prompt and the guard treat both alike.
+    const actionRoutes = serverActionRoutes(archive.files);
+    const routes = [...collectRoutes(archive.files), ...actionRoutes];
     const withData = routes.filter((r) => r.tables.length > 0);
     step(
       `${routes.length} application entries mapped`,
@@ -558,7 +566,7 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       agent.admitted.length === 0 && (agent.unmatchedEntries ?? []).length > 0,
       notes.map(renderCrossTenantNote),
       agent.parseFailed === true,
-      countUnanalyzedSurfaces(archive.files),
+      { ...countUnanalyzedSurfaces(archive.files), analyzedActions: actionRoutes.length },
     );
 
     step("Audit complete", `${findings.length} open ${findings.length === 1 ? "path" : "paths"}`);

@@ -1,7 +1,7 @@
 import type { RepoFile } from "@/lib/deep/githubScan";
 import { resolveImport, stripComments } from "@/lib/deep/clientExposure";
 import { resolveViaTsconfigPaths } from "./tsconfigPaths";
-import { STRONG_USER_AUTH_RE } from "./routeInventory";
+import { STRONG_USER_AUTH_RE, type RouteFact } from "./routeInventory";
 import { findServerActionEntries } from "./serverActions";
 
 /**
@@ -73,6 +73,27 @@ function clientMiddleware(clientName: string, file: RepoFile, byPath: Map<string
   return parentText === null ? null : `${parentText}\n${definition}`;
 }
 
+const NOT_HELPERS = new Set(["action", "inputSchema", "schema", "metadata", "if", "for", "while", "switch", "catch", "return",
+  "async", "function", "String", "Number", "Boolean", "Array", "Object", "JSON", "Promise", "Error"]);
+
+/** Every call in the text with its own argument text (bracket counting, so
+ * nested calls are each seen). Prisma calls are skipped: their where clauses
+ * are judged directly. */
+function calls(text: string): { callee: string; args: string }[] {
+  const out: { callee: string; args: string }[] = [];
+  for (const m of text.matchAll(/(?<![.\w])(\w+)\s*\(|\.(\w+)\s*\(/g)) {
+    const callee = m[1] ?? m[2];
+    if (/^prisma$/.test(callee) || /\bprisma\.\w+\.$/.test(text.slice(Math.max(0, (m.index ?? 0) - 40), m.index))) continue;
+    let depth = 0, end = (m.index ?? 0) + m[0].length;
+    for (let i = end - 1; i < text.length; i++) {
+      if (text[i] === "(") depth++;
+      else if (text[i] === ")" && --depth === 0) { end = i; break; }
+    }
+    out.push({ callee, args: text.slice((m.index ?? 0) + m[0].length, end) });
+  }
+  return out;
+}
+
 export function analyzeServerActions(files: RepoFile[]): ServerActionFact[] {
   const byPath = new Map(files.map((f) => [f.path, f]));
   return findServerActionEntries(files).map((entry) => {
@@ -102,7 +123,33 @@ export function analyzeServerActions(files: RepoFile[]): ServerActionFact[] {
     const identityNames = [...new Set([...ctxKeys, ...destructured])].filter((k) => /^\w+$/.test(k));
     const narrowedBy = new RegExp(`where\\s*:\\s*\\{[^}]*(?:\\bctx\\.\\w+|${identityNames.map((k) => `\\b${k}\\.id\\b|\\b${k}Id\\b`).join("|") || "(?!)"}|session\\.user\\.id|userId\\s*:\\s*session)`);
     const ownershipFiltered = tables.length > 0 && narrowedBy.test(segment);
+    // "Not filtered" is claimed only when we read the action's own where
+    // clauses and it does not hand the caller's identity to a helper that
+    // may do the narrowing. Otherwise ownership is unreadable, never assumed.
+    const identityRef = new RegExp(`\\bctx\\.\\w+${identityNames.map((k) => `|\\b${k}\\b`).join("")}`);
+    const handedToHelper = calls(segment)
+      .some((call) => !NOT_HELPERS.has(call.callee) && identityRef.test(call.args));
+    const judgedWhere = /\bprisma\.\w+\.\w+\s*\(\s*\{[\s\S]*?\bwhere\s*:/.test(segment);
+    const ownershipReadable = identityReadable && (ownershipFiltered || (tables.length > 0 && judgedWhere && !handedToHelper));
     return { file: entry.file, name: entry.name, client, importedBy: entry.importedBy, identityReadable, identityGap,
-      authenticated, tables, ownershipReadable: identityReadable, ownershipFiltered };
+      authenticated, tables, ownershipReadable, ownershipFiltered };
   }).sort((a, b) => a.file.localeCompare(b.file) || a.name.localeCompare(b.name));
+}
+
+/**
+ * Entry server actions as route facts (7E-3), so the audit ranks, prompts and
+ * guards them exactly like route handlers. The path `action:<file>#<name>` is
+ * what a hypothesis cites. Service-role, machine-gate and data readability are
+ * not separately read for actions: they carry the identity readability, so an
+ * unreadable action is unreadable everywhere and never ranks as anonymous.
+ */
+export function serverActionRoutes(files: RepoFile[]): RouteFact[] {
+  return analyzeServerActions(files).map((a) => ({
+    path: `action:${a.file}#${a.name}`, file: a.file, methods: ["ACTION"], tables: a.tables,
+    authenticated: a.authenticated, machineGated: false, machineGateReadable: a.identityReadable, machineGateGap: a.identityGap,
+    usesServiceRole: false, serviceRoleReadable: a.identityReadable,
+    ownershipFiltered: a.ownershipFiltered, ownershipReadable: a.ownershipReadable, ownershipGap: a.identityGap,
+    identityReadable: a.identityReadable, identityGap: a.identityGap,
+    dataReadable: a.identityReadable, dataGap: a.identityGap, via: a.importedBy.slice(0, 5),
+  }));
 }

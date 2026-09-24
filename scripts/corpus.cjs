@@ -90,6 +90,7 @@ function loadProductModules() {
     loaded,
     ...require("../lib/deep/repoArchive.ts"),
     ...require("../lib/graph/routeInventory.ts"),
+    ...require("../lib/graph/serverActionFacts.ts"),
     ...require("../lib/agent/attack.ts"),
     ...require("../lib/agent/attackGuard.ts"),
     ...require("../lib/agent/stack.ts"),
@@ -110,7 +111,8 @@ async function analyzePin(product, pin) {
     return new Response(Readable.toWeb(fs.createReadStream(archivePath(pin))));
   };
   const archive = await product.fetchRepoArchive("offline-placeholder", pin.repository, pin.commit);
-  const routes = product.collectRoutes(archive.files);
+  // Route handlers plus entry server actions, as the audit sees them (7E-3).
+  const routes = [...product.collectRoutes(archive.files), ...product.serverActionRoutes(archive.files)];
   const stack = product.detectStack(archive.files);
   const tables = [...new Set([...product.extractTables(archive.files), ...routes.flatMap((route) => route.tables)])].sort();
   const domain = product.inferDomain(tables, routes, product.extractColumns(archive.files));
@@ -120,9 +122,13 @@ async function analyzePin(product, pin) {
   const reasoned = routes.filter((route) => !noted.has(route.path));
   const prompted = product.rankRoutes(reasoned.filter((route) => route.tables.length > 0), new Set(domain.sensitive))
     .slice(0, product.MAX_PROMPT_ROUTES);
-  const candidates = prompted.filter((route) => (route.permissionGaps?.length ?? 0) > 0 || (route.identityReadable &&
+  // Model candidates come from the prompted routes; permission gaps are
+  // rendered deterministically from every route (as in the audit), so the
+  // reasoning budget must not hide them here either (7C, 7E-3).
+  const modelCandidates = prompted.filter((route) => route.identityReadable &&
     route.ownershipReadable && route.dataReadable && route.machineGateReadable && route.serviceRoleReadable &&
-    ((!route.authenticated && !route.machineGated) || !route.ownershipFiltered)));
+    ((!route.authenticated && !route.machineGated) || !route.ownershipFiltered));
+  const candidates = [...new Set([...modelCandidates, ...routes.filter((route) => (route.permissionGaps?.length ?? 0) > 0)])];
   return { archive, routes, stack, tables, domain, files, notes, reasoned, prompted, candidates };
 }
 
