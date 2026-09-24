@@ -1165,6 +1165,28 @@ try {
     const run=(await db.query("select authorization_id, finding_id, table_name, outcome, statements_run from public.proof_runs where job_id=$1",[job])).rows;
     assert.deepEqual(run,[{authorization_id:auth,finding_id:"policy:public.orders:read",table_name:"public.orders",outcome:"reproduced",statements_run:7}]);
   });
+  // Q10 / 12B: one usage receipt per model call, for cost per run.
+  await db.exec("reset role");
+  await db.exec(await readFile(new URL("../supabase/migrations/092_model_usage_receipts.sql", import.meta.url), "utf8"));
+  await db.exec("grant select, insert on public.model_usage_receipts to service_role; set role service_role");
+  const usage = (over) => db.query(`insert into public.model_usage_receipts(user_id,purpose,funded_by,model,input_tokens,output_tokens,stop_reason,audit_run_id,intelligence_task_id)
+    values($1,$2,$3,$4,$5,$6,$7,$8,$9)`, [over.user ?? u1, over.purpose, over.funded, over.model ?? "claude-haiku-4-5", over.input ?? 10, over.output ?? 5,
+    over.stop ?? "end_turn", over.run ?? null, over.task ?? null]);
+  await check("model usage receipts bind purpose, payer and run", async () => {
+    const run = "77777777-7777-4777-8777-777777777777";
+    await usage({purpose:"first_scan",funded:"shiplock",run});
+    await usage({purpose:"customer_api",funded:"customer",task:run});
+    await usage({purpose:"narrative",funded:"shiplock"});
+    await assert.rejects(usage({purpose:"first_scan",funded:"customer",run}));
+    await assert.rejects(usage({purpose:"customer_api",funded:"shiplock",task:run}));
+    await assert.rejects(usage({purpose:"first_scan",funded:"shiplock"}));
+    await assert.rejects(usage({purpose:"customer_api",funded:"customer"}));
+    await assert.rejects(usage({purpose:"narrative",funded:"shiplock",run}));
+    await assert.rejects(usage({purpose:"first_scan",funded:"shiplock",run,input:-1}));
+    await assert.rejects(usage({purpose:"bogus",funded:"shiplock"}));
+    await assert.rejects(usage({purpose:"narrative",funded:"shiplock",model:""}));
+    assert.equal((await db.query("select count(*)::int n from public.model_usage_receipts")).rows[0].n,3);
+  });
   await check("client roles cannot commit provider results or read snapshots", async () => {
     await db.exec("reset role; set role authenticated");
     await assert.rejects(db.query("select public.persist_provider_monitor_result($1,$1,$1,'postgres-direct','x',null,'[]'::jsonb,false,'[]'::jsonb,'{}'::jsonb)",[legacy]));
@@ -1177,6 +1199,7 @@ try {
     await assert.rejects(db.query("select public.consume_proof_authorization($1,$1)",[u1]));
     await assert.rejects(db.query("select public.revoke_proof_authorization($1,$1)",[u1]));
     await assert.rejects(db.query("select * from public.proof_runs"));
+    await assert.rejects(db.query("select * from public.model_usage_receipts"));
     await assert.rejects(db.query("select public.enqueue_proof_job($1,$1)",[u1]));
     await assert.rejects(db.query("select public.record_proof_run($1,$1,$1,'ran',null,1)",[u1]));
     await db.exec("reset role");

@@ -5,6 +5,8 @@ vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ rpc: state.rpc }) 
 vi.mock("./tasks", () => ({ getIntelligenceTask: state.view, submitIntelligenceResult: state.submit }));
 vi.mock("./credential", () => ({ loadApiKey: state.key }));
 vi.mock("@/lib/deep/github", () => ({ getFile: state.file }));
+const usageReceipt = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/cost/modelUsage", () => ({ recordModelUsage: usageReceipt }));
 vi.mock("@anthropic-ai/sdk", () => {
   class APIError extends Error { status: number; constructor(status: number, message: string) { super(message); this.status = status; } }
   class Anthropic {
@@ -54,6 +56,9 @@ describe("API-key mode (10B-2e-2)", () => {
     expect(submitted.host).toBe("api");
     expect(submitted.model).toBe("claude-opus-5");
     expect(submitted.usage).toEqual({ inputTokens: 1200, outputTokens: 300 });
+    // Q10: one receipt, customer-funded, bound to the task.
+    expect(usageReceipt).toHaveBeenCalledTimes(1);
+    expect(usageReceipt.mock.calls[0][0]).toMatchObject({ purpose: "customer_api", intelligenceTaskId: input.taskId, model: "claude-opus-5" });
   });
 
   it("never runs on ShipLock's key: no saved key means an honest unavailable result and no call", async () => {

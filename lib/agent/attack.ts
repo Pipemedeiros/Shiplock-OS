@@ -134,6 +134,8 @@ export interface AgentInput {
 
 export interface AgentOutcome extends GuardResult {
   model: string;
+  /** Token usage of the model response, when one arrived (Q10 cost receipts). */
+  usage?: { model: string; input_tokens: number; output_tokens: number; cache_read_input_tokens: number | null; stopReason: string | null };
   /** True when the model was never called -- no key, or nothing worth asking. */
   skipped: boolean;
   skipReason?: string;
@@ -439,6 +441,8 @@ export async function proposeAttacks(input: AgentInput): Promise<AgentOutcome> {
     }, input.timeoutMs ? { timeout: input.timeoutMs } : undefined);
 
     const usage = response.usage;
+    const receipt = { model, input_tokens: usage.input_tokens, output_tokens: usage.output_tokens,
+      cache_read_input_tokens: usage.cache_read_input_tokens ?? null, stopReason: response.stop_reason ?? null };
     console.log(
       `[TOKENS] model=${model} input=${usage.input_tokens} output=${usage.output_tokens} cost=agent-attack`,
     );
@@ -466,10 +470,11 @@ export async function proposeAttacks(input: AgentInput): Promise<AgentOutcome> {
         skipped: false,
         truncated,
         parseFailed,
+        usage: receipt,
       };
     }
 
-    return { ...guardHypotheses(hypotheses, recon), model, skipped: false, truncated, parseFailed };
+    return { ...guardHypotheses(hypotheses, recon), model, skipped: false, truncated, parseFailed, usage: receipt };
   } catch (err) {
     const message = err instanceof Error ? err.message : "unknown";
     const timedOut = err instanceof Anthropic.APIConnectionTimeoutError || /timeout/i.test(message);

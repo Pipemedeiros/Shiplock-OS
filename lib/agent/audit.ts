@@ -8,6 +8,7 @@ import { scanNextConfigEnv } from "@/lib/deep/nextConfigEnv";
 import { collectRoutes, type RouteFact } from "@/lib/graph/routeInventory";
 import { proposeAttacks, riskyRoutesOmitted, routesOmitted } from "./attack";
 import { claimFirstScanCredit } from "./firstScanCredit";
+import { recordModelUsage } from "@/lib/cost/modelUsage";
 import { crossTenantNotes, renderCrossTenantNote } from "./crossTenantNotes";
 import { detectStack, routeAnalysisSupport, type StackReport } from "./stack";
 import { buildFindings, type AgentFinding } from "./findings";
@@ -459,6 +460,12 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
             ? "the repository framework is inventory-only"
             : "not enough time left in this run",
         };
+
+    // Q10: one cost receipt per funded model response, before anything can fail.
+    if (agent.usage) {
+      await recordModelUsage({ userId, purpose: "first_scan", auditRunId: runId, model: agent.usage.model,
+        usage: agent.usage, stopReason: agent.usage.stopReason });
+    }
 
     if (agent.skipped) {
       step("Attack reasoning did not run", agent.skipReason);

@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { recordModelUsage } from "@/lib/cost/modelUsage";
 import { getFile } from "@/lib/deep/github";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { loadApiKey } from "./credential";
@@ -91,6 +92,9 @@ export async function runApiModeTask(input: Input): Promise<Outcome> {
   }
 
   const usage = { inputTokens: response.usage.input_tokens, outputTokens: response.usage.output_tokens };
+  // Q10: the customer's key paid; the receipt records that, never the text.
+  await recordModelUsage({ userId: input.userId, purpose: "customer_api", intelligenceTaskId: input.taskId,
+    model: response.model, usage: response.usage, stopReason: response.stop_reason ?? null });
   if (response.stop_reason === "refusal") return unavailable("unsupported", "The model declined this task.", usage);
   const text = response.content.filter((b) => b.type === "text").map((b) => ("text" in b ? b.text : "")).join("").trim()
     .replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
