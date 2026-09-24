@@ -8,6 +8,7 @@ import type { TableInventory } from "@/lib/exposure/model";
 import { loadRepositoryReachability, loadRepositoryGraphSource } from "./repositorySource";
 import { loadCurrentDatabaseEvidence } from "./databaseSource";
 import { loadRepositoryDatabaseEvidence, projectRepositoryDatabaseEvidence } from "./repositoryDatabase";
+import { recordModelUsage } from "@/lib/cost/modelUsage";
 import { collectTrafficFacts } from "@/lib/traffic/graphFacts";
 
 // Persistence and execution for the reasoner.
@@ -381,6 +382,10 @@ export async function persistGraphPaths(
     // wording findAttackPaths already produced, so a customer never sees a blank
     // finding because the model was unavailable.
     const narratives = await generateNarratives(fresh);
+    if (narratives.model) {
+      await recordModelUsage({ userId, purpose: "narrative", model: narratives.model, stopReason: null,
+        usage: { input_tokens: narratives.tokensIn, output_tokens: narratives.tokensOut } });
+    }
 
     const { error: insertError } = await admin.from("deep_findings").insert(
       fresh.map((p) => ({

@@ -52,6 +52,8 @@ export interface NarrativeResult {
   rejected: { id: string; reason: string }[];
   tokensIn: number;
   tokensOut: number;
+  /** Set only when a model call returned, so its usage can be receipted (Q10). */
+  model?: string;
 }
 
 const EMPTY: NarrativeResult = {
@@ -179,5 +181,5 @@ export async function generateNarratives(paths: AttackPath[]): Promise<Narrative
     );
   }
 
-  return { accepted, rejected, tokensIn, tokensOut };
+  return { accepted, rejected, tokensIn, tokensOut, model: MODEL };
 }

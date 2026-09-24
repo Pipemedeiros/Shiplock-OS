@@ -51,6 +51,14 @@ describe("generateNarratives", () => {
     expect(result.accepted.size).toBe(0);
   });
 
+  it("reports the model and usage of a call so it can be receipted (Q10)", async () => {
+    createMock.mockResolvedValue(reply({ narratives: [] }));
+    const result = await generateNarratives([path()]);
+    expect(result).toMatchObject({ model: "claude-haiku-4-5-20251001", tokensIn: 400, tokensOut: 120 });
+    delete process.env.SHIPLOCK_FUNDED_NARRATIVES;
+    expect((await generateNarratives([path()])).model).toBeUndefined();
+  });
+
   it("accepts a grounded narrative", async () => {
     createMock.mockResolvedValue(
       reply({
