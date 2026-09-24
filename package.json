@@ -17,6 +17,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.105.0",
     "@base-ui/react": "^1.6.0",
+    "@electric-sql/pglite": "0.3.14",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.108.2",
     "better-auth": "^1.6.23",
