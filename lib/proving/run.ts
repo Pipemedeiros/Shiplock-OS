@@ -63,6 +63,7 @@ export async function runProvingGround(ctx: ProvingContext): Promise<ProvingResu
 
   const findings: ProvenFinding[] = [];
   let probed = 0;
+  let controlFailed = 0;
 
   for (const { table, ownerColumn } of targets) {
     const { arena, reason } = await openArena(
@@ -86,6 +87,9 @@ export async function runProvingGround(ctx: ProvingContext): Promise<ProvingResu
 
     try {
       const finding = await proveTable(arena, table, ownerColumn, ctx);
+      // A failed control proved nothing, so it must not count as probed:
+      // `probed > 0` is what lets persistProvenFindings archive earlier proofs.
+      if (finding === CONTROL_FAILED) { controlFailed++; continue; }
       if (finding) findings.push(finding);
       probed++;
     } catch (err) {
@@ -96,8 +100,11 @@ export async function runProvingGround(ctx: ProvingContext): Promise<ProvingResu
   }
 
   await persistProvenFindings(ctx.userId, findings, probed);
+  if (probed === 0 && controlFailed > 0) return { ran: false, reason: "control_failed", findings, probed };
   return { ran: probed > 0, findings, probed };
 }
+
+const CONTROL_FAILED = Symbol("control_failed");
 
 /**
  * One table, inside an open arena.
@@ -112,7 +119,7 @@ async function proveTable(
   table: string,
   ownerColumn: string,
   ctx: ProvingContext
-): Promise<ProvenFinding | null> {
+): Promise<ProvenFinding | null | typeof CONTROL_FAILED> {
   // Branch arenas carry the real table; replicas were seeded at setup.
   if (arena.kind === "branch") {
     await arena.run(buildSeedSql(table, ownerColumn).sql);
@@ -121,7 +128,7 @@ async function proveTable(
   const control = num(await arena.run(buildControlProbeSql(arena.schema, table, ownerColumn)), "visible");
   if (control !== 1) {
     console.log(`[proving] ${table}: control returned ${control}, not trusting this run`);
-    return null;
+    return CONTROL_FAILED;
   }
 
   const outcome: ProbeOutcome = {
@@ -140,7 +147,7 @@ async function proveTable(
   // agent looks for shapes the single equality test cannot express. That call
   // spends ShipLock's key, so without an injected proposer it needs the
   // explicit funding flag (6-0); otherwise the table stays unproven, not clean.
-  const propose = ctx.propose ?? (shiplockFundedCallAllowed("proving") ? claudeProposer() : null);
+  const propose = ctx.propose ?? (shiplockFundedCallAllowed("proving") ? claudeProposer(ctx.userId) : null);
   if (!propose) return null;
   const { finding } = await runAdversarialAgent(
     {

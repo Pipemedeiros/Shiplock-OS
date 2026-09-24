@@ -109,7 +109,10 @@ describe("proving a table", () => {
     openArenaMock.mockResolvedValue({ arena, reason: "" });
     const r = await runProvingGround(ctx());
     expect(r.findings).toEqual([]);
+    expect(r.ran).toBe(false);
+    expect(r.reason).toBe("control_failed");
   });
+
 
   // Only worth a model call once the free check has come up empty.
   it("runs the agent ONLY when the deterministic probe found nothing", async () => {

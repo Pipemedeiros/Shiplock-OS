@@ -2,7 +2,7 @@ import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { quotaCode } from "@/lib/quota";
 
-export const JobKind = z.enum(["audit", "source", "monitor", "dependency", "graph", "pr-check", "notification", "repair", "intelligence"]);
+export const JobKind = z.enum(["audit", "source", "monitor", "dependency", "graph", "pr-check", "notification", "repair", "intelligence", "proof"]);
 export type JobKind = z.infer<typeof JobKind>;
 export const AuditTrigger = z.enum(["manual", "pull_request", "scheduled"]);
 export type AuditTrigger = z.infer<typeof AuditTrigger>;

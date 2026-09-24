@@ -46,3 +46,32 @@ describe("embedded proving host (6A-2a)", () => {
     }
   }, 20_000);
 });
+
+// Q6: a policy is customer text the replica executes. One that allocates
+// without bound once aborted the whole server process; it must end only the
+// replica, as an error the proof worker records as aborted.
+describe("embedded host resource limits (Q6)", () => {
+  it("ends a spilling allocation bomb in a policy as an error, not a 7 GB process", async () => {
+    const host = await openEmbeddedHost({ statementTimeoutMs: 60_000 });
+    try {
+      const plan = buildReplicaPlan("bomb", "orders", "user_id",
+        [policy("(select count(*) from (select array_agg(g) a from generate_series(1, 400000000) g) s) > 0")]);
+      await host.run(host.projectRef, plan.setupSql);
+      await expect(host.run(host.projectRef, buildControlProbeSql(plan.schema, "orders", "user_id"))).rejects.toThrow(/temp_file_limit/);
+      // A probe cannot lift the limit: it runs as authenticated, not superuser.
+      await expect(host.run(host.projectRef, "begin; set local role authenticated; set temp_file_limit = -1; commit;")).rejects.toThrow(/permission denied/);
+      // And a failed probe does not leave the session unusable for teardown.
+      await expect(host.run(host.projectRef, plan.teardownSql)).resolves.toEqual([]);
+    } finally {
+      await host.close();
+    }
+  }, 120_000);
+  it("returns at most a bounded prefix of rows", async () => {
+    const host = await openEmbeddedHost();
+    try {
+      expect(await host.run(host.projectRef, "select g from generate_series(1, 5000) g")).toHaveLength(200);
+    } finally {
+      await host.close();
+    }
+  });
+});

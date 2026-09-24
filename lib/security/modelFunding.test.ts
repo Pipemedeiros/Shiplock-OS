@@ -39,14 +39,14 @@ describe("model clients are an allowlisted, reviewed set", () => {
 
   // Q10: cost per run must be measurable, so each model client's response
   // leaves a usage receipt, in the client or the caller that owns the run.
-  // `defender.ts` has no caller; `proving/agent.ts` records with the Q6 worker.
+  // `defender.ts` has no caller.
   const RECEIPT_OWNER: Record<string, string | null> = {
     "lib/agent/attack.ts": "lib/agent/audit.ts",
     "lib/analyzer.ts": "lib/analyzer.ts",
     "lib/graph/narrative.ts": "lib/graph/graphRun.ts",
     "lib/intelligence/apiMode.ts": "lib/intelligence/apiMode.ts",
     "lib/graph/defender.ts": null,
-    "lib/proving/agent.ts": null,
+    "lib/proving/agent.ts": "lib/proving/agent.ts",
   };
   it("every model client's usage is receipted by it or its run owner", () => {
     expect(Object.keys(RECEIPT_OWNER).sort()).toEqual(Object.keys(ALLOWED).sort());

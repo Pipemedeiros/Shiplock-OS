@@ -6,6 +6,7 @@ import { runNextDependencyJob } from "./dependencyWorker";
 import { runNextMonitorJob } from "./monitorWorker";
 import { runNextNotificationJob } from "./notificationWorker";
 import { runNextRepairJob } from "./repairWorker";
+import { runNextProofJob } from "./proofWorker";
 import { runNextIntelligenceJob } from "./intelligenceWorker";
 
 /** One bounded unit per invocation. Customer-visible PR/audit work wins, then
@@ -16,6 +17,8 @@ export async function runNextJob(): Promise<boolean> {
   if (await runNextNotificationJob()) return true;
   // A customer is waiting on a clicked repair; run it before background work.
   if (await runNextRepairJob()) return true;
+  // A clicked proof: one disposable, in-process replica, bounded by its budget.
+  if (await runNextProofJob()) return true;
   if (await runNextAuditJob()) return true;
   if (await runNextGraphJob()) return true;
   if (await runNextSourceJob()) return true;

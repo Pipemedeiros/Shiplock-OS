@@ -12,8 +12,22 @@ const securityHeaders = [
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
 ];
 
+// Q6: routes that drain the job queue can run a proof, which starts the
+// embedded replica in a worker thread (lib/proving/embeddedHost.ts). The
+// worker script is loaded by path, so it and the PGlite runtime it imports
+// are traced explicitly, for these routes only (PGlite is about 13 MB).
+export const PROOF_ROUTES = ["/api/jobs/drain", "/api/monitor/github", "/api/deep/github/scan"];
+const PROOF_FILES = [
+  "./lib/proving/embeddedWorker.mjs",
+  "./node_modules/@electric-sql/pglite/package.json",
+  "./node_modules/@electric-sql/pglite/dist/*.js",
+  "./node_modules/@electric-sql/pglite/dist/pglite.wasm",
+  "./node_modules/@electric-sql/pglite/dist/pglite.data",
+];
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  outputFileTracingIncludes: Object.fromEntries(PROOF_ROUTES.map((route) => [route, PROOF_FILES])),
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

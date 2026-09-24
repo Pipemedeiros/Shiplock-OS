@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { recordModelUsage } from "@/lib/cost/modelUsage";
 import type { Severity } from "@/lib/types";
 import { assertAgentAction, checkAgentAction, summariseAttempts, type AgentAttempt } from "./agentGuard";
 import { TENANT_A, TENANT_B } from "./tenantProbe";
@@ -82,7 +83,7 @@ export type Proposer = (context: AgentContext, previous: AgentAttempt[]) => Prom
  * anything is a quiet run, and the deterministic probe has already covered the
  * common case regardless.
  */
-export function claudeProposer(): Proposer {
+export function claudeProposer(userId: string): Proposer {
   return async (context, previous) => {
     const client = new Anthropic();
     const schemaDescription =
@@ -107,9 +108,9 @@ export function claudeProposer(): Proposer {
         { timeout: TIMEOUT_MS, maxRetries: 0 }
       );
 
-      console.log(
-        `[proving-agent] model=${MODEL} input=${response.usage.input_tokens} output=${response.usage.output_tokens}`
-      );
+      // Q10: every returned response leaves a receipt, parseable or not; a
+      // call that failed returned no usage to record.
+      await recordModelUsage({ userId, purpose: "proving", model: response.model, stopReason: response.stop_reason, usage: response.usage });
 
       const text = response.content.filter((b) => b.type === "text").map((b) => b.text).join("");
       const match = /\{[\s\S]*\}/.exec(text);

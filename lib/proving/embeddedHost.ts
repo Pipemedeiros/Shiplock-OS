@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { Worker } from "node:worker_threads";
 import type { ProvingHost } from "./arena";
 
@@ -26,6 +27,9 @@ const PRELUDE = `
   grant execute on all functions in schema auth to anon, authenticated;
 `;
 
+/** Project-relative, so next.config.ts can trace exactly this file. */
+export const EMBEDDED_WORKER_PATH = "lib/proving/embeddedWorker.mjs";
+
 export interface EmbeddedHost extends ProvingHost {
   close(): Promise<void>;
 }
@@ -33,7 +37,16 @@ export interface EmbeddedHost extends ProvingHost {
 type Reply = { id?: number; rows?: Record<string, unknown>[]; error?: string; ready?: boolean };
 
 export async function openEmbeddedHost({ statementTimeoutMs = 5_000 }: { statementTimeoutMs?: number } = {}): Promise<EmbeddedHost> {
-  const worker = new Worker(new URL("./embeddedWorker.mjs", import.meta.url));
+  // Q6: a heap limit so a runaway JS-side allocation ends only this thread
+  // (ERR_WORKER_OUT_OF_MEMORY), not the server process. It does not bound
+  // PGlite's WASM memory (capped at 2 GB by PGlite) or its in-memory temp
+  // files; the worker bounds those with temp_file_limit (embeddedWorker.mjs).
+  // Resolved from the project root at run time, never bundled: Turbopack
+  // cannot resolve a worker script as a module. The file and PGlite reach the
+  // job routes' functions through outputFileTracingIncludes (next.config.ts).
+  const worker = new Worker(/* turbopackIgnore: true */ join(process.cwd(), EMBEDDED_WORKER_PATH), {
+    resourceLimits: { maxOldGenerationSizeMb: 256, maxYoungGenerationSizeMb: 32, stackSizeMb: 4 },
+  });
   const pending = new Map<number, { resolve: (rows: Record<string, unknown>[]) => void; reject: (err: Error) => void }>();
   let dead: Error | null = null;
   let next = 0;
