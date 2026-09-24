@@ -14,10 +14,10 @@ Claude Code and Codex. Claude Code v2.1.277+ reads `AGENTS.md` in supported
 sessions when this project has no `CLAUDE.md`; older or unsupported sessions
 must be pointed here explicitly. Before any implementation, read this file and
 `docs/MASTER-PLAN-PROGRESS.md` completely, then read the Ponytail and
-Superpowers skills and inspect the relevant code and tests. For every coherent
-repository change, including a partial or documentation-only package, record
-progress in the dynamic master ledger before handoff or commit: exact
-step/item, evidence, and remaining gaps. Do not create another agent guide,
+Superpowers skills and inspect the relevant code and tests. Before handoff or
+commit, keep the master ledger current: update the sections your change
+affects (queue, production state, open gaps) and delete what is finished; the
+commit message carries the evidence. Do not create another agent guide,
 phase handoff, or alternative product spec. Code and executable tests decide
 implementation truth; if they conflict with this
 contract, report the mismatch and seek Felipe's approval before editing
@@ -424,13 +424,12 @@ and its exact status live only in `docs/MASTER-PLAN-PROGRESS.md`.
 - Never spend money, purchase or activate a subscription, call a paid model/API,
   or deploy billable infrastructure without Felipe's explicit approval. Prefer
   local tests, fixtures, emulators, and mocked providers.
-- Make changes reviewable and cohesive. Report the master section, step, and
-  item; update `docs/MASTER-PLAN-PROGRESS.md` for every coherent repository
-  change before handoff or commit, even if the step remains partial or the
-  change is documentation-only. Include the date, changed behavior,
-  verification, unfinished sibling items, and next reviewable action. This is
-  the only project Markdown file an agent is required to change per step.
-  A package is not a finished phase. Preserve unrelated working-tree changes.
+- Make changes reviewable and cohesive. Name the step and item in the commit
+  message with its evidence (tests and results, skipped checks). Keep
+  `docs/MASTER-PLAN-PROGRESS.md` current as described in "Documentation
+  hygiene and handoff": update what changed, remove what is finished, never
+  append logs. A package is not a finished phase. Preserve unrelated
+  working-tree changes.
 - Keep `AGENTS.md` as deep, stable product/architecture/implementation context.
   Do not edit it for routine progress, and do not change it at all without
   Felipe's explicit approval, an explicit request to edit it, or his explicit
@@ -486,28 +485,35 @@ not proof its CLI is installed, and neither agent may silently activate it.
 
 ## Documentation hygiene and handoff
 
-Maintain a single active handoff near the top of the master ledger: date, active
-step/item, completed changes, unfinished siblings, changed files, actual test
-results (including failures/skips), decisions, blockers, and exact next action.
-At takeover, reconcile that record with Git status/diff before editing. Claude
-and Codex work sequentially against the same record; do not overwrite the
-previous agent's unfinished work or infer completion from its last message.
+The master ledger is working memory, not a history book (Felipe, 2026-09-24).
+It holds only what is true now and what comes next: production state, the
+open work queue with enough detail to start each item, invariants, parked
+decisions, and unreviewed reports. Keep it short enough to read in one pass
+(about 400 lines); every agent session pays for every line.
+
+- When an item is done and reviewed, delete it from the ledger. Its record is
+  the commit and its message; do not keep "done" entries, logs, or dated
+  narratives. A fact that stays useful (a released migration number, a
+  decision still binding) is kept as current state in one line, not as a
+  story.
+- Codex appends a short report when an item is done or blocked. Claude reviews
+  it, folds anything still true into the current sections, and deletes the
+  report.
+- History lives in git: `git log -- docs/MASTER-PLAN-PROGRESS.md` and commit
+  messages. Measurement inputs and results stay as JSON under
+  `docs/evaluation/`.
+- At takeover, reconcile the ledger with `git status` and `git log` before
+  editing. Claude and Codex work sequentially; never overwrite another
+  agent's unfinished work or infer completion from its last message.
 
 `AGENTS.md` is the stable product spec, architecture, design rules, workflow,
-and code orientation; the master ledger is dynamic status and the exact next
-package. Keep status out of this file: migration numbers, commit hashes,
-release dates, queue items, and parked decisions belong in the ledger. These are the only two non-skill Markdown
-files in the repo. Change this file only under Felipe's authority described above;
-write all ordinary implementation progress to the master ledger. Date every
-master-ledger update; identify the exact section/step/item finished,
-evidence/tests, incomplete sibling items, and next
-reviewable action. A locally completed package does not close a step with live
-acceptance still open. Keep older measurement inputs as JSON/source and, for
-retired narrative, use Git history rather than a parallel README/spec/handoff.
-Completed steps may be compacted out of the active queue only after their key
-proof and remaining caveats are retained in the ledger; do not erase unfinished
-2/3/4 work just because a later step started.
-Do not create any additional project Markdown without Felipe's explicit request.
-Keep all other project Markdown out of the repo, including a second agent
-guide, generated handoff notes, and a repo-local `.claude` tree. Skill Markdown
-under `.agents/skills/` is the sole exception.
+and code orientation. Keep status out of it: migration numbers, commit
+hashes, release dates, queue items, and parked decisions belong in the
+ledger. These are the only two non-skill Markdown files in the repo. Change
+this file only under Felipe's authority described above. A locally completed
+package does not close a step whose live acceptance is still open; keep that
+acceptance as an open item. Do not create any additional project Markdown
+without Felipe's explicit request. Keep all other project Markdown out of the
+repo, including a second agent guide, generated handoff notes, and a
+repo-local `.claude` tree. Skill Markdown under `.agents/skills/` is the sole
+exception.
