@@ -6,6 +6,8 @@ import { getAiActivity } from "@/lib/intelligence/activity";
 import { AiChecks } from "@/components/v3/AiChecks";
 import { getProviderCoverage } from "@/lib/monitoring/providerCoverage";
 import { ProviderCoverage } from "@/components/v3/ProviderCoverage";
+import { getTrafficSources } from "@/lib/traffic/sourceStatus";
+import { TrafficSources } from "@/components/v3/TrafficSources";
 
 /**
  * What the last audit did not reach.
@@ -17,7 +19,8 @@ import { ProviderCoverage } from "@/components/v3/ProviderCoverage";
  */
 export default async function Coverage() {
   const { userId } = await requireDashboardSession();
-  const [runs, evidence, ai, providers] = await Promise.all([getRuns(userId, 1), getEvidenceCoverage(userId), getAiActivity(userId), getProviderCoverage(userId)]);
+  const [runs, evidence, ai, providers, traffic] = await Promise.all([getRuns(userId, 1), getEvidenceCoverage(userId),
+    getAiActivity(userId), getProviderCoverage(userId), getTrafficSources(userId)]);
   const latest = runs[0];
 
   return (
@@ -43,6 +46,14 @@ export default async function Coverage() {
           <h2 className="v3-eyebrow">Connected providers</h2>
         </div>
         <div className="v3-card-p"><ProviderCoverage coverage={providers} /></div>
+      </div>
+
+      {/* Per repository traffic source (Q3 / 2F-5). */}
+      <div className="v3-card" style={{ marginBottom: 24 }}>
+        <div className="v3-hd">
+          <h2 className="v3-eyebrow">Traffic</h2>
+        </div>
+        <div className="v3-card-p"><TrafficSources sources={traffic} /></div>
       </div>
 
       <div className="v3-card" style={{ marginBottom: 24 }}>
