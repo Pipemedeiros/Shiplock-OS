@@ -3,6 +3,7 @@ import { stripComments, resolveImport, stringSpans, stringLiteralRanges } from "
 import { blankDeclarations } from "./declarations";
 import { traceExecutedSources } from "./callPath";
 import { isWorkspacePackageImport } from "./tsconfigPaths";
+import { findPermissionGaps, type PermissionGap } from "./permissionGaps";
 
 // The source collector's structural output: which HTTP routes exist, which
 // tables each one touches, and whether it checks who is asking.
@@ -123,6 +124,13 @@ export interface RouteFact {
    * so a finding can say WHERE it saw the gate rather than asserting one exists.
    */
   via: string[];
+
+  /**
+   * Handlers here that write a model with a weaker declared permission than
+   * another handler writing the same model requires (Step 7C, read from
+   * source; see ./permissionGaps.ts). Absent means none was read.
+   */
+  permissionGaps?: PermissionGap[];
 }
 
 const ROUTE_FILE_RE = /(^|\/)route\.(ts|js|tsx|jsx)$/;
@@ -1427,9 +1435,14 @@ export function isRouteFile(path: string): boolean {
  */
 export function collectRoutes(files: RepoFile[]): RouteFact[] {
   const byPath = new Map(files.map((f) => [f.path, f]));
+  const gaps = new Map<string, PermissionGap[]>();
+  for (const gap of findPermissionGaps(files)) gaps.set(gap.file, [...(gaps.get(gap.file) ?? []), gap]);
   return files
     .filter((f) => isRouteFile(f.path))
-    .map((f) => analyzeRouteFile(f.path, f.content, byPath))
+    .map((f) => {
+      const route = analyzeRouteFile(f.path, f.content, byPath);
+      return gaps.has(f.path) ? { ...route, permissionGaps: gaps.get(f.path) } : route;
+    })
     .sort((a, b) => a.path.localeCompare(b.path));
 }
 

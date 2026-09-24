@@ -54,7 +54,7 @@ export interface AgentFinding {
   consequence: string;
   severity: Severity;
   confidence: Confidence;
-  attackClass: AttackClass | "committed_secret";
+  attackClass: AttackClass | "committed_secret" | "permission_gap";
   entry: string | null;
   file: string | null;
   blastRadius: string | null;
@@ -349,6 +349,35 @@ export function buildFindings(input: BuildFindingsInput): AgentFinding[] {
         { claim: "Anyone with read access to this repository, now or in its history, has it.", origin: "secrets", verified: true },
       ],
     });
+  }
+
+  // Permission gaps read from source (Step 7C). Rendered from the rule the
+  // repository itself states, never from a model. A WARNING and a manual fix:
+  // whether the weaker path is intended is a business decision (AGENTS.md).
+  const pathByFile = new Map(input.routes.map((r) => [r.file, r.path]));
+  for (const route of input.routes) {
+    for (const gap of route.permissionGaps ?? []) {
+      const witnessPath = pathByFile.get(gap.witness.file) ?? gap.witness.file;
+      const held = gap.requires.length ? gap.requires.join(" and ") : "no permission for it";
+      findings.push({
+        id: `agent:permission_gap:${gap.method}:${route.path}:${gap.model}`,
+        title: `${gap.method} ${route.path} changes ${gap.model} records with only ${held}`,
+        consequence: `Elsewhere in this app, changing ${gap.model} records requires ${gap.expected} `
+          + `(${gap.witness.method} ${witnessPath}). Here, a user holding only ${held} can do it. `
+          + "If that is not intended, require the same permission here. Whether it is intended is your call.",
+        severity: "WARNING",
+        confidence: "inferred",
+        attackClass: "permission_gap",
+        entry: route.path,
+        file: gap.file,
+        blastRadius: gap.model,
+        fixKind: "manual",
+        claims: [
+          { claim: `${gap.method} ${route.path} declares ${held} and writes ${gap.model}.`, origin: "routes", verified: true },
+          { claim: `${gap.witness.method} ${witnessPath} declares ${gap.expected} for the same write.`, origin: "routes", verified: true },
+        ],
+      });
+    }
   }
 
   const order: Record<string, number> = { CRITICAL: 0, WARNING: 1, INFO: 2 };

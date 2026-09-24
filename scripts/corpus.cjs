@@ -120,9 +120,9 @@ async function analyzePin(product, pin) {
   const reasoned = routes.filter((route) => !noted.has(route.path));
   const prompted = product.rankRoutes(reasoned.filter((route) => route.tables.length > 0), new Set(domain.sensitive))
     .slice(0, product.MAX_PROMPT_ROUTES);
-  const candidates = prompted.filter((route) => route.identityReadable && route.ownershipReadable &&
-    route.dataReadable && route.machineGateReadable && route.serviceRoleReadable &&
-    ((!route.authenticated && !route.machineGated) || !route.ownershipFiltered));
+  const candidates = prompted.filter((route) => (route.permissionGaps?.length ?? 0) > 0 || (route.identityReadable &&
+    route.ownershipReadable && route.dataReadable && route.machineGateReadable && route.serviceRoleReadable &&
+    ((!route.authenticated && !route.machineGated) || !route.ownershipFiltered)));
   return { archive, routes, stack, tables, domain, files, notes, reasoned, prompted, candidates };
 }
 

@@ -190,12 +190,18 @@ export function routeRisk(route: RouteFact, sensitive: Set<string>): number {
   const unscoped = route.ownershipReadable && !route.ownershipFiltered;
   const touchesSensitive = route.tables.some((t) => sensitive.has(t));
 
+  // A permission gap read from source (Step 7C): signed in and scoped, but a
+  // weaker permission reaches a write another handler guards. Reportable, so
+  // it enters the reasoning budget and the truncation fuse counts it.
+  const permissionGap = (route.permissionGaps?.length ?? 0) > 0;
+
   if (anonymous && unscoped && touchesSensitive) return 0;
   if (anonymous && unscoped) return 1;
   if (route.authenticated && unscoped && touchesSensitive) return 2;
   if (route.authenticated && unscoped) return 3;
   if (anonymous) return 4;
   if (route.machineGated && unscoped) return 5;
+  if (permissionGap) return 5;
   return 6;
 }
 
