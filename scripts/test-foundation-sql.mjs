@@ -1077,6 +1077,55 @@ try {
     assert.match(def,/\(kind, run_after, created_at, id\) WHERE \(status = 'queued'::text\)/);
   });
   await db.exec("set role service_role");
+  // Q5 / 6A-1: one receipt per proof the customer authorized, for one table.
+  await db.exec("reset role");
+  await db.exec(await readFile(new URL("../supabase/migrations/090_proof_authorizations.sql", import.meta.url), "utf8"));
+  await db.query("update public.repositories set selected=true where id=$1 and user_id=$2",[r1,u1]);
+  await db.exec("set role service_role");
+  const authorize = (user, repo, finding, table, key) => db.query(
+    "select public.authorize_proof($1,$2,$3,$4,$5) as id",[user,repo,finding,table,key]);
+  await check("a proof authorization is idempotent per key and bound to its payload", async () => {
+    const id=(await authorize(u1,r1,"rls:orders","public.orders","p-1")).rows[0].id;
+    assert.equal((await authorize(u1,r1,"rls:orders","public.orders","p-1")).rows[0].id,id);
+    await assert.rejects(authorize(u1,r1,"rls:orders","public.invoices","p-1"));
+    const row=(await db.query("select status, target_kind, statement_budget, extract(epoch from expires_at-created_at)::int as ttl from public.proof_authorizations where id=$1",[id])).rows[0];
+    assert.deepEqual([row.status,row.target_kind,row.statement_budget],["issued","replica",60]);
+    assert.equal(row.ttl,3600);
+  });
+  await check("a proof authorization refuses a foreign or deselected repository and a bad table", async () => {
+    await assert.rejects(authorize(u2,r1,"rls:orders","public.orders","p-foreign"));
+    await assert.rejects(authorize(u1,r1,"rls:orders","orders","p-noschema"));
+    await assert.rejects(authorize(u1,r1,"rls:orders","public.Orders;drop","p-inject"));
+    await assert.rejects(authorize(u1,r1,"","public.orders","p-empty"));
+    await db.exec("reset role");
+    await db.query("update public.repositories set selected=false where id=$1",[r1]);
+    await db.exec("set role service_role");
+    await assert.rejects(authorize(u1,r1,"rls:orders","public.orders","p-deselected"));
+    await db.exec("reset role");
+    await db.query("update public.repositories set selected=true where id=$1",[r1]);
+    await db.exec("set role service_role");
+  });
+  await check("at most five authorizations are outstanding per account", async () => {
+    for (let i=2;i<=5;i++) await authorize(u1,r1,"rls:orders",`public.t${i}`,`p-${i}`);
+    await assert.rejects(authorize(u1,r1,"rls:orders","public.t6","p-6"));
+  });
+  await check("an authorization is consumed once, and never when expired, revoked or foreign", async () => {
+    const id=(await authorize(u1,r1,"rls:orders","public.orders","p-1")).rows[0].id;
+    const consume=(user,auth)=>db.query("select public.consume_proof_authorization($1,$2) as ok",[user,auth]);
+    await assert.rejects(consume(u2,id));
+    assert.equal((await consume(u1,id)).rows[0].ok,true);
+    await assert.rejects(consume(u1,id));
+    const other=(await db.query("select id from public.proof_authorizations where user_id=$1 and status='issued' order by created_at limit 2",[u1])).rows;
+    assert.equal((await db.query("select public.revoke_proof_authorization($1,$2) as ok",[u1,other[0].id])).rows[0].ok,true);
+    assert.equal((await db.query("select public.revoke_proof_authorization($1,$2) as ok",[u2,other[1].id])).rows[0].ok,false);
+    await assert.rejects(consume(u1,other[0].id));
+    await db.exec("reset role");
+    await db.query("update public.proof_authorizations set created_at=now()-interval '2 hours', expires_at=now()-interval '1 hour' where id=$1",[other[1].id]);
+    await db.exec("set role service_role");
+    await assert.rejects(consume(u1,other[1].id));
+    // An expired authorization no longer counts toward the outstanding limit.
+    await authorize(u1,r1,"rls:orders","public.t7","p-7");
+  });
   await check("client roles cannot commit provider results or read snapshots", async () => {
     await db.exec("reset role; set role authenticated");
     await assert.rejects(db.query("select public.persist_provider_monitor_result($1,$1,$1,'postgres-direct','x',null,'[]'::jsonb,false,'[]'::jsonb,'{}'::jsonb)",[legacy]));
@@ -1084,6 +1133,10 @@ try {
     await assert.rejects(db.query("select public.record_provider_read_failure($1,$1,$1,'vercel',null,'auth_failed')",[legacy]));
     await assert.rejects(db.query("select public.prune_provider_snapshots()"));
     await assert.rejects(db.query("select public.record_edge_traffic_snapshot($1,$1,$1,'proj',true)",[legacy]));
+    await assert.rejects(db.query("select * from public.proof_authorizations"));
+    await assert.rejects(db.query("select public.authorize_proof($1,$2,'rls:x','public.x','k')",[u1,r1]));
+    await assert.rejects(db.query("select public.consume_proof_authorization($1,$1)",[u1]));
+    await assert.rejects(db.query("select public.revoke_proof_authorization($1,$1)",[u1]));
     await db.exec("reset role");
   });
   console.log(`${checks} SQL checks passed. Single-connection PostgreSQL WASM; multi-session contention and hosted Supabase remain unverified.`);
