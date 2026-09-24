@@ -29,7 +29,7 @@ export type ServerActionFact = {
 // development data, 2026-09-24.)
 const MIDDLEWARE_LOADER = /\b(?:get(?:Current|Authenticated|Server)?(?:User|Session)\w*|require(?:User|Session|Auth)\w*)\s*\(/;
 const REFUSAL = /\bthrow\b|\bredirect\s*\(|\bunauthorized\b|\bnotFound\s*\(/i;
-const middlewareAuthenticates = (text: string) =>
+export const middlewareAuthenticates = (text: string) =>
   STRONG_USER_AUTH_RE.test(text) || (MIDDLEWARE_LOADER.test(text) && REFUSAL.test(text));
 
 const PRISMA = /\bprisma\.(\w+)\.(?:find\w*|create\w*|update\w*|upsert|delete\w*|count|aggregate|groupBy)\s*\(/g;
@@ -73,13 +73,13 @@ function clientMiddleware(clientName: string, file: RepoFile, byPath: Map<string
   return parentText === null ? null : `${parentText}\n${definition}`;
 }
 
-const NOT_HELPERS = new Set(["action", "inputSchema", "schema", "metadata", "if", "for", "while", "switch", "catch", "return",
+export const NOT_HELPERS = new Set(["action", "inputSchema", "schema", "metadata", "if", "for", "while", "switch", "catch", "return",
   "async", "function", "String", "Number", "Boolean", "Array", "Object", "JSON", "Promise", "Error"]);
 
 /** Every call in the text with its own argument text (bracket counting, so
  * nested calls are each seen). Prisma calls are skipped: their where clauses
  * are judged directly. */
-function calls(text: string): { callee: string; args: string }[] {
+export function calls(text: string): { callee: string; args: string }[] {
   const out: { callee: string; args: string }[] = [];
   for (const m of text.matchAll(/(?<![.\w])(\w+)\s*\(|\.(\w+)\s*\(/g)) {
     const callee = m[1] ?? m[2];
