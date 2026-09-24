@@ -50,6 +50,11 @@ describe("summarizeProviderCoverage", () => {
     expect(only([mgmt()], [failedBefore]).state).toBe("stale_connection");
   });
 
+  it("ignores gateway traffic snapshots, which belong to the traffic card", () => {
+    expect(only([mgmt()], [row(), row({ transport: "supabase-edge-logs", observed_at: "2026-09-23T10:00:00.000Z", completeness: "failed", reason: "log_unread", connection_identity: null })]).state)
+      .toBe("complete");
+  });
+
   it("uses the newest row per transport", () => {
     const item = only([mgmt()], [row({ observed_at: "2026-09-21T10:00:00.000Z", completeness: "failed", reason: "timeout", connection_identity: null }), row()]);
     expect(item.state).toBe("complete");

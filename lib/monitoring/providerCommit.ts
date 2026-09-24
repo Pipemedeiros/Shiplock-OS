@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { Finding } from "./findings";
-import type { ProviderCommit, ProviderFailure } from "./registry";
+import type { EdgeTrafficRecord, ProviderCommit, ProviderFailure } from "./registry";
 
 const createdSchema = z.array(z.object({
   id: z.string().min(1), severity: z.enum(["CRITICAL", "WARNING", "INFO"]),
@@ -37,5 +37,16 @@ export function fencedProviderFailure(userId: string, jobId: string, leaseToken:
       p_user: userId, p_job: jobId, p_token: leaseToken, p_transport: transport, p_scope: null, p_reason: reason,
     });
     if (error) throw new Error("Provider failure was not recorded");
+  };
+}
+
+/** Records whether the Supabase gateway log was read (Q8, migration 088),
+ * fenced by the same job lease. */
+export function fencedEdgeTrafficRecord(userId: string, jobId: string, leaseToken: string): EdgeTrafficRecord {
+  return async (projectRef, read) => {
+    const { error } = await getSupabaseAdmin().rpc("record_edge_traffic_snapshot", {
+      p_user: userId, p_job: jobId, p_token: leaseToken, p_project_ref: projectRef, p_read: read,
+    });
+    if (error) throw new Error("Edge traffic snapshot was not recorded");
   };
 }

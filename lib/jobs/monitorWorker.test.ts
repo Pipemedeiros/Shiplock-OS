@@ -45,7 +45,7 @@ beforeEach(() => {
 
 it("runs a provider-only customer from current database context", async () => {
   await executeMonitorJob(job);
-  expect(state.run).toHaveBeenCalledWith({ ...providerOnly, email: null },"scheduled_48h",undefined,expect.any(Function),expect.any(Function));
+  expect(state.run).toHaveBeenCalledWith({ ...providerOnly, email: null },"scheduled_48h",undefined,expect.any(Function),{ failure: expect.any(Function), edgeTraffic: expect.any(Function) });
   expect(state.filters).toHaveBeenCalledWith("monitoring_job_context","job_id",job.id);
   expect(state.filters).toHaveBeenCalledWith("user_profiles","id",job.user_id);
 });

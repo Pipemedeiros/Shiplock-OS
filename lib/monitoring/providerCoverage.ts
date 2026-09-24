@@ -19,7 +19,8 @@ export type ProviderCoverageItem = {
 };
 
 const snapshotRow = z.object({
-  transport: z.enum(["postgres-direct", "supabase-management", "vercel", "app-surface"]),
+  // supabase-edge-logs rows (088) belong to the traffic card, not this one.
+  transport: z.enum(["postgres-direct", "supabase-management", "vercel", "app-surface", "supabase-edge-logs"]),
   connection_identity: z.string().nullable(), observed_at: z.string(),
   completeness: z.enum(["complete", "partial", "failed"]), unread: z.array(z.string()),
   reason: z.string().nullable(), finding_count: z.number().nullable(), scope: z.string().nullable(),

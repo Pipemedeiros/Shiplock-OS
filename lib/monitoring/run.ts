@@ -3,7 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import type { Finding } from "./findings";
 import { diffSnapshots } from "./diff";
 import { saveFacts } from "@/lib/graph/graphRun";
-import { runCollectors, type CollectorSpec, type ProviderCommit, type ProviderFailure } from "./registry";
+import { runCollectors, type CollectorSpec, type EdgeTrafficRecord, type ProviderCommit, type ProviderFailure } from "./registry";
 import { DEFAULT_COLLECTORS } from "./collectors";
 import type { MonitoredProfile, TriggerSource } from "./types";
 
@@ -27,7 +27,7 @@ async function executeMonitoringPass(
   // entry rather than an edit to this function.
   collectors: readonly CollectorSpec[],
   commit?: ProviderCommit,
-  recordFailure?: ProviderFailure,
+  recorders: { failure?: ProviderFailure; edgeTraffic?: EdgeTrafficRecord } = {},
 ): Promise<{ newFindings: Finding[]; writesSucceeded: boolean }> {
   const admin = getSupabaseAdmin();
   const anonKey = profile.monitored_anon_key_encrypted
@@ -50,7 +50,8 @@ async function executeMonitoringPass(
     triggerSource,
     previousFindings,
     commit,
-    recordFailure,
+    recordFailure: recorders.failure,
+    recordEdgeTraffic: recorders.edgeTraffic,
   });
 
   // Snapshot findings are the current state of everything checked this pass;
@@ -129,7 +130,7 @@ export function runMonitoringPassForWorker(
   triggerSource: TriggerSource,
   collectors: readonly CollectorSpec[] = DEFAULT_COLLECTORS,
   commit?: ProviderCommit,
-  recordFailure?: ProviderFailure,
+  recorders?: { failure?: ProviderFailure; edgeTraffic?: EdgeTrafficRecord },
 ) {
-  return executeMonitoringPass(profile,triggerSource,collectors,commit,recordFailure);
+  return executeMonitoringPass(profile,triggerSource,collectors,commit,recorders);
 }

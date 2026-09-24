@@ -1055,12 +1055,28 @@ try {
     assert.deepEqual((await db.query("select transport from public.provider_snapshots where user_id=$1 order by transport",[legacy])).rows.map((r)=>r.transport),
       ["postgres-direct","supabase-management","vercel"]);
   });
+  // Q8 / 2F-5b: the Supabase gateway traffic read leaves a snapshot too.
+  await db.exec("reset role");
+  await db.exec(await readFile(new URL("../supabase/migrations/088_edge_traffic_snapshots.sql", import.meta.url), "utf8"));
+  await db.exec("set role service_role");
+  await check("a gateway traffic read is recorded under the live monitor lease", async () => {
+    const job = await monitorJob("q8-edge");
+    await db.query("select public.record_edge_traffic_snapshot($1,$2,$3,'proj',true)",[legacy,job.id,job.token]);
+    await db.query("select public.record_edge_traffic_snapshot($1,$2,$3,'proj',false)",[legacy,job.id,job.token]);
+    assert.deepEqual((await snapshots("supabase-edge-logs")).map((r)=>[r.scope,r.completeness,r.reason]),
+      [["proj","complete",null],["proj","failed","log_unread"]]);
+    await assert.rejects(db.query("select public.record_edge_traffic_snapshot($1,$2,$3,'proj',true)",[legacy,job.id,u2]));
+    await assert.rejects(db.query("select public.record_edge_traffic_snapshot($1,$2,$3,$4,true)",[legacy,job.id,job.token,"x".repeat(257)]));
+    // The other transports still work after the check was widened.
+    await db.query("select public.record_provider_read_failure($1,$2,$3,'vercel',null,'timeout')",[legacy,job.id,job.token]);
+  });
   await check("client roles cannot commit provider results or read snapshots", async () => {
     await db.exec("reset role; set role authenticated");
     await assert.rejects(db.query("select public.persist_provider_monitor_result($1,$1,$1,'postgres-direct','x',null,'[]'::jsonb,false,'[]'::jsonb,'{}'::jsonb)",[legacy]));
     await assert.rejects(db.query("select * from public.provider_snapshots"));
     await assert.rejects(db.query("select public.record_provider_read_failure($1,$1,$1,'vercel',null,'auth_failed')",[legacy]));
     await assert.rejects(db.query("select public.prune_provider_snapshots()"));
+    await assert.rejects(db.query("select public.record_edge_traffic_snapshot($1,$1,$1,'proj',true)",[legacy]));
     await db.exec("reset role");
   });
   console.log(`${checks} SQL checks passed. Single-connection PostgreSQL WASM; multi-session contention and hosted Supabase remain unverified.`);

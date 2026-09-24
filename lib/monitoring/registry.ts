@@ -39,6 +39,9 @@ export interface CollectorContext {
   /** Monitor-worker only: records a provider pass that read nothing usable,
    * under the job's lease (migration 087), so Coverage can say it failed. */
   recordFailure?: ProviderFailure;
+  /** Monitor-worker only: records whether the Supabase gateway log was read
+   * for no-install traffic (Q8, migration 088), under the job's lease. */
+  recordEdgeTraffic?: EdgeTrafficRecord;
 }
 
 /** One provider transport's collected result, committed atomically. */
@@ -63,6 +66,8 @@ export interface ProviderResult {
 export type ProviderCommit = (result: ProviderResult) => Promise<Finding[]>;
 
 export type ProviderFailure = (transport: ProviderResult["transport"], reason: string) => Promise<void>;
+
+export type EdgeTrafficRecord = (projectRef: string, read: boolean) => Promise<void>;
 
 /** A provider runner's known failure, with a short code safe to store. Any
  * other error is recorded as "failed": its message may carry provider text. */

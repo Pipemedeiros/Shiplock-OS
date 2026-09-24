@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { runMonitoringPassForWorker } from "@/lib/monitoring/run";
-import { fencedProviderCommit, fencedProviderFailure } from "@/lib/monitoring/providerCommit";
+import { fencedEdgeTrafficRecord, fencedProviderCommit, fencedProviderFailure } from "@/lib/monitoring/providerCommit";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import {
   claimJob,
@@ -93,7 +93,10 @@ export async function executeMonitorJob(job: ClaimedJob): Promise<void> {
         context.data.trigger_source,
         undefined,
         fencedProviderCommit(job.user_id, job.id, job.lease_token),
-        fencedProviderFailure(job.user_id, job.id, job.lease_token),
+        {
+          failure: fencedProviderFailure(job.user_id, job.id, job.lease_token),
+          edgeTraffic: fencedEdgeTrafficRecord(job.user_id, job.id, job.lease_token),
+        },
       );
       const { error } = await admin.rpc("enqueue_monitoring_notifications", {
         p_user: job.user_id,

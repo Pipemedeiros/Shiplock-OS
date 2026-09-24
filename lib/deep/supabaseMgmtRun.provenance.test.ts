@@ -21,6 +21,8 @@ vi.mock("@/lib/graph/narrative", () => ({ generateNarratives: vi.fn() }));
 vi.mock("@/lib/runtime/authRun", () => ({ runAuthLogScan: vi.fn() }));
 vi.mock("@/lib/proving/run", () => ({ runProvingGround: mocks.proving }));
 vi.mock("@/lib/proving/host", () => ({ provingHost: vi.fn() }));
+const edge = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/traffic/edgeCollect", () => ({ collectSupabaseEdgeTraffic: edge }));
 vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ from: (table: string) => {
   let updating = false;
   let settings = false;
@@ -331,12 +333,12 @@ describe("Step 5A-1: a failed Supabase read never retires that family's findings
   });
 
   it("marks each failed read's finding family unread", async () => {
-    const api = await complete();
-    vi.mocked(api.fetchColumnGrants).mockReset().mockResolvedValueOnce(null);
-    vi.mocked(api.fetchDatabaseCapabilities).mockReset().mockResolvedValueOnce({ extensions: [], networkGrants: undefined, cronJobs: undefined, foreignServers: [] });
-    vi.mocked(api.fetchStorageConfig).mockReset().mockResolvedValueOnce({ buckets: undefined, policies: [] });
-    vi.mocked(api.fetchBackupConfig).mockReset().mockResolvedValueOnce(null);
-    vi.mocked(api.fetchRealtimeAndHooks).mockReset().mockResolvedValueOnce({ realtimeTables: [], authHooks: undefined });
+    const api = await import("./supabaseMgmt");
+    vi.mocked(api.fetchColumnGrants).mockResolvedValueOnce(null);
+    vi.mocked(api.fetchDatabaseCapabilities).mockResolvedValueOnce({ extensions: [], networkGrants: undefined, cronJobs: undefined, foreignServers: [] });
+    vi.mocked(api.fetchStorageConfig).mockResolvedValueOnce({ buckets: undefined, policies: [] });
+    vi.mocked(api.fetchBackupConfig).mockResolvedValueOnce(null);
+    vi.mocked(api.fetchRealtimeAndHooks).mockResolvedValueOnce({ realtimeTables: [], authHooks: undefined });
     mocks.advisors.mockRejectedValue(new Error("shape changed"));
     mocks.auth.mockResolvedValue(null);
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -348,5 +350,28 @@ describe("Step 5A-1: a failed Supabase read never retires that family's findings
       "grants:", "storage:no_pitr", "storage:unrestricted_uploads:",
     ]);
     expect(sent().snapshot.failed).toEqual(sent().unread);
+  });
+});
+
+describe("Q8 / 2F-5b: the gateway traffic read leaves a snapshot", () => {
+  it.each([
+    [{ status: "read", repositories: 1, judgedSources: 0 }, [[project, true]]],
+    [{ status: "unread" }, [[project, false]]],
+    [{ status: "unbound" }, []],
+    [{ status: "not_enabled" }, []],
+  ])("records %o as %o", async (outcome, calls) => {
+    edge.mockResolvedValue(outcome);
+    const recordEdgeTraffic = vi.fn(async () => {});
+    await runPolicyScan("u", { commit: mocks.commit, recordEdgeTraffic });
+    expect(recordEdgeTraffic.mock.calls).toEqual(calls);
+  });
+  it("records a collection that threw as unread, and survives a recorder failure", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    edge.mockRejectedValue(new Error("observations could not be stored"));
+    const recordEdgeTraffic = vi.fn(async () => { throw new Error("lease gone"); });
+    const result = await runPolicyScan("u", { commit: mocks.commit, recordEdgeTraffic });
+    log.mockRestore();
+    expect(recordEdgeTraffic).toHaveBeenCalledWith(project, false);
+    expect(result.ok).toBe(true);
   });
 });

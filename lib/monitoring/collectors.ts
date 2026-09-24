@@ -138,7 +138,7 @@ export const supabaseManagementCollector: CollectorSpec = {
   ),
   async run(ctx) {
     const { runPolicyScan } = await import("@/lib/deep/supabaseMgmtRun");
-    const result = await runPolicyScan(ctx.profile.id, { signal: ctx.signal, commit: requireCommit(ctx) });
+    const result = await runPolicyScan(ctx.profile.id, { signal: ctx.signal, commit: requireCommit(ctx), recordEdgeTraffic: ctx.recordEdgeTraffic });
     if (!result.ok) throw new ProviderReadError(result.reason ?? "failed");
     return { newFindings: result.newFindings as Finding[] | undefined };
   },

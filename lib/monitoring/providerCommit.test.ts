@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const rpc = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ rpc }) }));
 
-import { fencedProviderCommit, fencedProviderFailure } from "./providerCommit";
+import { fencedEdgeTrafficRecord, fencedProviderCommit, fencedProviderFailure } from "./providerCommit";
 
 const commit = fencedProviderCommit("user-1", "job-1", "token-1");
 const finding = { id: "rls:orders", severity: "CRITICAL" as const, title: "t", consequence: "c" };
@@ -57,5 +57,17 @@ describe("fencedProviderFailure (5A-2)", () => {
   it("throws when the record was refused", async () => {
     rpc.mockResolvedValue({ data: null, error: { message: "monitor lease unavailable" } });
     await expect(fencedProviderFailure("user-1", "job-1", "token-1")("vercel", "failed")).rejects.toThrow();
+  });
+});
+
+describe("fencedEdgeTrafficRecord (Q8)", () => {
+  it("records a gateway read under the job lease and throws when refused", async () => {
+    rpc.mockResolvedValue({ data: null, error: null });
+    await fencedEdgeTrafficRecord("user-1", "job-1", "token-1")("proj", true);
+    expect(rpc).toHaveBeenCalledWith("record_edge_traffic_snapshot", {
+      p_user: "user-1", p_job: "job-1", p_token: "token-1", p_project_ref: "proj", p_read: true,
+    });
+    rpc.mockResolvedValue({ data: null, error: { message: "monitor lease unavailable" } });
+    await expect(fencedEdgeTrafficRecord("user-1", "job-1", "token-1")("proj", false)).rejects.toThrow();
   });
 });

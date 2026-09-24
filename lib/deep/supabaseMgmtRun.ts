@@ -41,7 +41,7 @@ import { buildAuthzFacts } from "@/lib/graph/graph";
 import { CollectorShapeError } from "./apiSchemas";
 import type { GithubFinding } from "./githubScan";
 import type { Finding } from "@/lib/monitoring/findings";
-import type { ProviderCommit } from "@/lib/monitoring/registry";
+import type { EdgeTrafficRecord, ProviderCommit } from "@/lib/monitoring/registry";
 
 export interface PolicyScanOutcome {
   ok: boolean;
@@ -64,7 +64,7 @@ const ABORTED: PolicyScanOutcome = { ok: false, findings: 0, reason: "aborted" }
 
 export async function runPolicyScan(
   userId: string,
-  { signal, commit }: { signal?: AbortSignal; commit: ProviderCommit },
+  { signal, commit, recordEdgeTraffic }: { signal?: AbortSignal; commit: ProviderCommit; recordEdgeTraffic?: EdgeTrafficRecord },
 ): Promise<PolicyScanOutcome> {
   const admin = getSupabaseAdmin();
 
@@ -333,12 +333,23 @@ export async function runPolicyScan(
     // source and stored only for repositories confirmed for this project.
     // Best-effort; an unreadable log leaves prior observations as they were.
     signal?.throwIfAborted();
+    // Q8: a read or unread log leaves a snapshot for Coverage; unbound and
+    // not-enabled are derived at render time.
+    let edgeRead: boolean | null = null;
     try {
       const { collectSupabaseEdgeTraffic } = await import("@/lib/traffic/edgeCollect");
       const edge = await collectSupabaseEdgeTraffic(userId, token.accessToken, projectRef, signal);
       if (edge.status === "unread") console.error("[supabaseMgmt] gateway log unread; traffic observations unchanged");
+      edgeRead = edge.status === "read" ? true : edge.status === "unread" ? false : null;
     } catch (err) {
+      signal?.throwIfAborted();
+      edgeRead = false;
       console.error("[supabaseMgmt] gateway traffic collection failed:", err instanceof Error ? err.message : err);
+    }
+    if (edgeRead !== null && recordEdgeTraffic) {
+      await recordEdgeTraffic(projectRef, edgeRead).catch(() => {
+        console.error(`[supabaseMgmt] gateway traffic snapshot not recorded for ${userId}`);
+      });
     }
 
     // Unit 5: work out the app URL instead of asking for it.
