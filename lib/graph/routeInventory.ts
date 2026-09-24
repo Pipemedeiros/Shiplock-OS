@@ -1449,11 +1449,29 @@ export function collectRoutes(files: RepoFile[]): RouteFact[] {
   const byPath = new Map(files.map((f) => [f.path, f]));
   const gaps = new Map<string, PermissionGap[]>();
   for (const gap of findPermissionGaps(files)) gaps.set(gap.file, [...(gaps.get(gap.file) ?? []), gap]);
-  return files
+  const routes = files
     .filter((f) => isRouteFile(f.path))
     .map((f) => {
       const route = analyzeRouteFile(f.path, f.content, byPath);
       return gaps.has(f.path) ? { ...route, permissionGaps: gaps.get(f.path) } : route;
+    });
+  // Step 7I: a monorepo may serve the same path from several apps (corpus-e:
+  // /api/trpc/lambda/[trpc] in three). The path is what hypotheses, findings,
+  // cross-tenant notes and possession gates key on, so a collision let one
+  // app's facts judge, or a note hide, another app's route. Only colliding
+  // paths are qualified, by the directory the app lives in (or the file, if
+  // that is not distinct), so single-app finding identities do not change.
+  const count = new Map<string, number>();
+  for (const r of routes) count.set(r.path, (count.get(r.path) ?? 0) + 1);
+  const appRoot = (file: string) => file.match(/^(.*?)\/(?:src\/)?(?:app|pages)\//)?.[1] ?? "";
+  const roots = new Map<string, Set<string>>();
+  for (const r of routes) if (count.get(r.path)! > 1) roots.set(r.path, (roots.get(r.path) ?? new Set()).add(appRoot(r.file)));
+  return routes
+    .map((r) => {
+      if (count.get(r.path)! < 2) return r;
+      const root = appRoot(r.file);
+      const distinct = root && roots.get(r.path)!.size === count.get(r.path);
+      return { ...r, path: `${distinct ? root : r.file}:${r.path}` };
     })
     .sort((a, b) => a.path.localeCompare(b.path));
 }

@@ -244,6 +244,22 @@ describe("analyzeRouteFile", () => {
 });
 
 describe("collectRoutes", () => {
+  // Step 7I: two apps in one monorepo serving the same path (corpus-e has
+  // /api/trpc/lambda/[trpc] in three apps). A path is what hypotheses,
+  // findings and notes key on, so colliding paths are qualified by app.
+  it("qualifies a path only when two apps serve it", () => {
+    const routes = collectRoutes([
+      file("apps/web/src/app/api/trpc/[trpc]/route.ts", `export async function POST(){ return supabase.from("a").select() }`),
+      file("apps/dashboard/src/app/api/trpc/[trpc]/route.ts", `export async function POST(){ return supabase.from("b").select() }`),
+      file("apps/web/src/app/api/health/route.ts", `export async function GET(){ return new Response("ok") }`),
+    ]);
+    expect(routes.map((r) => [r.path, r.tables])).toEqual([
+      ["/api/health", []],
+      ["apps/dashboard:/api/trpc/[trpc]", ["b"]],
+      ["apps/web:/api/trpc/[trpc]", ["a"]],
+    ]);
+  });
+
   it("collects only route files, sorted by path", () => {
     const routes = collectRoutes([
       file("app/api/zeta/route.ts", `export async function GET(){ return supabase.from("z").select() }`),
