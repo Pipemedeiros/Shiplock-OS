@@ -4,6 +4,8 @@ import { getRuns } from "@/lib/agent/dashboardData";
 import { getEvidenceCoverage } from "@/lib/graph/evidenceCoverage";
 import { getAiActivity } from "@/lib/intelligence/activity";
 import { AiChecks } from "@/components/v3/AiChecks";
+import { getProviderCoverage } from "@/lib/monitoring/providerCoverage";
+import { ProviderCoverage } from "@/components/v3/ProviderCoverage";
 
 /**
  * What the last audit did not reach.
@@ -15,7 +17,7 @@ import { AiChecks } from "@/components/v3/AiChecks";
  */
 export default async function Coverage() {
   const { userId } = await requireDashboardSession();
-  const [runs, evidence, ai] = await Promise.all([getRuns(userId, 1), getEvidenceCoverage(userId), getAiActivity(userId)]);
+  const [runs, evidence, ai, providers] = await Promise.all([getRuns(userId, 1), getEvidenceCoverage(userId), getAiActivity(userId), getProviderCoverage(userId)]);
   const latest = runs[0];
 
   return (
@@ -33,6 +35,14 @@ export default async function Coverage() {
           <h2 className="v3-eyebrow">Your AI checks</h2>
         </div>
         <div className="v3-card-p"><AiChecks activity={ai} /></div>
+      </div>
+
+      {/* Latest read per connected provider (5A-3). */}
+      <div className="v3-card" style={{ marginBottom: 24 }}>
+        <div className="v3-hd">
+          <h2 className="v3-eyebrow">Connected providers</h2>
+        </div>
+        <div className="v3-card-p"><ProviderCoverage coverage={providers} /></div>
       </div>
 
       <div className="v3-card" style={{ marginBottom: 24 }}>
