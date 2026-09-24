@@ -42,12 +42,14 @@ describe("POST /api/fix/preview (Q13)", () => {
     expect(mocks.preview).toHaveBeenCalledWith("u1", { action: "finding-fix-pr", repositoryId, findingId: "f", editedContent: "e" });
   });
   it("resolves a button's identifiers server-side, and 404s what its click route would refuse", async () => {
-    resolve.mockResolvedValue({ action: "ai-fix-pr", repositoryId, taskId: repositoryId });
+    resolve.mockResolvedValue({ ok: true, target: { action: "ai-fix-pr", repositoryId, taskId: repositoryId } });
     expect((await post({ lane: "ai", taskId: repositoryId })).status).toBe(200);
     expect(resolve).toHaveBeenCalledWith("u1", { lane: "ai", taskId: repositoryId });
     expect(mocks.preview).toHaveBeenCalledWith("u1", { action: "ai-fix-pr", repositoryId, taskId: repositoryId });
-    resolve.mockResolvedValue(null);
+    resolve.mockResolvedValue({ ok: false, code: "manual" });
     expect((await post({ lane: "risk", findingId: "f" })).status).toBe(404);
+    resolve.mockResolvedValue({ ok: false, code: "already_open", url: "https://github.com/acme/app/pull/2" });
+    expect(await (await post({ lane: "risk", findingId: "f" })).json()).toEqual({ status: "already_open", url: "https://github.com/acme/app/pull/2" });
     expect((await post({ lane: "ai", taskId: "x" })).status).toBe(400);
   });
   it("fails closed when the preview cannot be built", async () => {

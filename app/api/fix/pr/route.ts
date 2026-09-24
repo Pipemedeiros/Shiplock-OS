@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireProUser } from "@/lib/deep/proGate";
-import { getSupabaseAdmin } from "@/lib/supabase";
-import { getOpenFindings } from "@/lib/agent/dashboardData";
+import { resolveRepairTarget } from "@/lib/fixes/repairTarget";
 import { requestRepairAction } from "@/lib/jobs/repairAction";
 import { crossSiteRefusal } from "@/lib/security/sameOrigin";
 import { quotaResponse } from "@/lib/quota";
@@ -26,29 +25,25 @@ export async function POST(request: Request) {
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Name a finding." }, { status: 400 });
 
-  // Read the finding from OUR record rather than from the request. The client
-  // sends an id and nothing else.
-  const finding = (await getOpenFindings(user.userId)).find((f) => f.id === parsed.data.findingId);
-  if (!finding) return NextResponse.json({ error: "No such finding." }, { status: 404 });
-
-  if (finding.fixKind === "manual") {
-    return NextResponse.json(
-      { error: "This one is a decision about your architecture, so there is no pull request to open." },
-      { status: 409 },
-    );
-  }
-  if (finding.fixPrUrl) return NextResponse.json({ url: finding.fixPrUrl, alreadyOpen: true });
-
-  const { data: repository } = await getSupabaseAdmin().from("repositories").select("id")
-    .eq("user_id", user.userId).eq("full_name", finding.repository ?? "").eq("selected", true).maybeSingle();
-  if (!repository) {
+  // Resolved from OUR records, exactly as the preview resolves it (Q13-F).
+  const resolved = await resolveRepairTarget(user.userId, { lane: "risk", findingId: parsed.data.findingId });
+  if (!resolved.ok) {
+    if (resolved.code === "not_found") return NextResponse.json({ error: "No such finding." }, { status: 404 });
+    if (resolved.code === "manual") {
+      return NextResponse.json(
+        { error: "This one is a decision about your architecture, so there is no pull request to open." },
+        { status: 409 },
+      );
+    }
+    if (resolved.code === "already_open") return NextResponse.json({ url: resolved.url, alreadyOpen: true });
     return NextResponse.json({ error: "Select this repository again before opening a pull request." }, { status: 409 });
   }
+  const { target } = resolved;
 
   try {
     const receiptId = await requestRepairAction({
-      userId: user.userId, repositoryId: repository.id as string, action: "risk-fix-pr",
-      findingId: finding.id, editedContent: null,
+      userId: user.userId, repositoryId: target.repositoryId, action: "risk-fix-pr",
+      findingId: target.findingId!, editedContent: null,
     });
     return NextResponse.json({ receiptId, status: "queued" }, { status: 202 });
   } catch (err) {

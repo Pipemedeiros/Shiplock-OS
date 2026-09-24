@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { requestRepairAction } from "@/lib/jobs/repairAction";
-import { getFixFindings } from "@/lib/fixes/findings";
-import { fixLane } from "@/lib/fixes/lane";
+import { resolveRepairTarget } from "@/lib/fixes/repairTarget";
 import { hasProductAccess } from "@/lib/access";
 import { quotaResponse } from "@/lib/quota";
 
@@ -41,30 +40,27 @@ export async function POST(req: NextRequest) {
   }
 
   // Only the customer's edited artifact comes from the request. Finding
-  // identity, severity, title, source and approved lane are server-owned.
-  const finding = (await getFixFindings(auth.user.id)).find((item) => item.id === parsed.findingId);
-  if (!finding) return NextResponse.json({ error: "Finding not found." }, { status: 404 });
-
-  // The receipt names one selected repository: the one in a repository-scoped
-  // finding id, or the only selected repository. Never a guess.
-  const { data: selected, error: selectedError } = await admin.from("repositories")
-    .select("id, full_name").eq("user_id", auth.user.id).eq("selected", true);
-  if (selectedError) return NextResponse.json({ error: "Try again in a moment." }, { status: 503 });
-  const scoped = finding.id.includes("::") ? finding.id.slice(0, finding.id.indexOf("::")) : null;
-  const rows = (selected ?? []) as { id: string; full_name: string }[];
-  const repository = scoped ? rows.find((row) => row.full_name === scoped) : rows.length === 1 ? rows[0] : undefined;
-  if (!repository) {
+  // identity, lane and repository are resolved from our records, exactly as
+  // the preview resolves them (Q13-F).
+  let resolved;
+  try {
+    resolved = await resolveRepairTarget(auth.user.id, { lane: "finding", findingId: parsed.findingId, editedContent: parsed.editedContent || null });
+  } catch {
+    return NextResponse.json({ error: "Try again in a moment." }, { status: 503 });
+  }
+  if (!resolved.ok) {
+    if (resolved.code === "not_found") return NextResponse.json({ error: "Finding not found." }, { status: 404 });
     return NextResponse.json({ error: "Choose the repository for this finding before opening a pull request." }, { status: 409 });
   }
+  const { target } = resolved;
 
   try {
     // A vulnerable dependency is fixed by one bump PR for its repository
     // (every bumpable package at once); anything else is a single-finding PR.
-    const dependency = fixLane(finding).method === "dep-pr";
-    const receiptId = await requestRepairAction(dependency
-      ? { userId: auth.user.id, repositoryId: repository.id, action: "dependency-bump-pr", findingId: null, editedContent: null }
-      : { userId: auth.user.id, repositoryId: repository.id, action: "finding-fix-pr",
-          findingId: finding.id, editedContent: parsed.editedContent || null });
+    const receiptId = await requestRepairAction(target.action === "dependency-bump-pr"
+      ? { userId: auth.user.id, repositoryId: target.repositoryId, action: "dependency-bump-pr", findingId: null, editedContent: null }
+      : { userId: auth.user.id, repositoryId: target.repositoryId, action: "finding-fix-pr",
+          findingId: target.findingId!, editedContent: target.editedContent ?? null });
     return NextResponse.json({ receiptId, status: "queued" }, { status: 202 });
   } catch (err) {
     const quota = quotaResponse(err);

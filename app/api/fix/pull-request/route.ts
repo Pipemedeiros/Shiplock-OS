@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireProUser } from "@/lib/deep/proGate";
-import { getSupabaseAdmin } from "@/lib/supabase";
+import { resolveRepairTarget } from "@/lib/fixes/repairTarget";
 import { requestRepairAction } from "@/lib/jobs/repairAction";
 import { crossSiteRefusal } from "@/lib/security/sameOrigin";
 import { quotaResponse } from "@/lib/quota";
@@ -13,10 +13,6 @@ import { quotaResponse } from "@/lib/quota";
  * to the default branch. Poll /api/fix/receipts/[id] for the outcome.
  */
 const Body = z.object({ reviewId: z.uuid(), findingId: z.string().min(1).max(400) });
-const reviewSchema = z.object({
-  repository_id: z.uuid(), same_repository: z.boolean().nullable(), head_ref: z.string().nullable(),
-  findings: z.array(z.object({ id: z.string() })),
-});
 
 export async function POST(request: Request) {
   // Cookie-authenticated mutation: require ShipLock's own page as the origin.
@@ -27,21 +23,20 @@ export async function POST(request: Request) {
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Name a pull request finding." }, { status: 400 });
 
-  const { data, error } = await getSupabaseAdmin().from("pull_request_reviews")
-    .select("repository_id, same_repository, head_ref, findings")
-    .eq("id", parsed.data.reviewId).eq("user_id", user.userId).maybeSingle();
-  if (error) return NextResponse.json({ error: "Try again in a moment." }, { status: 503 });
-  const review = reviewSchema.safeParse(data);
-  if (!review.success || !review.data.findings.some((finding) => finding.id === parsed.data.findingId)) {
+  // Resolved exactly as the preview resolves it (Q13-F).
+  let resolved;
+  try { resolved = await resolveRepairTarget(user.userId, { lane: "pull-request", ...parsed.data }); }
+  catch { return NextResponse.json({ error: "Try again in a moment." }, { status: 503 }); }
+  if (!resolved.ok) {
+    if (resolved.code === "fork") {
+      return NextResponse.json({ error: "This pull request comes from a fork, so ShipLock cannot push a fix to its branch." }, { status: 409 });
+    }
     return NextResponse.json({ error: "That finding is not on this pull request." }, { status: 404 });
-  }
-  if (review.data.same_repository !== true || !review.data.head_ref) {
-    return NextResponse.json({ error: "This pull request comes from a fork, so ShipLock cannot push a fix to its branch." }, { status: 409 });
   }
 
   try {
     const receiptId = await requestRepairAction({
-      userId: user.userId, repositoryId: review.data.repository_id, action: "pr-fix-pr",
+      userId: user.userId, repositoryId: resolved.target.repositoryId, action: "pr-fix-pr",
       findingId: parsed.data.findingId, editedContent: null, reviewId: parsed.data.reviewId,
     });
     return NextResponse.json({ receiptId, status: "queued" }, { status: 202 });

@@ -39,9 +39,14 @@ export async function POST(request: Request) {
   const button = parsed.success ? null : Button.safeParse(raw);
   if (!parsed.success && !button?.success) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   try {
-    const target = parsed.success ? parsed.data : await resolveRepairTarget(user.userId, button!.data!);
-    if (!target) return NextResponse.json({ error: "There is no pull request to preview for this." }, { status: 404 });
-    return NextResponse.json(await previewRepair(user.userId, target), { headers: { "Cache-Control": "no-store" } });
+    const resolved = parsed.success ? { ok: true as const, target: parsed.data } : await resolveRepairTarget(user.userId, button!.data!);
+    if (!resolved.ok) {
+      if (resolved.code === "already_open") {
+        return NextResponse.json({ status: "already_open", url: resolved.url }, { headers: { "Cache-Control": "no-store" } });
+      }
+      return NextResponse.json({ error: "There is no pull request to preview for this." }, { status: 404 });
+    }
+    return NextResponse.json(await previewRepair(user.userId, resolved.target), { headers: { "Cache-Control": "no-store" } });
   } catch {
     return NextResponse.json({ error: "Could not build the preview. Try again." }, { status: 503 });
   }

@@ -23,31 +23,41 @@ describe("resolveRepairTarget (Q13)", () => {
   it("fix before merge: the review's repository, owner-scoped, same-repository only", async () => {
     state.rows.pull_request_reviews = { repository_id: R1, same_repository: true, head_ref: "feat", findings: [{ id: "f" }] };
     expect(await resolveRepairTarget("u1", { lane: "pull-request", reviewId: "v", findingId: "f" }))
-      .toEqual({ action: "pr-fix-pr", repositoryId: R1, reviewId: "v", findingId: "f" });
+      .toEqual({ ok: true, target: { action: "pr-fix-pr", repositoryId: R1, reviewId: "v", findingId: "f" } });
     expect(state.filters).toContainEqual(["pull_request_reviews", "user_id", "u1"]);
     state.rows.pull_request_reviews = { repository_id: R1, same_repository: false, head_ref: "feat", findings: [{ id: "f" }] };
-    expect(await resolveRepairTarget("u1", { lane: "pull-request", reviewId: "v", findingId: "f" })).toBeNull();
+    expect(await resolveRepairTarget("u1", { lane: "pull-request", reviewId: "v", findingId: "f" })).toEqual({ ok: false, code: "fork" });
+    state.rows.pull_request_reviews = { repository_id: R1, same_repository: true, head_ref: "feat", findings: [] };
+    expect(await resolveRepairTarget("u1", { lane: "pull-request", reviewId: "v", findingId: "f" })).toEqual({ ok: false, code: "not_found" });
   });
   it("AI fix: the task's repository, only for a received proposal", async () => {
-    state.rows.intelligence_tasks = { repository_id: R1, status: "proposal_received" };
-    expect(await resolveRepairTarget("u1", { lane: "ai", taskId: "t" })).toEqual({ action: "ai-fix-pr", repositoryId: R1, taskId: "t" });
-    state.rows.intelligence_tasks = { repository_id: R1, status: "pending" };
-    expect(await resolveRepairTarget("u1", { lane: "ai", taskId: "t" })).toBeNull();
+    state.rows.intelligence_tasks = { repository_id: R1, status: "proposal_received", result: { edits: [{}] } };
+    expect(await resolveRepairTarget("u1", { lane: "ai", taskId: "t" })).toEqual({ ok: true, target: { action: "ai-fix-pr", repositoryId: R1, taskId: "t" } });
+    state.rows.intelligence_tasks = { repository_id: R1, status: "pending", result: null };
+    expect(await resolveRepairTarget("u1", { lane: "ai", taskId: "t" })).toEqual({ ok: false, code: "no_proposal" });
+    state.rows.intelligence_tasks = null;
+    expect(await resolveRepairTarget("u1", { lane: "ai", taskId: "t" })).toEqual({ ok: false, code: "not_found" });
   });
   it("risk: the finding's selected repository", async () => {
     state.open.mockResolvedValue([{ id: "f", repository: "acme/app", fixKind: "pr", fixPrUrl: null }]);
     state.rows.repositories = { id: R1 };
-    expect(await resolveRepairTarget("u1", { lane: "risk", findingId: "f" })).toEqual({ action: "risk-fix-pr", repositoryId: R1, findingId: "f" });
+    expect(await resolveRepairTarget("u1", { lane: "risk", findingId: "f" })).toEqual({ ok: true, target: { action: "risk-fix-pr", repositoryId: R1, findingId: "f" } });
     state.open.mockResolvedValue([{ id: "f", repository: "acme/app", fixKind: "manual", fixPrUrl: null }]);
-    expect(await resolveRepairTarget("u1", { lane: "risk", findingId: "f" })).toBeNull();
+    expect(await resolveRepairTarget("u1", { lane: "risk", findingId: "f" })).toEqual({ ok: false, code: "manual" });
+    state.open.mockResolvedValue([{ id: "f", repository: "acme/app", fixKind: "pr", fixPrUrl: "https://github.com/acme/app/pull/2" }]);
+    expect(await resolveRepairTarget("u1", { lane: "risk", findingId: "f" })).toEqual({ ok: false, code: "already_open", url: "https://github.com/acme/app/pull/2" });
+    state.open.mockResolvedValue([{ id: "f", repository: "acme/app", fixKind: "pr", fixPrUrl: null }]);
+    state.rows.repositories = null;
+    expect(await resolveRepairTarget("u1", { lane: "risk", findingId: "f" })).toEqual({ ok: false, code: "repository_unselected" });
   });
   it("fix card: the scoped or only selected repository, dependency findings become one bump", async () => {
     state.rows.repositories = [{ id: R1, full_name: "acme/app" }];
     state.fix.mockResolvedValue([{ id: "f" }, { id: "dep:lodash" }]);
     expect(await resolveRepairTarget("u1", { lane: "finding", findingId: "f", editedContent: "e" }))
-      .toEqual({ action: "finding-fix-pr", repositoryId: R1, findingId: "f", editedContent: "e" });
-    expect(await resolveRepairTarget("u1", { lane: "finding", findingId: "dep:lodash" })).toEqual({ action: "dependency-bump-pr", repositoryId: R1 });
+      .toEqual({ ok: true, target: { action: "finding-fix-pr", repositoryId: R1, findingId: "f", editedContent: "e" } });
+    expect(await resolveRepairTarget("u1", { lane: "finding", findingId: "dep:lodash" })).toEqual({ ok: true, target: { action: "dependency-bump-pr", repositoryId: R1 } });
     state.rows.repositories = [{ id: R1, full_name: "acme/app" }, { id: "other", full_name: "acme/two" }];
-    expect(await resolveRepairTarget("u1", { lane: "finding", findingId: "f" })).toBeNull();
+    expect(await resolveRepairTarget("u1", { lane: "finding", findingId: "f" })).toEqual({ ok: false, code: "choose_repository" });
+    expect(await resolveRepairTarget("u1", { lane: "finding", findingId: "missing" })).toEqual({ ok: false, code: "not_found" });
   });
 });
