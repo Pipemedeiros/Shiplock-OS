@@ -1210,6 +1210,22 @@ try {
     // Existing lanes still work.
     await requestRepair(u1,r1,"rl-regression");
   });
+  // Q19: Supabase wakes the durable worker every minute through pg_cron + pg_net.
+  const wakeSql = await readFile(new URL("../supabase/migrations/094_worker_wake.sql", import.meta.url), "utf8");
+  await check("094 is a no-op where pg_cron or pg_net is unavailable", async () => {
+    await db.exec("reset role");
+    await db.exec(wakeSql);
+    const cron = (await db.query("select count(*)::int n from pg_namespace where nspname = 'cron'")).rows[0].n;
+    assert.equal(cron, 0);
+  });
+  await check("094 reads the drain URL and secret from Vault and carries neither", async () => {
+    assert.match(wakeSql, /vault\.decrypted_secrets where name = 'shiplock_drain_url'/);
+    assert.match(wakeSql, /vault\.decrypted_secrets where name = 'shiplock_cron_secret'/);
+    assert.doesNotMatch(wakeSql, /https?:\/\//);
+    assert.match(wakeSql, /cron\.schedule\(\s*'shiplock-drain-worker',\s*'\* \* \* \* \*'/);
+    // Both secrets must exist before a request is made; a missing one sends nothing.
+    assert.match(wakeSql, /where exists \(select 1 from vault\.decrypted_secrets where name = 'shiplock_drain_url'\)/);
+  });
   await check("client roles cannot commit provider results or read snapshots", async () => {
     await db.exec("reset role; set role authenticated");
     await assert.rejects(db.query("select public.persist_provider_monitor_result($1,$1,$1,'postgres-direct','x',null,'[]'::jsonb,false,'[]'::jsonb,'{}'::jsonb)",[legacy]));
