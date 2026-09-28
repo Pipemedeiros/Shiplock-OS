@@ -143,7 +143,7 @@ describe("missing_authorization on a route read as anonymous (Q16)", () => {
     const [finding] = buildFindings({ ...base, routes: [anonymous], admitted: [claim] });
     expect(finding.title).toBe("Anyone can call this without signing in");
     expect(finding.consequence).toBe(
-      "We read no sign-in check on trpc:router/statusPage.ts#getReport, and its query on page and statusReport is not narrowed to a caller, so it answers anyone who reaches it.");
+      "We read no sign-in check on trpc:router/statusPage.ts#getReport, and its query on page and statusReport is not narrowed to a caller, so the request alone decides what it reads or changes.");
     expect(`${finding.title} ${finding.consequence}`).not.toMatch(/workspace|tenant|[–—]/i);
     expect(finding.claims).toContainEqual({ claim: claim.consequence, origin: "agent", verified: false });
     expect(finding.id).toBe(`agent:missing_authorization:${anonymous.path}`);

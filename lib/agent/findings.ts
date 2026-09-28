@@ -321,7 +321,7 @@ export function buildFindings(input: BuildFindingsInput): AgentFinding[] {
       id: `agent:${h.attackClass}:${h.entry}`,
       title: readAsAnonymous ? "Anyone can call this without signing in" : h.title,
       consequence: readAsAnonymous
-        ? `We read no sign-in check on ${h.entry}, and its query${tableWords ? ` on ${tableWords}` : ""} is not narrowed to a caller, so it answers anyone who reaches it.`
+        ? `We read no sign-in check on ${h.entry}, and its query${tableWords ? ` on ${tableWords}` : ""} is not narrowed to a caller, so the request alone decides what it reads or changes.`
         : h.consequence,
       severity: SEVERITY[h.attackClass] ?? "WARNING",
       // Capped, not computed, when a row policy could still be enforcing this.
