@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analyzeServerActions } from "./serverActionFacts";
+import { analyzeServerActions, serverActionRoutes } from "./serverActionFacts";
 
 // Step 7E-2: identity, tables and ownership for entry server actions.
 // Synthetic fixtures modelled on the next-safe-action pattern; no corpus labels.
@@ -82,13 +82,16 @@ describe("ownership is read, never assumed (7E-3 fix)", () => {
 export const go = authActionClient.action(async ({ parsedInput, ctx }) => { ${body} });`), ui('import { go } from "@/lib/actions/a";')];
   it("is unreadable when the action delegates to helpers we did not trace", () => {
     const [a] = analyzeServerActions(act("const link = await getLinkOrThrow({ linkId: parsedInput.id, workspaceId: ctx.workspace.id }); await prisma.link.update({ where: { id: link.id }, data: {} });"));
-    expect(a).toMatchObject({ ownershipReadable: false, ownershipFiltered: false });
+    expect(a).toMatchObject({ ownershipReadable: false, ownershipFiltered: false, ownershipGap: expect.stringMatching(/helper/) });
     const [b] = analyzeServerActions(act("await updateLinkForWorkspace(ctx.workspace, parsedInput);"));
-    expect(b).toMatchObject({ tables: [], ownershipReadable: false });
+    expect(b).toMatchObject({ tables: [], ownershipReadable: false, ownershipGap: expect.stringMatching(/no table/) });
   });
   it("is unreadable for a create with no where clause to judge", () => {
     const [a] = analyzeServerActions(act("await prisma.tag.create({ data: { name: parsedInput.name, projectId: ctx.workspace.id } });"));
-    expect(a).toMatchObject({ tables: ["tag"], ownershipReadable: false });
+    expect(a).toMatchObject({ tables: ["tag"], ownershipReadable: false, ownershipGap: expect.stringMatching(/no where clause/) });
+    // Q14: the route fact customers' findings quote carries that reason, never null.
+    const [route] = serverActionRoutes(act("await prisma.tag.create({ data: { name: parsedInput.name, projectId: ctx.workspace.id } });"));
+    expect(route).toMatchObject({ ownershipReadable: false, ownershipGap: expect.stringMatching(/no where clause/) });
   });
 });
 

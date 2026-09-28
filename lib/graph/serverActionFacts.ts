@@ -19,8 +19,20 @@ import { findServerActionEntries } from "./serverActions";
 export type ServerActionFact = {
   file: string; name: string; client: string | null; importedBy: string[];
   identityReadable: boolean; identityGap: string | null; authenticated: boolean;
-  tables: string[]; ownershipReadable: boolean; ownershipFiltered: boolean;
+  tables: string[]; ownershipReadable: boolean; ownershipFiltered: boolean; ownershipGap: string | null;
 };
+
+/** Why an entry's ownership could not be read, in the words a finding quotes
+ * (shared by actions and tRPC procedures). Null only when it was read. */
+export function ownershipGapFor(o: { ownershipReadable: boolean; identityGap: string | null; tables: string[];
+  wheres: number }): string | null {
+  if (o.ownershipReadable) return null;
+  if (o.identityGap) return o.identityGap;
+  if (o.tables.length === 0) return "it reaches no table we could read";
+  if (o.wheres === 0) return "we read no where clause on the tables it reaches";
+  // Readable identity, tables and where clauses leave only the helper hand-off.
+  return "it hands the caller's identity to a helper whose query we do not read";
+}
 
 // Action-client middleware may load the caller with an app's own loader
 // (`getCurrentUser()`), which the route pattern does not list. Accepted only
@@ -156,7 +168,8 @@ export function analyzeServerActions(files: RepoFile[]): ServerActionFact[] {
     const judgedWhere = wheres.length > 0;
     const ownershipReadable = identityReadable && (ownershipFiltered || (tables.length > 0 && judgedWhere && !handedToHelper));
     return { file: entry.file, name: entry.name, client, importedBy: entry.importedBy, identityReadable, identityGap,
-      authenticated, tables, ownershipReadable, ownershipFiltered };
+      authenticated, tables, ownershipReadable, ownershipFiltered,
+      ownershipGap: ownershipGapFor({ ownershipReadable, identityGap, tables, wheres: wheres.length }) };
   }).sort((a, b) => a.file.localeCompare(b.file) || a.name.localeCompare(b.name));
 }
 
@@ -172,7 +185,7 @@ export function serverActionRoutes(files: RepoFile[]): RouteFact[] {
     path: `action:${a.file}#${a.name}`, file: a.file, methods: ["ACTION"], tables: a.tables,
     authenticated: a.authenticated, machineGated: false, machineGateReadable: a.identityReadable, machineGateGap: a.identityGap,
     usesServiceRole: false, serviceRoleReadable: a.identityReadable,
-    ownershipFiltered: a.ownershipFiltered, ownershipReadable: a.ownershipReadable, ownershipGap: a.identityGap,
+    ownershipFiltered: a.ownershipFiltered, ownershipReadable: a.ownershipReadable, ownershipGap: a.ownershipGap,
     identityReadable: a.identityReadable, identityGap: a.identityGap,
     dataReadable: a.identityReadable, dataGap: a.identityGap, via: a.importedBy.slice(0, 5),
   }));

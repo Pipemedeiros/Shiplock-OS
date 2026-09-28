@@ -111,13 +111,13 @@ export const z = createTRPCRouter({
   }),
   sync: protectedProcedure.mutation(async ({ ctx, input }) => syncTags({ ctx: toServiceCtx(ctx), input })),
 });`)]);
-    expect(fact).toMatchObject({ name: "sync", tables: [], ownershipReadable: false });
+    expect(fact).toMatchObject({ name: "sync", tables: [], ownershipReadable: false, ownershipGap: expect.stringMatching(/no table/) });
     const update = analyzeTrpcProcedures([trpc, f("server/routers/z.ts", `import { protectedProcedure, createTRPCRouter } from "../trpc";
 export const z = createTRPCRouter({ update: protectedProcedure.mutation(async ({ ctx, input }) => {
   await assertCanEdit(ctx.workspace, input.id);
   return prisma.page.update({ where: { id: input.id }, data: input });
 }) });`)]);
-    expect(update[0]).toMatchObject({ tables: ["page"], ownershipFiltered: false, ownershipReadable: false });
+    expect(update[0]).toMatchObject({ tables: ["page"], ownershipFiltered: false, ownershipReadable: false, ownershipGap: expect.stringMatching(/helper/) });
   });
 
   it("follows an alias of ctx identity handed to a helper", () => {
@@ -128,7 +128,14 @@ export const c = createTRPCRouter({ remove: protectedProcedure.mutation(async ({
   if (!(await hasPollAdminAccess(comment.pollId, actor.id))) throw new TRPCError({ code: "FORBIDDEN" });
   await prisma.comment.delete({ where: { id: input.id } });
 }) });`)]);
-    expect(fact).toMatchObject({ tables: ["comment"], ownershipFiltered: false, ownershipReadable: false });
+    expect(fact).toMatchObject({ tables: ["comment"], ownershipFiltered: false, ownershipReadable: false, ownershipGap: expect.stringMatching(/helper/) });
+    // Q14: the route fact customers' findings quote carries that reason, never null.
+    const [route] = trpcRoutes([trpc, f("server/routers/c.ts", `import { protectedProcedure, createTRPCRouter } from "../trpc";
+export const c = createTRPCRouter({ remove: protectedProcedure.mutation(async ({ ctx, input }) => {
+  if (!(await hasPollAdminAccess(input.id, ctx.user.id))) throw new TRPCError({ code: "FORBIDDEN" });
+  await prisma.comment.delete({ where: { id: input.id } });
+}) });`)]);
+    expect(route).toMatchObject({ ownershipReadable: false, ownershipGap: expect.stringMatching(/helper/) });
   });
 
   it("reads a Drizzle where narrowed by ctx as filtered", () => {

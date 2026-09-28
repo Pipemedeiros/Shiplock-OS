@@ -4,7 +4,7 @@ import { resolveImport, stripComments } from "@/lib/deep/clientExposure";
 import { resolveViaTsconfigPaths } from "./tsconfigPaths";
 import { scriptKindFor } from "./declarations";
 import { extractTables, STRONG_USER_AUTH_RE, type RouteFact } from "./routeInventory";
-import { calls, middlewareAuthenticates, NOT_HELPERS, QUERY_BUILDER, whereClauses } from "./serverActionFacts";
+import { calls, middlewareAuthenticates, NOT_HELPERS, ownershipGapFor, QUERY_BUILDER, whereClauses } from "./serverActionFacts";
 
 /**
  * Facts for tRPC procedures (Step 7G-1), the tRPC counterpart of the server
@@ -21,7 +21,7 @@ import { calls, middlewareAuthenticates, NOT_HELPERS, QUERY_BUILDER, whereClause
 export type TrpcProcedureFact = {
   file: string; name: string; kind: "query" | "mutation" | "subscription"; base: string;
   identityReadable: boolean; identityGap: string | null; authenticated: boolean;
-  tables: string[]; ownershipReadable: boolean; ownershipFiltered: boolean; via: string[];
+  tables: string[]; ownershipReadable: boolean; ownershipFiltered: boolean; ownershipGap: string | null; via: string[];
 };
 
 const IGNORED = /(^|\/)(node_modules|\.next|dist|build|vendor)\/|\.(test|spec|e2e)\.[cm]?[jt]sx?$|(^|\/)__tests__\//;
@@ -218,6 +218,7 @@ function fact(file: string, name: string, kind: TrpcProcedureFact["kind"], base:
   const handedToHelper = calls(body).some((c) => !NOT_HELPERS.has(c.callee) && !QUERY_BUILDER.has(c.callee) && identityRef.test(c.args));
   const ownershipReadable = identityReadable && (ownershipFiltered || (tables.length > 0 && wheres.length > 0 && !handedToHelper));
   return { file, name, kind, base, identityReadable, identityGap, authenticated, tables, ownershipReadable, ownershipFiltered,
+    ownershipGap: ownershipGapFor({ ownershipReadable, identityGap, tables, wheres: wheres.length }),
     via: [...chain.via].filter((p) => p !== file).sort() };
 }
 
@@ -232,7 +233,7 @@ export function trpcRoutes(files: RepoFile[]): RouteFact[] {
     path: `trpc:${p.file}#${p.name}`, file: p.file, methods: [p.kind.toUpperCase()], tables: p.tables,
     authenticated: p.authenticated, machineGated: false, machineGateReadable: p.identityReadable, machineGateGap: p.identityGap,
     usesServiceRole: false, serviceRoleReadable: p.identityReadable,
-    ownershipFiltered: p.ownershipFiltered, ownershipReadable: p.ownershipReadable, ownershipGap: p.identityGap,
+    ownershipFiltered: p.ownershipFiltered, ownershipReadable: p.ownershipReadable, ownershipGap: p.ownershipGap,
     identityReadable: p.identityReadable, identityGap: p.identityGap,
     dataReadable: p.identityReadable, dataGap: p.identityGap, via: p.via.slice(0, 5),
   }));
