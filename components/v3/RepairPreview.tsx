@@ -35,6 +35,7 @@ export function RepairPreviewView({ preview, busy, onOpen }: { preview: RepairPr
       {preview.files.map((file) => (
         <div key={file.path}>
           <p className="v3-small" style={{ margin: 0 }}>{file.change === "add" ? "Adds" : "Changes"} {file.path}</p>
+          {file.nameSetAtClick ? <p className="v3-small" style={{ margin: 0 }}>The date in the file name is set when you open the pull request.</p> : null}
           {file.before !== null ? (
             <details><summary className="v3-small">Current version</summary><pre style={pre}>{file.before}</pre></details>
           ) : null}

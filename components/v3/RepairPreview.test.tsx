@@ -16,6 +16,14 @@ describe("RepairPreviewView (Q13)", () => {
     expect(html).toContain("Open pull request");
     expect(html).not.toMatch(/[–—]/);
   });
+  it("says when a file name's date is set at click (Q8)", () => {
+    const html = renderToStaticMarkup(<RepairPreviewView busy={false} onOpen={() => {}} preview={{ status: "planned", lane: "Fix",
+      repository: "acme/app", base: "main", branch: "shiplock/fix-x", title: "Fix", body: "Why", tests: "not run by ShipLock",
+      files: [{ path: "supabase/migrations/20260928120000_shiplock_x.sql", change: "add", before: null, after: "sql", nameSetAtClick: true },
+        { path: "lib/a.ts", change: "edit", before: "a", after: "b" }] }} />);
+    expect(html.match(/date in the file name is set when you open the pull request/g)).toHaveLength(1);
+    expect(html).not.toMatch(/[–—]/);
+  });
   it("links an already open pull request and explains an unavailable one, with no open button", () => {
     const open = renderToStaticMarkup(<RepairPreviewView busy={false} onOpen={() => {}} preview={{ status: "already_open", url: "https://github.com/acme/app/pull/3" }} />);
     expect(open).toContain("https://github.com/acme/app/pull/3");

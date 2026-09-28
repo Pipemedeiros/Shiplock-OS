@@ -149,6 +149,20 @@ export async function getFile(token: string, fullName: string, path: string, bra
   return Buffer.from(json.content, "base64").toString("utf8");
 }
 
+/** File names directly in a directory on a branch; empty when the directory
+ * does not exist. Any other failure throws, so a caller never mistakes it for
+ * an empty directory. */
+export async function listDirectory(token: string, fullName: string, dir: string, branch: string): Promise<string[]> {
+  const res = await fetch(`${API}/repos/${fullName}/contents/${dir.split("/").map(encodeURIComponent).join("/")}?ref=${encodeURIComponent(previewRef(branch))}`, {
+    headers: { ...GH_HEADERS, Authorization: `token ${token}` },
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+  if (res.status === 404) return [];
+  if (!res.ok) throw new Error(`GitHub contents HTTP ${res.status}`);
+  const json = (await res.json()) as unknown;
+  return Array.isArray(json) ? json.filter((e) => e?.type === "file" && typeof e.name === "string").map((e) => e.name as string) : [];
+}
+
 // ── OSV.dev dependency-vulnerability lookup (free, no API key) ──────────────
 function mapOsvSeverity(raw: string | null): Severity {
   if (!raw) return "WARNING";

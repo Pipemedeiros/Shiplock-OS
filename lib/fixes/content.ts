@@ -19,6 +19,17 @@ function stamp(now: Date): string {
   return now.toISOString().replace(/[-:T]/g, "").slice(0, 14);
 }
 
+/**
+ * A fix file ShipLock names with the click's timestamp: its directory and the
+ * pattern its name matches under any timestamp, or null. Only ShipLock's own
+ * fix files qualify, never a customer's migration.
+ */
+export function stampedFixName(path: string): { dir: string; name: RegExp } | null {
+  const m = /^(supabase\/migrations|shiplock-fixes)\/\d{14}([_-][^/]+)$/.exec(path);
+  if (!m || (m[1] === "supabase/migrations" && !m[2].startsWith("_shiplock_"))) return null;
+  return { dir: m[1], name: new RegExp(`^\\d{14}${m[2].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`) };
+}
+
 // Pull runnable SQL out of the fix text: prefer the "SQL Editor:" marker our
 // analyzer uses, else keep the SQL-looking lines. null when there's no clean SQL.
 export function extractSql(fix: string): string | null {

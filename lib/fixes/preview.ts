@@ -6,6 +6,7 @@ import { openPullRequestFixPr } from "./pullRequestFixPr";
 import { openAiFixPr } from "./aiFixPr";
 import { openRateLimitPr } from "./rateLimitPr";
 import type { RepairOutcome } from "./repairOutcome";
+import { stampedFixName } from "./content";
 
 /**
  * One preview for every repair lane (Q13 / Step 8). It runs the lane's real
@@ -22,7 +23,7 @@ export type RepairPreviewRequest = {
 };
 export type RepairPreview =
   | { status: "planned"; lane: string; repository: string; base: string; branch: string; title: string; body: string;
-      tests: "not run by ShipLock"; files: { path: string; change: "add" | "edit"; before: string | null; after: string }[] }
+      tests: "not run by ShipLock"; files: { path: string; change: "add" | "edit"; before: string | null; after: string; nameSetAtClick?: true }[] }
   | { status: "already_open"; url: string }
   | { status: "unavailable"; code: string };
 
@@ -54,7 +55,9 @@ export async function previewRepair(userId: string, request: RepairPreviewReques
   // What each file holds today on the branch the PR targets.
   const files = await Promise.all(capture.files.map(async (file) => {
     const before = await getFile(capture.token, capture.repository, file.path, capture.base).catch(() => null);
-    return { path: file.path, change: before === null ? "add" as const : "edit" as const, before, after: file.content };
+    const change = before === null ? "add" as const : "edit" as const;
+    // A new ShipLock fix file is named with the click's timestamp, not the preview's.
+    return { path: file.path, change, before, after: file.content, ...(change === "add" && stampedFixName(file.path) ? { nameSetAtClick: true as const } : {}) };
   }));
   return { status: "planned", lane: LANE_NAMES[request.action], repository: capture.repository, base: capture.base,
     branch: capture.branch, title: capture.title, body: capture.body, tests: "not run by ShipLock", files };

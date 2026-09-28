@@ -1,9 +1,9 @@
 import { createHash } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { getInstallationToken, listRepos, getBranchSha, createBranch, putFile, openPullRequest, findOpenPullRequestForBranch, getFile, getFileSha, listTree } from "@/lib/deep/github";
+import { getInstallationToken, listRepos, getBranchSha, createBranch, putFile, openPullRequest, findOpenPullRequestForBranch, getFile, getFileSha, listTree, listDirectory } from "@/lib/deep/github";
 import { fixLane, type FixableFinding } from "./lane";
 import { applyCodemod, hasCodemod } from "./codemods";
-import { buildMigrationFix, buildCodeFix, type FixArtifact } from "./content";
+import { buildMigrationFix, buildCodeFix, stampedFixName, type FixArtifact } from "./content";
 
 // Opens ONE reviewable PR per fix. Mirrors githubFixRun's safety: always a new
 // branch off the default (never touches default, never merges). The committed
@@ -27,12 +27,31 @@ export async function openFixPr(
   const baseSha = await getBranchSha(token, repo, defaultBranch);
   const existingBranch = await getBranchSha(token, repo, branch).then(() => true).catch(() => false);
   if (!existingBranch) await createBranch(token, repo, branch, baseSha);
+  else artifact = await earlierAttemptPath(token, repo, defaultBranch, branch, artifact);
   const existingFile = await getFileSha(token, repo, artifact.path, branch);
   const existingContent = existingFile ? await getFile(token, repo, artifact.path, branch).catch(() => null) : null;
   if (existingContent !== artifact.content) {
     await putFile(token, repo, artifact.path, branch, artifact.content, existingFile ?? undefined, title);
   }
   return openPullRequest(token, repo, branch, defaultBranch, title, body);
+}
+
+// A fix file's name carries the click's timestamp, so a retry after a partial
+// attempt would otherwise add a second copy of the same fix to the branch. The
+// branch name already binds the user, finding and content, so a stamped file
+// of the same name on it, absent from the base branch, is the earlier attempt's.
+async function earlierAttemptPath(
+  token: string, repo: string, defaultBranch: string, branch: string, artifact: FixArtifact,
+): Promise<FixArtifact> {
+  const stamped = stampedFixName(artifact.path);
+  if (!stamped) return artifact;
+  const names = (await listDirectory(token, repo, stamped.dir, branch)).filter((name) => stamped.name.test(name)).sort();
+  for (const name of names) {
+    const path = `${stamped.dir}/${name}`;
+    if (await getFileSha(token, repo, path, defaultBranch)) continue;
+    return { ...artifact, path };
+  }
+  return artifact;
 }
 
 // Source-finding ids are namespaced `<owner/repo>::<id>` (see githubRun). Pull
