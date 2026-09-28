@@ -245,6 +245,94 @@ async function evaluate() {
   console.log(`Artifacts: ${output}`);
 }
 
+// Q11: worst-case dollars for one paid pass, decided before any call. Input is
+// bounded at chars / 2 tokens (above any real tokenizer rate for code) and
+// output at each call's own max_tokens, so the real bill cannot exceed it.
+function paidPlan(plans, prices, maxUsd) {
+  const priceFor = (model) => prices[model] ?? prices[model.replace(/-\d{8}$/, "")];
+  const unpriced = [...new Set(plans.filter((p) => !priceFor(p.model)).map((p) => p.model))];
+  if (unpriced.length) return { ok: false, reason: `no --price for ${unpriced.join(", ")}`, rows: [], worstCaseUsd: null };
+  const rows = plans.map((p) => {
+    const price = priceFor(p.model);
+    const inputTokens = Math.ceil(p.inputChars / 2);
+    return { ...p, inputTokensBound: inputTokens, price, worstCaseUsd: (inputTokens * price.input + p.maxTokens * price.output) / 1_000_000 };
+  });
+  const worstCaseUsd = rows.reduce((sum, r) => sum + r.worstCaseUsd, 0);
+  if (!(worstCaseUsd <= maxUsd)) {
+    return { ok: false, reason: `worst case $${worstCaseUsd.toFixed(4)} exceeds the cap $${maxUsd}`, rows, worstCaseUsd };
+  }
+  return { ok: true, rows, worstCaseUsd };
+}
+
+// Q11: one paid pass of the audit's own model call (proposeAttacks) per pinned
+// repository, on ShipLock's key, only with Felipe's --confirm-paid and a
+// --max-usd cap the worst case fits. `evaluate` and `holdout` stay offline.
+async function paid(args) {
+  if (!args.includes("--confirm-paid")) throw new Error("Refusing: paid mode spends ShipLock's API key. Re-run with --confirm-paid.");
+  const capIndex = args.indexOf("--max-usd");
+  const maxUsd = capIndex >= 0 ? Number(args[capIndex + 1]) : NaN;
+  if (!(maxUsd > 0)) throw new Error("Refusing: give a dollar cap with --max-usd <amount>.");
+  const { parsePrices } = await import("./cost-report.mjs");
+  const prices = parsePrices(args.flatMap((arg, i) => (args[i - 1] === "--price" ? [arg] : [])));
+  if (!process.env.ANTHROPIC_API_KEY) {
+    const line = fs.existsSync(path.join(root, ".env.local"))
+      ? fs.readFileSync(path.join(root, ".env.local"), "utf8").split("\n").find((l) => l.startsWith("ANTHROPIC_API_KEY=")) : null;
+    if (line) process.env.ANTHROPIC_API_KEY = line.slice("ANTHROPIC_API_KEY=".length).trim().replace(/^["']|["']$/g, "");
+  }
+  if (!process.env.ANTHROPIC_API_KEY) throw new Error("Refusing: no ANTHROPIC_API_KEY in the environment or .env.local.");
+  for (const pin of manifest.repositories) {
+    if (!fs.existsSync(archivePath(pin))) throw new Error(`${pin.id}: archive missing; run npm run corpus:acquire`);
+    if (await fileHash(archivePath(pin)) !== pin.archiveSha256) throw new Error(`${pin.id}: archive checksum mismatch`);
+  }
+  const product = loadProductModules();
+  const realFetch = global.fetch;
+  // Same input the audit builds (lib/agent/audit.ts), all offline.
+  const inputs = [];
+  for (const pin of manifest.repositories) {
+    const { routes, stack, tables, domain, files, reasoned } = await analyzePin(product, pin);
+    const input = { routes: reasoned, stack, tables, domain, files: [...files.keys()], liveFacts: [], possessionGates: product.possessionGates(routes, files) };
+    const interesting = reasoned.filter((route) => route.tables.length > 0).length;
+    inputs.push({ pin, input, interesting,
+      model: interesting >= product.SONNET_ENTRY_THRESHOLD ? product.SONNET : product.HAIKU,
+      inputChars: product.SYSTEM.length + product.buildPrompt(input).length, maxTokens: product.maxTokensFor(interesting) });
+  }
+  const callable = inputs.filter((i) => i.interesting > 0);
+  const plan = paidPlan(callable.map((i) => ({ id: i.pin.id, model: i.model, inputChars: i.inputChars, maxTokens: i.maxTokens })), prices, maxUsd);
+  console.log(JSON.stringify({ plan: plan.rows.map((r) => ({ id: r.id, model: r.model, inputTokensBound: r.inputTokensBound,
+    maxTokens: r.maxTokens, worstCaseUsd: r.worstCaseUsd })), worstCaseUsd: plan.worstCaseUsd, capUsd: maxUsd }));
+  if (!plan.ok) throw new Error(`Refusing, nothing spent: ${plan.reason}`);
+
+  const output = path.join(root, "docs/evaluation/runs", `${manifest.experiment}-paid-${crypto.randomUUID()}`);
+  await fsp.mkdir(output, { recursive: true });
+  const write = (name, value) => fsp.writeFile(path.join(output, name), JSON.stringify(value, null, 2) + "\n", { flag: "wx" });
+  const records = [];
+  let spentUsd = 0;
+  for (const item of callable) {
+    global.fetch = realFetch; // analyzePin pins fetch to the cached archive; the model call needs the real one
+    const outcome = await product.proposeAttacks(item.input);
+    const row = plan.rows.find((r) => r.id === item.pin.id);
+    const usage = outcome.usage ?? null;
+    const usd = usage ? (usage.input_tokens * row.price.input + usage.output_tokens * row.price.output) / 1_000_000 : 0;
+    spentUsd += usd;
+    const record = { id: item.pin.id, repository: item.pin.repository, commit: item.pin.commit, model: outcome.model,
+      skipped: outcome.skipped, skipReason: outcome.skipReason ?? null, truncated: outcome.truncated ?? false,
+      parseFailed: outcome.parseFailed ?? false, usage, usd, admitted: outcome.admitted.length, rejected: outcome.rejected.length,
+      unassessed: outcome.unassessed.length };
+    await write(`${item.pin.id}-paid.json`, { record, outcome });
+    records.push(record);
+    console.log(JSON.stringify(record));
+  }
+  const summary = {
+    experiment: `${manifest.experiment}-paid`, capturedAt: new Date().toISOString(),
+    head: execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim(),
+    dirtyTree: execFileSync("git", ["status", "--porcelain"], { cwd: root, encoding: "utf8" }).trim().length > 0,
+    systemPromptSha256: sha(product.SYSTEM), capUsd: maxUsd, worstCaseUsd: plan.worstCaseUsd,
+    modelCalls: records.filter((r) => !r.skipped).length, paidApiSpendUsd: Math.round(spentUsd * 1e6) / 1e6, repositories: records,
+  };
+  await write("summary.json", summary);
+  console.log(`Spent $${summary.paidApiSpendUsd} of a $${maxUsd} cap. Artifacts: ${output}`);
+}
+
 async function main() {
   validateManifest();
   if (process.argv[2] === "acquire") {
@@ -257,9 +345,12 @@ async function main() {
     await evaluate();
   } else if (process.argv[2] === "holdout" && process.argv[3]) {
     await holdout(process.argv[3]);
+  } else if (process.argv[2] === "paid") {
+    await paid(process.argv.slice(3));
   } else {
-    throw new Error("Usage: node scripts/corpus.cjs acquire|evaluate|holdout <labels.json>");
+    throw new Error("Usage: node scripts/corpus.cjs acquire|evaluate|holdout <labels.json>|paid --confirm-paid --max-usd <usd> --price <model=in,out>...");
   }
 }
 
-main().catch((error) => { console.error(error.message); process.exitCode = 1; });
+module.exports = { paidPlan };
+if (require.main === module) main().catch((error) => { console.error(error.message); process.exitCode = 1; });
