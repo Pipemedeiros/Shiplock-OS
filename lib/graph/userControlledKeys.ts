@@ -43,9 +43,13 @@ const SINK_NAMES = new Set(["deleteObject", "deleteObjects", "deleteFile", "dele
 const UPLOAD_RESULTS = new Set(["put", "upload", "uploadFile", "uploadFiles", "putObject", "createPresignedPost"]);
 const PASS_THROUGH = new Set(["basename", "join", "resolve", "normalize", "trim", "toLowerCase", "toUpperCase", "split",
   "slice", "substring", "replace", "replaceAll", "concat", "toString", "String", "decodeURIComponent", "encodeURIComponent",
-  "at", "get", "getAll", "map", "filter", "flatMap", "find", "values", "keys"]);
+  "at", "get", "getAll", "map", "filter", "flatMap", "find", "values", "keys", "pop", "shift", "reduce"]);
+// Azure Blob: a blob client's own delete, keyed by the getter's argument.
+const BLOB_CLIENT_GETTERS = /^get(?:Block|Append|Page)?BlobClient$/;
+// Cloudflare bindings (R2, KV) are upper-case names on `env`.
+const BINDING_DELETE = /(?:^|\.)env\.[A-Z][A-Z0-9_]*\.delete$/;
 const EXIT_CALLS = /^(?:notFound|forbidden|unauthorized|redirect|permanentRedirect)$/;
-const ASSERTS = /^(?:assert|owns|isOwn|belongsTo|authorize|check\w*Owner)/i;
+const ASSERTS = /^(?:assert|owns|isOwn|belongsTo|authorize|check\w*Owner|(?:require|ensure|verify)\w*Own)/i;
 const IDENTITY_TEXT = /^(?:ctx\.user\.id|ctx\.session\.user\.id|session\.user\.id|session\.userId|user\.id|currentUser\.id|auth\(\)\.userId|ctx\.userId)$/;
 const IDENTITY_SOURCES = /^(?:auth|getAuth|currentUser|getSession|getServerSession|getUser)\(/;
 
@@ -61,6 +65,7 @@ export function findUserControlledDeletes(body: string, entry: string): UserCont
   const cleared = new Map<string, "owned" | "prefix">();
   const ownerScoped = new Set<string>(); // variables holding owner-filtered results
   const ownerChecks = new Map<string, string[]>(); // variable -> roots an owner-filtered check named
+  const boolFacts = new Map<string, { whenTrue: Fact[]; whenFalse: Fact[] }>(); // const booleans holding a check
   const allowSets = new Set<string>();
   const identityDerived = new Set<string>(); // untainted values built from the caller's id
   const buckets = new Set<string>();
@@ -131,10 +136,12 @@ export function findUserControlledDeletes(body: string, entry: string): UserCont
       return null;
     }
     if (ts.isConditionalExpression(x)) return taintOf(x.whenTrue) ?? taintOf(x.whenFalse);
+    if (ts.isSpreadElement(x)) return taintOf(x.expression);
     if (ts.isArrayLiteralExpression(x)) { for (const el of x.elements) { const t = taintOf(el); if (t) return t; } return null; }
     if (ts.isObjectLiteralExpression(x)) {
       for (const p of x.properties) {
-        const t = ts.isPropertyAssignment(p) ? taintOf(p.initializer) : ts.isShorthandPropertyAssignment(p) ? taintOf(p.name) : null;
+        const t = ts.isPropertyAssignment(p) ? taintOf(p.initializer) : ts.isShorthandPropertyAssignment(p) ? taintOf(p.name)
+          : ts.isSpreadAssignment(p) ? taintOf(p.expression) : null;
         if (t) return t;
       }
       return null;
@@ -233,10 +240,22 @@ export function findUserControlledDeletes(body: string, entry: string): UserCont
           || (ts.isIdentifier(receiver) && (allowSets.has(receiver.text) || ownerScoped.has(receiver.text)));
         if (isAllow) root = taintOf(c.arguments[0])?.root ?? null;
       } else if (ASSERTS.test(name) && c.arguments.some((a) => mentionsIdentity(a))) {
-        root = c.arguments.map((a) => taintOf(a)).find((t) => t)?.root ?? null;
+        // The checked value may be wrapped (`requireOwnership(await getFile(key), uid)`).
+        const deepRoot = (n: ts.Node): string | null => {
+          const t = ts.isExpression(n as ts.Expression) && !isIdentity(n) ? taintOf(n) : null;
+          if (t) return t.root;
+          let found: string | null = null;
+          ts.forEachChild(n, (child) => { found ??= deepRoot(child); });
+          return found;
+        };
+        for (const a of c.arguments) { root = deepRoot(a); if (root) break; }
       }
       if (!root) return [];
       return whenTrue ? [{ root, kind }] : [{ root, kind: "notOwned" }];
+    }
+    if (ts.isIdentifier(c) && boolFacts.has(c.text)) {
+      const held = boolFacts.get(c.text)!;
+      return whenTrue ? held.whenTrue : held.whenFalse;
     }
     if (ts.isIdentifier(c) && ownerChecks.has(c.text)) {
       return ownerChecks.get(c.text)!.map((root) => ({ root, kind: whenTrue ? "owned" as const : "notOwned" as const }));
@@ -266,6 +285,11 @@ export function findUserControlledDeletes(body: string, entry: string): UserCont
       const receiver = ts.isPropertyAccessExpression(node.expression) ? unwrap(node.expression.expression) : null;
       if (name === "remove" && receiver && (/\.storage\.from\(/.test(text(receiver)) || (ts.isIdentifier(receiver) && buckets.has(receiver.text)))) sink = "storage.from().remove";
       else if (name === "delete" && receiver && ts.isCallExpression(receiver) && calleeName(receiver) === "file") { sink = "file().delete"; args = receiver.arguments; }
+      else if ((name === "delete" || name === "deleteIfExists") && receiver && ts.isCallExpression(receiver) && BLOB_CLIENT_GETTERS.test(calleeName(receiver))) {
+        sink = `${calleeName(receiver)}().${name}`; args = receiver.arguments;
+      }
+      else if (name === "deleteBlob") sink = "deleteBlob";
+      else if (BINDING_DELETE.test(callee)) sink = callee.split(".").slice(-3).join(".");
       else if (/(?:^|\.)(?:storage|bucket)\.delete$/.test(callee)) sink = callee.split(".").slice(-2).join(".");
       else if (/^(?:fs|fsp|fs\.promises)\.(?:unlink|unlinkSync|rm|rmSync)$/.test(callee)) sink = callee;
       else if (SINK_NAMES.has(name) && (ts.isIdentifier(node.expression) || /^(?:utapi|s3|storage|client|blob)\./.test(callee))) sink = name;
@@ -283,6 +307,11 @@ export function findUserControlledDeletes(body: string, entry: string): UserCont
       if (init) walk(init);
       if (init && ts.isIdentifier(node.name)) {
         const u = unwrap(init);
+        // Only a const can stand in for its check; a let may be reassigned before the guard.
+        if (ts.isVariableDeclarationList(node.parent) && (node.parent.flags & ts.NodeFlags.Const)) {
+          const whenTrue = facts(init, true), whenFalse = facts(init, false);
+          if (whenTrue.length || whenFalse.length) boolFacts.set(node.name.text, { whenTrue, whenFalse });
+        }
         if (isIdentity(u)) identities.add(node.name.text);
         else if (mentionsIdentity(u) && !taintOf(u)) identityDerived.add(node.name.text);
         if (ts.isNewExpression(u) && text(u.expression) === "Set" && u.arguments?.[0] && ts.isArrayLiteralExpression(u.arguments[0])
