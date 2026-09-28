@@ -1,0 +1,29 @@
+{
+  "experiment": "release-precision-thresholds",
+  "recordedAt": "2026-09-28",
+  "recordedBefore": "the next measurement of admitted findings (any paid corpus pass after 2026-09-28)",
+  "status": "Felipe's bar (2026-09-28): precision 'genuinely extremely high, 97%+ at least'. Operationalisation below proposed by Claude; Felipe to confirm.",
+  "scope": "Findings a customer sees after the guard (admitted, rendered), not candidates. Measured on labeled corpus and pilot repositories with ShipLock's production model choice.",
+  "definitions": {
+    "truePositive": "both blind labelers agree the statement as written is accurate AND the entry has a real vulnerability",
+    "falsePositive": "anything else: agreed false, 'partly' accurate, or contested (conservative: disagreement counts against us)",
+    "precision": "TP / (TP + FP), reported with a one-sided 95% Clopper-Pearson lower bound",
+    "zeroDenominator": "unavailable, never 100%"
+  },
+  "gates": {
+    "criticalAndHigh": {
+      "observedPrecisionAtLeast": 0.97,
+      "lowerBound95AtLeast": 0.93,
+      "minimumLabeledFindings": 100,
+      "note": "With 100 findings, 0 false positives gives a lower bound of 97.0%; 1 gives 95.3%; 3 gives 92.4% (exact one-sided Clopper-Pearson). Proving 97% as a lower bound needs about 100 findings with none false, or about 160 with one. Below 100 labeled findings the gate is 'unavailable'."
+    },
+    "informational": { "observedAccuracyAtLeast": 0.9, "minimumLabeledFindings": 30 },
+    "severity": { "criticalSeverityFitsAtLeast": 0.9, "note": "Share of true-positive criticals both labelers say deserve CRITICAL." }
+  },
+  "reportedNotGated": ["recall against known agreed vulnerabilities (misses listed by name)", "candidate-stage precision", "run-to-run variance across two passes", "cost per first scan"],
+  "context": {
+    "google_tricorder": "Analyzers surfaced in code review must stay under about 10% effective false positives; Tricorder overall ran just below 5% (Sadowski et al., ICSE 2015; CACM 2018).",
+    "sast_average": "A systematic comparison of SAST tools found average precision of about 0.64 (Mend benchmark of false positives).",
+    "shiplock_2026_09_28": "Latest pass: 6 criticals, 3 agreed real (all only 'partly' accurate before Q16's wording follow-up), CRITICAL severity fit 0 of 6; 97% is far from current and cannot be proven on today's sample of 6."
+  }
+}
