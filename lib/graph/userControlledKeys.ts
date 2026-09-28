@@ -32,9 +32,12 @@ type Fact = { root: string; kind: "owned" | "prefix" | "notOwned" };
 
 const REQUEST = new Set(["req", "request"]);
 const INPUT_ROOTS = new Set(["parsedInput", "searchParams", "params", "formData"]);
+// Caller input only when destructured from a callback parameter (tRPC `({ input, ctx })`);
+// a local variable that happens to be named `input` is not.
+const PARAM_INPUT_KEYS = new Set(["input"]);
 const NOT_PARAMS = new Set(["req", "request", "ctx", "context", "_", "event", "prev", "prevState", "state"]);
 const EDITABLE = /^(?:image|avatar\w*|picture|photo\w*|logo\w*|file\w*|key|path|url)$/;
-const CALLER_OBJECTS = /^(?:ctx\.user|session\.user|user|currentUser)$/;
+const CALLER_OBJECTS = /^(?:ctx\.user|ctx\.session\.user|session\.user|user|currentUser)$/;
 const SINK_NAMES = new Set(["deleteObject", "deleteObjects", "deleteFile", "deleteFiles", "removeFile", "removeFiles",
   "removeObject", "removeObjects", "unlink", "unlinkSync", "del"]);
 const UPLOAD_RESULTS = new Set(["put", "upload", "uploadFile", "uploadFiles", "putObject", "createPresignedPost"]);
@@ -43,7 +46,7 @@ const PASS_THROUGH = new Set(["basename", "join", "resolve", "normalize", "trim"
   "at", "get", "getAll", "map", "filter", "flatMap", "find", "values", "keys"]);
 const EXIT_CALLS = /^(?:notFound|forbidden|unauthorized|redirect|permanentRedirect)$/;
 const ASSERTS = /^(?:assert|owns|isOwn|belongsTo|authorize|check\w*Owner)/i;
-const IDENTITY_TEXT = /^(?:ctx\.user\.id|session\.user\.id|session\.userId|user\.id|currentUser\.id|auth\(\)\.userId|ctx\.userId)$/;
+const IDENTITY_TEXT = /^(?:ctx\.user\.id|ctx\.session\.user\.id|session\.user\.id|session\.userId|user\.id|currentUser\.id|auth\(\)\.userId|ctx\.userId)$/;
 const IDENTITY_SOURCES = /^(?:auth|getAuth|currentUser|getSession|getServerSession|getUser)\(/;
 
 const text = (node: ts.Node) => node.getText().replace(/\s+/g, "").replace(/\?\./g, ".");
@@ -354,6 +357,7 @@ export function findUserControlledDeletes(body: string, entry: string): UserCont
         for (const el of p.name.elements) {
           const key = el.propertyName ? el.propertyName.getText() : ts.isIdentifier(el.name) ? el.name.text : "";
           if (INPUT_ROOTS.has(key) && !(ts.isIdentifier(el.name) && el.name.text === key)) bind(el.name, make(key, key));
+          else if (PARAM_INPUT_KEYS.has(key)) bind(el.name, make(key, key));
         }
       }
     }
