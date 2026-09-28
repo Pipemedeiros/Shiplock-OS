@@ -3,7 +3,7 @@ import type { RepoFile } from "@/lib/deep/githubScan";
 import { collectRoutes } from "@/lib/graph/routeInventory";
 import { guardHypotheses, type Hypothesis, type ReconIndex } from "./attackGuard";
 import { buildFindings } from "./findings";
-import { mintOf, possessionGates, renderPossessionGate } from "./possessionGate";
+import { mintOf, oneIdAccess, possessionGates, renderPossessionGate } from "./possessionGate";
 
 /**
  * THE INVARIANT THIS CLASS IS NOT ALLOWED TO BREAK.
@@ -110,6 +110,7 @@ function pipeline(files: RepoFile[], hypothesis: Hypothesis) {
   const routes = collectRoutes(files);
   const byPath = new Map(files.map((f) => [f.path, f]));
   const gates = possessionGates(routes, byPath);
+  const oneId = oneIdAccess(routes, byPath);
   const recon: ReconIndex = {
     entries: new Set(routes.map((r) => r.path)),
     files: new Set(files.map((f) => f.path)),
@@ -126,14 +127,18 @@ function pipeline(files: RepoFile[], hypothesis: Hypothesis) {
     repositoryId: "r",
     hasDatabase: false,
     possessionGates: gates,
+    oneIdAccess: oneId,
   });
-  return { routes, gates, guarded, findings };
+  return { routes, gates, oneId, guarded, findings };
 }
 
 const PROCESSING_FILE = "pages/api/teams/[teamId]/documents/document-processing-status.ts";
 const REPORT_FILE = "pages/api/report.ts";
 
-describe("INVARIANT: document-processing-status stays a critical", () => {
+// Q21 (Felipe, 2026-09-28): an anonymous route whose only way in is a
+// random-minted request id is capped at WARNING, never removed. This route was
+// pinned CRITICAL until that decision; it stays visible and assessed.
+describe("INVARIANT: document-processing-status stays visible, capped at WARNING (Q21)", () => {
   const files: RepoFile[] = [
     { path: "prisma/schema/schema.prisma", content: SCHEMA },
     { path: PROCESSING_FILE, content: PROCESSING_STATUS },
@@ -161,12 +166,29 @@ describe("INVARIANT: document-processing-status stays a critical", () => {
     expect(gates.has("/api/teams/[teamId]/documents/document-processing-status")).toBe(false);
   });
 
-  it("is admitted and rendered as missing_authentication, CRITICAL", () => {
-    const { guarded, findings } = pipeline(files, hypothesis);
+  it("is admitted as missing_authentication, capped at WARNING, naming the id and its mint", () => {
+    const { guarded, findings, oneId } = pipeline(files, hypothesis);
     expect(guarded.admitted.map((h) => h.attackClass)).toEqual(["missing_authentication"]);
     expect(findings).toHaveLength(1);
     expect(findings[0].attackClass).toBe("missing_authentication");
+    expect(findings[0].severity).toBe("WARNING");
+    expect(findings[0].id).toBe("agent:missing_authentication:/api/teams/[teamId]/documents/document-processing-status");
+    expect(oneId.get("/api/teams/[teamId]/documents/document-processing-status")).toMatchObject({ param: "documentVersionId", field: "id", bindings: [] });
+    expect(findings[0].claims).toContainEqual(expect.objectContaining({
+      claim: expect.stringMatching(/only way in is a DocumentVersion id \(documentVersionId\).*cuid\(\)/), verified: true }));
+  });
+
+  it("without a random mint the cap does not apply: an autoincrement id stays CRITICAL", () => {
+    const sequential = SCHEMA.replace("id        String  @id @default(cuid())\n  numPages", "id        Int     @id @default(autoincrement())\n  numPages");
+    expect(sequential).not.toBe(SCHEMA);
+    const { findings, oneId } = pipeline([{ path: "prisma/schema/schema.prisma", content: sequential }, { path: PROCESSING_FILE, content: PROCESSING_STATUS }], hypothesis);
+    expect(oneId.size).toBe(0);
     expect(findings[0].severity).toBe("CRITICAL");
+  });
+
+  it("a bound gate is not one-id access: the report shape is possession_gated, not capped", () => {
+    const { oneId } = pipeline([...files, { path: REPORT_FILE, content: REPORT }], hypothesis);
+    expect(oneId.has("/api/report")).toBe(false);
   });
 
   // The positive control. Without it the three tests above pass for a rule that

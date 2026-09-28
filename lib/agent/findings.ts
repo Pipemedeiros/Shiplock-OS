@@ -207,6 +207,9 @@ export interface BuildFindingsInput {
    * written for a missing login.
    */
   possessionGates?: ReadonlyMap<string, PossessionGate>;
+  /** Anonymous routes whose only way in is a random-minted request id
+   * (possessionGate.ts `oneIdAccess`); such findings cap at WARNING (Q21). */
+  oneIdAccess?: ReadonlyMap<string, PossessionGate>;
 }
 
 export function buildFindings(input: BuildFindingsInput): AgentFinding[] {
@@ -298,6 +301,19 @@ export function buildFindings(input: BuildFindingsInput): AgentFinding[] {
       // than correct by accident of how two fields happen to line up.
       (!route!.ownershipFiltered || !route!.ownershipReadable);
 
+    // Q21 (Felipe, 2026-09-28): the only way in is a random-minted id the caller
+    // must already hold. Capped at WARNING, never removed, and said.
+    const oneId = (h.attackClass === "missing_authentication" || h.attackClass === "missing_authorization")
+      && route !== undefined && route.identityReadable && !route.authenticated && !route.machineGated
+      ? input.oneIdAccess?.get(h.entry) : undefined;
+    if (oneId) {
+      claims.push({
+        claim: `The only way in is a ${oneId.model} id (${oneId.param}), minted by ${oneId.mint.expression}, so a caller needs that id before this answers.`,
+        origin: "schema",
+        verified: true,
+      });
+    }
+
     if (rlsCouldStillProtect) {
       claims.push({
         claim:
@@ -323,7 +339,7 @@ export function buildFindings(input: BuildFindingsInput): AgentFinding[] {
       consequence: readAsAnonymous
         ? `We read no sign-in check on ${h.entry}, and its query${tableWords ? ` on ${tableWords}` : ""} is not narrowed to a caller, so the request alone decides what it reads or changes.`
         : h.consequence,
-      severity: SEVERITY[h.attackClass] ?? "WARNING",
+      severity: oneId ? "WARNING" : (SEVERITY[h.attackClass] ?? "WARNING"),
       // Capped, not computed, when a row policy could still be enforcing this.
       // The origin count says several collectors agree the query is unscoped;
       // it cannot say the database is not compensating, and reporting

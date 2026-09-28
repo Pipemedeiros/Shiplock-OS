@@ -38,13 +38,14 @@ import type { RouteFact } from "@/lib/graph/routeInventory";
  *     disjunct in the null check.
  *
  *     This is the condition that keeps corpus-b's
- *     /api/teams/[teamId]/documents/document-processing-status a critical. It
- *     takes one id, looks it up by primary key and 404s on null -- every other
- *     test here passes -- and it is a CONFIRMED TRUE POSITIVE: a forgotten auth
- *     check whose siblings authenticate. Nothing in its dataflow says so. A
- *     one-id lookup is exactly the shape of an object id used as its own access
- *     control, so a one-id lookup is never a possession gate, and
- *     `possessionGate.test.ts` pins it.
+ *     /api/teams/[teamId]/documents/document-processing-status out of
+ *     possession_gated. It takes one id, looks it up by primary key and 404s
+ *     on null -- every other test here passes -- and it was recorded as a
+ *     forgotten auth check whose siblings authenticate. A one-id lookup is
+ *     exactly the shape of an object id used as its own access control, so it
+ *     is never a possession gate. Since Q21 (Felipe, 2026-09-28) such a route
+ *     is listed by `oneIdAccess` and capped at WARNING, never reworded or
+ *     removed; `possessionGate.test.ts` pins both.
  *
  *     It also means a foreign-key-only write does not qualify.
  *     corpus-b's /api/record_reaction creates a row whose `viewId` must exist,
@@ -474,7 +475,7 @@ type GateBody = Omit<PossessionGate, "path" | "file">;
  * One handler. Returns the gate, `"inert"` when the handler touches nothing at
  * all (an OPTIONS responder), or null.
  */
-function evaluateHandler(fn: HandlerFn, file: string, sf: ts.SourceFile, models: Map<string, SchemaModel>): GateBody | "inert" | null {
+function evaluateHandler(fn: HandlerFn, file: string, sf: ts.SourceFile, models: Map<string, SchemaModel>, allowOneId = false): GateBody | "inert" | null {
   if (!fn.body || !ts.isBlock(fn.body)) return null;
   const names = requestNames(fn, file);
   const res = paramName(fn, 1);
@@ -564,7 +565,7 @@ function evaluateHandler(fn: HandlerFn, file: string, sf: ts.SourceFile, models:
       };
       split(check.expression);
 
-      if (bindings.length === 0) {
+      if (bindings.length === 0 && !allowOneId) {
         // RULE 3. A one-id lookup is not a gate. It may still constrain a LATER
         // lookup as the row that lookup is bound to.
         rows.set(lookup.variable, { lookup, param: token.param });
@@ -655,6 +656,26 @@ function dominatedRegion(list: ts.NodeArray<ts.Statement>, checkIndex: number): 
  * by every rule above.
  */
 export function possessionGates(routes: RouteFact[], byPath: Map<string, RepoFile>): Map<string, PossessionGate> {
+  return gatesWith(routes, byPath, false);
+}
+
+/**
+ * ONE-ID ACCESS (Q21, Felipe 2026-09-28). Every rule above except rule 3: the
+ * only way into an anonymous route is a random-minted request id, looked up
+ * and null-checked, with nothing else touching data. It is NOT a gate and is
+ * never reworded to possession_gated; findings cap the route at WARNING and
+ * name the id and its mint. A route with a bound gate is not listed here.
+ */
+export function oneIdAccess(routes: RouteFact[], byPath: Map<string, RepoFile>): Map<string, PossessionGate> {
+  const bound = gatesWith(routes, byPath, false);
+  const out = new Map<string, PossessionGate>();
+  for (const [path, access] of gatesWith(routes, byPath, true)) {
+    if (!bound.has(path) && access.bindings.length === 0) out.set(path, access);
+  }
+  return out;
+}
+
+function gatesWith(routes: RouteFact[], byPath: Map<string, RepoFile>, allowOneId: boolean): Map<string, PossessionGate> {
   const out = new Map<string, PossessionGate>();
   const models = readPrismaModels(byPath.values());
   if (models.size === 0) return out;
@@ -674,7 +695,7 @@ export function possessionGates(routes: RouteFact[], byPath: Map<string, RepoFil
     let gate: GateBody | null = null;
     let refused = false;
     for (const fn of handlers) {
-      const result = evaluateHandler(fn, route.file, sf, models);
+      const result = evaluateHandler(fn, route.file, sf, models, allowOneId);
       if (result === null) { refused = true; break; }
       if (result !== "inert" && !gate) gate = result;
     }

@@ -14,7 +14,7 @@ import { countUnanalyzedSurfaces } from "@/lib/graph/unanalyzedSurfaces";
 import { applicationEntries } from "@/lib/graph/applicationEntries";
 import { detectStack, routeAnalysisSupport, type StackReport } from "./stack";
 import { buildFindings, type AgentFinding } from "./findings";
-import { possessionGates } from "./possessionGate";
+import { oneIdAccess, possessionGates } from "./possessionGate";
 import { extractTables, extractColumns } from "./schema";
 import { inferDomain } from "./domain";
 import { loadLiveFacts } from "./liveFacts";
@@ -466,7 +466,10 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
     // guard admits on a route whose gate we READ is reported as
     // possession_gated, at informational severity, naming the lookup, the
     // binding and the mint. An unreadable gate leaves the critical standing.
-    const gates = possessionGates(routes, new Map(archive.files.map((f) => [f.path, f])));
+    const byPath = new Map(archive.files.map((f) => [f.path, f]));
+    const gates = possessionGates(routes, byPath);
+    // Q21: anonymous routes whose only way in is a random-minted id cap at WARNING.
+    const oneId = oneIdAccess(routes, byPath);
 
     // ShipLock funds one model-assisted audit per account (3G-1). A later run
     // keeps every deterministic check; its reasoning step says it did not run.
@@ -554,6 +557,7 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       hasDatabase: options.hasDatabase ?? false,
       liveFacts,
       possessionGates: gates,
+      oneIdAccess: oneId,
     });
 
     for (const finding of findings.filter((f) => f.severity === "CRITICAL")) {
