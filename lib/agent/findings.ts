@@ -307,12 +307,22 @@ export function buildFindings(input: BuildFindingsInput): AgentFinding[] {
       });
     }
 
+    // On a route we READ as anonymous there is no caller to narrow by, so the
+    // model's story for missing_authorization ("across workspaces") is a
+    // mechanism we never read. Say what we read instead; the model's sentence
+    // stays in the claims, unverified (Q16).
+    const readAsAnonymous = h.attackClass === "missing_authorization" && route !== undefined
+      && route.identityReadable && !route.authenticated && !route.machineGated;
+    const tables = route ? route.tables : [];
+    const tableWords = tables.length > 1 ? `${tables.slice(0, -1).join(", ")} and ${tables[tables.length - 1]}` : tables.join("");
     findings.push({
       // Stable across runs: the same gap on the same entry keeps its identity,
       // so the diff engine does not re-alert it every pass.
       id: `agent:${h.attackClass}:${h.entry}`,
-      title: h.title,
-      consequence: h.consequence,
+      title: readAsAnonymous ? "Anyone can call this without signing in" : h.title,
+      consequence: readAsAnonymous
+        ? `We read no sign-in check on ${h.entry}, and its query${tableWords ? ` on ${tableWords}` : ""} is not narrowed to a caller, so it answers anyone who reaches it.`
+        : h.consequence,
       severity: SEVERITY[h.attackClass] ?? "WARNING",
       // Capped, not computed, when a row policy could still be enforcing this.
       // The origin count says several collectors agree the query is unscoped;

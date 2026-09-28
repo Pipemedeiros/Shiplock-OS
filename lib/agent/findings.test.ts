@@ -126,3 +126,35 @@ describe("buildFindings", () => {
     expect(findings[0].severity).toBe("CRITICAL");
   });
 });
+
+// Q16: on a route we READ as anonymous there is no caller to narrow by, so a
+// model's "across workspaces" story for missing_authorization is a mechanism we
+// never read. The title and consequence come from what we read; the model's
+// sentence stays, marked unverified. Id and severity are unchanged.
+describe("missing_authorization on a route read as anonymous (Q16)", () => {
+  const anonymous: RouteFact = { ...route, path: "trpc:router/statusPage.ts#getReport", file: "router/statusPage.ts",
+    tables: ["page", "statusReport"], authenticated: false };
+  const claim = { ...hypothesis, entry: anonymous.path, citedFiles: [anonymous.file],
+    title: "Anonymous, unscoped read of status page reports across workspaces",
+    consequence: "Any unauthenticated caller can read other tenants' reports." };
+  const base = { deterministic: [], stack, repositoryId: "r1", hasDatabase: false };
+
+  it("states what we read, keeps the model's sentence unverified, and keeps id and severity", () => {
+    const [finding] = buildFindings({ ...base, routes: [anonymous], admitted: [claim] });
+    expect(finding.title).toBe("Anyone can call this without signing in");
+    expect(finding.consequence).toBe(
+      "We read no sign-in check on trpc:router/statusPage.ts#getReport, and its query on page and statusReport is not narrowed to a caller, so it answers anyone who reaches it.");
+    expect(`${finding.title} ${finding.consequence}`).not.toMatch(/workspace|tenant|[–—]/i);
+    expect(finding.claims).toContainEqual({ claim: claim.consequence, origin: "agent", verified: false });
+    expect(finding.id).toBe(`agent:missing_authorization:${anonymous.path}`);
+    expect(finding.severity).toBe("CRITICAL");
+  });
+
+  it("keeps the model's words on a signed-in route, and where identity was not read", () => {
+    const [signedIn] = buildFindings({ ...base, routes: [route], admitted: [hypothesis] });
+    expect(signedIn.title).toBe(hypothesis.title);
+    const unread: RouteFact = { ...anonymous, identityReadable: false, identityGap: "wrapper not read" };
+    const [unknown] = buildFindings({ ...base, routes: [unread], admitted: [claim] });
+    expect(unknown.title).toBe(claim.title);
+  });
+});
