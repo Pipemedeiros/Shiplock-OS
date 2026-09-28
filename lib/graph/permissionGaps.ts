@@ -21,6 +21,18 @@
  * `role !== "ADMIN"`) are NOT covered: an inferred rule over them was tried on
  * 2026-09-24 and flagged 5 public visitor-verification routes in corpus-b
  * that correctly have no role check (5 of 5 likely false), so it was dropped.
+ *
+ * Also reads Next.js Pages API handlers (`pages/api/**`), where the idiom is
+ * a `const xHandler = withY(fn, { requiredPermissions: [...] })` per method,
+ * dispatched from a `export default` function on `req.method`, or (less
+ * often) one `export default withY(fn, { requiredPermissions })` branching on
+ * `req.method` inline. The inline form is read only when exactly one method
+ * appears in its body; more than one method sharing a single permission list
+ * cannot be split into per-method writes without misattributing a read
+ * branch's permission to a write in another branch, so it is left as neither
+ * subject nor witness (2026-09-28, corpus-b: this is also how the one
+ * inline multi-method handler in the pinned corpus already carries its own
+ * code-level role check, so it is excluded either way).
  */
 export type PermissionGap = {
   file: string;
@@ -35,11 +47,18 @@ export type PermissionGap = {
 type Handler = { file: string; method: string; permissions: string[]; writes: Set<string> };
 
 const ROUTE_FILE = /(^|\/)app\/(.+\/)?route\.[cm]?[jt]sx?$/;
+const PAGES_API_FILE = /(^|\/)pages\/api\/(.+\/)?[^/]+\.[cm]?[jt]sx?$/;
 const EXPORT = /export\s+(?:const\s+(GET|POST|PUT|PATCH|DELETE)\s*=|async\s+function\s+(GET|POST|PUT|PATCH|DELETE)\s*\()/g;
 const WRITE = /\bprisma\.(\w+)\.(?:create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(/g;
 const PERMISSIONS = /requiredPermissions\s*:\s*\[([^\]]*)\]/g;
 const ROLE_CHECK = /requiredRoles\s*:|\.role\s*(?:!==|===|!=|==)|role\s*(?:!==|===)\s*["'`]/;
 const WRITE_ACTIONS = new Set(["write", "create", "update", "delete", "manage", "admin"]);
+
+// Pages API: a named handler assignment or the default export itself owns a segment.
+const PAGES_HANDLER_OWNER = /(?:^|\n)(?:export\s+default\s+(?:async\s+function\s+\w*\s*\(|[\w.]+\()|const\s+(\w+)\s*=\s*[\w.]+\()/g;
+// `if (req.method === "GET") { return getHandler(req, res); }` binds an identifier to a method.
+const PAGES_RETURN_DISPATCH = /req\.method\s*===\s*["'`](GET|POST|PUT|PATCH|DELETE)["'`][\s\S]{0,80}?\b(\w+)\s*\(\s*req/g;
+const PAGES_INLINE_METHOD = /req\.method\s*===\s*["'`](GET|POST|PUT|PATCH|DELETE)["'`]/g;
 
 /** `apiKeys`, `apikey`, `api_keys` and `ApiKey` all name the same resource. */
 function resourceKey(name: string): string {
@@ -47,15 +66,39 @@ function resourceKey(name: string): string {
   return flat.endsWith("ies") ? `${flat.slice(0, -3)}y` : flat.endsWith("s") ? flat.slice(0, -1) : flat;
 }
 
+function readPermissions(segment: string): string[] | null {
+  const lists = [...segment.matchAll(PERMISSIONS)];
+  if (lists.length === 0 || ROLE_CHECK.test(segment)) return null;
+  return [...new Set(lists.flatMap((list) => [...list[1].matchAll(/["'`]([\w.:-]+)["'`]/g)].map((p) => p[1])))].sort();
+}
+
 function handlers(file: string, content: string): Handler[] {
   const starts = [...content.matchAll(EXPORT)].map((m) => ({ index: m.index ?? 0, method: m[1] ?? m[2] }));
   return starts.map(({ index, method }, i) => {
     const segment = content.slice(index, i + 1 < starts.length ? starts[i + 1].index : content.length);
-    const lists = [...segment.matchAll(PERMISSIONS)];
-    // No readable permission list, or its own role check: neither subject nor witness.
-    if (lists.length === 0 || ROLE_CHECK.test(segment)) return [];
-    const permissions = lists.flatMap((list) => [...list[1].matchAll(/["'`]([\w.:-]+)["'`]/g)].map((p) => p[1]));
-    return [{ file, method, permissions: [...new Set(permissions)].sort(), writes: new Set([...segment.matchAll(WRITE)].map((w) => w[1])) }];
+    const permissions = readPermissions(segment);
+    if (!permissions) return [];
+    return [{ file, method, permissions, writes: new Set([...segment.matchAll(WRITE)].map((w) => w[1])) }];
+  }).flat();
+}
+
+function pagesApiHandlers(file: string, content: string): Handler[] {
+  const owners = [...content.matchAll(PAGES_HANDLER_OWNER)].map((m) => ({ ident: m[1] ?? null, index: m.index ?? 0 }));
+  if (owners.length === 0) return [];
+  const dispatchMethod = new Map<string, string>();
+  for (const m of content.matchAll(PAGES_RETURN_DISPATCH)) dispatchMethod.set(m[2], m[1]);
+
+  return owners.map(({ ident, index }, i) => {
+    const segment = content.slice(index, i + 1 < owners.length ? owners[i + 1].index : content.length);
+    const permissions = readPermissions(segment);
+    if (!permissions) return [];
+    const inlineMethods = new Set([...segment.matchAll(PAGES_INLINE_METHOD)].map((m) => m[1]));
+    // A single inline branch, or a dispatched identifier, names an unambiguous method.
+    // More than one inline branch under one shared permission list can't be split into
+    // per-method writes without risking a read branch's guard covering another's write.
+    const method = inlineMethods.size === 1 ? [...inlineMethods][0] : inlineMethods.size === 0 && ident ? dispatchMethod.get(ident) : undefined;
+    if (!method) return [];
+    return [{ file, method, permissions, writes: new Set([...segment.matchAll(WRITE)].map((w) => w[1])) }];
   }).flat();
 }
 
@@ -69,7 +112,11 @@ function guardFor(handler: Handler, model: string): string | null {
 }
 
 export function findPermissionGaps(files: { path: string; content: string }[]): PermissionGap[] {
-  const all = files.filter((f) => ROUTE_FILE.test(f.path)).flatMap((f) => handlers(f.path, f.content));
+  const all = files.flatMap((f) => {
+    if (ROUTE_FILE.test(f.path)) return handlers(f.path, f.content);
+    if (PAGES_API_FILE.test(f.path)) return pagesApiHandlers(f.path, f.content);
+    return [];
+  });
   const gaps: PermissionGap[] = [];
   for (const handler of all) {
     for (const model of [...handler.writes].sort()) {

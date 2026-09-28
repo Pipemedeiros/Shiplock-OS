@@ -73,3 +73,56 @@ it("finds every declared file, not every other one (stateless matching)", () => 
   const weak = Array.from({ length: 4 }, (_, i) => route(`app/api/w${i}/route.ts`, handler("POST", ["tasks.write"], "await prisma.project.create({ data: {} });")));
   expect(findPermissionGaps([...writers, ...weak]).map((g) => g.file)).toEqual(weak.map((w) => w.path));
 });
+
+describe("findPermissionGaps: Pages API", () => {
+  // Mirrors the corpus-b idiom: `const xHandler = withTeamApi(fn, { requiredPermissions })`
+  // per method, dispatched by an `export default function handle(req, res)` on req.method.
+  const pagesHandler = (name: string, perms: string[], body: string) =>
+    `const ${name}Handler = withTeamApi(\n  async ({ req, res }) => {\n${body}\n  },\n  { requiredPermissions: [${perms.map((p) => `"${p}"`).join(", ")}] },\n);\n\n`;
+  const dispatch = (methods: [string, string][]) =>
+    "export default async function handle(req, res) {\n" +
+    methods.map(([m, name]) => `  if (req.method === "${m}") {\n    return ${name}Handler(req, res);\n  }\n`).join("") +
+    "}\n";
+
+  it("flags a Pages API handler that writes a model another handler guards with that model's permission", () => {
+    const brandRoute = route("pages/api/teams/[teamId]/brands/[brandId]/index.ts",
+      pagesHandler("get", ["branding.read"], "return res.status(200).json(brand);") +
+      pagesHandler("put", ["brands.write"], "await prisma.brand.update({ where: {}, data: {} });") +
+      dispatch([["GET", "get"], ["PUT", "put"]]));
+    const brandsIndex = route("pages/api/teams/[teamId]/brands/index.ts",
+      pagesHandler("post", ["branding.write"], "await prisma.brand.create({ data: {} });") +
+      dispatch([["POST", "post"]]));
+    expect(findPermissionGaps([brandRoute, brandsIndex])).toEqual([{
+      file: "pages/api/teams/[teamId]/brands/index.ts", method: "POST", model: "brand", requires: ["branding.write"],
+      expected: "brands.write", witness: { file: "pages/api/teams/[teamId]/brands/[brandId]/index.ts", method: "PUT" }, tier: "declared",
+    }]);
+  });
+
+  it("skips a default export that branches on req.method inline for more than one method", () => {
+    const withGuard = route("pages/api/teams/[teamId]/brands/index.ts",
+      pagesHandler("post", ["brands.write"], "await prisma.brand.create({ data: {} });") + dispatch([["POST", "post"]]));
+    const inline = route("pages/api/teams/[teamId]/datarooms/[id]/members.ts",
+      "export default withTeamApi(\n  async ({ req, res, role }) => {\n" +
+      "    if (req.method === \"GET\") {\n      return res.status(200).json([]);\n    }\n" +
+      "    if (req.method === \"DELETE\") {\n      await prisma.brand.deleteMany({ where: {} });\n      return res.status(204).end();\n    }\n" +
+      "  },\n  { requiredPermissions: [\"branding.read\"] },\n);\n");
+    expect(findPermissionGaps([withGuard, inline])).toEqual([]);
+  });
+
+  it("reads a single-method inline default export", () => {
+    const inline = route("pages/api/teams/[teamId]/datarooms/[id]/duplicate.ts",
+      "export default withTeamApi(\n  async ({ req, res }) => {\n" +
+      "    if (req.method === \"POST\") {\n      await prisma.dataroom.create({ data: {} });\n    }\n" +
+      "  },\n  { requiredPermissions: [\"datarooms.read\"] },\n);\n");
+    const witness = route("pages/api/teams/[teamId]/datarooms/index.ts",
+      pagesHandler("post", ["datarooms.write"], "await prisma.dataroom.create({ data: {} });") + dispatch([["POST", "post"]]));
+    expect(findPermissionGaps([inline, witness]).map((g) => [g.file, g.method, g.model])).toEqual([
+      ["pages/api/teams/[teamId]/datarooms/[id]/duplicate.ts", "POST", "dataroom"],
+    ]);
+  });
+
+  it("ignores Pages API files outside pages/api, and non-route files inside it", () => {
+    const outside = route("lib/pages/api-helpers.ts", pagesHandler("post", ["tasks.write"], "await prisma.project.create({ data: {} });") + dispatch([["POST", "post"]]));
+    expect(findPermissionGaps([projectsCreate, outside])).toEqual([]);
+  });
+});
