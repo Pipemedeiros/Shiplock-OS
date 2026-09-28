@@ -41,6 +41,19 @@ describe("paidPlan", () => {
   });
 });
 
+describe("corpus manifest selection (Q23)", () => {
+  const load = (env: Record<string, string>) => spawnSync(process.execPath,
+    ["-e", "console.log(require('./scripts/corpus.cjs').manifest.experiment)"], { encoding: "utf8", env: { ...process.env, ...env } });
+  it("reads docs/CORPUS.json by default and another manifest when SHIPLOCK_CORPUS names one", () => {
+    const base = load({}).stdout.trim();
+    expect(base).toBe(JSON.parse(require("node:fs").readFileSync("docs/CORPUS.json", "utf8")).experiment);
+    const dir = require("node:fs").mkdtempSync(require("node:path").join(require("node:os").tmpdir(), "corpus-"));
+    const alt = require("node:path").join(dir, "alt.json");
+    require("node:fs").writeFileSync(alt, JSON.stringify({ version: 1, experiment: "alt-corpus", prediction: "x", repositories: [], labels: [] }));
+    expect(load({ SHIPLOCK_CORPUS: alt }).stdout.trim()).toBe("alt-corpus");
+  });
+});
+
 describe("corpus.cjs paid CLI refuses before spending", () => {
   const run = (...args: string[]) => spawnSync(process.execPath, ["scripts/corpus.cjs", "paid", ...args], {
     encoding: "utf8", env: { ...process.env, ANTHROPIC_API_KEY: "sk-test-not-used" } });

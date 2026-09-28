@@ -9,7 +9,8 @@ const { pipeline } = require("node:stream/promises");
 const { execFileSync } = require("node:child_process");
 const Module = require("node:module");
 const root = path.resolve(__dirname, "..");
-const manifestPath = path.join(root, "docs/CORPUS.json");
+// SHIPLOCK_CORPUS selects another manifest (Q23 docs/CORPUS-2.json); the 7-repository baseline stays the default.
+const manifestPath = process.env.SHIPLOCK_CORPUS ? path.resolve(root, process.env.SHIPLOCK_CORPUS) : path.join(root, "docs/CORPUS.json");
 const manifestBytes = fs.readFileSync(manifestPath);
 const manifest = JSON.parse(manifestBytes);
 const cache = path.join(root, ".cache/shiplock-corpus");
