@@ -186,6 +186,37 @@ describe("INVARIANT: document-processing-status stays a critical", () => {
   });
 });
 
+// Q15 (2026-09-28): Sonnet 5 phrased these share-link claims as
+// missing_authorization ("not scoped by team"). On a route read as anonymous
+// there is no caller to scope by, so it is the same wrong sentence and gets the
+// same one rewording, only where a gate was read.
+describe("missing_authorization on a gated anonymous route is reworded the same way (Q15)", () => {
+  const schemaOnly: RepoFile = { path: "prisma/schema/schema.prisma", content: SCHEMA };
+  it("is possession_gated, INFO, where a gate was read", () => {
+    const { guarded, findings } = pipeline([schemaOnly, { path: REPORT_FILE, content: REPORT }], {
+      entry: "/api/report",
+      attackClass: "missing_authorization",
+      title: "Report endpoint exposes view data across tenants",
+      consequence: "View records can be reported on without any tenant restriction.",
+      citedFiles: [REPORT_FILE],
+    });
+    expect(guarded.admitted.map((h) => h.attackClass)).toEqual(["possession_gated"]);
+    expect(findings[0].severity).toBe("INFO");
+  });
+
+  it("INVARIANT: stays missing_authorization, and visible, where no gate was read", () => {
+    const { guarded, findings } = pipeline([schemaOnly, { path: PROCESSING_FILE, content: PROCESSING_STATUS }], {
+      entry: "/api/teams/[teamId]/documents/document-processing-status",
+      attackClass: "missing_authorization",
+      title: "Document processing status readable without team scoping",
+      consequence: "A caller can poll processing status of other teams' document versions.",
+      citedFiles: [PROCESSING_FILE],
+    });
+    expect(guarded.admitted.map((h) => h.attackClass)).toEqual(["missing_authorization"]);
+    expect(findings).toHaveLength(1);
+  });
+});
+
 describe("RULE 6: the id needs a random mint the schema states", () => {
   it("names the strength of each recognised default and refuses everything else", () => {
     expect(mintOf("cuid()")).toMatch(/version 1 cuid/);
