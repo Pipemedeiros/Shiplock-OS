@@ -272,6 +272,11 @@ async function paid(args) {
   const capIndex = args.indexOf("--max-usd");
   const maxUsd = capIndex >= 0 ? Number(args[capIndex + 1]) : NaN;
   if (!(maxUsd > 0)) throw new Error("Refusing: give a dollar cap with --max-usd <amount>.");
+  const valueOf = (flag) => (args.includes(flag) ? args[args.indexOf(flag) + 1] : undefined);
+  const modelOverride = valueOf("--model");
+  const only = valueOf("--only");
+  const pins = manifest.repositories.filter((pin) => !only || pin.id === only);
+  if (pins.length === 0) throw new Error(`Refusing: --only ${only} names no pinned repository.`);
   const { parsePrices } = await import("./cost-report.mjs");
   const prices = parsePrices(args.flatMap((arg, i) => (args[i - 1] === "--price" ? [arg] : [])));
   if (!process.env.ANTHROPIC_API_KEY) {
@@ -280,7 +285,7 @@ async function paid(args) {
     if (line) process.env.ANTHROPIC_API_KEY = line.slice("ANTHROPIC_API_KEY=".length).trim().replace(/^["']|["']$/g, "");
   }
   if (!process.env.ANTHROPIC_API_KEY) throw new Error("Refusing: no ANTHROPIC_API_KEY in the environment or .env.local.");
-  for (const pin of manifest.repositories) {
+  for (const pin of pins) {
     if (!fs.existsSync(archivePath(pin))) throw new Error(`${pin.id}: archive missing; run npm run corpus:acquire`);
     if (await fileHash(archivePath(pin)) !== pin.archiveSha256) throw new Error(`${pin.id}: archive checksum mismatch`);
   }
@@ -288,12 +293,13 @@ async function paid(args) {
   const realFetch = global.fetch;
   // Same input the audit builds (lib/agent/audit.ts), all offline.
   const inputs = [];
-  for (const pin of manifest.repositories) {
+  for (const pin of pins) {
     const { routes, stack, tables, domain, files, reasoned } = await analyzePin(product, pin);
-    const input = { routes: reasoned, stack, tables, domain, files: [...files.keys()], liveFacts: [], possessionGates: product.possessionGates(routes, files) };
+    const input = { routes: reasoned, stack, tables, domain, files: [...files.keys()], liveFacts: [],
+      possessionGates: product.possessionGates(routes, files), ...(modelOverride ? { model: modelOverride } : {}) };
     const interesting = reasoned.filter((route) => route.tables.length > 0).length;
     inputs.push({ pin, input, interesting,
-      model: interesting >= product.SONNET_ENTRY_THRESHOLD ? product.SONNET : product.HAIKU,
+      model: modelOverride ?? (interesting >= product.SONNET_ENTRY_THRESHOLD ? product.SONNET : product.HAIKU),
       inputChars: product.SYSTEM.length + product.buildPrompt(input).length, maxTokens: product.maxTokensFor(interesting) });
   }
   const callable = inputs.filter((i) => i.interesting > 0);
@@ -326,7 +332,8 @@ async function paid(args) {
     experiment: `${manifest.experiment}-paid`, capturedAt: new Date().toISOString(),
     head: execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim(),
     dirtyTree: execFileSync("git", ["status", "--porcelain"], { cwd: root, encoding: "utf8" }).trim().length > 0,
-    systemPromptSha256: sha(product.SYSTEM), capUsd: maxUsd, worstCaseUsd: plan.worstCaseUsd,
+    systemPromptSha256: sha(product.SYSTEM), modelOverride: modelOverride ?? null, only: only ?? null,
+    capUsd: maxUsd, worstCaseUsd: plan.worstCaseUsd,
     modelCalls: records.filter((r) => !r.skipped).length, paidApiSpendUsd: Math.round(spentUsd * 1e6) / 1e6, repositories: records,
   };
   await write("summary.json", summary);
@@ -348,7 +355,7 @@ async function main() {
   } else if (process.argv[2] === "paid") {
     await paid(process.argv.slice(3));
   } else {
-    throw new Error("Usage: node scripts/corpus.cjs acquire|evaluate|holdout <labels.json>|paid --confirm-paid --max-usd <usd> --price <model=in,out>...");
+    throw new Error("Usage: node scripts/corpus.cjs acquire|evaluate|holdout <labels.json>|paid --confirm-paid --max-usd <usd> --price <model=in,out>... [--model claude-sonnet-5] [--only <id>]");
   }
 }
 

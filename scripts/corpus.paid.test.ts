@@ -51,6 +51,12 @@ describe("corpus.cjs paid CLI refuses before spending", () => {
     expect(r.stderr).toMatch(/--confirm-paid/);
   });
 
+  it("with --only naming no pinned repository", () => {
+    const r = run("--confirm-paid", "--max-usd", "1", "--price", "claude-sonnet-5=2,10", "--model", "claude-sonnet-5", "--only", "nope");
+    expect(r.status).not.toBe(0);
+    expect(r.stderr).toMatch(/--only nope/);
+  }, 120_000);
+
   it("without a dollar cap", () => {
     const r = run("--confirm-paid", "--price", "claude-sonnet-4-6=3,15");
     expect(r.status).not.toBe(0);

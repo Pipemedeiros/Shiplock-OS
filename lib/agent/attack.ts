@@ -30,6 +30,12 @@ export const SONNET = "claude-sonnet-4-6";
 /** Above this many interesting entries the reasoning is worth the better model. */
 export const SONNET_ENTRY_THRESHOLD = 25;
 
+// Benchmark overrides and the request each needs: Sonnet 5 rejects sampling
+// parameters and thinks by default, which would spend the output budget.
+const TEST_MODELS: Record<string, { thinking: { type: "disabled" } }> = {
+  "claude-sonnet-5": { thinking: { type: "disabled" } },
+};
+
 /**
  * Output budget, sized to the answer we asked for rather than to a round number.
  *
@@ -130,6 +136,10 @@ export interface AgentInput {
    * and the gate changes what an admitted finding is called, not what is found.
    */
   possessionGates?: ReadonlyMap<string, PossessionGate>;
+
+  /** Offline benchmark only (scripts/corpus.cjs paid): a model from TEST_MODELS.
+   * Production never sets it, so its model choice and request are unchanged. */
+  model?: string;
 }
 
 export interface AgentOutcome extends GuardResult {
@@ -429,7 +439,10 @@ export async function proposeAttacks(input: AgentInput): Promise<AgentOutcome> {
     return { admitted: [], rejected: [], unassessed: [], unmatchedEntries: [], model: "none", skipped: true, skipReason: "no model credential configured" };
   }
 
-  const model = interesting.length >= SONNET_ENTRY_THRESHOLD ? SONNET : HAIKU;
+  if (input.model !== undefined && !TEST_MODELS[input.model]) {
+    throw new Error(`${input.model} is not an allowed test model`);
+  }
+  const model = input.model ?? (interesting.length >= SONNET_ENTRY_THRESHOLD ? SONNET : HAIKU);
   const prompt = buildPrompt(input);
 
   try {
@@ -441,7 +454,7 @@ export async function proposeAttacks(input: AgentInput): Promise<AgentOutcome> {
       // schema, not a creative one, and two audits of an unchanged repository
       // that disagree are two audits the customer cannot trust. Sampling bought
       // nothing here and cost reproducibility.
-      temperature: 0,
+      ...(input.model ? TEST_MODELS[input.model] : { temperature: 0 }),
       system: SYSTEM,
       messages: [{ role: "user", content: prompt }],
     }, input.timeoutMs ? { timeout: input.timeoutMs } : undefined);
