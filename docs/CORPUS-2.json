@@ -1,0 +1,401 @@
+{
+  "version": 1,
+  "experiment": "corpus-2-q23-2026-09-28",
+  "prediction": "Recorded before evaluation (2026-09-28): no prediction of detection quality; this corpus exists to reach at least 100 labeled critical/high findings for the release thresholds in docs/evaluation/thresholds-release-2026-09.json.",
+  "scope": "Next.js repository facts, candidate coverage and deterministic guard replay. No model precision or whole-repository recall claim.",
+  "selection": {
+    "rule": "gh search repos: topic:nextjs plus one of topic:prisma|supabase|drizzle|trpc, TypeScript, stars >= 500, pushed since 2025-09-28, non-fork, non-archived; kept if package.json depends on next and a database layer (prisma, drizzle-orm, @supabase/supabase-js) and the tree has a server entry; the 7 docs/CORPUS.json repositories excluded; ranked by stars.",
+    "amendmentA1": "Count-driven, recorded before the second search: the rule kept 42, so the same rule with stars 150..499 filled the remaining places in star order (21).",
+    "selected": 63,
+    "pinned": 62,
+    "excluded": [
+      {
+        "repository": "supabase/supabase",
+        "reason": "archive over the 512 MiB cap"
+      }
+    ],
+    "pinnedAt": "default-branch head on 2026-09-28"
+  },
+  "labelProvenance": "none yet",
+  "loader": {
+    "files": 4000,
+    "fileBytes": 400000,
+    "sourceBytes": 25165824,
+    "inflatedBytes": 125829120
+  },
+  "repositories": [
+    {
+      "id": "c2-trpc",
+      "repository": "trpc/trpc",
+      "commit": "fa78a1be7c276e48d806f33ad8352b007fe5cc1e",
+      "archiveSha256": "db49550c44dce23dd8c9ccec7402e1762a2bc499588625c992bc2ff2a2c91402"
+    },
+    {
+      "id": "c2-create-t3-app",
+      "repository": "t3-oss/create-t3-app",
+      "commit": "4709861f7e67a15564c0460c13e7b4b6cfcae40d",
+      "archiveSha256": "dddbc5e3637bdb87108fbb881f721e68d0d500f1235948df0a84083f455e80d5"
+    },
+    {
+      "id": "c2-onlook",
+      "repository": "onlook-dev/onlook",
+      "commit": "423e2e924366419e418ee049093872d535eea41a",
+      "archiveSha256": "532a1bde908ce0d59c1b69903b4072a8b7bd833f4dd2dfeb1866b667047d65c8"
+    },
+    {
+      "id": "c2-taxonomy",
+      "repository": "shadcn-ui/taxonomy",
+      "commit": "298a8857c7128a0d121e7f699dfd729f23b3966d",
+      "archiveSha256": "da577fdf258e8e5f93ed598792fdf47847981ae365920624dfc2a960eb0553b0"
+    },
+    {
+      "id": "c2-corpus-g",
+      "repository": "corpus-g/corpus-g",
+      "commit": "a1d4bec1430a937395db9a4aae28979cd71c2831",
+      "archiveSha256": "56b2120a1bc9e7d5acb015263da87fe1f0d793ea92db11fa92e077bb9dcf62e3"
+    },
+    {
+      "id": "c2-midday",
+      "repository": "midday-ai/midday",
+      "commit": "51587319f26a0ffaa9dfccab1920373cb65689b7",
+      "archiveSha256": "0aa913ac865504f33ece34bee02d8eddc93b7aca0d9b5a839189607e6eb0314a"
+    },
+    {
+      "id": "c2-blitz",
+      "repository": "blitz-js/blitz",
+      "commit": "b18f81873e641934043f791fec06e22f5fe5a86e",
+      "archiveSha256": "b87d4fac31182a41fab2b41dd58b4c7daab9fe4a6bc2b6bd943061d2f4e77429"
+    },
+    {
+      "id": "c2-corpus-v",
+      "repository": "corpus-owner/corpus-v",
+      "commit": "0f0ab72adc6a5693b9dec80d80df49e6dee7c294",
+      "archiveSha256": "5ff8138ab9e9c27b2d7e332974990c59f9b385607b9aea0303ab3c66e9ca6d0d"
+    },
+    {
+      "id": "c2-workout-cool",
+      "repository": "Snouzy/workout-cool",
+      "commit": "3e65987f4f11bb86483ff9dfc82b831b9a94cb6d",
+      "archiveSha256": "d774b77dd29d1ceccb0f86bcac2e0e1fcf3d48519ec8ff33ff1b275296eb8bc2"
+    },
+    {
+      "id": "c2-next-forge",
+      "repository": "vercel/next-forge",
+      "commit": "f189de79ceef7c1ef69f61f12e272f99b4cdb699",
+      "archiveSha256": "58efde89287b8b7eace4e10e4807c8cb043fef5b3fe5f9c1e74d8aad233cdb3c"
+    },
+    {
+      "id": "c2-corpus-h",
+      "repository": "corpus-h/corpus-h",
+      "commit": "6fa30acada07d8dbdfd061bdf2f048a9b2750c04",
+      "archiveSha256": "bbbcec61f9c10ac3ee9e67e8bed673fe9a2808724914129ee61691a9231420f3"
+    },
+    {
+      "id": "c2-typehero",
+      "repository": "typehero/typehero",
+      "commit": "7871629e9a77718312e68a367644ce3fc286ef04",
+      "archiveSha256": "0e8f2e0cb0427f2f31e37c140ab1b38fc8a8686e618830259abf871cd2aa2958"
+    },
+    {
+      "id": "c2-create-t3-turbo",
+      "repository": "t3-oss/create-t3-turbo",
+      "commit": "8f945b7bb3bfb3ca8358d48b1ff0214079bc11ee",
+      "archiveSha256": "582181610b1085f13151f19be60987637527f907cb6196dc0d62c0869ff22b51"
+    },
+    {
+      "id": "c2-git-city",
+      "repository": "srizzon/git-city",
+      "commit": "2cc77dec97f97d48138f2980759f01dc754874f1",
+      "archiveSha256": "163328308016c16e3e00b4bcdd77f5ef306daa7345e4c5e242867ff6f5590f13"
+    },
+    {
+      "id": "c2-kan",
+      "repository": "kanbn/kan",
+      "commit": "4512e49cfd130d059ad7c05fd367b0a82fc8b664",
+      "archiveSha256": "33f11fdd4c26bab5169704d4a4ef2e5452b78f470e7278d593bf5033cdfb33e0"
+    },
+    {
+      "id": "c2-deskcommcrm",
+      "repository": "melgarafael/DeskcommCRM",
+      "commit": "f12130953174088b201f1591779f8e484eb76976",
+      "archiveSha256": "3873cd3a753d36c3924b260d9657c79fd81b1fb11c21b24394d57b89c9591d7f"
+    },
+    {
+      "id": "c2-priceai",
+      "repository": "dimthink/PriceAI",
+      "commit": "b3092c4487ab96e58dd9d1fb97016ac692ea116e",
+      "archiveSha256": "6140505c3931fdc72845197a434457a43697e6f8964f93340264fd589906c5ed"
+    },
+    {
+      "id": "c2-triplit",
+      "repository": "aspen-cloud/triplit",
+      "commit": "d3029ee13e747abeeab8cf5bf64427f77a142e1f",
+      "archiveSha256": "f1561787bdd24da00eac7d7a08770cff3b30402769c441807687852129a11d5d"
+    },
+    {
+      "id": "c2-zenstack",
+      "repository": "zenstackhq/zenstack",
+      "commit": "b812e1161d653fac957989c2fcba9e563a8e8f93",
+      "archiveSha256": "2822d346a97e1f8dec01947d91394d77262abd4bb3881399a46d73cc7bbfcf3f"
+    },
+    {
+      "id": "c2-wacrm",
+      "repository": "ArnasDon/wacrm",
+      "commit": "45e80ad9e23b91f5c02ab9f935edbae67810e59d",
+      "archiveSha256": "6a6541f6b06a7d153badfa546e6062a17e5f3fc3b5d6110e4ea245d67b1b2314"
+    },
+    {
+      "id": "c2-fulling",
+      "repository": "FullAgent/fulling",
+      "commit": "f48efced082a7de3517816267481c04e058672cb",
+      "archiveSha256": "99d8476373a46161b1a4c4bff8d2909c1e0418e519a872786494e1c89903e178"
+    },
+    {
+      "id": "c2-comp",
+      "repository": "trycompai/comp",
+      "commit": "0ccfcc238a46a72c10a12e183e81e7c231418f35",
+      "archiveSha256": "4d231b3e8cb2c9c13c23e51706e3835bb37fcf7c8da0fc35c5bce68825b57c1e"
+    },
+    {
+      "id": "c2-nextjs-openai-doc-search",
+      "repository": "supabase-community/nextjs-openai-doc-search",
+      "commit": "50d6bb71706b50a83c2a52dc4a7d3e426ac34adf",
+      "archiveSha256": "43358f20a04cc69be34e5747d6ac89593501c0819909e068eafdd4117fa22c8e"
+    },
+    {
+      "id": "c2-corpus-y",
+      "repository": "corpus-y/corpus-y",
+      "commit": "06bee752a0423faa2ba0217ea2fedd719a52bda9",
+      "archiveSha256": "134c02e7ad7798f7aa3deaf5e35ec4e97dec182db7df81c3379dd59629d4fbb0"
+    },
+    {
+      "id": "c2-open-scouts",
+      "repository": "firecrawl/open-scouts",
+      "commit": "0d9b714c219aa1400c9d13c12af838a89da5d60f",
+      "archiveSha256": "d00f7b585ca89f3583ff9a17bf63a9dc0f353491e525823c6eb027fefa1e6a4f"
+    },
+    {
+      "id": "c2-chadnext",
+      "repository": "moinulmoin/chadnext",
+      "commit": "1a1f25a6de88453bd3c80efa8c3f61f9c159661c",
+      "archiveSha256": "573b3ac917a2f0639b5211eaeab7b5f901d3723d5295da85d0568bff28f96330"
+    },
+    {
+      "id": "c2-prisma-editor",
+      "repository": "mohammed-bahumaish/prisma-editor",
+      "commit": "fdd40d489403b8662ac75dcf30b208c35d606d38",
+      "archiveSha256": "d5131580a8997e535daba12179525e6774328bc236dc99cdbd258a9168db109d"
+    },
+    {
+      "id": "c2-mvp-boilerplate",
+      "repository": "devtodollars/mvp-boilerplate",
+      "commit": "d287585d1a7938d31bd9bea81c6b116799bba269",
+      "archiveSha256": "73035e7d10579ad4abdbccea6fa5924f66092659d9e84276dc85391f3fa2244f"
+    },
+    {
+      "id": "c2-braydoncoyer-dev",
+      "repository": "braydoncoyer/braydoncoyer.dev",
+      "commit": "d319a7568a94d091571383fe46cf8508ae09e958",
+      "archiveSha256": "58ebbd1b6aa8f9a3669597780d2b89addc5d770760d8f2ab6058db42896e93ec"
+    },
+    {
+      "id": "c2-examples-next-prisma-starter",
+      "repository": "trpc/examples-next-prisma-starter",
+      "commit": "30d034e5547d88a02fd43b956368694f481f0774",
+      "archiveSha256": "5cd584053a9cd2e6ae14147314457b5d51d69e2f7860f8693a421eef2a50618f"
+    },
+    {
+      "id": "c2-kun-corpus-r18-next",
+      "repository": "KunMoe/kun-corpus-r18-next",
+      "commit": "75b29689c678113335c300350de465b8ccb5fa05",
+      "archiveSha256": "e9944da3ab97fb65c8e54289b9b2c533247e796e89a5ea9342718f6bf736cafd"
+    },
+    {
+      "id": "c2-expense-fyi",
+      "repository": "gokulkrishh/expense.fyi",
+      "commit": "258d173406ac5f04a4ff03db8457dc087f2fbd65",
+      "archiveSha256": "9f0ba74de3cf6b27293aafbaa3a1a223d5e312bdd42e9590f96a339da717a865"
+    },
+    {
+      "id": "c2-slug",
+      "repository": "pheralb/slug",
+      "commit": "3b05c1595e032ac6e03fca786469f4bb3a9114db",
+      "archiveSha256": "6839cf61a9088336b9db1acff89eca33c362011f7ad17678083f74a68549e7bd"
+    },
+    {
+      "id": "c2-nextcrm-app",
+      "repository": "pdovhomilja/nextcrm-app",
+      "commit": "b46b563b61c948a07a9cc5a340032444db1f8188",
+      "archiveSha256": "57df5243257440734788f5ac1c4207465dcc3c74823a88356c4141dfd0d37caa"
+    },
+    {
+      "id": "c2-duolingo-clone",
+      "repository": "sanidhyy/duolingo-clone",
+      "commit": "9a4599c75279dcbb1ecfacb8628b063697873aea",
+      "archiveSha256": "1d4ce26a06e174e46fef297e98d4cfb8c99b8b8431e0aff6505c6db9021c3a39"
+    },
+    {
+      "id": "c2-crawlseo",
+      "repository": "crawlseo/crawlseo",
+      "commit": "f62719a7cd4e8ee74f1c6da206276412b51d21da",
+      "archiveSha256": "47ddc4e7ca565dc7c8e742249906f41642bdb46d1da68aab6bbe4f63788cfced"
+    },
+    {
+      "id": "c2-velobase-harness",
+      "repository": "velobase/velobase-harness",
+      "commit": "6a5f5375886fa93c08253a010935284096c4bc5e",
+      "archiveSha256": "d001ccb85036123f2129a2d8765b3bf2d5315308cb2ae45d65c2d26c25a21f90"
+    },
+    {
+      "id": "c2-better-auth-cloudflare",
+      "repository": "zpg6/better-auth-cloudflare",
+      "commit": "dbe08c51b7d449545ac57101c3933d08365c8a58",
+      "archiveSha256": "3e2f5281bacedc59804b1cf0f6885a6b67da3cfc0d90e82be9b30ea36f8f0170"
+    },
+    {
+      "id": "c2-aulianza-id",
+      "repository": "aulianza/aulianza.id",
+      "commit": "e80405a8f5aeb87b0446ed60955310701044f88f",
+      "archiveSha256": "5b80cefad394a7aee4ab0b91864009bf538bfa06147bd8f05aaa2f045dd5d481"
+    },
+    {
+      "id": "c2-canva-clone",
+      "repository": "Davronov-Alimardon/canva-clone",
+      "commit": "53f2704646714e70339ffcad88a4e96d9b2138c9",
+      "archiveSha256": "1b5b2c5cfa711717673f91d84b686efe3da2aaf8a0f3d2a0fba49615e29ebe92"
+    },
+    {
+      "id": "c2-next-admin",
+      "repository": "premieroctet/next-admin",
+      "commit": "6c43e72deab111346caaeb3a56a74071b22542df",
+      "archiveSha256": "f50b267918368fa85422d7b304996d2859570d4b9af282ef9e724de157868ea9"
+    },
+    {
+      "id": "c2-quenti",
+      "repository": "quenti-io/quenti",
+      "commit": "b8fa3527c662c6a059875a0add36389f447b7d47",
+      "archiveSha256": "1774924703a04c3fe6271b44c01db2b21b9204383acda2cf6ea52d24e53c70d2"
+    },
+    {
+      "id": "c2-catalyst",
+      "repository": "kovrichard/catalyst",
+      "commit": "951045054377a9e9ce39341c52cea745d1e17450",
+      "archiveSha256": "db0008f24d045fd57024708082e561897d1de8bd90c27906cacbdc55bd0cd0a7"
+    },
+    {
+      "id": "c2-fuxiaochen",
+      "repository": "aifuxi/fuxiaochen",
+      "commit": "3af2670f1a7cf52a7ebd9ba8ad9dfbd0b6deeb23",
+      "archiveSha256": "0b87cbf1be53e66b7ea9f60bb93d9ff137daf8d94916a78d8f4052e2bf07ded0"
+    },
+    {
+      "id": "c2-devhunt",
+      "repository": "MarsX-dev/devhunt",
+      "commit": "f35e34659f6be87634ec5a4e1575e7d0b18a1240",
+      "archiveSha256": "44820492dadb2386802301625d647d4097615bcfaf0cadb1b0ab7a26f73bb0d3"
+    },
+    {
+      "id": "c2-supa-next-starter",
+      "repository": "michaeltroya/supa-next-starter",
+      "commit": "bdf5d396a089a95616d23ff8d633504de07644c8",
+      "archiveSha256": "569dddfce6e153a16b50fd29ee8898807b5b532629dffd9d68a400b2dfdb434b"
+    },
+    {
+      "id": "c2-snagtime",
+      "repository": "nateherkai/snagtime",
+      "commit": "1c95490a4bfb498084fcb8295439befe194c229a",
+      "archiveSha256": "d1077cb2e1bb7422864fe3d48e12ba68d4e2dd9169bc4c213b0077f07606af32"
+    },
+    {
+      "id": "c2-infinitunes",
+      "repository": "rajput-hemant/infinitunes",
+      "commit": "83d0b88a1db72f89a2bc17bfc3f9a4997199561c",
+      "archiveSha256": "4f86af4cf2f0873187f132af2e7e1e67e631d11dc6897190b85290d2b66e35c0"
+    },
+    {
+      "id": "c2-openbio",
+      "repository": "vanxh/openbio",
+      "commit": "7ca0b84784c351e632aecd04b98a6ffe9fb6a014",
+      "archiveSha256": "77db48f05ab85dd7584a96db980127b9941d0902a26e1f09cb59a9306fdc9995"
+    },
+    {
+      "id": "c2-corpus-u",
+      "repository": "corpus-owner/corpus-u",
+      "commit": "33c732af6a2e3f4f39fcb48125bae9b7c76e28ad",
+      "archiveSha256": "9558e1002cdac738339326f450321537e45de58923c27a0df84b4d8f8e4e513e"
+    },
+    {
+      "id": "c2-corpus-r20",
+      "repository": "mrifqidaffaaditya/corpus-r20",
+      "commit": "c7dd01a04339e4363b549beb3a41fe02cf131acb",
+      "archiveSha256": "42bc615ee66d9f6838dc036033dbdd0ee31dc7fcf1d06ad4d1a78ce49ca2eb82"
+    },
+    {
+      "id": "c2-supabase-nextjs-template",
+      "repository": "Razikus/supabase-nextjs-template",
+      "commit": "d519bf18d747bc0956346910414db68adb5a45bf",
+      "archiveSha256": "d4d331e5732d7be0edc3d4de4708e42890c8bd954ffac107c6937bf2e175ff8c"
+    },
+    {
+      "id": "c2-corpus-r19",
+      "repository": "Codehagen/corpus-r19",
+      "commit": "d16426bd3a52dc763825e48db045ada88ffd1ef7",
+      "archiveSha256": "0b393c0bd005cb1b53d94b5da17b23307ade58a585133db32cfa78994bd51ec6"
+    },
+    {
+      "id": "c2-pasal",
+      "repository": "ilhamfp/pasal",
+      "commit": "485e5190382e95bc4e0ba4308c8151c92784de1a",
+      "archiveSha256": "2b2d143427d9c2b507c0541b0081e29230770aa6a1b677fb9d07b77938d0660b"
+    },
+    {
+      "id": "c2-lipi",
+      "repository": "rajput-hemant/lipi",
+      "commit": "8c932944943f4b91bc67035c092790384f76520a",
+      "archiveSha256": "081567cf058d46f94a12c7fdfeae28f68605478662998e9c72de7a603c390482"
+    },
+    {
+      "id": "c2-iotawise",
+      "repository": "redpangilinan/iotawise",
+      "commit": "563115d47923ec768210026b7000cb0c94c626cb",
+      "archiveSha256": "c3fa55b142f3b6df9391190de3927340b3a15cae81b24c0302ee44825e928800"
+    },
+    {
+      "id": "c2-minute",
+      "repository": "ktmouk/minute",
+      "commit": "470ba042c0b5ce44ba8ccde5d24430e17ee9acdf",
+      "archiveSha256": "9d1b63258fd0351a7ae66b97776825c8229af675839e1efa95dff577e91256f5"
+    },
+    {
+      "id": "c2-okkmax-web",
+      "repository": "fanbidog/okkmax-web",
+      "commit": "21437ea40aa1c6f8dd59d31f922cffb85421cca6",
+      "archiveSha256": "84e5f68cf6559240bfada9092349c465ead59a597709e5e7d323192d898bb035"
+    },
+    {
+      "id": "c2-next-start",
+      "repository": "w3cj/next-start",
+      "commit": "05d58da546be61d7f4877f8e65c6f3c385f77769",
+      "archiveSha256": "3e7d006382e87a26d2fb27a9e963d409321d8a32d1c5058d95ff381a4ec472df"
+    },
+    {
+      "id": "c2-rdt-li",
+      "repository": "nrjdalal/rdt-li",
+      "commit": "f04e5023523260bb6ae047b43e6f83bcefdd2f67",
+      "archiveSha256": "8c9aa430ac4eb7224a3cb3b90aa8af8473d59438febe07b3d3af249990b4f1b0"
+    },
+    {
+      "id": "c2-tnks-data-table",
+      "repository": "jacksonkasi1/tnks-data-table",
+      "commit": "44cb7921f3b8e17734a7b0ec59efa7259e86132f",
+      "archiveSha256": "666474a7adbe7a3b8c4e4852b5fd0d82d977305ce321dd37718958811295144f"
+    },
+    {
+      "id": "c2-corpus-r2",
+      "repository": "Priyanshu-byte-coder/corpus-r2",
+      "commit": "a20e51d437a220db4e626a072a9716b67381eca9",
+      "archiveSha256": "b7089a09358bc81d3e9d7636b291c0aaab80918e6170186f6b59592cc6536fc9"
+    }
+  ],
+  "labels": []
+}
