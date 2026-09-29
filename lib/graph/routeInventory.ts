@@ -952,6 +952,19 @@ const UNCLASSIFIED_VERIFIER_RE =
 const COOKIE_AUTH_RE =
   /\bcookies\s*\(\s*\)|\breq(?:uest)?\.cookies\b|\.headers\.get\s*\(\s*["']cookie|\breq(?:uest)?\.headers\.cookie\b|parseCookieHeader\s*\(/i;
 
+/** A module whose name says it may be a gate; used only to disclose, never to credit. */
+const GATE_LIKE_MODULE_RE = /auth|session|guard|middleware|permission|policy|acl|rbac|token|identity|clerk|current-?user|require/i;
+
+/**
+ * Q24: the executed path continued into a file past the read budget. If that
+ * file's name says it may be the gate, the route is unread, never anonymous
+ * (corpus-y: route, barrel, validator, then getServerSession three files in).
+ */
+export function unfollowedGateGap(unfollowed: string[]): string | null {
+  const gate = unfollowed.find((path) => GATE_LIKE_MODULE_RE.test(path));
+  return gate ? `the route's code continues into ${gate}, past what we read, and that file may be its gate` : null;
+}
+
 /**
  * Why we could not read this route's identity check, or null if we could.
  *
@@ -1026,9 +1039,7 @@ export function identityGapFor(
   // and a genuinely anonymous route stopped being reported. Caught by the test
   // named "still reports a genuinely anonymous route", which is exactly the
   // regression this whole change must not cause: the cure cannot be silence.
-  const gateLike = unresolvedImports.find((spec) =>
-    /auth|session|guard|middleware|permission|policy|acl|rbac|token|identity|clerk|current-?user|require/i.test(spec),
-  );
+  const gateLike = unresolvedImports.find((spec) => GATE_LIKE_MODULE_RE.test(spec));
   if (gateLike) {
     return `we could not read ${gateLike}, which this route imports and which may be its gate`;
   }
@@ -1112,6 +1123,35 @@ const CONTEXT_GET_RE =
   /\bc\s*\.\s*get\s*\(\s*["'][^"']+["']\s*\)|\bctx\s*\.\s*(?:workspace|team|tenant|session|auth)\b|\breq(?:uest)?\s*\.\s*(?:workspace|team|tenant)\b/;
 
 /**
+ * Q24: the same unattributed-check questions, asked of every file the entry's
+ * executed path runs, not only of the entry. Q23 measured the cost of asking
+ * them of the entry alone: routes that verify a cookie JWT in a helper
+ * (`verifyHeaderCookie()` into `jwt.verify`) and actions that call their own
+ * `checkAdmin()` read as ANONYMOUS, and 82 of 157 agreed-false findings sat on
+ * routes read that way. A check we cannot attribute is unread, never absent;
+ * this can only move an entry from judged to unjudged, never add a finding.
+ * Sources are the call-path tracer's executed text, so a helper function the
+ * entry never calls is already blank and cannot count. A bare 401/403 in a
+ * helper is NOT asked: corpus-b's conversations handler refuses on some
+ * branches and not on the GET that leaks (a Q16 agreed-real bug), and a
+ * refusal on one branch says nothing about the others.
+ */
+export function executedCheckGap(sources: { path: string; src: string }[]): string | null {
+  for (const { path, src } of sources) {
+    const verifier = UNCLASSIFIED_VERIFIER_RE.exec(src);
+    if (verifier) {
+      const what = verifier[0].replace(/\s*\($/, "").replace(/^\./, "");
+      return /^["']/.test(what)
+        ? `a ${what} header is checked in ${path}, on this entry's path, and we could not classify the check`
+        : `${what}() runs in ${path}, on this entry's path, and we could not classify the credential it checks`;
+    }
+    if (COOKIE_AUTH_RE.test(src)) return `${path}, on this entry's path, reads cookies, and we could not tell which of them is a session`;
+    if (HEADER_READ_RE.test(src)) return `${path}, on this entry's path, reads the Authorization header, and we could not read what verifies it`;
+  }
+  return null;
+}
+
+/**
  * A role check on the path. `withAdmin()` resolves a session and then requires
  * a role; read whole, an admin route is "authenticated and unscoped", and the
  * merge check blocked corpus-a's /api/admin/domains/renew as an outlier on invoice.
@@ -1121,6 +1161,21 @@ const CONTEXT_GET_RE =
  */
 const ROLE_GATE_RE =
   /\brequiredRoles?\b|\b\w*[rR]ole\b\s*(?:===|!==|==|!=)|\.includes\s*\(\s*\w*[rR]ole\w*\s*\)|\bis(?:Super)?Admin\b/;
+
+/**
+ * Q24: an ADMIN gate, read at any URL. Q23 found about 51 agreed-false
+ * findings on routes and actions admitted only to administrators (an
+ * `ADMIN_*` allowlist, `role !== "admin"`, `isAdminUser()`, `role < 4`) whose
+ * URLs carry no /admin segment, over catalog tables no tenant owns. Only
+ * admin tests count: a workspace role requirement (corpus-a's requiredRoles) is a
+ * permission inside the caller's own tenant, which the ROLE_GATE_RE comment
+ * above shows must stay judged. An allowlist counts only as an environment
+ * list of admins (`env.ADMINS`, `CLERK_ADMIN_IDS`): "admin" in a Supabase
+ * service-role client's name is the opposite of a gate (corpus-r2, Q24 dev
+ * replay). Read only on executed text.
+ */
+export const ADMIN_GATE_RE =
+  /\b(?:get)?[iI]s(?:Super)?Admin\w*\s*\(|\b(?:check|assert|require|ensure|verify)(?:Super)?Admin\w*\s*\(|\brole\w*\s*(?:===|!==|==|!=)\s*(?:[\w.]*\.)?["'`]?(?:super_?)?admin\b|["'`](?:super_?)?admin["'`]\s*(?:===|!==|==|!=)|\bUserRole\.(?:SUPER_)?ADMIN\b|\bUserRole\.admin\b|\benv\.(?:[A-Z]+_)*ADMIN(?:S|_(?:[A-Z]+_)*(?:IDS?|EMAILS?|USERS?|LOGINS?|LIST))\b|\.role\s*[<>]=?\s*\d|\badmin(?:Ids|Emails|Logins|List|Users)\b|\bisAdmin\b/;
 
 /**
  * Why the ownership filter could not be read, or null if it could.
@@ -1267,6 +1322,8 @@ export function analyzeRouteFile(
     // application segregates its admin surface by URL. That is a convention,
     // stated as one, not a fact read from the code.
     if (isAdminPath && ROLE_GATE_RE.test(src)) roleGateWitness ??= path;
+    // Q24: an admin test on the executed path gates at any URL.
+    if ((prepared || isEntry) && !infra && ADMIN_GATE_RE.test(src)) roleGateWitness ??= path;
 
     // Tables from an IMPORTED auth helper are the helper's own scoped read of
     // whoever is signed in, not data the route exposes. requireProUser selects
@@ -1379,7 +1436,9 @@ export function analyzeRouteFile(
       ? null
       : publicByLayout
         ? "the route sits in a directory the application names (public), so anonymous access appears to be by design"
-        : identityGapFor(entrySrc, unresolvedImports, machineGateWitness, headerReadWitness, conditionalIdentityWitness, untracedReExport);
+        : identityGapFor(entrySrc, unresolvedImports, machineGateWitness, headerReadWitness, conditionalIdentityWitness, untracedReExport) ??
+          // Q24: helpers on the executed path, not only the entry (hosts were asked above).
+          (traced ? executedCheckGap(sources.filter((s) => !s.host && !s.infra)) ?? unfollowedGateGap(traced.unfollowed) : null);
   const identityReadable = identityGap === null;
 
   // Same question, one field over. Only asked when we are about to call the

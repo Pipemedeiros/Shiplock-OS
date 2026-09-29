@@ -86,11 +86,22 @@ export interface Trace {
    * and listed here so the route is disclosed as unreadable, not anonymous.
    */
   conditionalIdentityPaths: string[];
+  /**
+   * Files the executed path reached for but the hop budget did not enter
+   * (Q24). What runs there was not read; a caller may disclose it.
+   */
+  unfollowed: string[];
 }
 
 export interface TraceOptions {
   /** Whether a callee, by its source text, resolves the caller's identity. */
   isIdentityCall?: (calleeText: string) => boolean;
+  /**
+   * Named exports to start from instead of the HTTP handlers: a server action
+   * is one exported function (Q24). Module-level statements are then not
+   * walked, because they run at import, not per call.
+   */
+  roots?: string[];
 }
 
 /** Names Next.js itself injects; never identity, whatever wraps the handler. */
@@ -250,6 +261,8 @@ class Walker {
   readonly wrapperPaths = new Set<string>();
   /** Identity calls that run only under a condition on a parameter, per file. */
   readonly conditionalIdentityCalls = new Map<string, Set<ts.Node>>();
+  /** Files an executed reference resolved into but the hop budget did not enter (Q24). */
+  readonly beyondBudget = new Set<string>();
   /** Every way a callee was reached, so unsupplied names can be intersected. */
   private readonly reached = new Map<ts.Node, Supplied[]>();
   private readonly visited = new Set<string>();
@@ -277,7 +290,10 @@ class Walker {
     const hop = (this.hops.get(from.path) ?? 0) + 1;
     const known = this.hops.get(path);
     if (known !== undefined && known <= hop) return this.module(path);
-    if (hop > MAX_FILE_HOPS) return null;
+    if (hop > MAX_FILE_HOPS) {
+      this.beyondBudget.add(path);
+      return null;
+    }
     if (this.modules.size >= MAX_FILES && !this.modules.has(path)) {
       this.overBudget = true;
       return null;
@@ -757,7 +773,9 @@ export function traceExecutedSources(entry: RepoFile, byPath: Map<string, RepoFi
   const mod = walker.module(entry.path);
   if (!mod) return null;
 
-  const roots = handlerRoots(mod);
+  const roots = options.roots
+    ? options.roots.flatMap((name) => { const ref = mod.exports.get(name); return ref ? [{ name, ref }] : []; })
+    : handlerRoots(mod);
   if (roots.length === 0) return null;
 
   walker.hosts.add(entry.path);
@@ -774,8 +792,10 @@ export function traceExecutedSources(entry: RepoFile, byPath: Map<string, RepoFi
   // Hono()` and the `app.get("/x", handler)` registrations below it. Callbacks
   // registered that way are the route, so the top-level statements are walked
   // as if executed under the handler root.
-  for (const stmt of mod.sf.statements) {
-    if (ts.isExpressionStatement(stmt)) walker.include({ mod, node: stmt.expression }, true);
+  if (!options.roots) {
+    for (const stmt of mod.sf.statements) {
+      if (ts.isExpressionStatement(stmt)) walker.include({ mod, node: stmt.expression }, true);
+    }
   }
 
   if (walker.overBudget) return null;
@@ -800,5 +820,6 @@ export function traceExecutedSources(entry: RepoFile, byPath: Map<string, RepoFi
     injected: [...walker.injected].sort(),
     wrapperPaths: [...walker.wrapperPaths].sort(),
     conditionalIdentityPaths: [...walker.conditionalIdentityCalls.keys()].sort(),
+    unfollowed: [...walker.beyondBudget].filter((p) => !walker.executed.has(p)).sort(),
   };
 }

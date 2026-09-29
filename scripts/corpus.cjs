@@ -357,11 +357,23 @@ async function render(runDir) {
   }
   const product = { ...loadProductModules(), ...require("../lib/agent/findings.ts") };
   const statements = [];
+  // Q24: the paid run's admitted hypotheses are guarded again against TODAY's
+  // route facts, so a fact change is replayed for free; what the guard now
+  // refuses or leaves unjudged is counted, never silently dropped.
+  const reguard = { admittedAtRun: 0, admittedNow: 0, rejectedNow: [], unassessedNow: [] };
   for (const { record, outcome } of runs) {
     if (!outcome.admitted?.length) continue;
     const pin = manifest.repositories.find((candidate) => candidate.id === record.id);
-    const { routes, stack, files } = await analyzePin(product, pin);
-    const findings = product.buildFindings({ admitted: outcome.admitted, deterministic: [], routes, stack,
+    const { routes, stack, files, tables } = await analyzePin(product, pin);
+    const guarded = product.guardHypotheses(outcome.admitted, {
+      entries: new Set(routes.map((route) => route.path)), files: new Set(files.keys()), tables: new Set(tables),
+      facts: new Set(), routes: new Map(routes.map((route) => [route.path, route])),
+      possessionGates: product.possessionGates(routes, files) });
+    reguard.admittedAtRun += outcome.admitted.length;
+    reguard.admittedNow += guarded.admitted.length;
+    for (const r of guarded.rejected) reguard.rejectedNow.push({ repository: pin.repository, entry: r.hypothesis?.entry, reason: r.reason });
+    for (const u of guarded.unassessed) reguard.unassessedNow.push({ repository: pin.repository, entry: u });
+    const findings = product.buildFindings({ admitted: guarded.admitted, deterministic: [], routes, stack,
       repositoryId: pin.id, hasDatabase: false, liveFacts: [],
       possessionGates: product.possessionGates(routes, files), oneIdAccess: product.oneIdAccess(routes, files) });
     for (const finding of findings) {
@@ -370,11 +382,12 @@ async function render(runDir) {
         title: finding.title, consequence: finding.consequence, claims: finding.claims });
     }
   }
-  const out = path.join(dir, "rendered.json");
+  const out = path.join(dir, `rendered-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
   await fsp.writeFile(out, JSON.stringify({ experiment: `${manifest.experiment}-rendered`, capturedAt: new Date().toISOString(),
-    head: execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim(), modelCalls: 0,
-    statements }, null, 2) + "\n", { flag: "wx" });
-  console.log(`${statements.length} statements. Artifacts: ${out}`);
+    head: execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim(),
+    dirtyTree: execFileSync("git", ["status", "--porcelain"], { cwd: root, encoding: "utf8" }).trim().length > 0,
+    modelCalls: 0, reguard, statements }, null, 2) + "\n", { flag: "wx" });
+  console.log(`${statements.length} statements; re-guarded ${reguard.admittedNow} of ${reguard.admittedAtRun}. Artifacts: ${out}`);
 }
 
 async function main() {

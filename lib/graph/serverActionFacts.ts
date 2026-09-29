@@ -1,7 +1,8 @@
 import type { RepoFile } from "@/lib/deep/githubScan";
 import { resolveImport, stripComments } from "@/lib/deep/clientExposure";
 import { resolveViaTsconfigPaths } from "./tsconfigPaths";
-import { extractTables, STRONG_USER_AUTH_RE, type RouteFact } from "./routeInventory";
+import { ADMIN_GATE_RE, executedCheckGap, extractTables, STRONG_USER_AUTH_RE, type RouteFact } from "./routeInventory";
+import { traceExecutedSources } from "./callPath";
 import { findServerActionEntries } from "./serverActions";
 
 /**
@@ -25,9 +26,10 @@ export type ServerActionFact = {
 /** Why an entry's ownership could not be read, in the words a finding quotes
  * (shared by actions and tRPC procedures). Null only when it was read. */
 export function ownershipGapFor(o: { ownershipReadable: boolean; identityGap: string | null; tables: string[];
-  wheres: number }): string | null {
+  wheres: number; adminGate?: string | null }): string | null {
   if (o.ownershipReadable) return null;
   if (o.identityGap) return o.identityGap;
+  if (o.adminGate) return `the caller is admitted by role in ${o.adminGate}, so the query is deliberately not narrowed to one tenant`;
   if (o.tables.length === 0) return "it reaches no table we could read";
   if (o.wheres === 0) return "we read no where clause on the tables it reaches";
   // Readable identity, tables and where clauses leave only the helper hand-off.
@@ -135,6 +137,9 @@ export function analyzeServerActions(files: RepoFile[]): ServerActionFact[] {
     const client = segment.match(new RegExp(`const\\s+${entry.name}\\s*=\\s*(\\w+)[\\s\\S]*?\\.\\s*action\\s*\\(`))?.[1] ?? null;
     let identityReadable = true, identityGap: string | null = null, authenticated: boolean;
     let identitySource = segment;
+    // Q24: where an admin test runs on the action's path (its client's
+    // middleware, or the calls it makes), scope is unread by design.
+    let adminGate: string | null = null;
     if (client) {
       const middleware = clientMiddleware(client, file, byPath);
       if (middleware === null) {
@@ -144,9 +149,24 @@ export function analyzeServerActions(files: RepoFile[]): ServerActionFact[] {
       } else {
         identitySource = middleware;
         authenticated = middlewareAuthenticates(middleware);
+        if (ADMIN_GATE_RE.test(middleware)) adminGate = `the action client ${client}`;
       }
     } else {
-      authenticated = STRONG_USER_AUTH_RE.test(segment);
+      // Q24: a plain action is read on the path it runs, like a route: a
+      // session resolved in a helper it calls counts, and a credential check
+      // we cannot classify anywhere on that path makes it unreadable, never
+      // anonymous. Untraceable (parse failure, budget): its own text, as before.
+      const trace = traceExecutedSources(file, byPath, { roots: [entry.name],
+        isIdentityCall: (callee) => STRONG_USER_AUTH_RE.test(`${callee}(`) });
+      const executed = trace ? trace.sources : [{ path: entry.file, src: segment }];
+      authenticated = executed.some((s) => STRONG_USER_AUTH_RE.test(s.src));
+      adminGate = executed.find((s) => ADMIN_GATE_RE.test(s.src))?.path ?? null;
+      if (!authenticated) {
+        identityGap = trace?.conditionalIdentityPaths.length
+          ? `a session is resolved in ${trace.conditionalIdentityPaths[0]} only when an option says so, and we could not read which option this action sets`
+          : executedCheckGap(executed);
+        identityReadable = identityGap === null;
+      }
     }
     // Same table reading as routes and procedures (7H-2): Drizzle writes and
     // Prisma transaction clients included.
@@ -166,10 +186,10 @@ export function analyzeServerActions(files: RepoFile[]): ServerActionFact[] {
     const handedToHelper = calls(segment)
       .some((call) => !NOT_HELPERS.has(call.callee) && !QUERY_BUILDER.has(call.callee) && identityRef.test(call.args));
     const judgedWhere = wheres.length > 0;
-    const ownershipReadable = identityReadable && (ownershipFiltered || (tables.length > 0 && judgedWhere && !handedToHelper));
+    const ownershipReadable = identityReadable && (ownershipFiltered || (!adminGate && tables.length > 0 && judgedWhere && !handedToHelper));
     return { file: entry.file, name: entry.name, client, importedBy: entry.importedBy, identityReadable, identityGap,
       authenticated, tables, ownershipReadable, ownershipFiltered,
-      ownershipGap: ownershipGapFor({ ownershipReadable, identityGap, tables, wheres: wheres.length }) };
+      ownershipGap: ownershipGapFor({ ownershipReadable, identityGap, tables, wheres: wheres.length, adminGate }) };
   }).sort((a, b) => a.file.localeCompare(b.file) || a.name.localeCompare(b.name));
 }
 

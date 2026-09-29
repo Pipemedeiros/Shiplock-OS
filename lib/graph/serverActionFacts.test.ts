@@ -130,3 +130,111 @@ export const go = authActionClient.action(async ({ parsedInput, ctx }) => { ${bo
     expect(a).toMatchObject({ tables: ["tag"], ownershipFiltered: true, ownershipReadable: true });
   });
 });
+
+// Q24: a plain action's identity is read on the path it runs, like a route's.
+// Shapes from Q23's false findings (corpus-r19 checkAdmin, corpus-r20
+// getAuthenticatedUserForAction, corpus-r18's cookie JWT); synthetic code.
+describe("plain actions follow their calls (Q24)", () => {
+  const ui2 = (name: string, file: string) => f("ui/q24.tsx", `"use client";\nimport { ${name} } from "@/${file.replace(/\.ts$/, "")}";`);
+
+  it("credits a session resolved inside a local helper the action calls", () => {
+    const [a] = analyzeServerActions([f("app/actions/admin.ts", `"use server";
+import { auth } from "@/lib/auth";
+async function checkAdmin() {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user?.id) return { success: false };
+  return { success: true };
+}
+export async function createUser(input: { email: string }) {
+  const check = await checkAdmin();
+  if (!check.success) return check;
+  return prisma.user.create({ data: { email: input.email } });
+}`), ui2("createUser", "app/actions/admin.ts")]);
+    expect(a).toMatchObject({ name: "createUser", identityReadable: true, authenticated: true });
+  });
+
+  it("credits a session resolved inside an imported helper", () => {
+    const [a] = analyzeServerActions([
+      f("lib/server-action-auth.ts", `import { getServerSession } from "next-auth";
+export async function getAuthenticatedUserForAction() { const s = await getServerSession(authOptions); return s?.user ?? null; }`),
+      f("app/autoreply/actions.ts", `"use server";
+import { getAuthenticatedUserForAction } from "@/lib/server-action-auth";
+export async function getAutoReplies(sessionId: string) {
+  const user = await getAuthenticatedUserForAction();
+  if (!user) throw new Error("Unauthorized");
+  return prisma.autoReply.findMany({ where: { sessionId } });
+}`), ui2("getAutoReplies", "app/autoreply/actions.ts")]);
+    expect(a).toMatchObject({ identityReadable: true, authenticated: true });
+  });
+
+  it("says unreadable when a helper on the path verifies a credential we cannot classify", () => {
+    const [a] = analyzeServerActions([
+      f("lib/jwt.ts", `import jwt from "jsonwebtoken";
+export const verifyCookieToken = (token: string) => jwt.verify(token, process.env.JWT_SECRET!);`),
+      f("app/actions/comments.ts", `"use server";
+import { cookies } from "next/headers";
+import { verifyCookieToken } from "@/lib/jwt";
+export async function deleteComment(id: number) {
+  const payload = verifyCookieToken((await cookies()).get("token")?.value ?? "");
+  if (!payload) return "not signed in";
+  return prisma.comment.delete({ where: { id } });
+}`), ui2("deleteComment", "app/actions/comments.ts")]);
+    expect(a).toMatchObject({ identityReadable: false, authenticated: false });
+    expect(a.identityGap).toMatch(/verifyCookieToken|jwt|cookie/i);
+  });
+
+  it("still reads an action with no check as anonymous (a data helper is not a gate)", () => {
+    const [a] = analyzeServerActions([
+      f("lib/db.ts", `export const findPost = (id: string) => prisma.post.findUnique({ where: { id } });`),
+      f("app/actions/posts.ts", `"use server";
+import { findPost } from "@/lib/db";
+export async function removePost(id: string) {
+  const post = await findPost(id);
+  if (!post) throw new Error("Not found");
+  return prisma.post.delete({ where: { id } });
+}`), ui2("removePost", "app/actions/posts.ts")]);
+    expect(a).toMatchObject({ identityReadable: true, authenticated: false, tables: ["post"] });
+  });
+
+  it("still reads input validation alone as anonymous", () => {
+    const [a] = analyzeServerActions([f("app/actions/signup.ts", `"use server";
+const schema = z.object({ email: z.string() });
+export async function join(input: unknown) {
+  const parsed = schema.safeParse(input);
+  if (!parsed.success) throw new Error("Invalid input");
+  return prisma.waitlist.create({ data: parsed.data });
+}`), ui2("join", "app/actions/signup.ts")]);
+    expect(a).toMatchObject({ identityReadable: true, authenticated: false });
+  });
+});
+
+describe("admin-gated actions (Q24)", () => {
+  it("reads an action that requires the admin role as admitted by role, scope unread", () => {
+    const [a] = analyzeServerActions([f("src/features/admin/actions/add.ts", `"use server";
+import { auth } from "@/lib/better-auth";
+export async function addExercise(input: { sessionId: string }) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (session?.user?.role !== UserRole.admin) throw new Error("Unauthorized");
+  return prisma.programSessionExercise.create({ data: { sessionId: input.sessionId } });
+}`), f("ui/admin.tsx", `"use client";\nimport { addExercise } from "@/src/features/admin/actions/add";`)]);
+    expect(a).toMatchObject({ authenticated: true, ownershipReadable: false, ownershipFiltered: false });
+    expect(a.ownershipGap).toMatch(/admitted by role/);
+  });
+});
+
+// Q24 guard: a signed-in action that narrows only by input stays unscoped.
+// (Sharing the route recogniser with actions was tried and reverted: it read
+// this shape as scoped, a fail-open; class C of Q23 stays open.)
+describe("action ownership stays judged on its own where clauses (Q24)", () => {
+  const ui3 = (name: string, path: string) => f("ui/own.tsx", `"use client";\nimport { ${name} } from "@/${path.replace(/\.ts$/, "")}";`);
+  it("keeps a signed-in action that narrows only by input unscoped", () => {
+    const [a] = analyzeServerActions([f("app/actions/members.ts", `"use server";
+export async function removeMember(input: { memberId: string }) {
+  const session = await getServerSession();
+  if (!session?.user?.id) return { success: false, error: "Unauthorized" };
+  await prisma.workspaceMember.delete({ where: { id: input.memberId } });
+}`), ui3("removeMember", "app/actions/members.ts")]);
+    expect(a).toMatchObject({ authenticated: true, ownershipFiltered: false, ownershipReadable: true });
+  });
+
+});

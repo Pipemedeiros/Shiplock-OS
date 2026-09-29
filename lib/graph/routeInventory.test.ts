@@ -429,3 +429,119 @@ describe("gate classification — user session vs machine secret vs open", () =>
     expect(routes).toHaveLength(1);
   });
 });
+
+// Q24: a credential check on the executed path, in a helper the route calls,
+// makes the route unread, never anonymous (corpus-r18's shape from Q23).
+describe("checks in called helpers (Q24)", () => {
+  const route = file("app/api/admin/comment/route.ts", `import { verifyHeaderCookie } from "~/middleware/verify";
+import { prisma } from "~/prisma";
+export async function GET(req: NextRequest) {
+  const payload = await verifyHeaderCookie(req);
+  if (!payload) return NextResponse.json("not signed in");
+  if (payload.role < 4) return NextResponse.json("admins only");
+  return NextResponse.json(await prisma.patch_comment.findMany({}));
+}`);
+  const helper = file("middleware/verify.ts", `import { verifyKunToken } from "~/utils/jwt";
+export const verifyHeaderCookie = async (req: NextRequest) => verifyKunToken(parseCookies(req.headers.get("cookie") ?? "")["token"] ?? "");`);
+  const jwt = file("utils/jwt.ts", `import jwt from "jsonwebtoken";
+export const verifyKunToken = async (t: string) => { try { return jwt.verify(t, process.env.SECRET!); } catch { return null; } };
+export const unrelated = () => jwt.sign({}, "x");`);
+  const tsconfig = file("tsconfig.json", `{ "compilerOptions": { "paths": { "~/*": ["./*"] } } }`);
+  const byPath = (...fs: { path: string; content: string }[]) => new Map(fs.map((x) => [x.path, x]));
+
+  it("reads a route whose helper verifies a cookie token as unreadable, not anonymous", () => {
+    const fact = analyzeRouteFile(route.path, route.content, byPath(route, helper, jwt, tsconfig));
+    expect(fact.authenticated).toBe(false);
+    expect(fact.identityReadable).toBe(false);
+    expect(fact.identityGap).toMatch(/middleware\/verify\.ts|utils\/jwt\.ts/);
+  });
+
+  it("keeps a route that calls only a data helper anonymous", () => {
+    const data = file("lib/posts.ts", `import { prisma } from "~/prisma";
+export const listPosts = () => prisma.post.findMany({});`);
+    const open = file("app/api/posts/route.ts", `import { listPosts } from "~/lib/posts";
+export async function GET() { return Response.json(await listPosts()); }`);
+    const fact = analyzeRouteFile(open.path, open.content, byPath(open, data, tsconfig));
+    expect(fact).toMatchObject({ authenticated: false, identityReadable: true });
+  });
+});
+
+// Q24: an admin gate on the executed path is a role gate at any URL; scope is
+// then unread by design. Workspace roles (corpus-a's requiredRoles) are not admin.
+describe("admin gates at any URL (Q24)", () => {
+  const byPath = (...fs: { path: string; content: string }[]) => new Map(fs.map((x) => [x.path, x]));
+  const admin = file("lib/admin.ts", `import { auth } from "@clerk/nextjs/server";
+export const getIsAdmin = async () => { const { userId } = await auth(); if (!userId) return false;
+  return (process.env.CLERK_ADMIN_IDS ?? "").split(",").includes(userId); };`);
+
+  it("reads a signed-in route behind an admin allowlist as admitted by role", () => {
+    const r = file("app/api/courses/route.ts", `import { getIsAdmin } from "@/lib/admin";
+export const POST = async (req: Request) => {
+  if (!(await getIsAdmin())) return new Response("Unauthorized", { status: 401 });
+  return Response.json(await db.insert(courses).values(await req.json()).returning());
+};`);
+    const fact = analyzeRouteFile(r.path, r.content, byPath(r, admin));
+    expect(fact).toMatchObject({ authenticated: true, ownershipFiltered: false, ownershipReadable: false });
+    expect(fact.ownershipGap).toMatch(/admitted by role/);
+  });
+
+  it("does not treat a workspace role requirement as an admin gate", () => {
+    const r = file("app/api/links/[id]/route.ts", `import { getServerSession } from "next-auth";
+export const DELETE = async (req: Request, { params }: { params: { id: string } }) => {
+  const session = await getServerSession();
+  if (!session) return new Response("no", { status: 401 });
+  const requiredRoles = ["owner"];
+  return Response.json(await prisma.link.delete({ where: { id: params.id } }));
+};`);
+    const fact = analyzeRouteFile(r.path, r.content, byPath(r));
+    expect(fact).toMatchObject({ authenticated: true, ownershipFiltered: false, ownershipReadable: true });
+  });
+});
+
+describe("admin gates are not admin clients (Q24)", () => {
+  it("does not read a Supabase service-role 'admin' client as an admin gate", () => {
+    const client = file("src/lib/supabase.ts", `import { createClient } from "@supabase/supabase-js";
+export const isSupabaseAdminAvailable = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
+const SUPABASE_ADMIN_UNAVAILABLE_MESSAGE = "Supabase admin client is unavailable.";
+export const supabaseAdmin = isSupabaseAdminAvailable ? createClient(process.env.URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!) : (() => { throw new Error(SUPABASE_ADMIN_UNAVAILABLE_MESSAGE); })();`);
+    const r = file("app/api/notifications/weekly/route.ts", `import { supabaseAdmin } from "@/lib/supabase";
+export async function POST() { return Response.json(await supabaseAdmin.from("users").select("*")); }`);
+    const fact = analyzeRouteFile(r.path, r.content, new Map([r, client, file("tsconfig.json", `{ "compilerOptions": { "paths": { "@/*": ["./src/*"] } } }`)].map((x) => [x.path, x])));
+    expect(fact.ownershipGap ?? "").not.toMatch(/admitted by role/);
+  });
+});
+
+// Q24: a check beyond the read budget is unread, never absent (corpus-y:
+// route -> barrel -> session.ts -> session-check.ts with getServerSession).
+describe("checks beyond the hop budget (Q24)", () => {
+  const byPath = (...fs: { path: string; content: string }[]) => new Map(fs.map((x) => [x.path, x]));
+  const barrel = file("src/config/api-validation/index.ts", `export { default as validateSession } from "./session";`);
+  const session = file("src/config/api-validation/session.ts", `import validate from "@/lib/server/session-check";
+const validateSession = (req: any, res: any) => validate()(req, res);
+export default validateSession;`);
+  const check = file("src/lib/server/session-check.ts", `import { getServerSession } from "next-auth";
+const v = () => async (req: any, res: any) => { const s = await getServerSession(req, res, {}); if (!s) return res.status(401).end(); return s; };
+export default v;`);
+  const tsconfig = file("tsconfig.json", `{ "compilerOptions": { "paths": { "@/*": ["./src/*"] } } }`);
+
+  it("reads a route whose session check sits past the budget as unreadable", () => {
+    const r = file("src/pages/api/user/email.ts", `import { validateSession } from "@/config/api-validation/index";
+const handler = async (req: any, res: any) => { const s = await validateSession(req, res); await prisma.user.update({ where: { email: req.body.email }, data: {} }); res.json({}); };
+export default handler;`);
+    const fact = analyzeRouteFile(r.path, r.content, byPath(r, barrel, session, check, tsconfig));
+    expect(fact.authenticated).toBe(false);
+    expect(fact.identityReadable).toBe(false);
+    expect(fact.identityGap).toMatch(/session-check/);
+  });
+
+  it("keeps a route anonymous when only a data helper sits past the budget", () => {
+    const i1 = file("src/lib/data/index.ts", `export { listPosts } from "./posts";`);
+    const i2 = file("src/lib/data/posts.ts", `import { query } from "@/lib/db/query";
+export const listPosts = () => query("posts");`);
+    const i3 = file("src/lib/db/query.ts", `export const query = (t: string) => prisma.post.findMany({});`);
+    const r = file("src/pages/api/posts.ts", `import { listPosts } from "@/lib/data/index";
+export default async function handler(req: any, res: any) { res.json(await listPosts()); }`);
+    const fact = analyzeRouteFile(r.path, r.content, byPath(r, i1, i2, i3, tsconfig));
+    expect(fact).toMatchObject({ authenticated: false, identityReadable: true });
+  });
+});
