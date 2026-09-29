@@ -275,8 +275,10 @@ function tablesFrom(routes: RouteFact[], files: ArchiveFile[]): string[] {
 /**
  * How long the whole audit may take before it stops reasoning and reports.
  *
- * The route runs synchronously inside a serverless function, and this project
- * is on a plan that stops a function at 60 seconds. Being killed there is the
+ * The route runs synchronously inside a serverless function. On Vercel Hobby
+ * with Fluid compute that function stops at 300 seconds (routes declare
+ * maxDuration 300; 2026-09-29, before which the code capped itself at 60),
+ * so the budget leaves 20 seconds to save the result. Being killed there is the
  * worst possible outcome: the audit_runs row is already inserted as "running",
  * so a customer with a large repository would watch a spinner forever while the
  * function that was going to finish it no longer exists.
@@ -288,7 +290,7 @@ function tablesFrom(routes: RouteFact[], files: ArchiveFile[]): string[] {
  * collectors found and says on the Coverage page that reasoning was skipped.
  * A shorter honest audit beats a run that never finishes.
  */
-export const AUDIT_BUDGET_MS = 50_000;
+export const AUDIT_BUDGET_MS = 280_000;
 /** Reasoning needs roughly this long, measured across real repositories. */
 export const REASONING_RESERVE_MS = 25_000;
 

@@ -1,11 +1,13 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { AUDIT_BUDGET_MS, REASONING_RESERVE_MS } from "./audit";
 
 /**
  * The time budget, so a large repository finishes rather than being killed.
  *
- * The route runs synchronously inside a serverless function that this plan
- * stops at 60 seconds. Being killed there is the worst available outcome: the
+ * The route runs synchronously inside a serverless function. Vercel Hobby with
+ * Fluid compute stops it at 300 seconds (2026-09-29; before, the code capped
+ * itself at 60). Being killed there is the worst available outcome: the
  * audit_runs row is already inserted as "running", so a customer with a big
  * codebase watches a spinner for a function that no longer exists.
  *
@@ -15,8 +17,13 @@ import { AUDIT_BUDGET_MS, REASONING_RESERVE_MS } from "./audit";
  * spent there and reasoning is what gets given up.
  */
 describe("audit time budget", () => {
-  it("finishes inside the function's own ceiling", () => {
-    expect(AUDIT_BUDGET_MS).toBeLessThan(60_000);
+  it("finishes inside the function's own ceiling, with room to save the result", () => {
+    const ceilingOf = (file: string) => Number(readFileSync(file, "utf8").match(/export const maxDuration = (\d+)/)?.[1]);
+    for (const route of ["app/api/audit/route.ts", "app/api/jobs/drain/route.ts", "app/api/monitor/github/route.ts", "app/api/monitor/scheduled/route.ts"]) {
+      expect(ceilingOf(route), route).toBe(300);
+    }
+    expect(AUDIT_BUDGET_MS).toBeLessThanOrEqual(300_000 - 20_000);
+    expect(AUDIT_BUDGET_MS).toBeGreaterThan(60_000);
   });
 
   it("reserves more than a real reasoning call takes", () => {

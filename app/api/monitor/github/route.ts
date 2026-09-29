@@ -29,7 +29,7 @@ import { runNextJob } from "@/lib/jobs/worker";
 // tarball takes longer than ten seconds on its own for a large codebase, so no
 // amount of tuning fits the work inside the deadline: the answer is to stop
 // making GitHub wait for it.
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const RESCAN_ACTIONS = new Set(["opened", "reopened", "synchronize", "ready_for_review"]);
 

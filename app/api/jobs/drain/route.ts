@@ -4,7 +4,7 @@ import { isAuthorizedWorkerRequest } from "@/lib/jobs/workerAuth";
 
 // One audit owns the invocation budget. The independent caller repeats this
 // bounded request; the route never holds an open polling loop.
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 export async function POST(request: Request) {
   if (!isAuthorizedWorkerRequest(request)) {

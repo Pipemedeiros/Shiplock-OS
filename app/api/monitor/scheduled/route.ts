@@ -21,7 +21,7 @@ import { enqueueJob } from "@/lib/jobs/queue";
 // queue. This route still performs bounded traffic aggregation, graph admission,
 // weekly digests, and the parked-billing expiry sweep; those legacy duties keep
 // the request ceiling relevant until their own worker packages land.
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 // The 48h full deep scan (item 3). Reuses vercel.json's existing daily
 // 9am cron entry — this route was the missing target (the cron config

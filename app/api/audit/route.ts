@@ -20,7 +20,7 @@ import { quotaResponse } from "@/lib/quota";
 // runRepositoryAudit budgets itself against the same number and gives up
 // reasoning rather than the whole run, so a big codebase returns a shorter
 // audit that says on Coverage exactly what it skipped.
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const Body = z.object({ repository: z.string().regex(/^[\w.-]+\/[\w.-]+$/), requestId: z.uuid().optional() });
 
