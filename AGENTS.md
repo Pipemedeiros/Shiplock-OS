@@ -31,6 +31,20 @@ state consequence, evidence, and the next safe action without requiring security
 expertise. The underlying evidence must remain inspectable enough that a strong
 backend engineer can challenge every claim.
 
+The thesis (Felipe, 2026-09-29): some risks are invisible in code alone. A
+route whose code looks safe, or whose hole is small, becomes a real incident
+when it is requested 2,000 times a minute, and a row policy or bucket that
+lives outside the repository can undo what the code does right. ShipLock joins
+what the code says, what the live stack is configured to do, and what traffic
+is actually hitting, and acts on the combination. Repository-only scanning is
+table stakes (and now bundled by large vendors), not the product.
+
+ShipLock is for any stack, not only Supabase. It names every provider it infers
+from code. Where it can read a provider live it offers the connection; where
+that collector is not built yet (for example Firebase or MongoDB), the provider
+is shown as detected with its live connection "coming soon", never hidden and
+never offered as if it worked.
+
 The first connection is GitHub. ShipLock infers the application stack from the
 selected repository—framework, routes, auth, database, hosting, payments, and
 other services—rather than asking the customer to describe it. A detected
@@ -47,14 +61,19 @@ proposed advantage, not a proven moat. Native use from the dashboard and coding
 agents (MCP/terminal/Codex/Claude Code) must consume the same facts and approval
 state, never a separate truth.
 
-The approved target packaging is a free GitHub-first entry and a paid
-cross-layer product; neither tier is implemented or priced yet. After sign-in,
-GitHub installation, and selection of a repository, ShipLock funds **one
-bounded first scan per account** to show value. Do not silently grant another
-funded model run on repository changes, retries, or account recreation. The
-token ceiling and abuse policy remain open in the master ledger and must be
-measured before launch. The first scan still reports partial/unread/model-skipped
-coverage honestly.
+The approved target packaging is two tiers, Free and Pro (Felipe,
+2026-09-29); neither is implemented or priced yet. **For the MVP the customer
+brings the intelligence for every model-assisted run, the first included**, so
+ShipLock can watch real scans run and price them from measured cost. The first
+audit still runs every deterministic check and reports model reasoning as not
+run until the customer's AI is connected. A ShipLock-funded first scan exists
+as one bounded, idempotent credit per account behind the switch
+`SHIPLOCK_FUNDED_FIRST_SCAN` (off unless exactly `"true"`, and not consumed
+while off); turning it on is Felipe's spending decision, and when ShipLock does
+pay it uses a top-tier model (Claude Opus 5.5 class or the OpenAI equivalent),
+never a small model. Do not silently grant another funded model run on
+repository changes, retries, or account recreation. Every scan reports
+partial/unread/model-skipped coverage honestly.
 
 For subsequent scheduled deep scans, PR reasoning, and AI-assisted repair,
 the customer supplies the intelligence and its token allowance through an
@@ -119,9 +138,10 @@ The market supports a credible experiment, not a claim of product-market fit.
 1. Sign in and install the GitHub App.
 2. Select repositories. ShipLock records installation, repository, default
    branch, and commit identity, then inventories the stack automatically.
-3. Run one budgeted ShipLock-funded first audit of the selected repository. The
-   UI shows progress, findings, and explicit unknown/unread coverage; it never
-   turns missing evidence into clean.
+3. Run the first audit of the selected repository: every deterministic check,
+   with model reasoning on the customer's connected AI (ShipLock-funded only
+   when the switch above is on). The UI shows progress, findings, and explicit
+   unknown/unread coverage; it never turns missing evidence into clean.
 4. Ask the user to connect a supported customer-intelligence mode for later
    model-assisted runs. Show what it can do, its limits, and whether it is
    currently reachable; do not mistake GitHub access for AI funding.
@@ -130,7 +150,10 @@ The market supports a credible experiment, not a claim of product-market fit.
    customer intelligence and never falls back to ShipLock-funded calls silently.
 6. Offer optional read-only provider connections inferred from code as paid
    depth. Explain what each lets ShipLock verify; a detected provider is not a
-   bound account. Correlate only current, explicitly bound evidence.
+   bound account. Correlate only current, explicitly bound evidence. Offer
+   traffic observation through the customer-side snippet, which needs no
+   hosting or CDN connection; when a route is hit hard, offer a reviewable
+   rate-limit pull request for that route (Pro).
 7. Show consequences, citations, uncertainty, and a reviewable fix proposal.
    Open a code PR only after the customer's click; never approve, merge,
    deploy, or enable enforcement on the customer's behalf.
@@ -318,9 +341,10 @@ the proving ground and native-agent distribution are not launch-proven.
   checks class and observed citations, `findings.ts` computes confidence and
   severity ceilings, and `lib/proving/` alone may earn `proven`. A model skip or
   malformed response is shown in Coverage and cannot resolve an old finding.
-  ShipLock's own key funds this path only when `lib/agent/firstScanCredit.ts`
-  claims the account's single first-scan credit for the run's live audit lease;
-  every later run skips reasoning and says so. Any other ShipLock-funded model
+  ShipLock's own key funds this path only when `SHIPLOCK_FUNDED_FIRST_SCAN` is
+  exactly `"true"` and `lib/agent/firstScanCredit.ts` claims the account's
+  single first-scan credit for the run's live audit lease; otherwise, and on
+  every later run, it skips reasoning and says so. Any other ShipLock-funded model
   call must pass `lib/funding.ts` (off unless its flag is exactly `"true"`).
   Customer-funded AI runs through `lib/intelligence/` (an encrypted customer API
   key, or approved tasks an MCP host picks up) and never falls back to
@@ -399,9 +423,17 @@ and its exact status live only in `docs/MASTER-PLAN-PROGRESS.md`.
 - Build on the live UI in `app/(d)/` and its shared components with real
   tenant data; no mock or prototype screens.
 - Onboarding, as built: sign in; install the GitHub App; select a repository;
-  run the one funded first audit; connect your own AI (offered to every
-  account, free included); then optional provider connections and traffic.
-  Each step says what it unlocks and works without the later ones.
+  run the first audit (deterministic checks); connect your own AI (offered to
+  every account, free included) for attack reasoning; then optional provider
+  connections and traffic. Each step says what it unlocks and works without
+  the later ones.
+- Stack: every detected provider is listed; a live connection is offered only
+  where a collector exists, otherwise "Live connection coming soon".
+- Planned (Felipe, 2026-09-29): a zoomable network map of the application's
+  routes and what they reach (tables, providers, hot routes), in the spirit of
+  an Obsidian graph: readable detail for engineers, an inviting picture for
+  founders. Built from the same route facts as the audit, never decorative
+  data.
 
 ## Agent roles
 
