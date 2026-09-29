@@ -11,13 +11,9 @@ vi.mock("@/lib/dashboard", () => ({ requireDashboardSession: touched }));
 
 const routes: [string, () => Promise<{ POST: (request: Request) => Promise<Response> }>][] = [
   ["repos", () => import("@/app/api/repos/route")],
-  ["deep/vercel/scan", () => import("@/app/api/deep/vercel/scan/route")],
-  ["deep/vercel/disconnect", () => import("@/app/api/deep/vercel/disconnect/route")],
   ["deep/supabase/scan", () => import("@/app/api/deep/supabase/scan/route")],
   ["deep/supabase/disconnect", () => import("@/app/api/deep/supabase/disconnect/route")],
   ["deep/postgres", () => import("@/app/api/deep/postgres/route")],
-  ["deep/github/scan", () => import("@/app/api/deep/github/scan/route")],
-  ["deep/github/disconnect", () => import("@/app/api/deep/github/disconnect/route")],
   ["audit", () => import("@/app/api/audit/route")],
   ["fix/pull-request", () => import("@/app/api/fix/pull-request/route")],
   ["fix/pr", () => import("@/app/api/fix/pr/route")],

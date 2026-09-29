@@ -16,7 +16,7 @@ const securityHeaders = [
 // embedded replica in a worker thread (lib/proving/embeddedHost.ts). The
 // worker script is loaded by path, so it and the PGlite runtime it imports
 // are traced explicitly, for these routes only (PGlite is about 13 MB).
-export const PROOF_ROUTES = ["/api/jobs/drain", "/api/monitor/github", "/api/deep/github/scan"];
+export const PROOF_ROUTES = ["/api/jobs/drain", "/api/monitor/github"];
 const PROOF_FILES = [
   "./lib/proving/embeddedWorker.mjs",
   "./node_modules/@electric-sql/pglite/package.json",
