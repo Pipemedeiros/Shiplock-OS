@@ -121,7 +121,8 @@ describe("buildFindings", () => {
   it("orders critical findings first", () => {
     const findings = buildFindings({
       ...base,
-      admitted: [{ ...hypothesis, attackClass: "unsafe_redirect" as const }, hypothesis],
+      admitted: [{ ...hypothesis, attackClass: "unsafe_redirect" as const }, { ...hypothesis, citedFacts: ["live:1"] }],
+      liveFacts: [{ id: "live:1", statement: "Row level security is off on invoices." }],
     });
     expect(findings[0].severity).toBe("CRITICAL");
   });
@@ -147,7 +148,7 @@ describe("missing_authorization on a route read as anonymous (Q16)", () => {
     expect(`${finding.title} ${finding.consequence}`).not.toMatch(/workspace|tenant|[–—]/i);
     expect(finding.claims).toContainEqual({ claim: claim.consequence, origin: "agent", verified: false });
     expect(finding.id).toBe(`agent:missing_authorization:${anonymous.path}`);
-    expect(finding.severity).toBe("CRITICAL");
+    expect(finding.severity).toBe("WARNING"); // repository-only (2026-09-29 cap)
   });
 
   // Q26: the same rule on a signed-in route whose scope we read as not
@@ -159,7 +160,7 @@ describe("missing_authorization on a route read as anonymous (Q16)", () => {
     expect(signedIn.consequence).toBe(
       "We read a sign-in check on /api/invoices/[id], but its query on invoices is not narrowed to the signed-in caller, so any signed-in user's request decides which rows it reads or changes.");
     expect(signedIn.claims).toContainEqual({ claim: hypothesis.consequence, origin: "agent", verified: false });
-    expect(signedIn.severity).toBe("CRITICAL");
+    expect(signedIn.severity).toBe("WARNING"); // repository-only (2026-09-29 cap)
     expect(signedIn.id).toBe(`agent:missing_authorization:${route.path}`);
   });
 
@@ -170,5 +171,23 @@ describe("missing_authorization on a route read as anonymous (Q16)", () => {
     const unread: RouteFact = { ...anonymous, identityReadable: false, identityGap: "wrapper not read" };
     const [unknown] = buildFindings({ ...base, routes: [unread], admitted: [claim] });
     expect(unknown.title).toBe(claim.title);
+  });
+});
+
+// Felipe (2026-09-29, delegated): three held-out sets put repository-only
+// admitted findings near 5% precision, so CRITICAL requires evidence from
+// outside the code: a live provider fact the finding cites (or, later, a
+// reproduction). Repository-only findings cap at WARNING, to review.
+describe("CRITICAL needs evidence outside the repository", () => {
+  const base = { deterministic: [], stack, repositoryId: "r1", hasDatabase: false };
+  it("caps a repository-only missing_authorization finding at WARNING and says why", () => {
+    const [f] = buildFindings({ ...base, routes: [route], admitted: [hypothesis] });
+    expect(f.severity).toBe("WARNING");
+    expect(f.claims.some((c) => /only from your code/.test(c.claim))).toBe(true);
+  });
+  it("keeps CRITICAL when the finding cites a live provider fact", () => {
+    const [f] = buildFindings({ ...base, routes: [route], admitted: [{ ...hypothesis, citedFacts: ["live:rls-off"] }],
+      liveFacts: [{ id: "live:rls-off", statement: "Row level security is off on invoices." }] });
+    expect(f.severity).toBe("CRITICAL");
   });
 });

@@ -323,6 +323,20 @@ export function buildFindings(input: BuildFindingsInput): AgentFinding[] {
       });
     }
 
+    // CRITICAL NEEDS EVIDENCE OUTSIDE THE REPOSITORY (Felipe, 2026-09-29,
+    // delegated). Three held-out corpora put repository-only admitted findings
+    // near 5% precision (Q23 to Q26). A model-proposed finding that cites no
+    // live provider fact is capped at WARNING and says so; a proof or a live
+    // fact is what earns CRITICAL. Deterministic checks are not affected.
+    const repositoryOnlyCritical = SEVERITY[h.attackClass] === "CRITICAL" && liveClaims.length === 0;
+    if (repositoryOnlyCritical) {
+      claims.push({
+        claim: "We read this only from your code; nothing outside the repository confirms it yet, so treat it as one to review.",
+        origin: "schema",
+        verified: true,
+      });
+    }
+
     // On a route we READ as anonymous there is no caller to narrow by, so the
     // model's story for missing_authorization ("across workspaces") is a
     // mechanism we never read. Say what we read instead; the model's sentence
@@ -348,7 +362,7 @@ export function buildFindings(input: BuildFindingsInput): AgentFinding[] {
         : readAsSignedInUnscoped
           ? `We read a sign-in check on ${h.entry}, but its query${tableWords ? ` on ${tableWords}` : ""} is not narrowed to the signed-in caller, so any signed-in user's request decides which rows it reads or changes.`
           : h.consequence,
-      severity: oneId ? "WARNING" : (SEVERITY[h.attackClass] ?? "WARNING"),
+      severity: oneId || repositoryOnlyCritical ? "WARNING" : (SEVERITY[h.attackClass] ?? "WARNING"),
       // Capped, not computed, when a row policy could still be enforcing this.
       // The origin count says several collectors agree the query is unscoped;
       // it cannot say the database is not compensating, and reporting

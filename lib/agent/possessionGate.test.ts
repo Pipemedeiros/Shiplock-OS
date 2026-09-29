@@ -183,7 +183,8 @@ describe("INVARIANT: document-processing-status stays visible, capped at WARNING
     expect(sequential).not.toBe(SCHEMA);
     const { findings, oneId } = pipeline([{ path: "prisma/schema/schema.prisma", content: sequential }, { path: PROCESSING_FILE, content: PROCESSING_STATUS }], hypothesis);
     expect(oneId.size).toBe(0);
-    expect(findings[0].severity).toBe("CRITICAL");
+    // No one-id cap; the repository-only cap (2026-09-29) is what applies.
+    expect(findings[0].severity).toBe("WARNING");
   });
 
   it("a bound gate is not one-id access: the report shape is possession_gated, not capped", () => {
@@ -485,6 +486,8 @@ describe("a missing gate map never makes a finding vanish", () => {
     });
     expect(findings).toHaveLength(1);
     expect(findings[0].attackClass).toBe("missing_authentication");
-    expect(findings[0].severity).toBe("CRITICAL");
+    // Still rendered as the missing_authentication it was reworded from, never
+    // vanished; repository-only, so WARNING since 2026-09-29.
+    expect(findings[0].severity).toBe("WARNING");
   });
 });

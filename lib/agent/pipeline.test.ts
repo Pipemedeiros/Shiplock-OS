@@ -116,7 +116,7 @@ describe("the pipeline, end to end on a repository with a real bug", () => {
       hasDatabase: false,
     });
 
-    expect(finding.severity).toBe("CRITICAL");
+    expect(finding.severity).toBe("WARNING"); // repository-only (2026-09-29 cap)
     expect(finding.fixKind).toBe("pr");
     expect(finding.file).toBe("app/api/invoices/[id]/route.ts");
     // Corroborated, never proven: nothing was executed anywhere.
