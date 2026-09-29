@@ -1226,6 +1226,32 @@ try {
     // Both secrets must exist before a request is made; a missing one sends nothing.
     assert.match(wakeSql, /where exists \(select 1 from vault\.decrypted_secrets where name = 'shiplock_drain_url'\)/);
   });
+  // 095: pg_net's functions are granted to PUBLIC by default, so revoking from
+  // anon/authenticated by name (094) left them executable. Stand-in net schema,
+  // as production had it on 2026-09-29.
+  const netLockSql = await readFile(new URL("../supabase/migrations/095_net_public_revoke.sql", import.meta.url), "utf8");
+  await check("095 removes client execute on net.* granted through PUBLIC, keeps postgres", async () => {
+    await db.exec(`reset role;
+      create schema if not exists net;
+      create or replace function net.http_post(url text) returns bigint language sql as 'select 1::bigint';
+      grant usage on schema net to public;
+      grant execute on function net.http_post(text) to public;`);
+    await db.exec(netLockSql);
+    for (const role of ["anon", "authenticated"]) {
+      const r = (await db.query(`select has_function_privilege($1, 'net.http_post(text)', 'EXECUTE') e, has_schema_privilege($1, 'net', 'USAGE') u`, [role])).rows[0];
+      assert.equal(r.e, false, `${role} execute`);
+      assert.equal(r.u, false, `${role} usage`);
+    }
+    await db.exec("set role authenticated");
+    await assert.rejects(db.query("select net.http_post('https://example.com')"));
+    await db.exec("reset role");
+    assert.equal((await db.query("select net.http_post('x') v")).rows[0].v, 1);
+    await db.exec("drop schema net cascade");
+  });
+  await check("095 is a no-op without a net schema", async () => {
+    await db.exec("reset role");
+    await db.exec(netLockSql);
+  });
   await check("client roles cannot commit provider results or read snapshots", async () => {
     await db.exec("reset role; set role authenticated");
     await assert.rejects(db.query("select public.persist_provider_monitor_result($1,$1,$1,'postgres-direct','x',null,'[]'::jsonb,false,'[]'::jsonb,'{}'::jsonb)",[legacy]));
