@@ -150,8 +150,22 @@ describe("missing_authorization on a route read as anonymous (Q16)", () => {
     expect(finding.severity).toBe("CRITICAL");
   });
 
-  it("keeps the model's words on a signed-in route, and where identity was not read", () => {
+  // Q26: the same rule on a signed-in route whose scope we read as not
+  // narrowed. CORPUS-3 showed model titles written for the wrong mechanism
+  // ("Anonymous, unscoped mutation...") on signed-in IDORs; say what we read.
+  it("states what we read on a signed-in route whose query is not narrowed (Q26)", () => {
     const [signedIn] = buildFindings({ ...base, routes: [route], admitted: [hypothesis] });
+    expect(signedIn.title).toBe("Signed-in callers are not limited to their own rows");
+    expect(signedIn.consequence).toBe(
+      "We read a sign-in check on /api/invoices/[id], but its query on invoices is not narrowed to the signed-in caller, so any signed-in user's request decides which rows it reads or changes.");
+    expect(signedIn.claims).toContainEqual({ claim: hypothesis.consequence, origin: "agent", verified: false });
+    expect(signedIn.severity).toBe("CRITICAL");
+    expect(signedIn.id).toBe(`agent:missing_authorization:${route.path}`);
+  });
+
+  it("keeps the model's words where identity or scope was not read", () => {
+    const scopeUnread: RouteFact = { ...route, ownershipReadable: false, ownershipGap: "helper" };
+    const [signedIn] = buildFindings({ ...base, routes: [scopeUnread], admitted: [hypothesis] });
     expect(signedIn.title).toBe(hypothesis.title);
     const unread: RouteFact = { ...anonymous, identityReadable: false, identityGap: "wrapper not read" };
     const [unknown] = buildFindings({ ...base, routes: [unread], admitted: [claim] });

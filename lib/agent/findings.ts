@@ -331,14 +331,23 @@ export function buildFindings(input: BuildFindingsInput): AgentFinding[] {
       && route.identityReadable && !route.authenticated && !route.machineGated;
     const tables = route ? route.tables : [];
     const tableWords = tables.length > 1 ? `${tables.slice(0, -1).join(", ")} and ${tables[tables.length - 1]}` : tables.join("");
+    // Q26: the same on a route read as signed in whose query we read as not
+    // narrowed to the caller. CORPUS-3's model titles described these
+    // signed-in IDORs as anonymous; only what we read is stated.
+    const readAsSignedInUnscoped = h.attackClass === "missing_authorization" && route !== undefined
+      && route.identityReadable && route.authenticated && !route.machineGated
+      && route.ownershipReadable && !route.ownershipFiltered;
     findings.push({
       // Stable across runs: the same gap on the same entry keeps its identity,
       // so the diff engine does not re-alert it every pass.
       id: `agent:${h.attackClass}:${h.entry}`,
-      title: readAsAnonymous ? "Anyone can call this without signing in" : h.title,
+      title: readAsAnonymous ? "Anyone can call this without signing in"
+        : readAsSignedInUnscoped ? "Signed-in callers are not limited to their own rows" : h.title,
       consequence: readAsAnonymous
         ? `We read no sign-in check on ${h.entry}, and its query${tableWords ? ` on ${tableWords}` : ""} is not narrowed to a caller, so the request alone decides what it reads or changes.`
-        : h.consequence,
+        : readAsSignedInUnscoped
+          ? `We read a sign-in check on ${h.entry}, but its query${tableWords ? ` on ${tableWords}` : ""} is not narrowed to the signed-in caller, so any signed-in user's request decides which rows it reads or changes.`
+          : h.consequence,
       severity: oneId ? "WARNING" : (SEVERITY[h.attackClass] ?? "WARNING"),
       // Capped, not computed, when a row policy could still be enforcing this.
       // The origin count says several collectors agree the query is unscoped;

@@ -34,15 +34,27 @@ const RESOLVERS = new Set(["query", "mutation", "subscription"]);
 // The missing-user test must be the condition of an `if` whose branch throws:
 // corpus-d's mutationSessionGuard tests `!ctx.user` only to let such a caller
 // through, and throws for a different case.
-const CTX_USER_CHECK = /!\s*(?:\w+\.)?ctx\s*\.\s*(?:session|user|userId|auth)\b/;
+const CTX_USER_CHECK = /!\s*(?:\w+\.)?ctx\s*\??\.\s*(?:session|user|userId|auth)\b/;
+// Q26: tRPC's own semantics. A branch that throws TRPCError UNAUTHORIZED on a
+// condition that reads ctx is an authentication gate however the condition is
+// spelled: `!ctx?.session?.user` (hash), `!isValidUserInCtx(ctx)` (corpus-ac).
+// Both read as anonymous on CORPUS-3, titling signed-in IDORs "anyone can call
+// this". The condition must read ctx: corpus-d's guard throws UNAUTHORIZED on a
+// user it looked up, and a check on caller input is not a session.
+const CTX_REF = /\bctx\b/;
+const UNAUTHORIZED_THROW = /\bnew\s+TRPCError\s*\(\s*\{[^}]*\bcode\s*:\s*["']UNAUTHORIZED["']/;
 function ctxGate(text: string): boolean {
-  if (!CTX_USER_CHECK.test(text)) return false;
+  if (!CTX_USER_CHECK.test(text) && !(CTX_REF.test(text) && UNAUTHORIZED_THROW.test(text))) return false;
   const sf = ts.createSourceFile("m.ts", text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
   let gated = false;
   const throws = (node: ts.Node): boolean => ts.isThrowStatement(node) || (!ts.isFunctionLike(node) && ts.forEachChild(node, throws) === true);
   const visit = (node: ts.Node) => {
     if (gated) return;
-    if (ts.isIfStatement(node) && CTX_USER_CHECK.test(node.expression.getText(sf)) && throws(node.thenStatement)) gated = true;
+    if (ts.isIfStatement(node) && throws(node.thenStatement)) {
+      const condition = node.expression.getText(sf);
+      if (CTX_USER_CHECK.test(condition) ||
+          (CTX_REF.test(condition) && UNAUTHORIZED_THROW.test(node.thenStatement.getText(sf)))) gated = true;
+    }
     ts.forEachChild(node, visit);
   };
   visit(sf);

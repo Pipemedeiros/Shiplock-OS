@@ -179,3 +179,49 @@ export const m = createTRPCRouter({ remove: protectedProcedure.mutation(async ({
     expect(route.via).toContain("server/trpc.ts");
   });
 });
+
+// Q26: a ctx condition whose branch throws TRPCError UNAUTHORIZED is a gate,
+// whatever the condition's spelling. Shapes from CORPUS-3 (development data).
+describe("tRPC gates by TRPCError semantics (Q26)", () => {
+  const router = (base: string) => f("server/routers/r.ts", `import { ${base}, createTRPCRouter } from "../trpc";
+export const r = createTRPCRouter({ remove: ${base}.mutation(async ({ input }) => prisma.form.delete({ where: { id: input.id } })) });`);
+
+  it("reads optional chaining on ctx (hash's enforceUserIsAuthed)", () => {
+    const [fact] = analyzeTrpcProcedures([f("server/trpc.ts", `export const t = initTRPC.create();
+export const createTRPCRouter = t.router;
+const enforceUserIsAuthed = t.middleware(({ ctx, next }) => {
+  if (!ctx?.session?.user) {
+    throw new TRPCError({ code: "UNAUTHORIZED" });
+  }
+  return next({ ctx: { session: { ...ctx.session, user: ctx.session.user } } });
+});
+export const protectedProcedure = t.procedure.use(enforceUserIsAuthed);`), router("protectedProcedure")]);
+    expect(fact).toMatchObject({ authenticated: true, identityReadable: true });
+  });
+
+  it("reads a predicate over ctx (corpus-ac's authProtectedProcedure)", () => {
+    const [fact] = analyzeTrpcProcedures([f("server/trpc.ts", `export const t = initTRPC.create();
+export const createTRPCRouter = t.router;
+export const publicProcedure = t.procedure;
+export const authProtectedProcedure = publicProcedure.use(({ ctx, next }) => {
+  if (!isValidUserInCtx(ctx)) {
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "User not logged in",
+    });
+  }
+  return next({ ctx: { ...ctx, userId: ctx.auth.userId } });
+});`), router("authProtectedProcedure")]);
+    expect(fact).toMatchObject({ authenticated: true, identityReadable: true });
+  });
+
+  it("does not read an UNAUTHORIZED thrown on caller input as a session gate", () => {
+    const [fact] = analyzeTrpcProcedures([f("server/trpc.ts", `export const t = initTRPC.create();
+export const createTRPCRouter = t.router;
+export const tokenProcedure = t.procedure.use(({ ctx, input, next }) => {
+  if ((input as any)?.token !== process.env.PUBLIC_TOKEN) throw new TRPCError({ code: "UNAUTHORIZED" });
+  return next();
+});`), router("tokenProcedure")]);
+    expect(fact).toMatchObject({ authenticated: false });
+  });
+});
