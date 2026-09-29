@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireDashboardSession } from "@/lib/dashboard";
 import { getRuns } from "@/lib/agent/dashboardData";
-import { StackDepth, depthOf } from "@/components/v3/StackDepth";
+import { StackConnection, StackDepth, connectionFor, depthOf } from "@/components/v3/StackDepth";
 
 /**
  * What we read out of the repository, and how deeply we reasoned about each of
@@ -116,6 +116,7 @@ export default async function Stack() {
                         {tool.usedIn.length > 1 ? ` +${tool.usedIn.length - 1} more` : ""}
                       </p>
                     ) : null}
+                    <StackConnection connection={connectionFor(tool)} />
                   </div>
                 );
               })}

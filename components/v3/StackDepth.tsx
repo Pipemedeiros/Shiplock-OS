@@ -42,3 +42,48 @@ export function StackDepth({ depth }: { depth: Depth }) {
     </span>
   );
 }
+
+/**
+ * Whether ShipLock can read a detected tool live (Felipe, 2026-09-29: any
+ * stack, detected is shown, unsupported is "coming soon"). Detecting a tool
+ * from code is not a binding and not a read: only Supabase and Postgres have
+ * a read-only collector today, so only they are offered. Prisma and Drizzle
+ * point at the database they talk to. Databases, auth, payments and hosting
+ * we cannot read yet are named and marked coming soon; other kinds make no
+ * connection claim.
+ */
+export type Connection =
+  | { state: "available"; provider: "Supabase" | "Postgres" }
+  | { state: "coming_soon" }
+  | { state: "none" };
+
+const LIVE: Record<string, "Supabase" | "Postgres"> = {
+  supabase: "Supabase",
+  "supabase-auth": "Supabase",
+  postgres: "Postgres",
+  prisma: "Postgres",
+  drizzle: "Postgres",
+};
+const CONNECTABLE_KINDS: StackKind[] = ["database", "auth", "payments", "hosting"];
+
+export function connectionFor(tool: { id: string; kind: StackKind }): Connection {
+  const provider = LIVE[tool.id];
+  if (provider) return { state: "available", provider };
+  return CONNECTABLE_KINDS.includes(tool.kind) ? { state: "coming_soon" } : { state: "none" };
+}
+
+export function StackConnection({ connection }: { connection: Connection }) {
+  if (connection.state === "none") return null;
+  if (connection.state === "coming_soon") {
+    return (
+      <p className="v3-small" style={{ marginTop: 8 }} title="We detected it in your code. Reading its live configuration is not built yet.">
+        Live connection coming soon
+      </p>
+    );
+  }
+  return (
+    <a href="/dashboard/settings" className="v3-btn v3-btn-sm v3-ghost" style={{ marginTop: 10 }}>
+      Connect {connection.provider}
+    </a>
+  );
+}
