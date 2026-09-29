@@ -54,6 +54,29 @@ describe("corpus manifest selection (Q23)", () => {
   });
 });
 
+describe("corpus.cjs render (Q23): replays a paid run offline, only against its own pins", () => {
+  const fs = require("node:fs") as typeof import("node:fs");
+  const pathMod = require("node:path") as typeof import("node:path");
+  const render = (dir: string) => spawnSync(process.execPath, ["scripts/corpus.cjs", "render", dir], { encoding: "utf8" });
+
+  it("refuses a missing run directory", () => {
+    const r = render("docs/evaluation/runs/does-not-exist");
+    expect(r.status).not.toBe(0);
+    expect(r.stderr).toMatch(/no paid run/i);
+  });
+
+  it("refuses an outcome whose commit is not the pinned commit", () => {
+    const manifest = JSON.parse(fs.readFileSync("docs/CORPUS.json", "utf8"));
+    const pin = manifest.repositories[0];
+    const dir = fs.mkdtempSync(pathMod.join(require("node:os").tmpdir(), "render-"));
+    fs.writeFileSync(pathMod.join(dir, `${pin.id}-paid.json`), JSON.stringify({
+      record: { id: pin.id, repository: pin.repository, commit: "0".repeat(40) }, outcome: { admitted: [] } }));
+    const r = render(dir);
+    expect(r.status).not.toBe(0);
+    expect(r.stderr).toMatch(/not the pinned commit/);
+  });
+});
+
 describe("corpus.cjs paid CLI refuses before spending", () => {
   const run = (...args: string[]) => spawnSync(process.execPath, ["scripts/corpus.cjs", "paid", ...args], {
     encoding: "utf8", env: { ...process.env, ANTHROPIC_API_KEY: "sk-test-not-used" } });

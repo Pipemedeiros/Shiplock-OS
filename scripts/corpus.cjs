@@ -341,6 +341,42 @@ async function paid(args) {
   console.log(`Spent $${summary.paidApiSpendUsd} of a $${maxUsd} cap. Artifacts: ${output}`);
 }
 
+// Q23: what a customer would read for a paid run's admitted hypotheses,
+// rendered offline through the audit's own buildFindings with the same gates
+// (possession and Q21 one-id) the audit passes. Free; the labelers read this.
+async function render(runDir) {
+  blockNetwork();
+  const dir = path.resolve(root, runDir);
+  const outcomes = fs.existsSync(dir) ? fs.readdirSync(dir).filter((name) => name.endsWith("-paid.json")).sort() : [];
+  if (outcomes.length === 0) throw new Error(`Refusing: no paid run outcomes in ${runDir}`);
+  const runs = outcomes.map((name) => JSON.parse(fs.readFileSync(path.join(dir, name), "utf8")));
+  for (const { record } of runs) {
+    const pin = manifest.repositories.find((candidate) => candidate.id === record.id);
+    if (!pin || pin.commit !== record.commit) throw new Error(`Refusing: ${record.id} ran on ${record.commit}, not the pinned commit`);
+    if (await fileHash(archivePath(pin)) !== pin.archiveSha256) throw new Error(`${pin.id}: archive checksum mismatch`);
+  }
+  const product = { ...loadProductModules(), ...require("../lib/agent/findings.ts") };
+  const statements = [];
+  for (const { record, outcome } of runs) {
+    if (!outcome.admitted?.length) continue;
+    const pin = manifest.repositories.find((candidate) => candidate.id === record.id);
+    const { routes, stack, files } = await analyzePin(product, pin);
+    const findings = product.buildFindings({ admitted: outcome.admitted, deterministic: [], routes, stack,
+      repositoryId: pin.id, hasDatabase: false, liveFacts: [],
+      possessionGates: product.possessionGates(routes, files), oneIdAccess: product.oneIdAccess(routes, files) });
+    for (const finding of findings) {
+      statements.push({ repository: pin.repository, commit: pin.commit, id: finding.id, entry: finding.entry,
+        file: finding.file, attackClass: finding.attackClass, severity: finding.severity, confidence: finding.confidence,
+        title: finding.title, consequence: finding.consequence, claims: finding.claims });
+    }
+  }
+  const out = path.join(dir, "rendered.json");
+  await fsp.writeFile(out, JSON.stringify({ experiment: `${manifest.experiment}-rendered`, capturedAt: new Date().toISOString(),
+    head: execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim(), modelCalls: 0,
+    statements }, null, 2) + "\n", { flag: "wx" });
+  console.log(`${statements.length} statements. Artifacts: ${out}`);
+}
+
 async function main() {
   validateManifest();
   if (process.argv[2] === "acquire") {
@@ -355,8 +391,10 @@ async function main() {
     await holdout(process.argv[3]);
   } else if (process.argv[2] === "paid") {
     await paid(process.argv.slice(3));
+  } else if (process.argv[2] === "render" && process.argv[3]) {
+    await render(process.argv[3]);
   } else {
-    throw new Error("Usage: node scripts/corpus.cjs acquire|evaluate|holdout <labels.json>|paid --confirm-paid --max-usd <usd> --price <model=in,out>... [--model claude-sonnet-5] [--only <id>]");
+    throw new Error("Usage: node scripts/corpus.cjs acquire|evaluate|holdout <labels.json>|render <paid run dir>|paid --confirm-paid --max-usd <usd> --price <model=in,out>... [--model claude-sonnet-5] [--only <id>]");
   }
 }
 
