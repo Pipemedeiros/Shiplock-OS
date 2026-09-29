@@ -3,6 +3,8 @@ import { getOpenFindings } from "@/lib/agent/dashboardData";
 import { RisksBoard } from "@/components/v3/RisksBoard";
 import { getProofViews, proofOffers, provingEnabled } from "@/lib/proving/proofStatus";
 
+export const metadata = { title: "Risks" };
+
 export default async function Risks() {
   const { userId } = await requireDashboardSession();
   const [findings, enabled, views] = await Promise.all([getOpenFindings(userId), provingEnabled(userId), getProofViews(userId)]);

@@ -10,6 +10,8 @@ import { IntelligencePanel } from "@/components/d/IntelligencePanel";
 import { TrafficSites } from "@/components/d/TrafficSites";
 import { BILLING_ENABLED } from "@/lib/access";
 
+export const metadata = { title: "Settings" };
+
 /**
  * Connections and account. Everything here is setup rather than security state,
  * which is why it is off the Overview page.

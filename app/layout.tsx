@@ -22,7 +22,7 @@ const plexMono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://shiplock.dev"),
-  title: "ShipLock — Security monitoring that opens the pull request",
+  title: "ShipLock: security monitoring that opens the pull request",
   description:
     "Connect GitHub. ShipLock infers your stack, follows the paths to customer data, and opens reviewable fixes while showing exactly what it could not verify.",
 };

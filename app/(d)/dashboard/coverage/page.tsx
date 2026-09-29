@@ -10,6 +10,8 @@ import { getTrafficSources } from "@/lib/traffic/sourceStatus";
 import { TrafficSources } from "@/components/v3/TrafficSources";
 import { getHotRoutes } from "@/lib/traffic/hotRoutes";
 
+export const metadata = { title: "Coverage" };
+
 /**
  * What the last audit did not reach.
  *

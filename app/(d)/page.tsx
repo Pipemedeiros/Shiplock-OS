@@ -245,7 +245,7 @@ export default function Landing() {
       <div className="v3-band">
         <div className="v3-shell" style={{ padding: "26px 0", fontSize: 13, color: "var(--muted-navy)" }}>
           <div className="v3-between">
-            <span className="v3-row" style={{ gap: 8 }}><LockMark size={15} /> ShipLock</span>
+            <span className="v3-row" style={{ gap: 8 }}><LockMark size={15} /> © {new Date().getFullYear()} ShipLock</span>
             <span className="v3-row" style={{ gap: 20 }}>
               <Link href="/coverage">Coverage</Link>
               <Link href="/owasp">OWASP</Link>

@@ -2,6 +2,8 @@ import { requireDashboardSession } from "@/lib/dashboard";
 import { getRecentlyClosed, getRuns } from "@/lib/agent/dashboardData";
 import { RunList } from "@/components/v3/RunList";
 
+export const metadata = { title: "Activity" };
+
 export default async function ActivityPage() {
   const { userId } = await requireDashboardSession();
   const [runs, closed] = await Promise.all([getRuns(userId), getRecentlyClosed(userId)]);

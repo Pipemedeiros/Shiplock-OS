@@ -4,6 +4,8 @@ import { getOpenFindings, getRecentlyClosed, getRepositories, getRuns } from "@/
 import { Chain, Conf, Sev } from "@/components/v3/FindingParts";
 import { RunAuditButton } from "@/components/v3/RunAuditButton";
 
+export const metadata = { title: "Overview" };
+
 export default async function Overview() {
   const { userId } = await requireDashboardSession();
   const [findings, runs, repos, closed] = await Promise.all([
