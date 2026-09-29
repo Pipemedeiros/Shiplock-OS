@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
@@ -45,7 +46,7 @@ describe("the 404 page", () => {
 // primary button rendered dark text on bronze (landing and 404, seen in a
 // headless screenshot 2026-09-29). Link buttons keep their own colour.
 describe("link buttons keep their colour", () => {
-  const css = require("node:fs").readFileSync("app/(d)/v3.css", "utf8") as string;
+  const css = readFileSync("app/(d)/v3.css", "utf8");
   it("declares the primary and on-dark colours for anchors", () => {
     expect(css).toMatch(/\.v3 a\.v3-primary\s*\{[^}]*color:\s*#fff/);
     expect(css).toMatch(/\.v3 a\.v3-ondark\s*\{[^}]*color:\s*#eef2f7/);
