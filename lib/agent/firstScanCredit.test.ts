@@ -6,7 +6,24 @@ vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ rpc }) }));
 import { claimFirstScanCredit } from "./firstScanCredit";
 
 const lease = { jobId: "j1", token: "t1" };
-beforeEach(() => { rpc.mockReset(); });
+beforeEach(() => { rpc.mockReset(); process.env.SHIPLOCK_FUNDED_FIRST_SCAN = "true"; });
+
+// Felipe (2026-09-29): during the MVP the customer brings the intelligence, so
+// ShipLock pays for no model call unless the switch is exactly "true". Off,
+// the credit is not touched, so it is still there if funding is turned on.
+describe("the funded first scan is off unless switched on", () => {
+  for (const value of [undefined, "", "1", "TRUE", "yes"]) {
+    it(`does not fund or consume the credit when the switch is ${JSON.stringify(value)}`, async () => {
+      if (value === undefined) delete process.env.SHIPLOCK_FUNDED_FIRST_SCAN;
+      else process.env.SHIPLOCK_FUNDED_FIRST_SCAN = value;
+      rpc.mockResolvedValue({ data: true, error: null });
+      const outcome = await claimFirstScanCredit("u1", "run1", lease);
+      expect(outcome.funded).toBe(false);
+      expect(!outcome.funded && outcome.reason).toMatch(/your own AI/);
+      expect(rpc).not.toHaveBeenCalled();
+    });
+  }
+});
 
 describe("first-scan credit (3G-1)", () => {
   it("funds the run only when the durable claim succeeds for this exact run and lease", async () => {

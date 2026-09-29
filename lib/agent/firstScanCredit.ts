@@ -10,6 +10,12 @@ export type FirstScanFunding = { funded: true } | { funded: false; reason: strin
 export async function claimFirstScanCredit(
   userId: string, runId: string, jobLease: { jobId: string; token: string } | undefined,
 ): Promise<FirstScanFunding> {
+  // MVP (Felipe, 2026-09-29): the customer brings the intelligence. ShipLock
+  // pays for no model call unless this switch is exactly "true", and the
+  // credit is not consumed while it is off.
+  if (process.env.SHIPLOCK_FUNDED_FIRST_SCAN !== "true") {
+    return { funded: false, reason: "during the preview ShipLock does not pay for AI reasoning; connect your own AI to run it on this repository" };
+  }
   if (!jobLease) return { funded: false, reason: "this run is not a durable audit, so ShipLock did not fund AI reasoning" };
   const { data, error } = await getSupabaseAdmin().rpc("claim_first_scan_credit", {
     p_user: userId, p_run: runId, p_job: jobLease.jobId, p_token: jobLease.token,

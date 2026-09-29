@@ -530,8 +530,9 @@ function FirstAudit({ repository, onDone }: { repository: string | undefined; on
   );
 }
 
-/** The first scan is ShipLock-funded; later deep scans and PR reasoning use the
- * customer's own AI. Asked after the audit, never before it, and skippable. */
+/** MVP (2026-09-29): ShipLock pays for no model call. The first audit runs every
+ * check that needs no AI; attack reasoning runs on the customer's own AI.
+ * Asked after the audit, never before it, and skippable. */
 export function AiStep({ onDone }: { onDone: () => void }) {
   return (
     <div className="v3-stack">
@@ -539,8 +540,8 @@ export function AiStep({ onDone }: { onDone: () => void }) {
         <p className="v3-eyebrow">Your AI</p>
         <h1 className="v3-serif" style={{ fontSize: 30, margin: "12px 0 10px" }}>Keep watching with your own AI.</h1>
         <p className="v3-sub">
-          Your first scan was on us. Once your agent is set up, weekly deep scans and AI checks on pull
-          requests run on the AI you already use, on the schedule you approve here. Checks that need no AI
+          Your first audit ran every check that needs no AI. Connect the AI you already use to reason about attack paths,
+          on weekly deep scans and on pull requests, on the schedule you approve here. Checks that need no AI
           keep running either way.
         </p>
       </div>

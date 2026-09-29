@@ -12,9 +12,9 @@ describe("onboarding asks for the customer's AI after the first audit (10B-2b)",
     expect(html.indexOf("Your AI")).toBeGreaterThan(html.indexOf("First audit"));
   });
 
-  it("explains the first scan was ours, is skippable, and embeds the approval form", () => {
+  it("explains the first audit needs no AI, is skippable, and embeds the approval form", () => {
     const html = renderToStaticMarkup(<AiStep onDone={() => {}} />);
-    expect(html).toContain("Your first scan was on us");
+    expect(html).toContain("Connect the AI you already use to reason about attack paths");
     expect(html).toContain("Skip for now");
     expect(html).toContain("Every pull request still needs your click");
   });
