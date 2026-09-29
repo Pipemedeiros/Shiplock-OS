@@ -61,7 +61,7 @@ export default function NotFound() {
 
           <div className="v3-row" style={{ gap: 12, marginTop: 28 }}>
             <Link href="/dashboard" className="v3-btn v3-primary">Open your dashboard</Link>
-            <Link href="/" className="v3-btn">Go to the home page</Link>
+            <Link href="/" className="v3-btn v3-ghost">Go to the home page</Link>
           </div>
 
           <section aria-labelledby="ways-back" style={{ marginTop: 56 }}>

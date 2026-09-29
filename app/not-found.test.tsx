@@ -11,8 +11,9 @@ import NotFound, { metadata } from "./not-found";
 
 // The 404 a visitor sees for any unmatched URL (Felipe, 2026-09-29): the real
 // ShipLock frame, what happened in plain words, and the ways back.
+const html = renderToStaticMarkup(<NotFound />);
+
 describe("the 404 page", () => {
-  const html = renderToStaticMarkup(<NotFound />);
   const text = html.replace(/<[^>]+>/g, " ");
 
   it("says the page does not exist and that nothing about the account changed", () => {
@@ -37,5 +38,19 @@ describe("the 404 page", () => {
   it("is not indexed and uses no dashes in copy", () => {
     expect(metadata.robots).toMatchObject({ index: false, follow: false });
     expect(text).not.toMatch(/[–—]/);
+  });
+});
+
+// `.v3 a { color: inherit }` outranks `.v3-primary`, so a Link styled as the
+// primary button rendered dark text on bronze (landing and 404, seen in a
+// headless screenshot 2026-09-29). Link buttons keep their own colour.
+describe("link buttons keep their colour", () => {
+  const css = require("node:fs").readFileSync("app/(d)/v3.css", "utf8") as string;
+  it("declares the primary and on-dark colours for anchors", () => {
+    expect(css).toMatch(/\.v3 a\.v3-primary\s*\{[^}]*color:\s*#fff/);
+    expect(css).toMatch(/\.v3 a\.v3-ondark\s*\{[^}]*color:\s*#eef2f7/);
+  });
+  it("gives the 404's second action a visible outline", () => {
+    expect(html).toMatch(/class="v3-btn v3-ghost"[^>]*>Go to the home page/);
   });
 });
