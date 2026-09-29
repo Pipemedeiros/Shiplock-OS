@@ -1,0 +1,327 @@
+{
+  "version": 1,
+  "experiment": "corpus-3-q25-2026-09-28",
+  "prediction": "Recorded before evaluation (2026-09-28): held-out set for Q24; no prediction of detection quality.",
+  "scope": "Next.js repository facts, candidate coverage and deterministic guard replay. No model precision or whole-repository recall claim.",
+  "selection": {
+    "rule": "Q23 rule unchanged except stars 50..149: gh search repos pushed:>=2025-09-28, topic:nextjs plus one of topic:prisma|supabase|drizzle|trpc, TypeScript, non-fork, non-archived; kept if some package.json (first 12 in the tree) depends on next and on prisma/@prisma/client/drizzle-orm/@supabase/supabase-js, and the tree has app/**/route.(ts|js), pages/api/** or a trpc/router TypeScript file; every CORPUS and CORPUS-2 repository excluded; ranked by stars then name; first 40 kept. Fixed in the ledger before Q24 development (03e9c43).",
+    "searched": 82,
+    "checked": 50,
+    "selected": 40,
+    "pinned": 40,
+    "dropped": [
+      {
+        "repository": "mikan3rd/nest-next-sample",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "onderonur/onurl",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "jjgouveia/mandajobs",
+        "next": true,
+        "db": false,
+        "server": true
+      },
+      {
+        "repository": "peng-xiao-shuai/next-argots",
+        "next": true,
+        "db": false,
+        "server": true
+      },
+      {
+        "repository": "mwakidenis/Mpesa-Based_Wi-Fi-Hotspot_Billing_System",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "satriabahari/satriabahari.my.id",
+        "next": true,
+        "db": false,
+        "server": true
+      },
+      {
+        "repository": "better-stack-ai/better-stack",
+        "next": true,
+        "db": false,
+        "server": true
+      },
+      {
+        "repository": "RicardoGEsteves/next-digital-marketplace",
+        "next": true,
+        "db": false,
+        "server": true
+      },
+      {
+        "repository": "amitsingh-007/bypass-links",
+        "next": true,
+        "db": false,
+        "server": true
+      },
+      {
+        "repository": "aurorascharff/next16-calendar",
+        "next": true,
+        "db": true,
+        "server": false
+      }
+    ],
+    "excluded": [],
+    "pinnedAt": "default-branch head on 2026-09-28"
+  },
+  "labelProvenance": "none yet",
+  "loader": {
+    "files": 4000,
+    "fileBytes": 400000,
+    "sourceBytes": 25165824,
+    "inflatedBytes": 125829120
+  },
+  "repositories": [
+    {
+      "id": "c3-sea-notes-saas-starter-kit",
+      "repository": "digitalocean/sea-notes-saas-starter-kit",
+      "commit": "c9385c6c71fdb69303a5629d88213cbddd3b723b",
+      "archiveSha256": "ef22fb72a2858d55e3e84cdda2d28b8df1494c2a3dcdcbd9d8541cc8f43c4391"
+    },
+    {
+      "id": "c3-corpus-j",
+      "repository": "mdazfar2/corpus-j",
+      "commit": "2019e795ec3e98dec5cfe71e4ac71ccf4dfa61c1",
+      "archiveSha256": "7bb6dabf13237af364e6f05109fd9208aa29fa761c2a9065a5cc8ce203ac4346"
+    },
+    {
+      "id": "c3-fullstack-prisma-nextjs-blog",
+      "repository": "prisma/fullstack-prisma-nextjs-blog",
+      "commit": "c038773fc9668d31e77057e1120b2ce36bd294b0",
+      "archiveSha256": "9ce03d98d276ba6042708cd4525d1026478fa9c4db089f42d0ccf11ebef68447"
+    },
+    {
+      "id": "c3-insta-p8",
+      "repository": "ayuuxh2/insta-p8",
+      "commit": "63277509edd5583916396aa2c79c71624620def8",
+      "archiveSha256": "8b98a37f8c0e3f416665089effad84def6215f09ea63d4a634e756ea421c9018"
+    },
+    {
+      "id": "c3-menufic",
+      "repository": "kaje94/menufic",
+      "commit": "5438f133646e2764f35e251d8021d64595547dac",
+      "archiveSha256": "54a0ad227cb13d6fe5582c687411c5cfab09e5e1efdd6e92cfbefd0f626e9a47"
+    },
+    {
+      "id": "c3-turborepo-nextjs",
+      "repository": "nass59/turborepo-nextjs",
+      "commit": "276bc117de6c31fd145be56bde5f4e4e1d1527bd",
+      "archiveSha256": "fdd970c6b14b54beb94c40bd40a26f6b3534d408922d0709fd1ee888aa8c8d3c"
+    },
+    {
+      "id": "c3-fullstack-langgraph-nextjs-agent",
+      "repository": "agentailor/fullstack-langgraph-nextjs-agent",
+      "commit": "40414f81fb8df752cfc9f41dc2eb2bc34a70b050",
+      "archiveSha256": "a7f716838eb1f1d18024a8fd87ffc869b5c982a694727d01ead51b4879e0a98e"
+    },
+    {
+      "id": "c3-corpus-i",
+      "repository": "dougdotcon/corpus-i",
+      "commit": "9a0513fd0e5096fee9afe5fabf8a74044387971a",
+      "archiveSha256": "c4cf35ea219897a3fb370bca2bd2797b5297eae931d6d70605f26688004769e1"
+    },
+    {
+      "id": "c3-owly",
+      "repository": "Hesper-Labs/owly",
+      "commit": "430c646e51aea8367d1e1a88953e9b56d059fa8d",
+      "archiveSha256": "4b7a3ba0fdcb275441bb924d486a8fc7b6309318985c48f146602fbb269f9bcf"
+    },
+    {
+      "id": "c3-codenight-starter",
+      "repository": "oyanmuhammad/codenight-starter",
+      "commit": "e8a7098e7b80d460f345852f7ef18bafb2ba3d69",
+      "archiveSha256": "d3ad3f5d89306d23b8fae21aa390f2d209d07075aad21ffa22952ab497d0c7a8"
+    },
+    {
+      "id": "c3-ecommerce-admin",
+      "repository": "taiwo-adewale/ecommerce-admin",
+      "commit": "dc58dd39e9de5ed49b18e051d3d0b7de0e7e05fa",
+      "archiveSha256": "139b6ff8849714ea8b321f38525ff0112b67ab95fef99368132dd31f80f49ef3"
+    },
+    {
+      "id": "c3-corpus-r13",
+      "repository": "corpus-r13/corpus-r13",
+      "commit": "d61989d9d4595507b8034834228eb66dec43b646",
+      "archiveSha256": "47b25f46a5347f7615e7d7fa783cef93dfae27b78d0554d16d891607978fe1ed"
+    },
+    {
+      "id": "c3-go-daily",
+      "repository": "frank99-owl/go-daily",
+      "commit": "f2506b9c04e1d24edc5957cdc88383e48465f3aa",
+      "archiveSha256": "a54a0a59113e6b1a7f996d37a147dad10c20472a3c1e4a0653917aafff437bee"
+    },
+    {
+      "id": "c3-portfolio",
+      "repository": "NotStark/portfolio",
+      "commit": "e96e32fdfb31df4605afa9dc7c1e8ea2959dd17a",
+      "archiveSha256": "74efcd51807defa8c7b0713167ffcb0aa25c6550bd1503bb7eec051e21b2d0dc"
+    },
+    {
+      "id": "c3-corpus-r14",
+      "repository": "rajputomsingh/corpus-r14",
+      "commit": "c8105f9c476a28f51a233907f8d71de2f8534be4",
+      "archiveSha256": "c4724d2423eb65600ddb1890a62937867ad64dee8cdea150ff2f91a92a94b085"
+    },
+    {
+      "id": "c3-omniscient",
+      "repository": "RicardoGEsteves/omniscient",
+      "commit": "b6ffe3afeaf89f61b697832365eb98202b43ddbd",
+      "archiveSha256": "ad48d26c5338b1de31dde2fd1ec9935e6cc5fc81c138e5b8e1d533c108fa40bb"
+    },
+    {
+      "id": "c3-viberank",
+      "repository": "sculptdotfun/viberank",
+      "commit": "0fbf0b5dfe2876429efea4af0ff4248cc3fcf1c9",
+      "archiveSha256": "b218e2138d2e76c4f3015c5f86c9fb9d7132c2abf9e9ad428c75561aae4bd338"
+    },
+    {
+      "id": "c3-full-stack",
+      "repository": "xuya227939/full-stack",
+      "commit": "c8ebcf143a429e8daa61437d7eea24d22e9be631",
+      "archiveSha256": "14bf1d572506507ad96a1075ddab879998b2f8422782657f03bc51fa774eeb4e"
+    },
+    {
+      "id": "c3-nextjs-better-auth",
+      "repository": "jabirdev/nextjs-better-auth",
+      "commit": "3167de459d63805587419c380aff336718d81a58",
+      "archiveSha256": "0590892a45b3afe12dc07d02b3ff2ae74cce4428ecca27418ea02461a9c8cfdb"
+    },
+    {
+      "id": "c3-sp500-mcp-server",
+      "repository": "zhensherlock/sp500-mcp-server",
+      "commit": "286b60a7341a6a3bb7f275439b4c7c0dee1c381e",
+      "archiveSha256": "6e3e7039105944cdcac067b57ae5311237377fb29f03d375ff870317bdd60204"
+    },
+    {
+      "id": "c3-finopenpos",
+      "repository": "JoaoHenriqueBarbosa/FinOpenPOS",
+      "commit": "948bac8e9a9a17fdd4e1a1e95c3bf6c35dd054e6",
+      "archiveSha256": "6569e055cc79b594253bb7edab499db8cd1589950209d6e6dcfc40fff1573266"
+    },
+    {
+      "id": "c3-liftcut-tracker",
+      "repository": "Townzc/liftcut-tracker",
+      "commit": "4837f775fead0269984fcbc217953457da80113b",
+      "archiveSha256": "27b6418488a2cc28ccfa7e095157e400c7752220e9241ddcef38f9ca8eca14b2"
+    },
+    {
+      "id": "c3-corpus-ac",
+      "repository": "growupanand/corpus-ac",
+      "commit": "9b3a07b633f73306600e651af5586494744d5619",
+      "archiveSha256": "6fd0dd965c272ee78c8b27c7582b4cb4b7528d3bf9f79b0243fb20d4711a962b"
+    },
+    {
+      "id": "c3-hash",
+      "repository": "ujen5173/hash",
+      "commit": "323a18958c4f57294836fc8f5b9aca01f75f281b",
+      "archiveSha256": "d1cde1c69ec9061b048d5cd84aa99047972d437ffe07cc0f834bf4e5a1b80868"
+    },
+    {
+      "id": "c3-launchkit-ai",
+      "repository": "AndyY-Q/launchkit-ai",
+      "commit": "b44605271d852326f89990d0e9d01359c2d8382b",
+      "archiveSha256": "ca7aea052be6998edcc8d00edb5578e608497c6c08042284ef4b6fdcee49019a"
+    },
+    {
+      "id": "c3-huobao-drama-ai",
+      "repository": "dav-niu474/huobao-drama-ai",
+      "commit": "eece93fa0d2cb3b72551f80a1aa63b9d1d6111d6",
+      "archiveSha256": "c19c986ab31ca29f27c61e38b232c3de4da90e219eebed2d9b1e75ce361b4d8b"
+    },
+    {
+      "id": "c3-portfolio-alex289",
+      "repository": "alex289/Portfolio",
+      "commit": "3c7120852d16cdf5aeaba8f1a2ab49e3095da889",
+      "archiveSha256": "9b38190910e7a243073d46a3436fe08a4a0c7c05f500c818cc6ddf5dc0f23517"
+    },
+    {
+      "id": "c3-subvocab",
+      "repository": "m7yang/subvocab",
+      "commit": "667c5fa45d485ea297f05f0b62c330139f8b7cb9",
+      "archiveSha256": "ee024456327c98e5909b56f527e700a763cce8aaebf848123871c213492f0b6c"
+    },
+    {
+      "id": "c3-corpus-t",
+      "repository": "corpus-t/corpus-t",
+      "commit": "1ab3492e5d319cd3e47006d723c48d1f3ca7b0be",
+      "archiveSha256": "2ec510de3a94d0cd1f2d7fd54d78fa12e74bf3a291c5ad532a1630b4ccd98681"
+    },
+    {
+      "id": "c3-t3-cloudflare",
+      "repository": "exectx/t3-cloudflare",
+      "commit": "2585ac38c6bb251ddf8321e34006e856898dd54d",
+      "archiveSha256": "11212ad5f4a9236c369966bc51048e469db6652c8c037c314a6df062091db763"
+    },
+    {
+      "id": "corpus-w",
+      "repository": "FlorianBruniaux/corpus-w",
+      "commit": "f2987c81c2ac8a107ea648be315d683c6d4137d5",
+      "archiveSha256": "91afddc217b42e6a3ffd32c25cd811ef59804670fea0a27723295d2e93e7e73a"
+    },
+    {
+      "id": "c3-nextjs-better-auth-achour",
+      "repository": "Achour/nextjs-better-auth",
+      "commit": "6e630cd352f6526a9efee6e6b609f7c4a22d1010",
+      "archiveSha256": "2689169bb3b59557566edefbf35ebeb469f18c4b5fcdaab06790ff0e13696ff0"
+    },
+    {
+      "id": "c3-genius-ai",
+      "repository": "sanidhyy/genius-ai",
+      "commit": "dc7e2143f7fe76879f1f9bc18bc018b7eab03743",
+      "archiveSha256": "54b6afc6ac364c1930ca68f70fe5146eab61c079a4355aea70540ba37b440747"
+    },
+    {
+      "id": "c3-ai-reliability-copilot",
+      "repository": "YanpengQi7/ai-reliability-copilot",
+      "commit": "0646d54b0bb24f928d7bd60c9bf2e8953733637a",
+      "archiveSha256": "5829c12e775b34f474593a6b63b416ace403e386d4cf52195c9687e361d14487"
+    },
+    {
+      "id": "c3-warehouse-stock-inventory-management-system-nextjs-fullstack",
+      "repository": "arnobt78/Warehouse-Stock-Inventory-Management-System--NextJS-FullStack",
+      "commit": "e7d24dcdcf82685d4bad6f4eab69476101820a40",
+      "archiveSha256": "bdbd01fac548a8f21716fbc52a2ba89f9579a657d7a3ba13d7688a42b6f9b374"
+    },
+    {
+      "id": "c3-prettypleaseprint",
+      "repository": "danileau/prettypleaseprint",
+      "commit": "885530d5873dd9e45511fa8470c2c542b80835f1",
+      "archiveSha256": "59ba2798f2bac4dbd1a0fec9b8425f58fc73f82c0c80b6d6a625e22099f73898"
+    },
+    {
+      "id": "c3-draftdeckai",
+      "repository": "Muneerali199/Draftdeckai",
+      "commit": "2eac4d0c1698476b3cb1240c17051793918b7687",
+      "archiveSha256": "704e8c9b114f20dd3552fc124fbbcd89c55f0d4d1e7ea1b41add4d2226c479ff"
+    },
+    {
+      "id": "c3-davstack",
+      "repository": "DawidWraga/davstack",
+      "commit": "85fb1df1bfb89f78cd90189dab90f0163e308ac3",
+      "archiveSha256": "9681984873784024c9413d9f42a16dffde814436fb943b2441fb1a65fad5b65b"
+    },
+    {
+      "id": "c3-nexpo",
+      "repository": "JoeSlain/Nexpo",
+      "commit": "136f00e70cab35b04510605ac52d240f0200e030",
+      "archiveSha256": "1e8919bc6d84ada17200bcdc92bcb7a57e3fec3615abd3c318c9617ad681c22b"
+    },
+    {
+      "id": "c3-codeautopsy",
+      "repository": "Sidhant0707/codeautopsy",
+      "commit": "2ba9a765a2036f999daeb12c305ddd03b295a819",
+      "archiveSha256": "32a664bc884d8f050717fcde548d12b7e37b3dde8de9f5148a9120ab29ff1ecd"
+    }
+  ],
+  "labels": []
+}
