@@ -1,7 +1,7 @@
 "use client";
 
-// Thin client-side wrapper around posthog-js. Initialised once by
-// components/PostHogInit.tsx (mounted in app/(d)/layout.tsx); everything
+// Thin client-side wrapper around posthog-js. Initialised only after the
+// visitor accepts analytics cookies (components/CookieConsent.tsx); everything
 // else calls track() and never touches posthog directly. Rules:
 // - Never put keys, URLs, emails, or scan content in properties — counts,
 //   counts and booleans only. The privacy page describes PostHog as

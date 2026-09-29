@@ -138,7 +138,7 @@ export default function PrivacyPage() {
                       ["Vercel", "Hosting for the ShipLock application itself."],
                       ["Stripe", "Billing and subscription management. Card details go to Stripe directly; we never see them."],
                       ["Resend", "Transactional email, alerts and receipts. Receives your email address."],
-                      ["PostHog", "Product analytics on how the app is used. Not your scan data."],
+                      ["PostHog", "Product analytics on how the app is used, only if you accept analytics cookies. Not your scan data."],
                       ["Anthropic", "Turns raw check results into plain-English findings and fixes. This payload never contains your anon key or any row of your data, by construction."],
                       ["GitHub", "Only if you connect it: source scanning and fix pull requests."],
                     ].map(([name, what]) => (
