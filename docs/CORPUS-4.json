@@ -1,0 +1,296 @@
+{
+  "version": 1,
+  "experiment": "corpus-4-q26-2026-09-29",
+  "prediction": "Recorded before evaluation (2026-09-29): held-out set for Q26; no prediction of detection quality.",
+  "scope": "Next.js repository facts, candidate coverage and deterministic guard replay. No model precision or whole-repository recall claim.",
+  "selection": {
+    "rule": "Q23 rule unchanged except stars 20..49: gh search repos pushed:>=2025-09-28, topic:nextjs plus one of topic:prisma|supabase|drizzle|trpc, TypeScript, non-fork, non-archived; kept if some package.json (first 12 in the tree) depends on next and on prisma/@prisma/client/drizzle-orm/@supabase/supabase-js, and the tree has app/**/route.(ts|js), pages/api/** or a trpc/router TypeScript file; every CORPUS, CORPUS-2 and CORPUS-3 repository excluded; ranked by stars then name; first 40 kept. Fixed in the ledger before Q26 code (64b5590).",
+    "searched": 127,
+    "checked": 45,
+    "selected": 40,
+    "pinned": 39,
+    "dropped": [
+      {
+        "repository": "Pujo-Atlas-Kolkata/PujoAtlasKol-Web",
+        "next": true,
+        "db": false,
+        "server": true
+      },
+      {
+        "repository": "M4xyll/InfraDash",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "Abdelrahman-Aboalkhair/ecommerce-platform",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "aurorascharff/next15-message-box",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "akashshrx/OpenSpecter",
+        "next": true,
+        "db": true,
+        "server": false
+      }
+    ],
+    "excluded": [
+      {
+        "repository": "leopu00/job-hunter-team",
+        "reason": "acquisition failed: curl: (56) Exceeded the maximum allowed file size (536870912) with 536870912 bytes\n"
+      }
+    ],
+    "pinnedAt": "default-branch head on 2026-09-29"
+  },
+  "labelProvenance": "none yet",
+  "loader": {
+    "files": 4000,
+    "fileBytes": 400000,
+    "sourceBytes": 25165824,
+    "inflatedBytes": 125829120
+  },
+  "repositories": [
+    {
+      "id": "c4-corpus-f",
+      "repository": "gameworkerkim/corpus-f",
+      "commit": "282a19036dbb1c9ebe775ff1e9b1f974e11b2716",
+      "archiveSha256": "c443c835a0b8b8b449193f465f30028551b8ea87e66e43c89fe2c477ed6dd47b"
+    },
+    {
+      "id": "c4-corpus-ad",
+      "repository": "issam-seghir/corpus-ad",
+      "commit": "665bea4a0f770e5e5885a67739b91fe3847954c4",
+      "archiveSha256": "0e550ea3d6c0b2d5f53f7d4b5926cbc9caaa3af141564e442af7af25fa9efa5b"
+    },
+    {
+      "id": "c4-gitreadme",
+      "repository": "owengretzinger/gitreadme",
+      "commit": "471c49f3026ed34223d807a718db887bebb0c5ef",
+      "archiveSha256": "b61640aa6fa9019992ab861e98a68a615a162a5ce28d90e054ef1981e39c72cb"
+    },
+    {
+      "id": "c4-iroha-fansite",
+      "repository": "qisarazu/iroha-fansite",
+      "commit": "0aad6c6ed1ee1f94f9094529c61106e55b8da864",
+      "archiveSha256": "9e07e5076aac3ec0415e34605d33f28e039bfb676feff2f8773fa119b671dff6"
+    },
+    {
+      "id": "c4-squeak",
+      "repository": "michaelongaro/Squeak",
+      "commit": "5b178a745db5bf666b1f4ea94ddee66ded794488",
+      "archiveSha256": "245a53cf17dd5b082014d7203525b841b0674b5e71fbf394c628982dea576922"
+    },
+    {
+      "id": "c4-oss-oopssec-store",
+      "repository": "kOaDT/oss-oopssec-store",
+      "commit": "723aac22e1c1b2f60bc862526e925234df139ac3",
+      "archiveSha256": "22d561dca16f2deeec5d32ee4d77f1d00be79c6eb25f556755006af80c5539a6"
+    },
+    {
+      "id": "c4-burungbiru",
+      "repository": "yogyy/burungbiru",
+      "commit": "afc21e398120dc33695d8466788ba0a040dbbf12",
+      "archiveSha256": "7fe10448878e57a57344e9de27b875f63affafa808a8a1af252d02fae958177c"
+    },
+    {
+      "id": "c4-wasepje",
+      "repository": "afrieirham/wasepje",
+      "commit": "20b0ae997bcb710a18426250e26dfa9b3175fc48",
+      "archiveSha256": "415a8231d8f41659bcddae5a4db0a174dc9686cdc0845aed7a4316ecfe1d2001"
+    },
+    {
+      "id": "c4-twitter",
+      "repository": "fatiharapoglu/twitter",
+      "commit": "aa777fdb560ad4c2fc14e8c119ecc1527642e548",
+      "archiveSha256": "7ce1ae086e28ca6be7242c0f8769a70fa2fb87770e86ec7bb4b4556804bebf84"
+    },
+    {
+      "id": "c4-workplacify",
+      "repository": "igeligel/workplacify",
+      "commit": "a2a0d39f71043cce42af879096004a8f111e5ac9",
+      "archiveSha256": "8ad89418acda64b292eada0d175085cdf1525b1a908eb1ce0e45a7be6f3f4675"
+    },
+    {
+      "id": "c4-smart-portfolio",
+      "repository": "medevs/smart-portfolio",
+      "commit": "bc4b745e76d47828ea5e21fff3d412ccfa85bdfd",
+      "archiveSha256": "033991a2ce88a7e474383c227e3b44d458bd4b8c9f455bccf7c1c6c9a831bf96"
+    },
+    {
+      "id": "c4-nextjs-starter-kit",
+      "repository": "chndrwali/nextjs-starter-kit",
+      "commit": "f47052cf6d28cd1aa573885926edf14274ee0d2e",
+      "archiveSha256": "24e071ef54dc7a38ebe71f12a790a6c2ed2c46b7e421a8672cddd76158f1588f"
+    },
+    {
+      "id": "c4-stackbase",
+      "repository": "stackbase-labs/stackbase",
+      "commit": "bce16b23701db9565633b410246abb9f54157f56",
+      "archiveSha256": "e652e71b0f2e239652f5c5c9fb10ba84967c794e54fe9e43e139130418aa0254"
+    },
+    {
+      "id": "c4-gemini3-xiefang-collection",
+      "repository": "Jasonliu-0/gemini3-xiefang-collection",
+      "commit": "8f07c0584b6c67cba836f413c9f091481b206bf7",
+      "archiveSha256": "233ce48ac899ac82b52b58ea99caa96ae54bd8088b59911a68ce6acefb3affa5"
+    },
+    {
+      "id": "c4-agentgram",
+      "repository": "agentgram/agentgram",
+      "commit": "d811f86fcb5fa8590484dcecc51bc26f3e859763",
+      "archiveSha256": "2985e94163405e841fe1e8a68c7cad855249f55bb5b5380fb0300fae812a5677"
+    },
+    {
+      "id": "c4-beacon",
+      "repository": "AiyaFun/beacon",
+      "commit": "753e09b985ac4fde5236a80ede57642fef2f197c",
+      "archiveSha256": "3c40fc127535050495a11cabd1e91c3baddbfbc21c8ee30bdf3cf0668fd50c0a"
+    },
+    {
+      "id": "c4-inspector",
+      "repository": "corpus-owner/inspector",
+      "commit": "ec503e1eb380c923253f88cc92d55457da172ed2",
+      "archiveSha256": "2cdd4710565bb0b3a938b83779860ce5863522a686a2335ec9147cff37f2f283"
+    },
+    {
+      "id": "c4-bonabrian-com",
+      "repository": "bonabrian/bonabrian.com",
+      "commit": "b8213615cb1ff8b9766deb0a662320d90ea80167",
+      "archiveSha256": "6f8959c279752099f681afcd5dbd428d735bca24a5d4076ed3a7f2f7057827c8"
+    },
+    {
+      "id": "c4-checkmvp",
+      "repository": "gruz0/checkmvp",
+      "commit": "7fd7e741754fba3b0aa03f5b1e04a055e6379b93",
+      "archiveSha256": "38a21987b0768ad9431a18b4fb95710a9859d7050f9d246a0c6120882671a88d"
+    },
+    {
+      "id": "c4-instagram-comment-to-dm",
+      "repository": "im-anishraj/instagram-comment-to-dm",
+      "commit": "a29a6b144828fa3f887bcc7ce843f48d82ab3be4",
+      "archiveSha256": "142e4ba93bae7b4afdb0927c9f02be47d0c151e4ad9ff23547a2281101c1507e"
+    },
+    {
+      "id": "c4-yours-sincerely",
+      "repository": "kyh/yours-sincerely",
+      "commit": "71de49510e16682dd7c172d701c5e65b1fbfe7b9",
+      "archiveSha256": "125c5170852a083302524b7c921fc64bfdb5261ec690eba2063829ff3e89169c"
+    },
+    {
+      "id": "c4-devnexus",
+      "repository": "vincenzo-afk/DEVNEXUS",
+      "commit": "014a53c222b385d4218d1dc9e597da64cff0aa0d",
+      "archiveSha256": "e9dbcdae7fcc53bc85b5cf9ec25658141da4862c23217b3fce5d8cb670932208"
+    },
+    {
+      "id": "c4-documon",
+      "repository": "nabarvn/documon",
+      "commit": "6c462326c8c2ebb95297b51c341c35ab10d207bd",
+      "archiveSha256": "fdbf41a835b67e8f61e0a3d23a0e34e12e3aa855447943907ea35599909101ba"
+    },
+    {
+      "id": "c4-creatorai",
+      "repository": "creatorai-app/creatorai",
+      "commit": "c4c9a1c2941959b15e82a83564fc23b8177d22bc",
+      "archiveSha256": "b6ed6c97f72cc8d208c0d971e67f7705dba2714026726b1b28eabe2ca6569d6e"
+    },
+    {
+      "id": "c4-openvpm",
+      "repository": "evangauer/openvpm",
+      "commit": "f1a33632aa0dd70dcb37333cf0d27da73f1986a6",
+      "archiveSha256": "48983ae3733be4f1a0259dd0f9bae175afd99432b7e3bf2a488592d8d79e3e7d"
+    },
+    {
+      "id": "c4-lms-front",
+      "repository": "guillermoscript/lms-front",
+      "commit": "66fbe3d00309938312ea66a5edcfdc22b2ea4771",
+      "archiveSha256": "56ccf4ace6fd24b884bbb58010d60676c37f58afe51d35e041c3b5ab28fdff58"
+    },
+    {
+      "id": "c4-thumbnaily-ai",
+      "repository": "justanuragmaurya/thumbnaily-ai",
+      "commit": "145104c1c7b8fded33aea4dbfd81635f8a01e7a5",
+      "archiveSha256": "3453ddbae3e7cc23865db091121294d70d961d2c7c1b9372e27a8e5a9c60579a"
+    },
+    {
+      "id": "c4-flash-fathom-ai",
+      "repository": "Suraj-kumar00/Flash-Fathom-AI",
+      "commit": "35c3941cf8643641f32b691643ea6e78960ca0cf",
+      "archiveSha256": "1eeb912856dcb18980e6336d093b5e57aacb3079956be72472c0f52922469bef"
+    },
+    {
+      "id": "c4-tiktok-clone",
+      "repository": "an678-mhg/tiktok-clone",
+      "commit": "5d9d795447a32b946d151ccaa3ec14d2783bbb5c",
+      "archiveSha256": "f253d15fadeda7df08c9c2a8c08eec6fe6cfa5beffc4eff3d8ad54b3de70fa73"
+    },
+    {
+      "id": "c4-spider-node-uptime-tracker",
+      "repository": "rakibutsho/SPIDER_NODE-uptime-tracker",
+      "commit": "27ce289d93c3652b0d3362d140b475738b8e6b42",
+      "archiveSha256": "a52630f605ded90e115bfbe590c415b0347b55e501ff925d7068e74d29c362ab"
+    },
+    {
+      "id": "c4-personal-website",
+      "repository": "BinarySenseiii/personal-website",
+      "commit": "e33b8263fc2398115a5c9249b2cbfdac6d86bf79",
+      "archiveSha256": "cb41f88b215b30cb5cc3433b4cae051bccce144eb5de2a441ccf45e7254b15c6"
+    },
+    {
+      "id": "c4-catatz",
+      "repository": "kupzed/catatz",
+      "commit": "4e8cad0daab1d2044f738f0840021f6288d26582",
+      "archiveSha256": "b70f6f517637a0e3f5b6739ebeaa80b3df73528219b44766fd0cc907984bbe76"
+    },
+    {
+      "id": "c4-frameground",
+      "repository": "PhantomKnight287/frameground",
+      "commit": "deba080dba8bf0559c7d257a2fb8c5f929518fc2",
+      "archiveSha256": "f6bcc4d321c75610ab2910e916009ea5d8ec3d2276c62e77633321420e302a13"
+    },
+    {
+      "id": "c4-humantryx",
+      "repository": "adarshaacharya/humantryx",
+      "commit": "3c7b8798fb80486b9c8dcc485864878260da789a",
+      "archiveSha256": "0fe9d7561d72306e00d8d186cc36c4b000172848d5fd6545552021299407998f"
+    },
+    {
+      "id": "c4-piggyback",
+      "repository": "BenLaurenson/PiggyBack",
+      "commit": "ebb433fe4ab5e3cad9ad6ad98ac35c9f30fcaf26",
+      "archiveSha256": "7960a6a51cbbeb6c1694b632e288f2dfdc9c63ac8d600ba2907f4661840bdf4b"
+    },
+    {
+      "id": "c4-pawboard",
+      "repository": "crafter-station/pawboard",
+      "commit": "541405505b61c1c600f32a4727efce1ce3e8cb4c",
+      "archiveSha256": "69e5726aed423d93a1eb103622a52e4c2782491e66fa15bbb11efc72ee942f39"
+    },
+    {
+      "id": "c4-dodo-supabase-subscription-starter",
+      "repository": "dodopayments/dodo-supabase-subscription-starter",
+      "commit": "518d33f9b632bcc7e4c25c1de8b36a26f954b297",
+      "archiveSha256": "a816dedb8eead8e6c65ebfea83ecc95d18ab1d41e0d5a7ad26ff6d4ddd5e1139"
+    },
+    {
+      "id": "c4-corpus-k",
+      "repository": "fenjo26/corpus-k",
+      "commit": "a58658a5b0ce64484399eb10e14bc5a9a1f1b9d3",
+      "archiveSha256": "2bca2c7b0bfebc473a0ecf357a1b4ae271a57de1d8ede3a1f6708b927b04c48f"
+    },
+    {
+      "id": "c4-agent-stack-template",
+      "repository": "krivoox/agent-stack-template",
+      "commit": "bc8ddee0d31b52bc24636d148e42dd8c1bd2ccfc",
+      "archiveSha256": "3f3767fa0e451210d49ac371dab896fed7ea91f855ced4a9d4dd566019ad2dd9"
+    }
+  ],
+  "labels": []
+}
