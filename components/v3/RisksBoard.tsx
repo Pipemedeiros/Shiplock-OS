@@ -194,7 +194,7 @@ function Inspector({ finding, proof }: { finding: DashboardFinding; proof: Proof
               />
             ) : null}
 
-            {error ? <p className="v3-small" style={{ color: "var(--crit)" }}>{error}</p> : null}
+            {error ? <p role="alert" className="v3-small" style={{ color: "var(--crit)" }}>{error}</p> : null}
           </div>
         ) : null}
       </div>

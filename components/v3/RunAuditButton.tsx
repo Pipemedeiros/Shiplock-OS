@@ -38,7 +38,7 @@ export function RunAuditButton({ repository }: { repository: string }) {
       >
         {running ? <><Loader2 size={14} className="v3-spin" /> Auditing…</> : "Run an audit"}
       </button>
-      {error ? <p className="v3-small" style={{ color: "var(--crit)", marginTop: 6 }}>{error}</p> : null}
+      {error ? <p role="alert" className="v3-small" style={{ color: "var(--crit)", marginTop: 6 }}>{error}</p> : null}
     </div>
   );
 }

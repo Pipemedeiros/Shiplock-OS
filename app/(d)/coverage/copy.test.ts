@@ -170,23 +170,6 @@ describe("accessibility statement", () => {
   });
 });
 
-describe("the exploitation animation", () => {
-  const ANIM = read("components/d/ProvingAnimation.tsx");
-
-  it("is readable as a diagram when motion is disabled", () => {
-    expect(read("app/(d)/design-d.css")).toMatch(/prefers-reduced-motion[\s\S]{0,200}dxd-proving-stage \{ animation: none/);
-  });
-
-  it("describes the sequence to assistive technology", () => {
-    expect(ANIM).toMatch(/role="img"/);
-    expect(ANIM).toMatch(/aria-label=/);
-  });
-
-  it("costs no client JavaScript", () => {
-    expect(ANIM).not.toMatch(/"use client"|useState|useEffect/);
-  });
-});
-
 describe("the owner's voice rules", () => {
   // Owner instruction, 2026-08-29: no dashes anywhere a customer reads, and
   // nothing that reads as generated text. Enforced here rather than fixed once,

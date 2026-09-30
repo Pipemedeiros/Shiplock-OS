@@ -122,7 +122,7 @@ export function VerifiedPanel({
         </span>
       </div>
 
-      {error && <p style={{ fontSize: 12, color: "var(--d-signal)", marginTop: 10 }}>{error}</p>}
+      {error && <p role="alert" style={{ fontSize: 12, color: "var(--d-signal)", marginTop: 10 }}>{error}</p>}
 
       {link && (
         <>

@@ -96,7 +96,7 @@ export function IntelligenceApprovalView({ connection, apiKey, draft, busy, erro
             and we never merge or deploy.</span>
         </label>
 
-        {error && <p style={{ ...note, color: "var(--crit)" }}>{error}</p>}
+        {error && <p role="alert" style={{ ...note, color: "var(--crit)" }}>{error}</p>}
         <div style={{ display: "flex", gap: 8 }}>
           <button type="button" className="v3-btn v3-btn-sm v3-primary" onClick={onApprove}
             disabled={busy || !draft.allowProposals}>Approve</button>

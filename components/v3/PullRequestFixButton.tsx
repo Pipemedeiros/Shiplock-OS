@@ -46,7 +46,7 @@ export function PullRequestFixButton({ reviewId, findingId }: { reviewId: string
     <div style={{ marginTop: 6 }}>
       {/* Q13: see exactly what the fix before merge would write, then click. */}
       <RepairPreviewPanel body={{ lane: "pull-request", reviewId, findingId }} busy={busy} onOpen={requestFix} />
-      {message ? <p className="v3-small" style={{ marginTop: 4 }}>{message}</p> : null}
+      {message ? <p role="status" className="v3-small" style={{ marginTop: 4 }}>{message}</p> : null}
     </div>
   );
 }

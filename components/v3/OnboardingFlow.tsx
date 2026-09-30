@@ -232,7 +232,7 @@ function RepoPicker({
         </p>
       </div>
 
-      {error ? <div className="v3-card v3-card-p" style={{ borderColor: "var(--crit)" }}>{error}</div> : null}
+      {error ? <div role="alert" className="v3-card v3-card-p" style={{ borderColor: "var(--crit)" }}>{error}</div> : null}
 
       {loading && repos.length === 0 ? (
         <div className="v3-empty">Reading your repositories…</div>
@@ -509,7 +509,7 @@ function FirstAudit({ repository, onDone }: { repository: string | undefined; on
         </div>
       </div>
 
-      {error ? <div className="v3-card v3-card-p" style={{ borderColor: "var(--crit)" }}>{error}</div> : null}
+      {error ? <div role="alert" className="v3-card v3-card-p" style={{ borderColor: "var(--crit)" }}>{error}</div> : null}
 
       {status !== "running" ? (
         <div className="v3-card v3-card-p v3-between">

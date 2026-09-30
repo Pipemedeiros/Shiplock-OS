@@ -39,7 +39,7 @@ export function TrafficSitesView({ enabled, repositories, sites, created, busy, 
       ) : (
         <SiteForm repositories={repositories} busy={busy} onCreate={onCreate} />
       )}
-      {error ? <p style={{ ...note, color: "var(--crit)" }}>{error}</p> : null}
+      {error ? <p role="alert" style={{ ...note, color: "var(--crit)" }}>{error}</p> : null}
       {created ? (
         <div style={{ margin: "10px 0" }}>
           <p style={{ ...note, color: "var(--ink)" }}>Snippet for {created.host}. Copy it now: its token is shown only once.

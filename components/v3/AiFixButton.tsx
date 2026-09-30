@@ -41,7 +41,7 @@ export function AiFixButton({ taskId }: { taskId: string }) {
   return (
     <div style={{ marginTop: 6 }}>
       <RepairPreviewPanel body={{ lane: "ai", taskId }} busy={busy} onOpen={open} />
-      {message ? <p className="v3-small" style={{ marginTop: 4 }}>{message}</p> : null}
+      {message ? <p role="status" className="v3-small" style={{ marginTop: 4 }}>{message}</p> : null}
     </div>
   );
 }

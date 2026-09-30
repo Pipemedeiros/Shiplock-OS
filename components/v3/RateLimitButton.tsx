@@ -38,7 +38,7 @@ function RateLimitButton({ repositoryId, routeFile }: { repositoryId: string; ro
   return (
     <span>
       <RepairPreviewPanel body={{ action: "rate-limit-pr", repositoryId, findingId: `traffic:${routeFile}` }} busy={busy} onOpen={request} />
-      {message ? <span className="v3-small" style={{ marginLeft: 8 }}>{message}</span> : null}
+      {message ? <span role="status" className="v3-small" style={{ marginLeft: 8 }}>{message}</span> : null}
     </span>
   );
 }

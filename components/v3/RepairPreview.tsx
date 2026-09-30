@@ -76,7 +76,7 @@ export function RepairPreviewPanel({ body, busy, onOpen }: { body: Record<string
       <button type="button" className="v3-btn v3-btn-sm v3-ghost" onClick={load} disabled={loading}>
         {loading ? "Preparing preview…" : "Preview the pull request"}
       </button>
-      {error ? <span className="v3-small" style={{ marginLeft: 8 }}>{error}</span> : null}
+      {error ? <span role="alert" className="v3-small" style={{ marginLeft: 8 }}>{error}</span> : null}
     </span>
   );
 }

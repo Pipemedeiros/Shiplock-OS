@@ -97,7 +97,7 @@ export function ProofPanel({ repositoryId, findingId, table, view }: {
       <button className="v3-btn v3-btn-sm v3-ghost" style={{ alignSelf: "flex-start" }} disabled={pending} onClick={start}>
         <FlaskConical size={14} /> {pending ? "Testing" : view ? "Test again" : "Test on a disposable copy"}
       </button>
-      {error ? <p className="v3-small" style={{ color: "var(--crit)" }}>{error}</p> : null}
+      {error ? <p role="alert" className="v3-small" style={{ color: "var(--crit)" }}>{error}</p> : null}
     </div>
   );
 }

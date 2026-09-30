@@ -46,7 +46,7 @@ export function AgentSetupView({ host, tokens, fresh, busy, error, onGenerate, o
       <button type="button" className="v3-btn v3-btn-sm v3-ghost" onClick={onGenerate} disabled={busy}>
         {busy ? "Creating…" : "Create a token"}
       </button>
-      {error ? <p style={{ ...note, color: "var(--crit)", marginTop: 6 }}>{error}</p> : null}
+      {error ? <p role="alert" style={{ ...note, color: "var(--crit)", marginTop: 6 }}>{error}</p> : null}
       {fresh ? (
         <div style={{ marginTop: 10 }}>
           <p style={{ ...note, color: "var(--ink)" }}>Copy it now: this token is shown only once. {where}</p>
