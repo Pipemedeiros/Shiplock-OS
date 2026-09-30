@@ -14,6 +14,7 @@ import { countUnanalyzedSurfaces } from "@/lib/graph/unanalyzedSurfaces";
 import { applicationEntries } from "@/lib/graph/applicationEntries";
 import { detectStack, routeAnalysisSupport, type StackReport } from "./stack";
 import { buildFindings, type AgentFinding } from "./findings";
+import { compactRouteFacts } from "@/lib/routeMap";
 import { oneIdAccess, possessionGates } from "./possessionGate";
 import { extractTables, extractColumns } from "./schema";
 import { inferDomain } from "./domain";
@@ -673,6 +674,13 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       );
       if (options.jobLease) throw new Error("Audit completion could not be recorded");
     }
+
+    // Q27: the route map is drawn from this audit's facts. Best effort and
+    // separate from completion, so a database without migration 096 still
+    // completes the run; the map then falls back to the source snapshot.
+    const { error: factsError } = await admin.from("audit_runs")
+      .update({ route_facts: compactRouteFacts(routes) }).eq("id", runId);
+    if (factsError) console.warn(`[audit] route facts not stored for ${runId}: ${factsError.message}`);
 
     const { error: repoError } = await admin
       .from("repositories")

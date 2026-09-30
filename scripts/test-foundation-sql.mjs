@@ -753,6 +753,10 @@ try {
   await check("windowed PR scans cover every PR check admitted in the window, at its latest head, even if the check failed", async () => {
     await approve("codex","off","daily");
     await db.exec("reset role");
+    // Earlier checks created PR jobs at the wall-clock time; pin them outside
+    // this fixed window so the check does not depend on the day it runs
+    // (it broke on 2026-09-30, when now() entered the window).
+    await db.query("update public.execution_jobs set created_at='2026-01-01T00:00:00Z' where kind='pr-check'");
     // PR 5: two admitted checks (the later one never produced a review); PR 6: outside the window.
     for (const [pr,sha,at,status] of [[5,"a".repeat(40),"2026-10-01T08:00:00Z","succeeded"],[5,head,"2026-10-01T09:00:00Z","dead"],[6,"a".repeat(40),"2026-09-20T09:00:00Z","succeeded"]]) {
       const job=(await db.query("insert into public.execution_jobs(user_id,repository_id,kind,deduplication_key,status,created_at) values ($1,$2,'pr-check',$3,$4,$5) returning id",[u1,r1,`pr-window:${pr}:${sha}`,status,at])).rows[0].id;
@@ -1251,6 +1255,20 @@ try {
   await check("095 is a no-op without a net schema", async () => {
     await db.exec("reset role");
     await db.exec(netLockSql);
+  });
+  // 096: the audit keeps its route facts for the dashboard route map (Q27).
+  const routeFactsSql = await readFile(new URL("../supabase/migrations/096_audit_route_facts.sql", import.meta.url), "utf8");
+  await check("096 adds audit_runs.route_facts as jsonb, still unreadable by client roles", async () => {
+    await db.exec("reset role");
+    await db.exec(routeFactsSql);
+    await db.exec(routeFactsSql); // idempotent
+    const col = (await db.query("select data_type from information_schema.columns where table_schema='public' and table_name='audit_runs' and column_name='route_facts'")).rows[0];
+    assert.equal(col?.data_type, "jsonb");
+    for (const role of ["anon", "authenticated"]) {
+      const r = (await db.query("select has_column_privilege($1, 'public.audit_runs', 'route_facts', 'SELECT') s, has_column_privilege($1, 'public.audit_runs', 'route_facts', 'UPDATE') u", [role])).rows[0];
+      assert.equal(r.s, false, `${role} select`);
+      assert.equal(r.u, false, `${role} update`);
+    }
   });
   await check("client roles cannot commit provider results or read snapshots", async () => {
     await db.exec("reset role; set role authenticated");

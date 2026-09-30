@@ -573,3 +573,12 @@
 .v3-legal th, .v3-legal td { text-align: left; padding: 10px 10px 10px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
 .v3-legal td:first-child { font-weight: 500; white-space: nowrap; }
 .v3-legal td:last-child { color: var(--muted); }
+.v3-map-node.lit { box-shadow: 0 0 0 4px rgba(232,211,160,.35); }
+.v3-map-sim { margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--line-navy); display: flex; flex-direction: column; gap: 8px; }
+.v3-map-sim-hd { font-size: 13px; color: #eef2f7; font-weight: 500; }
+.v3-map-seg { display: flex; gap: 6px; flex-wrap: wrap; }
+.v3-map-seg button { min-height: 32px; padding: 0 10px; border-radius: var(--r); border: 1px solid var(--line-navy); background: transparent;
+  color: var(--muted-navy); font-size: 12.5px; cursor: pointer; }
+.v3-map-seg button[aria-pressed="true"] { color: #eef2f7; border-color: var(--bronze-l); }
+.v3-map-steps { margin: 4px 0 0; padding-left: 18px; display: grid; gap: 4px; font-size: 13px; color: #c7d2df; overflow-wrap: anywhere; }
+.v3-map-note { font-size: 12px; color: var(--muted-navy); line-height: 1.5; }

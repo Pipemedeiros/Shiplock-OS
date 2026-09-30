@@ -30,9 +30,12 @@ export default async function Overview() {
   const [source, hot] = mapRepo && latest
     ? await Promise.all([loadRepositoryGraphSource(userId, mapRepo.id), getHotRoutes(userId).catch(() => noHot)])
     : [null, noHot];
-  const map = source?.routes?.length
+  // Prefer the full audit's stored facts; fall back to the source snapshot.
+  const auditRoutes = runs.find((r) => r.fullName === mapRepo?.fullName && r.routeFacts)?.routeFacts ?? null;
+  const mapRoutes = auditRoutes ?? (source?.routes?.length ? source.routes : null);
+  const map = mapRoutes
     ? buildRouteMap({
-        routes: source.routes,
+        routes: mapRoutes,
         tools: latest?.stack?.tools ?? [],
         findings: findings.filter((f) => f.repositoryId === mapRepo.id),
         hotFiles: (hot[mapRepo.id] ?? []).map((h) => h.file),
@@ -76,6 +79,23 @@ export default async function Overview() {
       </div>
 
       <div className="v3-stack">
+        <section aria-labelledby="route-map">
+          <div className="v3-between" style={{ marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
+            <h2 id="route-map" className="v3-eyebrow">Your app, as the audit read it</h2>
+            {map ? (
+              <span className="v3-small">
+                {map.nodes.filter((n) => n.kind === "route").length} routes, the code they share and the {map.nodes.filter((n) => n.kind === "table").length} tables they reach. Pick a route and send a request.
+              </span>
+            ) : null}
+          </div>
+          {map ? <RouteMap map={map} /> : (
+            <div className="v3-empty">
+              <p>{latest ? "The next audit draws your map." : "Run the first audit to draw your map."}</p>
+              <p className="v3-small" style={{ marginTop: 6 }}>Every route, the code they share and the data they reach, from your repository.</p>
+            </div>
+          )}
+        </section>
+
         {lead ? (
           <div className="v3-card">
             <div className="v3-hd">
@@ -108,17 +128,6 @@ export default async function Overview() {
           </div>
         ) : null}
 
-        {map ? (
-          <section aria-labelledby="route-map">
-            <div className="v3-between" style={{ marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
-              <h2 id="route-map" className="v3-eyebrow">Route map</h2>
-              <span className="v3-small">
-                {map.nodes.filter((n) => n.kind === "route").length} routes and {map.nodes.filter((n) => n.kind === "table").length} tables from the last audit. Drag to turn it.
-              </span>
-            </div>
-            <RouteMap map={map} />
-          </section>
-        ) : null}
 
         <div className="v3-grid-2">
           <div className="v3-card">

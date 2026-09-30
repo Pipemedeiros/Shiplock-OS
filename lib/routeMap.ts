@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { StackKind } from "@/lib/agent/stack";
 
 /**
@@ -8,13 +9,18 @@ import type { StackKind } from "@/lib/agent/stack";
  * read, never a guess. Layout is deterministic so two visits look the same:
  * routes above, tables in the middle, providers below, each on a spiral.
  */
-export type MapRoute = { path: string; file: string; tables: string[]; authenticated: boolean; ownershipFiltered: boolean; machineGated: boolean };
+export type MapRoute = {
+  path: string; file: string; tables: string[]; authenticated: boolean; ownershipFiltered: boolean; machineGated: boolean;
+  /** Code files the route executes (auth helpers, database clients); links routes to each other. */
+  via?: string[];
+  identityReadable?: boolean; ownershipReadable?: boolean; machineGateReadable?: boolean;
+};
 export type MapTool = { id: string; name: string; kind: StackKind };
 export type MapFinding = { entry: string | null; severity: "CRITICAL" | "WARNING" | "INFO"; title: string };
 
 export type MapNode = {
   id: string;
-  kind: "route" | "table" | "provider";
+  kind: "route" | "table" | "provider" | "helper";
   label: string;
   p: [number, number, number];
   detail: string;
@@ -22,10 +28,35 @@ export type MapNode = {
   finding?: MapFinding["severity"];
   hot?: boolean;
   connection?: "available" | "coming_soon";
+  /** Route nodes carry their facts so the map can simulate a request. */
+  fact?: MapRoute;
 };
 export type RouteMap = { nodes: MapNode[]; edges: [string, string][]; truncated: boolean };
 
 const MAX_ROUTES = 120;
+const MAX_HELPERS = 30;
+const MAX_STORED = 400;
+
+const storedRoute = z.object({
+  path: z.string().max(1024), file: z.string().max(1024), tables: z.array(z.string().max(256)).max(40),
+  authenticated: z.boolean(), ownershipFiltered: z.boolean(), machineGated: z.boolean(),
+  via: z.array(z.string().max(1024)).max(12).optional(),
+  identityReadable: z.boolean().optional(), ownershipReadable: z.boolean().optional(), machineGateReadable: z.boolean().optional(),
+});
+/** Stored route facts, validated on read; anything malformed is no facts. */
+export function parseRouteFacts(value: unknown): MapRoute[] | null {
+  const parsed = z.array(storedRoute).max(400).safeParse(value);
+  return parsed.success && parsed.data.length > 0 ? parsed.data : null;
+}
+
+/** What an audit keeps for the map (migration 096): facts only, no source. */
+export function compactRouteFacts(routes: MapRoute[]): MapRoute[] {
+  return routes.slice(0, MAX_STORED).map((r) => ({
+    path: r.path, file: r.file, tables: r.tables.slice(0, 40), authenticated: r.authenticated, ownershipFiltered: r.ownershipFiltered,
+    machineGated: r.machineGated, via: (r.via ?? []).slice(0, 12), identityReadable: r.identityReadable ?? true,
+    ownershipReadable: r.ownershipReadable ?? true, machineGateReadable: r.machineGateReadable ?? true,
+  }));
+}
 const MAX_TABLES = 80;
 const LIVE = new Set(["supabase", "supabase-auth", "postgres", "prisma", "drizzle"]);
 const PROVIDER_KINDS: StackKind[] = ["database", "auth", "payments", "hosting", "storage", "email", "ai"];
@@ -68,7 +99,7 @@ export function buildRouteMap(input: { routes: MapRoute[]; tools: MapTool[]; fin
       r.authenticated ? "Requires a signed-in caller." : "No sign-in check read.",
       r.tables.length ? (r.ownershipFiltered ? "Scoped to the caller's rows." : "Not scoped to the caller's rows.") : "Reaches no table we read.",
     ].join(" ");
-    nodes.push({ id: `route:${r.path}`, kind: "route", label: r.path, p: routeSpots[i], file: r.file,
+    nodes.push({ id: `route:${r.path}`, kind: "route", label: r.path, p: routeSpots[i], file: r.file, fact: r,
       detail: finding ? `${finding.title}. ${controls}` : controls,
       ...(finding ? { finding: finding.severity } : {}), ...(hot.has(r.file) ? { hot: true } : {}) });
   });
@@ -84,14 +115,27 @@ export function buildRouteMap(input: { routes: MapRoute[]; tools: MapTool[]; fin
       detail: connection === "available" ? "Inferred from your code. A read-only live connection is available." : "Inferred from your code. Live connection coming soon." });
   });
 
+  // Shared code: a file two or more routes execute becomes a node, so routes
+  // connect to each other through the helpers they share (the Obsidian view).
+  const usage = new Map<string, number>();
+  for (const r of routes) for (const f of new Set(r.via ?? [])) if (f !== r.file) usage.set(f, (usage.get(f) ?? 0) + 1);
+  const helpers = [...usage].filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, MAX_HELPERS);
+  const helperSet = new Set(helpers.map(([f]) => f));
+  const helperSpots = spiral(helpers.length, 90 + helpers.length * 4, -40, 10);
+  helpers.forEach(([f, n], i) => {
+    nodes.push({ id: `helper:${f}`, kind: "helper", label: f, p: helperSpots[i], file: f,
+      detail: `Shared code executed by ${n} routes. A change here changes all of them.` });
+  });
+
   const edges: [string, string][] = [];
+  for (const r of routes) for (const f of new Set(r.via ?? [])) if (helperSet.has(f)) edges.push([`route:${r.path}`, `helper:${f}`]);
   for (const r of routes) for (const t of r.tables) if (tableSet.has(t)) edges.push([`route:${r.path}`, `table:${t}`]);
   if (database) for (const t of tables) edges.push([`table:${t}`, `provider:${database.id}`]);
   relax(nodes, edges);
   return { nodes, edges, truncated: input.routes.length > routes.length || tableSet.size < new Set(routes.flatMap((r) => r.tables)).size };
 }
 
-const LAYER_Y = { route: -120, table: 40, provider: 170 } as const;
+const LAYER_Y = { route: -120, helper: -40, table: 40, provider: 170 } as const;
 const FIT_RADIUS = 240;
 
 /**
@@ -141,4 +185,33 @@ function relax(nodes: MapNode[], edges: [string, string][]): void {
     const clamp = r > FIT_RADIUS * 1.15 ? (FIT_RADIUS * 1.15) / r : 1;
     node.p = pos[i].map((v) => Math.round(v * fit * clamp)) as [number, number, number];
   });
+}
+
+
+export type Attacker = "anonymous" | "signed_in";
+export type Simulation = { outcome: "stopped" | "scoped" | "reaches" | "unknown"; reached: string[]; steps: string[] };
+
+/**
+ * "What happens if someone calls this route?", told only from the facts the
+ * audit read. Not traffic and not a proof: an unread control is "unknown",
+ * never "stopped".
+ */
+export function simulateRequest(route: MapRoute, attacker: Attacker): Simulation {
+  const who = attacker === "anonymous" ? "A request with no sign-in" : "A request from any signed-in user";
+  const steps = [`${who} reaches ${route.path}.`];
+  for (const f of route.via ?? []) steps.push(`It runs ${f}.`);
+  const unknown = (what: string): Simulation => ({ outcome: "unknown", reached: [], steps: [...steps, `We could not read ${what}, so the outcome is unknown.`] });
+  if (route.machineGated) {
+    if (route.machineGateReadable === false) return unknown("its secret or signature check");
+    return { outcome: "stopped", reached: [], steps: [...steps, "It is stopped without the secret or signature the route checks."] };
+  }
+  if (route.tables.length === 0) return { outcome: "stopped", reached: [], steps: [...steps, "It reaches no table we read."] };
+  if (attacker === "anonymous") {
+    if (route.identityReadable === false) return unknown("how it checks the caller");
+    if (route.authenticated) return { outcome: "stopped", reached: [], steps: [...steps, "It is stopped by the sign-in check we read."] };
+    return { outcome: "reaches", reached: route.tables, steps: [...steps, `No sign-in check was read. It reaches ${route.tables.join(", ")}.`] };
+  }
+  if (route.ownershipReadable === false) return unknown("how it narrows rows to the caller");
+  if (route.ownershipFiltered) return { outcome: "scoped", reached: route.tables, steps: [...steps, `It reaches ${route.tables.join(", ")}, narrowed to the caller's own rows.`] };
+  return { outcome: "reaches", reached: route.tables, steps: [...steps, `Nothing narrows the query to the caller. It reaches every row of ${route.tables.join(", ")}.`] };
 }

@@ -1,3 +1,4 @@
+import { parseRouteFacts, type MapRoute } from "@/lib/routeMap";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { Claim, Confidence, FixKind } from "./findings";
 import type { CoverageNote, TraceStep } from "./audit";
@@ -56,6 +57,8 @@ export interface DashboardRun {
   stack: StackReport | null;
   /** What the business is, as read during this run. Null on older runs. */
   domain: DomainModel | null;
+  /** Route facts this audit read (migration 096). Null on older runs. */
+  routeFacts: MapRoute[] | null;
 }
 
 export interface DashboardRepo {
@@ -137,6 +140,7 @@ export async function getRuns(userId: string, limit = 20): Promise<DashboardRun[
     error: (row.error as string) ?? null,
     stack: (row.stack as StackReport | null) ?? null,
     domain: (row.domain as DomainModel | null) ?? null,
+    routeFacts: parseRouteFacts(row.route_facts),
   }));
 }
 

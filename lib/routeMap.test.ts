@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildRouteMap, type MapRoute } from "./routeMap";
+import { buildRouteMap, compactRouteFacts, simulateRequest, type MapRoute } from "./routeMap";
 
 const route = (path: string, tables: string[], over: Partial<MapRoute> = {}): MapRoute =>
   ({ path, file: `app${path}/route.ts`, tables, authenticated: true, ownershipFiltered: true, machineGated: false, ...over });
@@ -50,5 +50,36 @@ describe("route map (Q27)", () => {
     const many = buildRouteMap({ ...input, routes: Array.from({ length: 200 }, (_, i) => route(`/api/r${i}`, [`t${i % 90}`])) });
     expect(many.nodes.filter((n) => n.kind === "route")).toHaveLength(120);
     expect(many.truncated).toBe(true);
+  });
+});
+
+describe("route map, connections and simulation (Felipe 2026-09-30)", () => {
+  const full = (path: string, via: string[], over: object = {}) => ({ ...route(path, ["invoices"]), via, identityReadable: true, ownershipReadable: true, machineGateReadable: true, ...over });
+
+  it("keeps compact, code-free route facts from an audit, capped", () => {
+    const facts = compactRouteFacts([{ ...full("/api/a", ["lib/auth.ts"]), methods: ["GET"], usesServiceRole: true, identityGap: "x" } as never]);
+    expect(facts[0]).toEqual({ path: "/api/a", file: "app/api/a/route.ts", tables: ["invoices"], authenticated: true, ownershipFiltered: true,
+      machineGated: false, via: ["lib/auth.ts"], identityReadable: true, ownershipReadable: true, machineGateReadable: true });
+    expect(compactRouteFacts(Array.from({ length: 900 }, (_, i) => full(`/r${i}`, []) as never))).toHaveLength(400);
+  });
+
+  it("connects routes through the code files they share, only when two or more share one", () => {
+    const map = buildRouteMap({ ...input, routes: [full("/api/a", ["lib/auth.ts", "lib/only-a.ts"]), full("/api/b", ["lib/auth.ts"])] });
+    expect(map.nodes.filter((n) => n.kind === "helper").map((n) => n.label)).toEqual(["lib/auth.ts"]);
+    expect(map.edges).toEqual(expect.arrayContaining([["route:/api/a", "helper:lib/auth.ts"], ["route:/api/b", "helper:lib/auth.ts"]]));
+    expect(map.nodes.find((n) => n.id === "helper:lib/auth.ts")?.detail).toMatch(/2 routes/);
+  });
+
+  it("simulates a request from facts only, and says unknown where a control was not read", () => {
+    const open = full("/api/a", ["lib/db.ts"], { authenticated: false, ownershipFiltered: false });
+    expect(simulateRequest(open, "anonymous")).toMatchObject({ outcome: "reaches", reached: ["invoices"] });
+    const guarded = full("/api/b", ["lib/auth.ts"]);
+    expect(simulateRequest(guarded, "anonymous")).toMatchObject({ outcome: "stopped" });
+    expect(simulateRequest(full("/api/c", [], { ownershipFiltered: false }), "signed_in")).toMatchObject({ outcome: "reaches" });
+    expect(simulateRequest(full("/api/c", []), "signed_in")).toMatchObject({ outcome: "scoped" });
+    expect(simulateRequest(full("/api/d", [], { authenticated: false, identityReadable: false }), "anonymous")).toMatchObject({ outcome: "unknown" });
+    const steps = simulateRequest(guarded, "anonymous").steps.join(" ");
+    expect(steps).toMatch(/lib\/auth\.ts/);
+    expect(steps).not.toMatch(/[–—]/);
   });
 });

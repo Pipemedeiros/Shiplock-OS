@@ -1,7 +1,8 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { buildRouteMap } from "@/lib/routeMap";
-import { project, RouteMap } from "./RouteMap";
+import { project, RouteMap, simulationPath } from "./RouteMap";
+import { simulateRequest } from "@/lib/routeMap";
 
 const map = buildRouteMap({
   routes: [{ path: "/api/invoices", file: "app/api/invoices/route.ts", tables: ["invoices"], authenticated: true, ownershipFiltered: false, machineGated: false }],
@@ -28,5 +29,18 @@ describe("RouteMap (Q27)", () => {
   it("projects farther points smaller", () => {
     const view = { yaw: 0, pitch: 0, zoom: 1 };
     expect(project([0, 0, 300], view, 0, 0, 1).f).toBeLessThan(project([0, 0, -300], view, 0, 0, 1).f);
+  });
+
+  it("offers the request simulation on a route, labelled as a simulation", () => {
+    expect(html).toContain("Simulate a request");
+    expect(html).toContain(">No sign-in<");
+    expect(html).toContain("Not live traffic");
+  });
+
+  it("walks a simulated request along the map's own edges only", () => {
+    const route = map.nodes.find((n) => n.kind === "route")!;
+    const sim = simulateRequest(route.fact!, "signed_in");
+    expect(simulationPath(map, route.id, sim)).toEqual(["route:/api/invoices", "table:invoices"]);
+    expect(simulationPath(map, route.id, simulateRequest({ ...route.fact!, authenticated: true }, "anonymous"))).toEqual(["route:/api/invoices"]);
   });
 });
