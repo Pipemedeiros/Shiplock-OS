@@ -24,11 +24,12 @@ interface Layer {
   fact: string;
 }
 
+// The thesis (Felipe 2026-09-29): code, live configuration and traffic, read
+// together. An illustrative example, labelled as one on the page.
 const LAYERS: Layer[] = [
-  { name: "Entry points", reads: "route handlers", fact: "39 routes · 2 anonymous" },
-  { name: "Identity", reads: "your auth library", fact: "Clerk resolves a user" },
-  { name: "Data", reads: "your schema", fact: "invoices · workspace_id" },
-  { name: "Dependencies", reads: "your manifest", fact: "no known advisory" },
+  { name: "Code", reads: "your repository", fact: "GET /api/invoices/export · any signed-in user" },
+  { name: "Database", reads: "read only connection", fact: "invoices · no row policy" },
+  { name: "Traffic", reads: "the traffic snippet", fact: "2,000 requests a minute · one account" },
 ];
 
 export function LayersAnimation() {
@@ -59,8 +60,9 @@ export function LayersAnimation() {
       className="v3-layers"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
-      aria-label="The four layers ShipLock reads from one GitHub connection, and the finding where they meet"
+      aria-label="An example: code, database and traffic read together, and the finding where they meet"
     >
+      <p className="v3-layer-src" style={{ marginBottom: 8 }}>Example</p>
       <div className="v3-layers-grid">
         {LAYERS.map((layer, i) => (
           <div key={layer.name} className={`v3-layer${step > i ? " on" : ""}`}>
@@ -76,8 +78,8 @@ export function LayersAnimation() {
       <div className={`v3-layers-join${joined ? " on" : ""}`} aria-live="polite">
         <span className="v3-layers-rule" />
         <p>
-          <b>Correlated.</b> An authenticated route reads <code>invoices</code> without{" "}
-          <code>workspace_id</code>. None of these layers says that alone.
+          <b>Together.</b> One account is exporting every row of <code>invoices</code>. No single layer says
+          that alone.
         </p>
       </div>
     </div>
