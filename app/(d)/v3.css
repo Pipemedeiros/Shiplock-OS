@@ -561,3 +561,15 @@
   .v3-map { grid-template-columns: 1fr; }
   .v3-map-side { border-left: 0; border-top: 1px solid var(--line-navy); }
 }
+
+/* ── Q28 legal pages ─────────────────────────────────────────────────────── */
+.v3-legal section { margin-top: 36px; }
+.v3-legal h2 { font-family: var(--dx-font-newsreader), serif; font-size: 24px; font-weight: 500; margin: 0 0 10px; }
+.v3-legal p, .v3-legal li { font-size: 15.5px; line-height: 1.7; color: var(--ink); }
+.v3-legal p + p { margin-top: 10px; }
+.v3-legal ul { padding-left: 20px; display: grid; gap: 6px; }
+.v3-legal a { color: var(--bronze); text-decoration: underline; }
+.v3-legal table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 12px; }
+.v3-legal th, .v3-legal td { text-align: left; padding: 10px 10px 10px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.v3-legal td:first-child { font-weight: 500; white-space: nowrap; }
+.v3-legal td:last-child { color: var(--muted); }

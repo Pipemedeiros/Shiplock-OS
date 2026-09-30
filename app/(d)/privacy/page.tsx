@@ -1,207 +1,108 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { LockMark } from "@/components/d/Brand";
+import { LegalPage } from "@/components/v3/LegalPage";
 
-// Real, product-accurate Privacy Policy — describes what this codebase
-// actually collects/stores/sends, not generic boilerplate. Drafted from the
-// real data flows (security.md's "hash, never store raw" rules, lib/crypto.ts
-// encryption, the third-party services actually wired in). NOT a substitute
-// for real legal review before this handles real paying customers' PII —
-// see the plan / conversation this was built from for that caveat.
-export const dynamic = "force-dynamic";
-
+// Q28: written from the code paths that exist today (GitHub App archive read,
+// customer AI, traffic snippet fields, proofs on an embedded replica, consent
+// gated PostHog, welcome email). A working draft, not legal advice; have it
+// reviewed before paid launch.
 export const metadata: Metadata = {
   title: "Privacy policy",
-  description:
-    "What we collect, why, and how it's protected, hashed project references, AES-256-GCM encrypted keys, and the third parties we actually use.",
+  description: "What ShipLock reads, what it keeps, who processes it, and how to get it deleted.",
 };
 
+const PROCESSORS: [string, string][] = [
+  ["Supabase", "Our database and sign-in: your account, repository list, route facts, findings, and encrypted credentials."],
+  ["Vercel", "Hosts ShipLock and runs its audits."],
+  ["GitHub", "The GitHub App you install: reading the repositories you select and opening pull requests you click."],
+  ["Resend", "Email: the welcome email, and alerts if you turn them on. Receives your email address."],
+  ["PostHog", "Product analytics, only after you accept analytics cookies. Never your code or findings."],
+  ["Stripe", "Billing, when paid plans open. Card details go to Stripe; we never see them."],
+  ["Anthropic", "Only if ShipLock itself pays for an AI run, which is off today. Your own AI runs under your own account with your provider."],
+];
 
 export default function PrivacyPage() {
   return (
-    <main className="dxd">
-      <div className="dxd-band">
-        <div className="dxd-shell">
-          <nav className="dxd-nav" aria-label="Main">
-            <Link href="/" className="dxd-wordmark">
-              <span className="dxd-wordmark-lock">
-                <LockMark size={19} />
-              </span>
-              ShipLock
-            </Link>
-            <div className="dxd-nav-links">
-              <Link href="/terms">Terms</Link>
-              <Link href="/auth" className="dxd-btn dxd-btn-ghost">
-                Sign in
-              </Link>
-            </div>
-          </nav>
-          <header className="dxd-hero" style={{ gridTemplateColumns: "1fr" }}>
-            <div>
-              <p className="dxd-eyebrow">Legal</p>
-              <h1 className="dxd-display" style={{ fontSize: "clamp(30px,4.5vw,44px)" }}>
-                Privacy Policy
-              </h1>
-              <p className="dxd-lede">Last updated 2026-07-27.</p>
-            </div>
-          </header>
-        </div>
-      </div>
+    <LegalPage title="Privacy policy" updated="2026-09-30" other={{ href: "/terms", label: "Terms" }}>
+      <section>
+        <h2>What we read</h2>
+        <p><b>Your account.</b> Your email address, and the basic profile Google or GitHub shares when you sign in with them.</p>
+        <p>
+          <b>Your repositories, through the GitHub App.</b> When you install the app and select repositories, we read
+          those repositories at a specific commit to audit them: which routes exist, what they check, and which tables
+          they reach. We do not keep a copy of your repository. We keep what the audit concluded: route facts, findings
+          with file paths, and short quoted lines as evidence.
+        </p>
+        <p>
+          <b>Your database, if you connect it.</b> A read-only connection to Supabase or Postgres lets us read
+          configuration: schemas, row policies, grants and buckets. We never read the rows in your tables. Credentials
+          are encrypted at rest (AES 256 GCM), decrypted only in memory while a check runs, and never logged.
+          Disconnecting deletes them.
+        </p>
+        <p>
+          <b>Your own AI, if you connect it.</b> AI reasoning runs on your own AI: Claude Code, Codex, or an API key you
+          save. An API key is encrypted at rest and used only for tasks you approved; the files a task covers go to
+          your model provider under your account. With a coding agent, we send the task and file hashes; your agent
+          reads the files from your own checkout.
+        </p>
+        <p>
+          <b>Traffic, if you add the traffic snippet.</b>{" "}For each request it reports the path, method, user agent, a
+          visitor id the snippet computes, an optional session id, and a timestamp. Never request or response bodies,
+          passwords, cookies or your users&apos; data. Where we read Supabase gateway logs instead, client addresses
+          are hashed with a daily rotating key on arrival and never kept.
+        </p>
+        <p>
+          <b>Proofs.</b> When you authorize a test, it runs on a disposable copy of your schema filled with made up
+          data, never on your production database.
+        </p>
+      </section>
 
-      <div className="dxd-shell">
-        <section className="dxd-section" style={{ maxWidth: 720 }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 28, fontSize: 15, lineHeight: 1.75 }}>
-            <div>
-              <h2 className="dxd-h2" style={{ fontSize: 22 }}>What we collect</h2>
-              <p>
-                <b>Account:</b> your email address, and, if you sign in with Google or GitHub,
-                the basic profile information those providers share (name, email, avatar).
-              </p>
-              <p>
-                <b>Your project, to scan it:</b> the Supabase project URL and anon (public) key
-                you paste in. Your scan history stores only a one-way SHA-256 hash of the
-                project URL, so we can recognize repeat scans without keeping the real address
-                in that record. For continuous monitoring, which starts with your first scan,
-                we additionally keep the project URL you&apos;ve asked us to watch (a re-scan
-                needs a real address, not a hash) and your anon key encrypted at rest
-                (AES-256-GCM); the key is decrypted only in memory, at scan time, and never
-                logged. We never retain a service-role key: if you paste one by mistake, we
-                flag it as a critical finding and don&apos;t store it.
-              </p>
-              <p>
-                <b>If your database is not on Supabase:</b> a read-only Postgres connection
-                string you supply, encrypted at rest (AES-256-GCM) exactly like the anon key
-                above, decrypted only in memory when a scan runs, and never logged, not in
-                full and not in part, including in error messages. Before we agree to store it
-                at all we connect once and verify the role cannot write and cannot bypass Row
-                Level Security; if it can, we refuse the connection and keep nothing. Every
-                session we open runs inside a read-only transaction. Separately from the
-                encrypted string we keep the host and database name in plain text, so your
-                dashboard can show which database is connected without decrypting anything.
-                Disconnecting deletes the stored credential.
-              </p>
-              <p>
-                <b>Scan results:</b> the findings and fixes from every audit we run, tied
-                to your account, so your dashboard can show your history.
-              </p>
-              <p>
-                <b>Optional connections:</b> if you connect GitHub, we read your repository
-                contents to scan for committed secrets and vulnerable dependencies, and can open
-                fix pull requests to a new branch for you to review and merge, we never push to
-                your default branch and never apply changes to your production database. If you
-                connect your coding agent, we issue a personal access token (stored only as a
-                hash) that the ShipLock tool on your own machine uses to read your findings. If
-                you turn on a public Verified report, the posture summary at its link becomes
-                shareable, counts and coverage only, never your specific findings, and it stays
-                off until you enable it.
-              </p>
-              <p>
-                <b>Billing:</b> Stripe handles your card details directly, we never see or store
-                your card number. We keep your Stripe customer and subscription IDs so we know
-                who&apos;s paid.
-              </p>
-            </div>
+      <section>
+        <h2>Cookies</h2>
+        <p>
+          Sign-in cookies are always on because the app cannot work without them. Analytics cookies (PostHog) start
+          only after you accept them in the cookie banner. If you choose Reject, we remember it and never ask again on
+          that browser.
+        </p>
+      </section>
 
-            <div>
-              <h2 className="dxd-h2" style={{ fontSize: 22 }}>What we don&apos;t collect</h2>
-              <p>
-                We never ask for your Supabase service_role key or database password. Any GitHub
-                access is optional, granted by you, and used only to scan your source and open fix
-                PRs you review. Scanning uses only the same public anon key your app&apos;s own frontend
-                already exposes to every visitor. We don&apos;t read the contents of your
-                database tables, a scan checks configuration (is a table protected, is a key
-                exposed, does an endpoint answer without authentication), not your users&apos;
-                data.
-              </p>
-            </div>
+      <section>
+        <h2>Email</h2>
+        <p>
+          We send one welcome email when you create an account. Security alert emails are off today; when they open,
+          they are sent only when something meaningful changes. We never sell or share your address.
+        </p>
+      </section>
 
-            <div>
-              <h2 className="dxd-h2" style={{ fontSize: 22 }}>
-                Who we share it with, our sub-processors
-              </h2>
-              <p>
-                These are every third party that processes data on our behalf, what they handle,
-                and why. We don&apos;t sell data to anyone, ever. If we add or replace one, we
-                update this list before the change takes effect.
-              </p>
-              <div style={{ overflowX: "auto", margin: "14px 0" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5, minWidth: 460 }}>
-                  <thead>
-                    <tr style={{ textAlign: "left", borderBottom: "1px solid var(--d-line)" }}>
-                      <th style={{ padding: "8px 10px 8px 0" }}>Provider</th>
-                      <th style={{ padding: "8px 10px 8px 0" }}>What it handles</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[
-                      ["Supabase", "Our own database and authentication, your account record, scan history, and monitoring settings."],
-                      ["Vercel", "Hosting for the ShipLock application itself."],
-                      ["Stripe", "Billing and subscription management. Card details go to Stripe directly; we never see them."],
-                      ["Resend", "Transactional email, alerts and receipts. Receives your email address."],
-                      ["PostHog", "Product analytics on how the app is used, only if you accept analytics cookies. Not your scan data."],
-                      ["Anthropic", "Turns raw check results into plain-English findings and fixes. This payload never contains your anon key or any row of your data, by construction."],
-                      ["GitHub", "Only if you connect it: source scanning and fix pull requests."],
-                    ].map(([name, what]) => (
-                      <tr key={name} style={{ borderBottom: "1px solid var(--d-line)" }}>
-                        <td style={{ padding: "10px 10px 10px 0", fontWeight: 600, whiteSpace: "nowrap" }}>{name}</td>
-                        <td style={{ padding: "10px 10px 10px 0", color: "var(--d-muted)", lineHeight: 1.6 }}>{what}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <p>
-                Monitoring runs never call Anthropic at all, findings from a scheduled re-check
-                are worked out deterministically from the raw result, so no scan data leaves our
-                own systems on those passes.
-              </p>
-            </div>
+      <section>
+        <h2>Who processes data for us</h2>
+        <p>Every third party that handles data on our behalf. We do not sell data. If this list changes, we update it here first.</p>
+        <table>
+          <thead><tr><th>Provider</th><th>What it handles</th></tr></thead>
+          <tbody>{PROCESSORS.map(([name, what]) => <tr key={name}><td>{name}</td><td>{what}</td></tr>)}</tbody>
+        </table>
+      </section>
 
-            <div>
-              <h2 className="dxd-h2" style={{ fontSize: 22 }}>Your rights over your data</h2>
-              <p>
-                You can ask us for a copy of what we hold about you, ask us to correct it, or ask
-                us to delete it, email{" "}
-                <a href="mailto:support@shiplock.dev">support@shiplock.dev</a> and we&apos;ll
-                action it. Deleting your account removes your scan history, the monitored project
-                URL, and your encrypted anon key. You can stop monitoring at any time by
-                disconnecting the project or cancelling, and you can revoke coding-agent tokens
-                and turn off the Verified report from your dashboard whenever you like.
-              </p>
-              <p>
-                If your use of ShipLock means we process personal data on your behalf and you need
-                a data processing agreement, email us and we&apos;ll put one in place.
-              </p>
-            </div>
+      <section>
+        <h2>Your rights</h2>
+        <p>
+          Ask us for a copy of what we hold about you, to correct it, or to delete it, at{" "}
+          <a href="mailto:support@shiplock.dev">support@shiplock.dev</a>. You can disconnect a database, revoke an AI
+          key or agent token, remove the traffic snippet and turn off a shareable report from Settings at any time. If
+          you need a data processing agreement, email us and we will put one in place.
+        </p>
+      </section>
 
-            <div>
-              <h2 className="dxd-h2" style={{ fontSize: 22 }}>Retention and deletion</h2>
-              <p>
-                We keep scan history so your dashboard can show trends over time. To delete your
-                account and everything tied to it, email{" "}
-                <a href="mailto:support@shiplock.dev">support@shiplock.dev</a>, this is a manual
-                process today; a self-serve delete is on our roadmap.
-              </p>
-            </div>
-
-            <div>
-              <h2 className="dxd-h2" style={{ fontSize: 22 }}>Questions</h2>
-              <p>
-                <a href="mailto:support@shiplock.dev">support@shiplock.dev</a>
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <footer className="dxd-footer">
-          <span className="dxd-serif" style={{ fontSize: 15 }}>
-            ShipLock<span style={{ color: "var(--d-bronze)" }}>.</span>
-          </span>
-          <span>
-            <Link href="/">Home</Link> · <Link href="/terms">Terms</Link>
-          </span>
-        </footer>
-      </div>
-    </main>
+      <section>
+        <h2>Retention and deletion</h2>
+        <p>
+          We keep audit history so your dashboard can show change over time. Traffic events are kept for a limited
+          window and then deleted automatically. To delete your account and everything tied to it, email{" "}
+          <a href="mailto:support@shiplock.dev">support@shiplock.dev</a>; this is done by hand today. Uninstall the
+          GitHub App from GitHub as well.
+        </p>
+        <p>See also the <Link href="/terms">terms of service</Link>.</p>
+      </section>
+    </LegalPage>
   );
 }
