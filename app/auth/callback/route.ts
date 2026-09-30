@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabaseServer";
 import { AUTH_NEXT_COOKIE, decodeAuthNext, safeNext } from "@/lib/authRedirect";
+import { sendWelcomeOnce } from "@/lib/welcomeEmail";
 
 export { safeNext } from "@/lib/authRedirect";
 
@@ -107,11 +108,15 @@ export async function GET(req: NextRequest) {
   let ok = false;
   if (code) {
     const supabase = await getSupabaseServer();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) {
       console.error("[auth/callback] exchangeCodeForSession error:", error.message);
     } else {
       ok = true;
+      // Q29: the welcome email goes out after the response, at most once per
+      // new account (lib/welcomeEmail.ts), so sign-in is never slowed by it.
+      const user = data?.user;
+      if (user) after(() => sendWelcomeOnce(user, process.env.NEXT_PUBLIC_APP_URL ?? origin).catch(() => false));
     }
   }
 

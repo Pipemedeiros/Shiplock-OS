@@ -31,6 +31,14 @@ describe("sendEmail", () => {
     expect(await sendEmail(msg, "test")).toBe(true);
   });
 
+  it("passes an HTML body through with its text fallback (Q29), and omits html when there is none", async () => {
+    sendMock.mockResolvedValue({ data: { id: "e2" }, error: null });
+    await sendEmail({ ...msg, html: "<p>hi</p>" }, "test");
+    expect(sendMock).toHaveBeenLastCalledWith(expect.objectContaining({ text: msg.text, html: "<p>hi</p>" }));
+    await sendEmail(msg, "test");
+    expect(sendMock.mock.calls.at(-1)?.[0]).not.toHaveProperty("html");
+  });
+
   // The case every previous call site was blind to: the Resend SDK RESOLVES on
   // an API error rather than throwing, so `.catch()` and try/catch never fired.
   it("returns false when Resend resolves with an error instead of throwing", async () => {

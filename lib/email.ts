@@ -23,6 +23,8 @@ export interface EmailMessage {
   to: string;
   subject: string;
   text: string;
+  /** Optional HTML body; `text` stays as the fallback every client can read. */
+  html?: string;
 }
 
 /**
@@ -46,6 +48,7 @@ export async function sendEmail(message: EmailMessage, context: string): Promise
       to: message.to,
       subject: message.subject,
       text: message.text,
+      ...(message.html ? { html: message.html } : {}),
     });
 
     if (error) {
