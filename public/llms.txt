@@ -2,7 +2,7 @@
 
 > ShipLock is application security for startups without a security team. It reads a GitHub repository, maps every route and the data each one reaches, and opens fixes as pull requests the team reviews. Connecting the live stack and a traffic snippet adds what code alone cannot show.
 
-ShipLock starts with GitHub and infers the stack from the code (framework, auth, database, payments, hosting). Supabase and Postgres can be connected read only today; other detected providers are listed as coming soon. Attack reasoning runs on the customer's own AI (Claude Code, Codex, or an API key). ShipLock never merges or deploys, and it reports what it could not read instead of calling anything secure.
+ShipLock starts with GitHub and infers the stack from the code (framework, auth, database, payments, hosting). Supabase and Postgres can be connected read only today; other detected providers are listed as coming soon. Attack reasoning runs on the customer's own AI (Claude Code, Codex, or an API key). Pull request checks block a change that removes a security control the repository already had. ShipLock never merges or deploys, and it reports what it could not read instead of calling anything secure.
 
 ## Pages
 
@@ -12,3 +12,4 @@ ShipLock starts with GitHub and infers the stack from the code (framework, auth,
 - [Incidents](https://shiplock.dev/incidents): real incidents in AI-built apps
 - [Privacy](https://shiplock.dev/privacy): what ShipLock reads and stores
 - [Terms](https://shiplock.dev/terms): terms of service
+- [Accessibility](https://shiplock.dev/accessibility): accessibility statement
