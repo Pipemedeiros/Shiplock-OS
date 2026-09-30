@@ -25,4 +25,8 @@ describe("landing accessibility", () => {
     expect(block(".v3-section")).not.toMatch(/padding:\s*\d+px 0\b/);
     expect(readFileSync("app/(d)/page.tsx", "utf8")).not.toMatch(/className="v3-shell"[^>]*padding: "\d+px 0"/);
   });
+
+  it("section labels (eyebrows) pass 4.5:1 on the light backgrounds", () => {
+    expect(block(".v3-eyebrow")).toMatch(/color:\s*#627085/);
+  });
 });
