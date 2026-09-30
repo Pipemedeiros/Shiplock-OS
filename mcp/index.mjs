@@ -44,6 +44,12 @@ const TOOLS = [
     inputSchema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
   },
   {
+    name: "get_security_context",
+    description:
+      "Start here before editing a repository selected in ShipLock. Returns, as JSON: the last audit's time and status, the detected stack, the guardrails (security controls the code has today, which ShipLock's pull request check will not let a change remove), open findings with route, file and consequence, notRead (what the audit could not check), and howToUse. Built from ShipLock's stored facts: no source code, no model call. Pass repository as owner/name; it may be omitted when one repository is selected. Anything in notRead, and any route without a rule, is not known to be safe.",
+    inputSchema: { type: "object", properties: { repository: { type: "string", description: "owner/name of a repository selected in ShipLock" } }, additionalProperties: false },
+  },
+  {
     name: "get_guardrails",
     description:
       "Read the security rules a selected repository must keep, as JSON: for each route that reaches data, which controls ShipLock observed today (signed-in caller required, rows scoped to the caller, machine secret required), the tables involved, and what to keep when editing. Read this before changing a route or its helpers; ShipLock's pull request check blocks a change that removes one of these controls. A route with no rule is not known to be safe: controls ShipLock could not read are never rules. Pass repository as owner/name; it may be omitted when the account has one selected repository. Returns guardrails null when no audit facts exist yet.",
@@ -86,7 +92,7 @@ const RESOURCES = [
   { uri: "shiplock://posture", name: "ShipLock posture", description: "Current security posture summary (counts, last scan).", mimeType: "application/json" },
 ];
 
-const server = new Server({ name: "shiplock", version: "0.1.0" }, { capabilities: { tools: {}, resources: {} } });
+const server = new Server({ name: "shiplock", version: "0.2.0" }, { capabilities: { tools: {}, resources: {} } });
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS }));
 
@@ -113,6 +119,8 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
       result = await api("/api/mcp/findings");
     } else if (name === "get_fix") {
       result = await api(`/api/mcp/fix?id=${encodeURIComponent(args.id)}`);
+    } else if (name === "get_security_context") {
+      result = await api(`/api/mcp/context${args.repository ? `?repository=${encodeURIComponent(args.repository)}` : ""}`);
     } else if (name === "get_guardrails") {
       result = await api(`/api/mcp/guardrails${args.repository ? `?repository=${encodeURIComponent(args.repository)}` : ""}`);
     } else if (name === "list_intelligence_tasks") {
