@@ -20,4 +20,9 @@ describe("landing accessibility", () => {
     expect(page).toMatch(/className="v3-nav-secondary"[^>]*>How it works/);
     expect(page).toMatch(/className="v3-nav-secondary"[^>]*>What it covers/);
   });
+
+  it("keeps the 28px side gutter on every section and the footer (no edge-to-edge text on phones)", () => {
+    expect(block(".v3-section")).not.toMatch(/padding:\s*\d+px 0\b/);
+    expect(readFileSync("app/(d)/page.tsx", "utf8")).not.toMatch(/className="v3-shell"[^>]*padding: "\d+px 0"/);
+  });
 });
