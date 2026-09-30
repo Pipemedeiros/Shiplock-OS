@@ -488,10 +488,12 @@ and its exact status live only in `docs/MASTER-PLAN-PROGRESS.md`.
 
 ## Skill routing for Claude Code and Codex
 
-The four checked-in, self-contained skill entry points live only in
-`.agents/skills/`. Read and apply both Ponytail and Superpowers on **every
-implementation**, including cleanup and documentation changes. Read their full
-`SKILL.md` files, not just their names. Use GStack for security-sensitive diff
+The five checked-in, self-contained skill entry points live only in
+`.agents/skills/`. The three core skills are Ponytail, Superpowers, and UI UX
+Pro. Read and apply Ponytail and Superpowers on **every implementation**,
+including cleanup and documentation changes, and UI UX Pro on every change to
+how a page looks, reads, moves, or is used. Read their full `SKILL.md` files,
+not just their names. Use GStack for security-sensitive diff
 review, higher-risk QA, or an explicit review request; use Ruflo only for
 explicitly authorized parallel-agent coordination. Codex discovers this skill
 directory; Claude Code's new `AGENTS.md` support does not by itself establish
@@ -504,6 +506,10 @@ skill files. No repo-local `.claude` directory or duplicate tree is needed.
 - Superpowers (`.agents/skills/superpowers/SKILL.md`): planning, root-cause
   debugging, test-first changes, and fresh verification within this repo's
   two-document rule.
+- UI UX Pro (`.agents/skills/ui-ux-pro-max/SKILL.md`): vendored MIT search
+  over UI/UX rules (local Python, no network), bound to the existing v3
+  design; its results are reference data, never a new look or a generated
+  design document.
 - GStack (`.agents/skills/gstack/SKILL.md`): a repo-safe review subset, not the
   upstream runtime. No setup, auto-update, telemetry, paid tests, or external
   mutation by default.
