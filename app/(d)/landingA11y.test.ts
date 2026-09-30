@@ -1,0 +1,23 @@
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
+
+// Q41 and Q33 (2026-09-30, from Lighthouse on shiplock.dev): the reasoning
+// animation faded its pending steps to 28% opacity (contrast 1.8 to 2.4 on
+// navy), and the header links wrapped onto two lines at phone width.
+const css = readFileSync("app/(d)/v3.css", "utf8");
+const block = (selector: string) => css.match(new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{([^}]*)\\}`))?.[1] ?? "";
+
+describe("landing accessibility", () => {
+  it("keeps pending animation steps legible: full opacity, muted colours only", () => {
+    expect(block(".v3-reason-step")).not.toMatch(/opacity:\s*\.?[0-2]/);
+    expect(block(".v3-reason-step:not(.on) b")).toMatch(/color:\s*var\(--muted-navy\)/);
+    expect(block(".v3-reason-step:not(.on) small")).toMatch(/color:\s*#7f8fa3/);
+  });
+
+  it("hides the secondary header links on phones so the header stays on one line", () => {
+    expect(css).toMatch(/@media \(max-width: 560px\)\s*\{[^}]*\.v3-nav-links \.v3-nav-secondary\s*\{\s*display:\s*none/);
+    const page = readFileSync("app/(d)/page.tsx", "utf8");
+    expect(page).toMatch(/className="v3-nav-secondary"[^>]*>How it works/);
+    expect(page).toMatch(/className="v3-nav-secondary"[^>]*>What it covers/);
+  });
+});

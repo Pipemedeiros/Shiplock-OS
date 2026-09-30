@@ -27,8 +27,8 @@ export default function Landing() {
           <nav className="v3-nav-top">
             <span className="v3-mark"><LockMark size={20} /> ShipLock</span>
             <div className="v3-nav-links">
-              <a href="#how">How it works</a>
-              <Link href="/coverage">What it covers</Link>
+              <a className="v3-nav-secondary" href="#how">How it works</a>
+              <Link className="v3-nav-secondary" href="/coverage">What it covers</Link>
               <Link href="/auth">Sign in</Link>
               <Link href="/onboarding" className="v3-btn v3-btn-sm v3-ondark">Get started</Link>
             </div>

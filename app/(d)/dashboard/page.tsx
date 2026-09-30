@@ -3,6 +3,10 @@ import { requireDashboardSession } from "@/lib/dashboard";
 import { getOpenFindings, getRecentlyClosed, getRepositories, getRuns } from "@/lib/agent/dashboardData";
 import { Chain, Conf, Sev } from "@/components/v3/FindingParts";
 import { RunAuditButton } from "@/components/v3/RunAuditButton";
+import { RouteMap } from "@/components/v3/RouteMap";
+import { loadRepositoryGraphSource } from "@/lib/graph/repositorySource";
+import { getHotRoutes, type HotRouteOffer } from "@/lib/traffic/hotRoutes";
+import { buildRouteMap } from "@/lib/routeMap";
 
 export const metadata = { title: "Overview" };
 
@@ -19,6 +23,21 @@ export default async function Overview() {
   const lead = findings[0];
   const latest = runs[0];
   const waiting = findings.filter((f) => f.fixKind === "pr");
+
+  // Q27: the map is built only from the last audit's stored route facts.
+  const mapRepo = repos.find((r) => r.fullName === latest?.fullName) ?? repos[0];
+  const noHot: Record<string, HotRouteOffer[]> = {};
+  const [source, hot] = mapRepo && latest
+    ? await Promise.all([loadRepositoryGraphSource(userId, mapRepo.id), getHotRoutes(userId).catch(() => noHot)])
+    : [null, noHot];
+  const map = source?.routes?.length
+    ? buildRouteMap({
+        routes: source.routes,
+        tools: latest?.stack?.tools ?? [],
+        findings: findings.filter((f) => f.repositoryId === mapRepo.id),
+        hotFiles: (hot[mapRepo.id] ?? []).map((h) => h.file),
+      })
+    : null;
 
   if (repos.length === 0) {
     return (
@@ -87,6 +106,18 @@ export default async function Overview() {
               That is not the same as nothing being wrong. See Coverage for what this audit did not reach.
             </p>
           </div>
+        ) : null}
+
+        {map ? (
+          <section aria-labelledby="route-map">
+            <div className="v3-between" style={{ marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
+              <h2 id="route-map" className="v3-eyebrow">Route map</h2>
+              <span className="v3-small">
+                {map.nodes.filter((n) => n.kind === "route").length} routes and {map.nodes.filter((n) => n.kind === "table").length} tables from the last audit. Drag to turn it.
+              </span>
+            </div>
+            <RouteMap map={map} />
+          </section>
         ) : null}
 
         <div className="v3-grid-2">
