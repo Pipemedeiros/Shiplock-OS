@@ -13,7 +13,7 @@ import { getIntelligenceTask, submitIntelligenceResult } from "./tasks";
 // token usage in the stored result are what ShipLock observed, not what the
 // model claimed.
 
-const MODEL = "claude-opus-5";
+const MODEL = "claude-opus-5-5";
 const MAX_OUTPUT = 8000;
 const PROMPT_OVERHEAD = 2500; // system prompt, instruction, schema reminder
 

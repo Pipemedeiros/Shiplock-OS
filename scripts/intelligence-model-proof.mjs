@@ -25,8 +25,8 @@ if (!process.env.ANTHROPIC_API_KEY) {
   if (line) process.env.ANTHROPIC_API_KEY = line.slice("ANTHROPIC_API_KEY=".length).trim().replace(/^["']|["']$/g, "");
 }
 
-const MODEL = "claude-opus-5";
-const PRICE = { input: 5 / 1e6, output: 25 / 1e6 }; // USD per token, first-party rates
+const MODEL = "claude-opus-5-5";
+const PRICE = { input: 4 / 1e6, output: 20 / 1e6 }; // USD per token, Opus 5.5 first-party list rates
 const client = new Anthropic();
 
 const cases = [

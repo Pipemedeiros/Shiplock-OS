@@ -27,7 +27,7 @@ const view = { identity: ids, host: "api", repository: "acme/app", instruction: 
 const input = { userId: ids.tenantId, taskId: ids.taskId, token: "gh", fullName: "acme/app", runTokenBudget: 50_000 };
 const customerKey = "sk-ant-api03-" + "C".repeat(60);
 const answer = (text: string, usage = { input_tokens: 1200, output_tokens: 300 }) =>
-  ({ model: "claude-opus-5", stop_reason: "end_turn", usage, content: [{ type: "text", text }] });
+  ({ model: "claude-opus-5-5", stop_reason: "end_turn", usage, content: [{ type: "text", text }] });
 const modelResult = { version: 1, identity: { ...ids, connectionEpoch: "x", attempt: 9 }, host: "codex", model: "made-up",
   status: "needs_human", summary: "Ownership check missing.", citations: [], edits: [], usage: { inputTokens: 1, outputTokens: 1 } };
 
@@ -47,18 +47,18 @@ describe("API-key mode (10B-2e-2)", () => {
     expect(await runApiModeTask(input)).toBe("answered");
     expect(state.clientKeys).toEqual([customerKey]);
     const request = state.create.mock.calls[0][0];
-    expect(request.model).toBe("claude-opus-5");
+    expect(request.model).toBe("claude-opus-5-5");
     expect(request.max_tokens).toBeLessThanOrEqual(8000);
     expect(JSON.stringify(request)).toContain("app/api/x/route.ts");
     const submitted = state.submit.mock.calls[0][2];
     // Identity, host, model, and usage are ShipLock's observations, not the model's claims.
     expect(submitted.identity).toEqual(ids);
     expect(submitted.host).toBe("api");
-    expect(submitted.model).toBe("claude-opus-5");
+    expect(submitted.model).toBe("claude-opus-5-5");
     expect(submitted.usage).toEqual({ inputTokens: 1200, outputTokens: 300 });
     // Q10: one receipt, customer-funded, bound to the task.
     expect(usageReceipt).toHaveBeenCalledTimes(1);
-    expect(usageReceipt.mock.calls[0][0]).toMatchObject({ purpose: "customer_api", intelligenceTaskId: input.taskId, model: "claude-opus-5" });
+    expect(usageReceipt.mock.calls[0][0]).toMatchObject({ purpose: "customer_api", intelligenceTaskId: input.taskId, model: "claude-opus-5-5" });
   });
 
   it("never runs on ShipLock's key: no saved key means an honest unavailable result and no call", async () => {
