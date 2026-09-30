@@ -61,6 +61,21 @@ describe("API-key mode (10B-2e-2)", () => {
     expect(usageReceipt.mock.calls[0][0]).toMatchObject({ purpose: "customer_api", intelligenceTaskId: input.taskId, model: "claude-opus-5-5" });
   });
 
+  // Q39: the answer shape is enforced by structured outputs, not by asking
+  // for "JSON only" in prose and stripping code fences.
+  it("asks for the answer through a JSON schema and takes only the answer fields from it", async () => {
+    state.create.mockResolvedValue(answer(JSON.stringify({ status: "needs_human", reason: "none", summary: "Ownership check missing.",
+      citations: [], edits: [] })));
+    expect(await runApiModeTask(input)).toBe("answered");
+    const request = state.create.mock.calls[0][0];
+    expect(request.output_config.format.type).toBe("json_schema");
+    expect(request.output_config.format.schema.properties.status.enum).toEqual(["proposed", "needs_human", "unavailable"]);
+    expect(request.system).not.toMatch(/code fences|JSON object only/i);
+    const submitted = state.submit.mock.calls[0][2];
+    expect(submitted).toMatchObject({ version: 1, status: "needs_human", summary: "Ownership check missing.", citations: [], edits: [] });
+    expect(submitted).not.toHaveProperty("reason");
+  });
+
   it("never runs on ShipLock's key: no saved key means an honest unavailable result and no call", async () => {
     state.key.mockResolvedValue(null);
     expect(await runApiModeTask(input)).toBe("unavailable");

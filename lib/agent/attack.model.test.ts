@@ -9,7 +9,7 @@ vi.mock("@anthropic-ai/sdk", () => {
   return { default: Anthropic };
 });
 
-import { HAIKU, proposeAttacks } from "./attack";
+import { maxTokensFor, PROPOSE_MODEL, proposeAttacks, THINKING_HEADROOM } from "./attack";
 import type { RouteFact } from "@/lib/graph/routeInventory";
 
 const route = { path: "/api/orders", file: "app/api/orders/route.ts", methods: ["GET"], tables: ["orders"], authenticated: false,
@@ -21,14 +21,20 @@ const ok = { content: [{ type: "text", text: "[]" }], stop_reason: "end_turn", u
 afterEach(() => { vi.unstubAllEnvs(); create.mockReset(); });
 
 describe("proposeAttacks model override (Q13)", () => {
-  it("without an override sends production's request unchanged", async () => {
+  // Q40 (Felipe: when ShipLock pays, a top model, never a small one): one
+  // Opus 5.5 request; it always thinks, rejects sampling parameters, and its
+  // thinking counts toward max_tokens.
+  it("without an override sends one top-model request with room to think", async () => {
     vi.stubEnv("ANTHROPIC_API_KEY", "test-key");
     create.mockResolvedValue(ok);
     await proposeAttacks(input);
     const request = create.mock.calls[0][0];
-    expect(request.model).toBe(HAIKU);
-    expect(request.temperature).toBe(0);
+    expect(request.model).toBe(PROPOSE_MODEL);
+    expect(PROPOSE_MODEL).toBe("claude-opus-5-5");
+    expect(request).not.toHaveProperty("temperature");
     expect(request).not.toHaveProperty("thinking");
+    expect(request.output_config).toEqual({ effort: "medium" });
+    expect(request.max_tokens).toBe(maxTokensFor(1) + THINKING_HEADROOM);
   });
 
   it("with claude-sonnet-5 sends no temperature and disables thinking", async () => {

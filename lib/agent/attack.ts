@@ -25,11 +25,14 @@ import { applyVerdicts, buildVerifyPrompt, checkVerdicts, parseVerdicts, selectV
  * passes still call Claude zero times (lib/monitoring/findings.ts).
  */
 
-export const HAIKU = "claude-haiku-4-5-20251001";
-export const SONNET = "claude-sonnet-4-6";
-
-/** Above this many interesting entries the reasoning is worth the better model. */
-export const SONNET_ENTRY_THRESHOLD = 25;
+/**
+ * The model ShipLock pays for, when it pays at all (SHIPLOCK_FUNDED_FIRST_SCAN).
+ * Felipe's rule: a top-tier model, never a small one. Opus 5.5 always thinks
+ * and its thinking counts toward max_tokens, so the answer budget below gets
+ * THINKING_HEADROOM on top. It rejects sampling parameters: none are sent.
+ */
+export const PROPOSE_MODEL = "claude-opus-5-5";
+export const THINKING_HEADROOM = 16_000;
 
 // Benchmark overrides and the request each needs: Sonnet 5 rejects sampling
 // parameters and thinks by default, which would spend the output budget.
@@ -443,19 +446,18 @@ export async function proposeAttacks(input: AgentInput): Promise<AgentOutcome> {
   if (input.model !== undefined && !TEST_MODELS[input.model]) {
     throw new Error(`${input.model} is not an allowed test model`);
   }
-  const model = input.model ?? (interesting.length >= SONNET_ENTRY_THRESHOLD ? SONNET : HAIKU);
+  const model = input.model ?? PROPOSE_MODEL;
   const prompt = buildPrompt(input);
 
   try {
     const client = new Anthropic({ apiKey });
     const response = await client.messages.create({
       model,
-      max_tokens: maxTokensFor(interesting.length),
-      // Deterministic decoding. This is an extraction task with a fixed output
-      // schema, not a creative one, and two audits of an unchanged repository
-      // that disagree are two audits the customer cannot trust. Sampling bought
-      // nothing here and cost reproducibility.
-      ...(input.model ? TEST_MODELS[input.model] : { temperature: 0 }),
+      max_tokens: maxTokensFor(interesting.length) + (input.model ? 0 : THINKING_HEADROOM),
+      // 5.5 models take no sampling parameters and always think; the output is
+      // probabilistic, so consistency comes from the guard and the verifier
+      // (verify.ts), which admit only what the code proves.
+      ...(input.model ? TEST_MODELS[input.model] : { output_config: { effort: "medium" as const } }),
       system: SYSTEM,
       messages: [{ role: "user", content: prompt }],
     }, input.timeoutMs ? { timeout: input.timeoutMs } : undefined);

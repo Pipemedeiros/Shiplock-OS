@@ -219,9 +219,8 @@ async function evaluate() {
         new Set(candidates.map((route) => route.path)), new Set(replay.admitted.map((proposal) => proposal.entry)),
         new Set(replay.admitted.filter((proposal) => proposal.attackClass === "possession_gated").map((proposal) => proposal.entry))),
       modelCalls: 0, rawModelResponses: [],
-      plannedModel: reasoned.filter((route) => route.tables.length > 0).length >= product.SONNET_ENTRY_THRESHOLD
-        ? product.SONNET : product.HAIKU,
-      plannedMaxTokens: product.maxTokensFor(reasoned.filter((route) => route.tables.length > 0).length),
+      plannedModel: product.PROPOSE_MODEL,
+      plannedMaxTokens: product.maxTokensFor(reasoned.filter((route) => route.tables.length > 0).length) + product.THINKING_HEADROOM,
       temperature: 0,
     };
     await write(`${pin.id}-inputs.json`, { input, sourceDigests, routes, prompted, candidates, notes, gates: [...gates], labels });
@@ -237,7 +236,7 @@ async function evaluate() {
     manifestSha256: sha(manifestBytes), packageLockSha256: sha(fs.readFileSync(path.join(root, "package-lock.json"))),
     runtime: process.version, runnerSha256: sha(fs.readFileSync(__filename)), toolSources: product.loaded, prediction: manifest.prediction,
     labelProvenance: manifest.labelProvenance, systemPromptSha256: sha(product.SYSTEM),
-    plannedModels: { haiku: product.HAIKU, sonnet: product.SONNET, threshold: product.SONNET_ENTRY_THRESHOLD },
+    plannedModel: product.PROPOSE_MODEL,
     modelCalls: 0, paidApiSpendUsd: 0, repositories: records,
   };
   await write("summary.json", summary);
@@ -300,8 +299,9 @@ async function paid(args) {
       possessionGates: product.possessionGates(routes, files), ...(modelOverride ? { model: modelOverride } : {}) };
     const interesting = reasoned.filter((route) => route.tables.length > 0).length;
     inputs.push({ pin, input, interesting,
-      model: modelOverride ?? (interesting >= product.SONNET_ENTRY_THRESHOLD ? product.SONNET : product.HAIKU),
-      inputChars: product.SYSTEM.length + product.buildPrompt(input).length, maxTokens: product.maxTokensFor(interesting) });
+      model: modelOverride ?? product.PROPOSE_MODEL,
+      inputChars: product.SYSTEM.length + product.buildPrompt(input).length,
+      maxTokens: product.maxTokensFor(interesting) + (modelOverride ? 0 : product.THINKING_HEADROOM) });
   }
   const callable = inputs.filter((i) => i.interesting > 0);
   const plan = paidPlan(callable.map((i) => ({ id: i.pin.id, model: i.model, inputChars: i.inputChars, maxTokens: i.maxTokens })), prices, maxUsd);
