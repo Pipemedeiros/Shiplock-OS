@@ -1,12 +1,12 @@
 import { ImageResponse } from "next/og";
 
-// Site-wide OG/social card (1200×630) rendered with next/og — no binary
+// Site-wide OG/social card (1200×630) rendered with next/og: no binary
 // asset to maintain, and it inherits the Design D palette. Placeholder
 // mark: the LockGlyph drawing from components/d/Brand.tsx; when the
 // owner's logo lands, swap the <svg> block only.
 
 export const runtime = "edge";
-export const alt = "ShipLock — continuous security monitoring for apps in production";
+export const alt = "ShipLock: security monitoring that opens the pull request";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -58,8 +58,8 @@ export default function OpengraphImage() {
             flexDirection: "column",
           }}
         >
-          <span>One permissive policy exposes every row.</span>
-          <span style={{ color: "#8a6b2f", fontStyle: "italic" }}>We find it, fix it, and keep proving it.</span>
+          <span>Security monitoring that</span>
+          <span style={{ color: "#8a6b2f" }}>opens the pull request.</span>
         </div>
         <div
           style={{
@@ -69,7 +69,7 @@ export default function OpengraphImage() {
             display: "flex",
           }}
         >
-          GitHub-first security evidence · reviewable fixes · explicit coverage
+          Code, live stack and traffic, read together.
         </div>
       </div>
     ),

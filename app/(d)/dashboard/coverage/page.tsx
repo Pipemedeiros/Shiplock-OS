@@ -79,7 +79,7 @@ export default async function Coverage() {
             <ul className="v3-small">
               {evidence.items.map((item) => (
                 <li key={item.label} style={{ marginBottom: 12 }}>
-                  <strong>{item.label}</strong>{" — "}
+                  <strong>{item.label}</strong>{": "}
                   {item.completeness === "complete" ? "Collection complete" : item.completeness === "partial" ? "Partial collection" : "Completeness unknown"}
                   <br />
                   {item.recordedAt ? <time dateTime={item.recordedAt}>Recorded {item.recordedAt.replace("T", " ").replace(".000Z", " UTC").replace("Z", " UTC")}</time> : "Recording date unknown"}
@@ -154,7 +154,7 @@ export default async function Coverage() {
               Connecting a read-only database role lets the audit read your access rules directly
               instead of inferring them from code. It is not a setup step and nothing is withheld
               without it. If someone has asked you a security question, the same picture as this
-              page — what was assessed, what could not be, what is open — can be published at a
+              page (what was assessed, what could not be, what is open) can be published at a
               private link from <Link href="/dashboard/settings">Settings</Link>.
             </p>
           </div>

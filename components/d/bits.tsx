@@ -148,7 +148,7 @@ export function Reveal({
   );
 }
 
-const SCRAMBLE_CHARS = "!<>-_\\/[]{}—=+*^?#";
+const SCRAMBLE_CHARS = "!<>-_\\/[]{}=+*^?#";
 
 /** Scramble-then-resolve text reveal — thematically "verification
  * resolving," used sparingly. Server-rendered as the real, final text

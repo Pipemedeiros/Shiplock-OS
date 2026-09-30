@@ -98,7 +98,7 @@ export function VerifiedPanel({
       <p style={{ margin: "0 0 12px", fontSize: 12.5, lineHeight: 1.7, color: "var(--d-muted)" }}>
         A public page you can send to a customer or investor who asks a security question. It shows
         what your last audit assessed, how much of the surface it could not judge, and how many
-        findings are open — counts only, never a finding, an endpoint or a table. It claims nothing
+        findings are open. Counts only, never a finding, an endpoint or a table. It claims nothing
         we did not check. Off until you turn it on.
       </p>
 
