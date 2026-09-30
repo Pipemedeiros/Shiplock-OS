@@ -6,7 +6,7 @@ import { scanSecrets } from "@/lib/deep/githubScan";
 import { scanCredentialHandling } from "@/lib/deep/credentialHandling";
 import { scanNextConfigEnv } from "@/lib/deep/nextConfigEnv";
 import type { RouteFact } from "@/lib/graph/routeInventory";
-import { proposeAttacks, riskyRoutesOmitted, routesOmitted } from "./attack";
+import { proposeAttacks, riskyRoutesOmitted, routesOmitted, verifyAdmitted } from "./attack";
 import { claimFirstScanCredit } from "./firstScanCredit";
 import { recordModelUsage } from "@/lib/cost/modelUsage";
 import { crossTenantNotes, renderCrossTenantNote } from "./crossTenantNotes";
@@ -550,8 +550,35 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       );
     }
 
+    // P1: a proposal is a finding only once the skeptical verifier confirms it
+    // with quotes that exist in the code. The credit that funded the proposal
+    // funds this check; unconfirmed proposals never render as findings.
+    let verified = agent.admitted;
+    let verificationOpen = false;
+    if (!agent.skipped && agent.admitted.length > 0) {
+      step("Checking each proposed path against the code");
+      const check = await verifyAdmitted({
+        admitted: agent.admitted,
+        routes,
+        files: new Map(archive.files.map((f) => [f.path, f.content])),
+        timeoutMs: Math.max(5_000, AUDIT_BUDGET_MS - (Date.now() - startedAt) - 6_000),
+      });
+      for (const usage of check.usages) {
+        await recordModelUsage({ userId, purpose: "first_scan", auditRunId: runId, model: usage.model, usage, stopReason: usage.stopReason });
+      }
+      verified = check.kept;
+      verificationOpen = check.failed || check.unverified > 0;
+      step(
+        `${check.kept.length} confirmed in the code`,
+        [check.refuted ? `${check.refuted} ruled out by the code` : "",
+          check.unverified ? `${check.unverified} could not be confirmed from the code we read and are not shown as findings` : ""]
+          .filter(Boolean).join("; ") || undefined,
+        check.kept.length > 0,
+      );
+    }
+
     const findings = buildFindings({
-      admitted: agent.admitted,
+      admitted: verified,
       deterministic,
       routes,
       stack,
@@ -596,7 +623,7 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       routes.some((route) => !route.identityReadable || !route.ownershipReadable ||
         !route.dataReadable || !route.machineGateReadable || !route.serviceRoleReadable) ||
       routesOmitted({ routes, stack, tables, domain, files: [] }) > 0 ||
-      (agent.unassessed ?? []).length > 0 || (agent.unmatchedEntries ?? []).length > 0;
+      (agent.unassessed ?? []).length > 0 || (agent.unmatchedEntries ?? []).length > 0 || verificationOpen;
     if (preserveExisting) {
       step("Previous findings retained", "This run was incomplete. Earlier findings remain open until they can be reassessed.");
       coverage.push({

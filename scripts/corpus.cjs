@@ -341,6 +341,84 @@ async function paid(args) {
   console.log(`Spent $${summary.paidApiSpendUsd} of a $${maxUsd} cap. Artifacts: ${output}`);
 }
 
+// P1: the skeptical verifier over a paid run's admitted hypotheses, scored
+// against a blind label file when one is given. Paid: same refusals as paid().
+async function verify(runDir, args) {
+  if (!args.includes("--confirm-paid")) throw new Error("Refusing: verify spends ShipLock's API key. Re-run with --confirm-paid.");
+  const valueOf = (flag) => (args.includes(flag) ? args[args.indexOf(flag) + 1] : undefined);
+  const maxUsd = Number(valueOf("--max-usd"));
+  if (!(maxUsd > 0)) throw new Error("Refusing: give a dollar cap with --max-usd <amount>.");
+  const { parsePrices } = await import("./cost-report.mjs");
+  const prices = parsePrices(args.flatMap((arg, i) => (args[i - 1] === "--price" ? [arg] : [])));
+  const dir = path.resolve(root, runDir);
+  const runs = fs.readdirSync(dir).filter((n) => n.endsWith("-paid.json")).sort()
+    .map((n) => JSON.parse(fs.readFileSync(path.join(dir, n), "utf8"))).filter((r) => r.outcome.admitted.length > 0);
+  if (runs.length === 0) throw new Error(`Refusing: no admitted hypotheses in ${runDir}`);
+  if (!process.env.ANTHROPIC_API_KEY) {
+    const line = fs.existsSync(path.join(root, ".env.local"))
+      ? fs.readFileSync(path.join(root, ".env.local"), "utf8").split("\n").find((l) => l.startsWith("ANTHROPIC_API_KEY=")) : null;
+    if (line) process.env.ANTHROPIC_API_KEY = line.slice("ANTHROPIC_API_KEY=".length).trim().replace(/^["']|["']$/g, "");
+  }
+  if (!process.env.ANTHROPIC_API_KEY) throw new Error("Refusing: no ANTHROPIC_API_KEY in the environment or .env.local.");
+  const realFetch = global.fetch;
+  const product = { ...loadProductModules(), ...require("../lib/agent/verify.ts") };
+  const model = valueOf("--model") ?? product.VERIFY_MODEL;
+  const maxTokens = Number(valueOf("--max-tokens") ?? 12000);
+  const budgetChars = Number(valueOf("--budget-chars") ?? 100000);
+  const batches = [];
+  for (const run of runs) {
+    const pin = manifest.repositories.find((p) => p.id === run.record.id);
+    if (!pin || pin.commit !== run.record.commit) throw new Error(`Refusing: ${run.record.id} ran on another commit`);
+    if (await fileHash(archivePath(pin)) !== pin.archiveSha256) throw new Error(`${pin.id}: archive checksum mismatch`);
+    const { routes, files } = await analyzePin(product, pin);
+    const contents = new Map([...files].map(([p, f]) => [p, typeof f === "string" ? f : f.content]));
+    const items = run.outcome.admitted.map((h, i) => ({ id: `${pin.id}#${i}`, entry: h.entry, attackClass: h.attackClass, title: h.title,
+      consequence: h.consequence, citedFiles: h.citedFiles ?? [], handlerFile: routes.find((r) => r.path === h.entry)?.file }));
+    for (let i = 0; i < items.length; i += product.VERIFY_BATCH) batches.push({ pin, items: items.slice(i, i + product.VERIFY_BATCH), files: contents });
+  }
+  const plan = paidPlan(batches.map((b, i) => ({ id: `${b.pin.id}/${i}`, model, maxTokens,
+    inputChars: product.VERIFY_SYSTEM.length + budgetChars + 4000 })), prices, maxUsd);
+  console.log(JSON.stringify({ calls: batches.length, worstCaseUsd: plan.worstCaseUsd, capUsd: maxUsd }));
+  if (!plan.ok) throw new Error(`Refusing, nothing spent: ${plan.reason}`);
+  const output = path.join(dir, `verify-${crypto.randomUUID()}`);
+  await fsp.mkdir(output, { recursive: true });
+  const verdicts = [];
+  let spentUsd = 0;
+  for (const [i, batch] of batches.entries()) {
+    global.fetch = realFetch; // analyzePin pins fetch to the cached archive; the model call needs the real one
+    const outcome = await product.verifyAttacks({ items: batch.items, files: batch.files, model, maxTokens, budgetChars });
+    const row = plan.rows[i];
+    const usd = outcome.usage ? (outcome.usage.input_tokens * row.price.input + outcome.usage.output_tokens * row.price.output) / 1_000_000 : 0;
+    spentUsd += usd;
+    for (const v of outcome.verdicts) verdicts.push({ repository: batch.pin.repository, pin: batch.pin.id, ...v,
+      entry: batch.items.find((it) => it.id === v.id)?.entry });
+    console.log(JSON.stringify({ batch: row.id, skipped: outcome.skipped, skipReason: outcome.skipReason ?? null, usd: Math.round(usd * 1e4) / 1e4,
+      confirmed: outcome.verdicts.filter((v) => v.verdict === "confirmed").length, omitted: outcome.omitted.length }));
+  }
+  const labelsPath = valueOf("--labels");
+  let score = null;
+  if (labelsPath) {
+    const labels = JSON.parse(fs.readFileSync(path.resolve(root, labelsPath), "utf8")).statements.filter((s) => s.inPost !== false);
+    const both = (s, key, value) => s.labelerA?.[key] === value && s.labelerB?.[key] === value;
+    const queue = new Map();
+    for (const s of labels) { const k = `${s.repository}|${s.entry}`; queue.set(k, [...(queue.get(k) ?? []), s]); }
+    for (const v of verdicts) { const list = queue.get(`${v.repository}|${v.entry}`) ?? []; v.label = list.shift() ?? null; }
+    const judged = verdicts.filter((v) => v.label);
+    const tally = (set) => ({ n: set.length, realAgreed: set.filter((v) => both(v.label, "vulnerability", "yes")).length,
+      strict: set.filter((v) => both(v.label, "vulnerability", "yes") && both(v.label, "accurate", "yes")).length });
+    score = { matched: judged.length, of: verdicts.length, all: tally(judged),
+      confirmed: tally(judged.filter((v) => v.verdict === "confirmed")),
+      refuted: tally(judged.filter((v) => v.verdict === "refuted")), unverified: tally(judged.filter((v) => v.verdict === "unverified")) };
+  }
+  const summary = { experiment: "P1-verify", capturedAt: new Date().toISOString(), runDir, model, maxTokens, budgetChars,
+    head: execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim(),
+    systemPromptSha256: sha(product.VERIFY_SYSTEM), calls: batches.length, capUsd: maxUsd, worstCaseUsd: plan.worstCaseUsd,
+    paidApiSpendUsd: Math.round(spentUsd * 1e6) / 1e6, score };
+  await fsp.writeFile(path.join(output, "verdicts.json"), JSON.stringify(verdicts, null, 2) + "\n");
+  await fsp.writeFile(path.join(output, "summary.json"), JSON.stringify(summary, null, 2) + "\n");
+  console.log(JSON.stringify(summary, null, 1));
+}
+
 // Q23: what a customer would read for a paid run's admitted hypotheses,
 // rendered offline through the audit's own buildFindings with the same gates
 // (possession and Q21 one-id) the audit passes. Free; the labelers read this.
@@ -404,6 +482,8 @@ async function main() {
     await holdout(process.argv[3]);
   } else if (process.argv[2] === "paid") {
     await paid(process.argv.slice(3));
+  } else if (process.argv[2] === "verify" && process.argv[3]) {
+    await verify(process.argv[3], process.argv.slice(4));
   } else if (process.argv[2] === "render" && process.argv[3]) {
     await render(process.argv[3]);
   } else {
@@ -412,4 +492,4 @@ async function main() {
 }
 
 module.exports = { paidPlan, loadProductModules, analyzePin, manifest };
-if (require.main === module) main().catch((error) => { console.error(error.message); process.exitCode = 1; });
+if (require.main === module) main().catch((error) => { console.error(process.env.CORPUS_DEBUG ? error.stack : error.message); process.exitCode = 1; });

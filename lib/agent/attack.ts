@@ -4,6 +4,7 @@ import { guardHypotheses, type GuardResult, type ReconIndex } from "./attackGuar
 import { domainPromptLines, type DomainModel } from "./domain";
 import type { PossessionGate } from "./possessionGate";
 import type { StackReport } from "./stack";
+import { applyVerdicts, buildVerifyPrompt, checkVerdicts, parseVerdicts, selectVerifyContext, VERIFY_SCHEMA, VERIFY_SYSTEM, type Verdict, type VerifyItem } from "./verify";
 
 /**
  * The proposing half of the repository agent.
@@ -509,4 +510,80 @@ export async function proposeAttacks(input: AgentInput): Promise<AgentOutcome> {
         : `model call failed: ${message}`,
     };
   }
+}
+
+type VerifyProposal = { entry: string; attackClass: string; title: string; consequence: string; citedFiles?: string[] };
+
+/** P1: the verifier model. A 5.5-generation model (Felipe: never a small one). */
+export const VERIFY_MODEL = "claude-sonnet-5-5";
+const VERIFY_MAX_TOKENS = 16_000;
+/** Claims per verifier call, so each verdict keeps room to cite its lines. */
+export const VERIFY_BATCH = 10;
+
+export interface VerifyOutcome {
+  verdicts: Verdict[];
+  shown: string[];
+  omitted: string[];
+  model: string;
+  skipped: boolean;
+  skipReason?: string;
+  usage?: { model: string; input_tokens: number; output_tokens: number; cache_read_input_tokens: number | null; stopReason: string | null };
+}
+
+/**
+ * Second pass over admitted hypotheses (see verify.ts). Same funding rule as
+ * proposeAttacks: it runs only inside a run that already holds the first-scan
+ * credit, on ShipLock's key. A failure verifies nothing; every claim is then
+ * unverified, which keeps it out of the findings.
+ */
+export async function verifyAttacks(input: { items: VerifyItem[]; files: ReadonlyMap<string, string>; timeoutMs?: number; model?: string;
+  maxTokens?: number; budgetChars?: number }): Promise<VerifyOutcome> {
+  const context = selectVerifyContext(input.items, input.files, input.budgetChars);
+  const unverifiedAll = (reason: string): Verdict[] => input.items.map((item) =>
+    ({ id: item.id, verdict: "unverified", severity: "medium", statement: "", reason, citations: [], citationProblem: "not run" }));
+  const model = input.model ?? VERIFY_MODEL;
+  if (input.items.length === 0) return { verdicts: [], ...context, model: "none", skipped: true, skipReason: "nothing to verify" };
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return { verdicts: unverifiedAll("no model credential configured"), ...context, model: "none", skipped: true, skipReason: "no model credential configured" };
+  try {
+    const client = new Anthropic({ apiKey, maxRetries: 0 });
+    const response = await client.messages.create({
+      model,
+      max_tokens: input.maxTokens ?? VERIFY_MAX_TOKENS,
+      output_config: { effort: "high", format: { type: "json_schema", schema: VERIFY_SCHEMA as unknown as Record<string, unknown> } },
+      system: VERIFY_SYSTEM,
+      messages: [{ role: "user", content: buildVerifyPrompt(input.items, input.files, context) }],
+    }, input.timeoutMs ? { timeout: input.timeoutMs } : undefined);
+    const usage = { model, input_tokens: response.usage.input_tokens, output_tokens: response.usage.output_tokens,
+      cache_read_input_tokens: response.usage.cache_read_input_tokens ?? null, stopReason: response.stop_reason ?? null };
+    const text = response.content.map((block) => (block.type === "text" ? block.text : "")).join("");
+    const raw = response.stop_reason === "refusal" ? null : parseVerdicts(text);
+    if (!raw) return { verdicts: unverifiedAll("the verifier's answer could not be read"), ...context, model, skipped: false, usage };
+    return { verdicts: checkVerdicts(raw, input.items, input.files, new Set(context.shown)), ...context, model, skipped: false, usage };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "unknown";
+    return { verdicts: unverifiedAll(`verification call failed: ${message}`), ...context, model, skipped: true, skipReason: message };
+  }
+}
+
+/**
+ * The audit's use of the verifier: every admitted proposal is checked in
+ * batches; only confirmed ones are kept. `failed` says a call did not return,
+ * so the run's coverage marks verification incomplete.
+ */
+export async function verifyAdmitted<H extends VerifyProposal>(input: { admitted: H[]; routes: { path: string; file: string }[];
+  files: ReadonlyMap<string, string>; timeoutMs?: number }): Promise<{ kept: H[]; refuted: number; unverified: number; failed: boolean;
+  usages: NonNullable<VerifyOutcome["usage"]>[] }> {
+  const items: VerifyItem[] = input.admitted.map((h, i) => ({ id: String(i), entry: h.entry, attackClass: h.attackClass, title: h.title,
+    consequence: h.consequence, citedFiles: h.citedFiles ?? [], handlerFile: input.routes.find((r) => r.path === h.entry)?.file }));
+  const verdicts: Verdict[] = [];
+  const usages: NonNullable<VerifyOutcome["usage"]>[] = [];
+  let failed = false;
+  for (let i = 0; i < items.length; i += VERIFY_BATCH) {
+    const outcome = await verifyAttacks({ items: items.slice(i, i + VERIFY_BATCH), files: input.files, timeoutMs: input.timeoutMs });
+    if (outcome.usage) usages.push(outcome.usage);
+    if (outcome.skipped) failed = true;
+    verdicts.push(...outcome.verdicts);
+  }
+  return { ...applyVerdicts(input.admitted, verdicts), failed, usages };
 }
