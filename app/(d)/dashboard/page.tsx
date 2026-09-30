@@ -161,7 +161,7 @@ export default async function Overview() {
                       className="v3-dot"
                       style={{
                         marginTop: 7,
-                        background: run.status === "failed" ? "var(--crit)" : run.findingsCount > 0 ? "var(--warn)" : "var(--ok)",
+                        background: run.status === "failed" ? "var(--crit)" : run.findingsCount > 0 ? "var(--warn)" : "var(--muted-2)",
                       }}
                     />
                     <span>

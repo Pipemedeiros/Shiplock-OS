@@ -70,9 +70,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
           />
 
           <div className="v3-side-foot">
-            <span className="v3-row" style={{ gap: 7 }}>
-              <i className="v3-dot live" /> Watching
-            </span>
             <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{email}</span>
             <SignOutButton />
           </div>
