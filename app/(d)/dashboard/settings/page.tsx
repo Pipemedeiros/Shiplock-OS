@@ -9,6 +9,8 @@ import { VerifiedPanel } from "@/components/d/VerifiedPanel";
 import { IntelligencePanel } from "@/components/d/IntelligencePanel";
 import { TrafficSites } from "@/components/d/TrafficSites";
 import { BILLING_ENABLED } from "@/lib/access";
+import { BillingActions } from "@/components/v3/BillingActions";
+import { SignOutButton } from "@/components/sign-out-button";
 
 export const metadata = { title: "Settings" };
 
@@ -27,7 +29,7 @@ export default async function SettingsPage() {
     admin
       .from("user_profiles")
       .select(
-        "github_installation_id, is_paid, supabase_mgmt_token_encrypted, supabase_mgmt_project_ref, monitored_project_url, monitored_anon_key_encrypted, postgres_dsn_encrypted, postgres_display, verified_report_enabled, verified_report_token, monitored_app_url"
+        "github_installation_id, is_paid, supabase_mgmt_token_encrypted, supabase_mgmt_project_ref, monitored_project_url, monitored_anon_key_encrypted, postgres_dsn_encrypted, postgres_display, verified_report_enabled, verified_report_token, monitored_app_url, stripe_customer_id"
       )
       .eq("id", userId)
       .single(),
@@ -136,17 +138,41 @@ export default async function SettingsPage() {
         </div>
 
         <div className="v3-card">
-          <div className="v3-hd"><h2 className="v3-eyebrow">Account</h2></div>
+          <div className="v3-hd"><h2 className="v3-eyebrow">Plan and billing</h2></div>
           <div className="v3-card-p">
             <div className="v3-setting">
               <div>
-                <b>{email}</b>
+                <b>{profile?.is_paid ? "Pro" : "Free"}</b>
                 <small>
                   {BILLING_ENABLED
-                    ? "Billing is active."
+                    ? profile?.stripe_customer_id ? "Billed through Stripe. Change your card, see invoices or cancel there." : "No subscription on this account."
                     : "ShipLock is free while it is in preview. There is nothing to pay and no card on file."}
                 </small>
               </div>
+              {profile?.stripe_customer_id ? <BillingActions /> : null}
+            </div>
+          </div>
+        </div>
+
+        <div className="v3-card">
+          <div className="v3-hd"><h2 className="v3-eyebrow">Account</h2></div>
+          <div className="v3-card-p" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            <div className="v3-setting">
+              <div>
+                <b>{email}</b>
+                <small>Signed in with this address.</small>
+              </div>
+              <SignOutButton />
+            </div>
+            <div className="v3-setting">
+              <div>
+                <b>Delete your account</b>
+                <small>
+                  Removes your account, connections and findings. Uninstall the GitHub App from GitHub as well. Deletion is
+                  done by hand today.
+                </small>
+              </div>
+              <a className="v3-btn v3-btn-sm v3-ghost" href="mailto:support@shiplock.dev?subject=Delete%20my%20account">Request deletion</a>
             </div>
           </div>
         </div>

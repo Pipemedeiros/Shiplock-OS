@@ -134,7 +134,7 @@ export function OnboardingFlow({
         <FirstAudit repository={picked[0]} onDone={() => setStep("ai")} />
       ) : null}
 
-      {step === "ai" ? <AiStep onDone={() => router.push("/dashboard")} /> : null}
+      {step === "ai" ? <AiStep onDone={() => router.push("/welcome")} /> : null}
     </div>
   );
 }

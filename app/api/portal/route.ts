@@ -37,12 +37,29 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Billing portal is not configured." }, { status: 500 });
   }
 
+  // Q30: "cancel" opens Stripe's cancel flow for the caller's own active
+  // subscription (looked up from their customer, never from the body) and
+  // lands on /cancelled; anything else opens the portal as before.
+  const body = (await req.json().catch(() => ({}))) as { intent?: unknown };
+  const stripe = getStripe();
   let session;
   try {
-    session = await getStripe().billingPortal.sessions.create({
-      customer: profile.stripe_customer_id,
-      return_url: `${appUrl}/dashboard`,
-    });
+    if (body.intent === "cancel") {
+      const active = await stripe.subscriptions.list({ customer: profile.stripe_customer_id, status: "active", limit: 1 });
+      const subscription = active.data[0]?.id;
+      if (!subscription) return NextResponse.json({ error: "There is no active subscription to cancel." }, { status: 404 });
+      session = await stripe.billingPortal.sessions.create({
+        customer: profile.stripe_customer_id,
+        return_url: `${appUrl}/dashboard/settings`,
+        flow_data: { type: "subscription_cancel", subscription_cancel: { subscription },
+          after_completion: { type: "redirect", redirect: { return_url: `${appUrl}/cancelled` } } },
+      });
+    } else {
+      session = await stripe.billingPortal.sessions.create({
+        customer: profile.stripe_customer_id,
+        return_url: `${appUrl}/dashboard`,
+      });
+    }
   } catch (err) {
     console.error(
       "[portal] stripe.billingPortal.sessions.create failed:",
