@@ -1,58 +1,14 @@
 import type { Metadata } from "next";
-import {
-  Hanken_Grotesk,
-  Fragment_Mono,
-  Chakra_Petch,
-  JetBrains_Mono,
-  Bricolage_Grotesque,
-  Figtree,
-  Newsreader,
-  Geist,
-  Geist_Mono,
-} from "next/font/google";
+import { Newsreader, Geist, Geist_Mono } from "next/font/google";
 import "./design-base.css";
 import "./design-d.css";
 import "./v3.css";
 import { CookieConsent } from "@/components/CookieConsent";
 
-// Real-product layout for the D-skinned routes (/, /auth, /onboarding,
-// /dashboard) — a route group, so it contributes no URL segment. Fonts are
-// self-hosted via next/font so middleware.ts's CSP (style/font 'self')
-// holds without any changes there. Scoped to this group only so /auth and
-// /dashboard-demo and friends keep the root layout's Fraunces/Inter/Plex
-// Mono set untouched.
-
-const hanken = Hanken_Grotesk({
-  variable: "--dx-font-hanken",
-  subsets: ["latin"],
-});
-
-const fragmentMono = Fragment_Mono({
-  variable: "--dx-font-fragment",
-  subsets: ["latin"],
-  weight: "400",
-});
-
-const chakra = Chakra_Petch({
-  variable: "--dx-font-chakra",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
-
-const jetbrains = JetBrains_Mono({
-  variable: "--dx-font-jetbrains",
-  subsets: ["latin"],
-});
-
-const bricolage = Bricolage_Grotesque({
-  variable: "--dx-font-bricolage",
-  subsets: ["latin"],
-});
-
-const figtree = Figtree({
-  variable: "--dx-font-figtree",
-  subsets: ["latin"],
-});
+// Product layout for /, /auth, /onboarding and /dashboard (a route group, so
+// no URL segment). Fonts are self-hosted via next/font so the CSP in proxy.ts
+// (font 'self') holds. Only the v3 families: every family listed here is
+// preloaded on every page (app/fonts.test.ts).
 
 const newsreader = Newsreader({
   variable: "--dx-font-newsreader",
@@ -94,7 +50,7 @@ export default function DLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <div
-      className={`dx-root ${hanken.variable} ${fragmentMono.variable} ${chakra.variable} ${jetbrains.variable} ${bricolage.variable} ${figtree.variable} ${newsreader.variable} ${geist.variable} ${geistMono.variable}`}
+      className={`dx-root ${newsreader.variable} ${geist.variable} ${geistMono.variable}`}
     >
       {children}
       <CookieConsent />
