@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { requireDashboardSession } from "@/lib/dashboard";
-import { getRuns } from "@/lib/agent/dashboardData";
+import { getRepositories, getRuns } from "@/lib/agent/dashboardData";
+import { loadRepositoryGraphSource } from "@/lib/graph/repositorySource";
+import { deriveGuardrails } from "@/lib/guardrails/guardrails";
+import { GuardrailList } from "@/components/v3/GuardrailList";
 import { getEvidenceCoverage } from "@/lib/graph/evidenceCoverage";
 import { getAiActivity } from "@/lib/intelligence/activity";
 import { AiChecks } from "@/components/v3/AiChecks";
@@ -27,6 +30,10 @@ export default async function Coverage() {
   // GitHub tree reads for rate-limit offers; any failure just offers nothing.
   const hotRoutes = await getHotRoutes(userId).catch(() => ({}));
   const latest = runs[0];
+  // G1: the same rules the PR check enforces and MCP serves.
+  const repo = latest ? (await getRepositories(userId)).find((r) => r.fullName === latest.fullName) : undefined;
+  const source = repo ? await loadRepositoryGraphSource(userId, repo.id) : null;
+  const guardrails = repo && source?.routes ? deriveGuardrails(source.routes, { repository: repo.fullName, commit: null }) : null;
 
   return (
     <>
@@ -46,6 +53,13 @@ export default async function Coverage() {
       </div>
 
       {/* Latest read per connected provider (5A-3). */}
+      <div className="v3-card" style={{ marginBottom: 24 }}>
+        <div className="v3-hd">
+          <h2 className="v3-eyebrow">Guardrails</h2>
+        </div>
+        <div className="v3-card-p"><GuardrailList guardrails={guardrails} /></div>
+      </div>
+
       <div className="v3-card" style={{ marginBottom: 24 }}>
         <div className="v3-hd">
           <h2 className="v3-eyebrow">Connected providers</h2>
