@@ -8,7 +8,7 @@
 import { useEffect, useState } from "react";
 import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
 
-/** Flip to true in the same change that publishes `@shiplock/mcp` to npm.
+/** Flip to true in the same change that publishes `shiplock-mcp` to npm.
  * Until then the panel must not hand out a command for a missing package. */
 export const MCP_PACKAGE_PUBLISHED = false;
 
@@ -16,8 +16,8 @@ export interface TokenMeta { id: string; name: string; created_at: string; last_
 type Host = "claude-code" | "codex" | "chatgpt" | "api";
 
 export function setupCommand(host: "claude-code" | "codex", token: string): string {
-  if (host === "claude-code") return `claude mcp add shiplock --env SHIPLOCK_TOKEN=${token} -- npx -y @shiplock/mcp`;
-  return `[mcp_servers.shiplock]\ncommand = "npx"\nargs = ["-y", "@shiplock/mcp"]\nenv = { SHIPLOCK_TOKEN = "${token}" }`;
+  if (host === "claude-code") return `claude mcp add shiplock --env SHIPLOCK_TOKEN=${token} -- npx -y shiplock-mcp`;
+  return `[mcp_servers.shiplock]\ncommand = "npx"\nargs = ["-y", "shiplock-mcp"]\nenv = { SHIPLOCK_TOKEN = "${token}" }`;
 }
 
 const pre = { margin: "6px 0 0", fontSize: 12, lineHeight: 1.5, overflow: "auto" as const, whiteSpace: "pre" as const,

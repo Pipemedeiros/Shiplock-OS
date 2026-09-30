@@ -8,9 +8,9 @@ const html = (props: Partial<Parameters<typeof AgentSetupView>[0]> & { host: Par
 
 describe("AgentSetup (MCP for every account)", () => {
   it("gives Claude Code and Codex the exact setup for the published package", () => {
-    expect(setupCommand("claude-code", "tok")).toBe("claude mcp add shiplock --env SHIPLOCK_TOKEN=tok -- npx -y @shiplock/mcp");
+    expect(setupCommand("claude-code", "tok")).toBe("claude mcp add shiplock --env SHIPLOCK_TOKEN=tok -- npx -y shiplock-mcp");
     expect(setupCommand("codex", "tok")).toContain('[mcp_servers.shiplock]');
-    expect(setupCommand("codex", "tok")).toContain('args = ["-y", "@shiplock/mcp"]');
+    expect(setupCommand("codex", "tok")).toContain('args = ["-y", "shiplock-mcp"]');
     expect(setupCommand("codex", "tok")).toContain('SHIPLOCK_TOKEN = "tok"');
   });
 
@@ -28,7 +28,7 @@ describe("AgentSetup (MCP for every account)", () => {
     expect(out).not.toMatch(/applies the fixes|automatically fix/i);
   });
 
-  it("offers no token or command until @shiplock/mcp is published", () => {
+  it("offers no token or command until shiplock-mcp is published", () => {
     const out = html({ host: "claude-code", published: false });
     expect(out).toContain("opens once the ShipLock MCP package is published");
     expect(out).not.toContain("Create a token");

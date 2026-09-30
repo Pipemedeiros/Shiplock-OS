@@ -1,7 +1,7 @@
 import { beforeEach, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => ({
-  repo: vi.fn(), token: vi.fn(), files: vi.fn(), archive: vi.fn(), post: vi.fn(), scan: vi.fn(), pr: vi.fn(), persist: vi.fn(),
+  repo: vi.fn(), routes: vi.fn(), token: vi.fn(), files: vi.fn(), archive: vi.fn(), post: vi.fn(), scan: vi.fn(), pr: vi.fn(), persist: vi.fn(),
 }));
 vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ from: () => ({ select: () => ({
   eq: () => ({ eq: () => ({ eq: () => ({ maybeSingle: state.repo }) }) }),
@@ -10,6 +10,7 @@ vi.mock("@/lib/deep/github", () => ({
   getInstallationToken: state.token, listPullRequestFiles: state.files, createCheckRun: state.post, getPullRequest: state.pr,
 }));
 vi.mock("@/lib/deep/repoArchive", () => ({ fetchRepoArchive: state.archive }));
+vi.mock("@/lib/graph/routeInventory", () => ({ collectRoutes: state.routes }));
 vi.mock("./stack", () => ({ detectStack: () => ({ framework:"Next.js",language:"TypeScript",router:"App Router",database:[],auth:[],hosting:[],payments:[],services:[],evidence:[] }) }));
 vi.mock("./diffScan", () => ({
   scanDiff: state.scan,
@@ -28,6 +29,7 @@ beforeEach(() => {
   state.post.mockResolvedValue(undefined);
   state.pr.mockResolvedValue({ headRef: "feature/orders", headRepository: "acme/app", sameRepository: true, title: "Add orders", url: "https://github.com/acme/app/pull/7" });
   state.persist.mockResolvedValue(undefined);
+  state.routes.mockReturnValue([]);
 });
 const check = (headSha: string) => runPullRequestCheck({userId:"u",installationId:42,fullName:"acme/app",prNumber:7,headSha,persistReview:state.persist});
 
@@ -72,4 +74,29 @@ it("stores unknown PR metadata as null rather than guessing (8B-1)", async () =>
   state.pr.mockRejectedValue(new Error("GitHub 502"));
   await check("a".repeat(40));
   expect(state.persist.mock.calls[0][0]).toMatchObject({ headRef: null, headRepository: null, sameRepository: null, title: null, url: null });
+});
+
+// G1: the default branch's observed controls are guardrails; a PR that removes
+// one from a route it touches fails, whatever the diff scan said.
+const guarded = (over: object) => ({ path: "/api/orders", file: "app/a.ts", methods: ["GET"], tables: ["orders"], authenticated: true,
+  machineGated: false, usesServiceRole: false, ownershipFiltered: false, identityReadable: true, ownershipReadable: true,
+  dataReadable: true, machineGateReadable: true, serviceRoleReadable: true, identityGap: null, ownershipGap: null, dataGap: null,
+  machineGateGap: null, via: [], ...over });
+
+it("fails a PR that removes an observed session check, and stores the guardrail finding (G1)", async () => {
+  state.routes.mockImplementation((files: { content: string }[]) =>
+    [guarded({ authenticated: !files.some((f) => f.content === "ok") })]);
+  await check("a".repeat(40));
+  expect(state.post.mock.calls[0][3]).toBe("failure");
+  const stored = state.persist.mock.calls[0][0];
+  expect(stored.verdict).toBe("block");
+  expect(stored.findings[0]).toMatchObject({ id: "guardrail:requires_signed_in_caller:/api/orders", severity: "CRITICAL", file: "app/a.ts" });
+});
+
+it("posts neutral, never green, when a guarded route can no longer be read (G1)", async () => {
+  state.routes.mockImplementation((files: { content: string }[]) => files.some((f) => f.content === "ok")
+    ? [guarded({ authenticated: false, identityReadable: false })] : [guarded({})]);
+  await check("a".repeat(40));
+  expect(state.post.mock.calls[0][3]).toBe("neutral");
+  expect(state.post.mock.calls[0][5]).toContain("could not confirm");
 });

@@ -7,6 +7,8 @@ import {
 } from "@/lib/deep/github";
 import { fetchRepoArchive } from "@/lib/deep/repoArchive";
 import { detectStack } from "./stack";
+import { checkGuardrails, deriveGuardrails } from "@/lib/guardrails/guardrails";
+import { collectRoutes } from "@/lib/graph/routeInventory";
 import { checkSummary, scanDiff, type DiffScanResult } from "./diffScan";
 
 /**
@@ -81,16 +83,33 @@ export async function runPullRequestCheck(options: {
   const archive = await fetchRepoArchive(token, fullName).catch(() => null);
   const baseline = archive?.files.filter((f) => !changed.some((c) => c.path === f.path)) ?? [];
 
-  const result = scanDiff({
+  // G1: the controls the default branch has today are guardrails. A change
+  // that removes one from a route it touches blocks, whatever else it does.
+  const afterRoutes = collectRoutes([...baseline, ...changed]);
+  const guardrails = deriveGuardrails(archive ? collectRoutes(archive.files) : [], { repository: fullName, commit: null });
+  const guard = checkGuardrails(guardrails, afterRoutes, new Set(changed.map((file) => file.path)));
+
+  const scanned = scanDiff({
     changed,
     baseline,
     stack: detectStack(archive?.files ?? changed),
+    inventory: afterRoutes,
   });
+  const result = guard.violations.length === 0 ? scanned : {
+    ...scanned,
+    verdict: "block" as const,
+    findings: [
+      ...guard.violations.map((v) => ({ id: `guardrail:${v.id}`, severity: v.severity, title: `Removes a control: ${v.route}`,
+        detail: v.detail, file: v.file, evidence: v.because })),
+      ...scanned.findings,
+    ],
+  };
 
   const base = checkSummary(result);
-  const coverageComplete = diff.complete && archive !== null;
-  const title = coverageComplete ? base.title : `Partial review — ${base.title}`;
-  const coverage = [diff.coverage, archive ? "Repository baseline was readable." : "Repository baseline was unreadable; cross-file route context is incomplete."].join("\n\n");
+  const coverageComplete = diff.complete && archive !== null && guard.unread.length === 0;
+  const title = coverageComplete ? base.title : `Partial review: ${base.title}`;
+  const coverage = [diff.coverage, archive ? "Repository baseline was readable." : "Repository baseline was unreadable; cross-file route context is incomplete.",
+    ...(guard.unread.length ? [`We could not confirm ${guard.unread.length} existing control${guard.unread.length === 1 ? "" : "s"} after this change: ${guard.unread.join(", ")}.`] : [])].join("\n\n");
   const summary = `${base.summary}\n\n### Coverage\n${coverage}`;
   // A partial read can retain a concrete deterministic failure, but may never
   // report success. Neutral is the honest state for a clean or warning-only

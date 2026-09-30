@@ -44,6 +44,12 @@ const TOOLS = [
     inputSchema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
   },
   {
+    name: "get_guardrails",
+    description:
+      "Read the security rules a selected repository must keep, as JSON: for each route that reaches data, which controls ShipLock observed today (signed-in caller required, rows scoped to the caller, machine secret required), the tables involved, and what to keep when editing. Read this before changing a route or its helpers; ShipLock's pull request check blocks a change that removes one of these controls. A route with no rule is not known to be safe: controls ShipLock could not read are never rules. Pass repository as owner/name; it may be omitted when the account has one selected repository. Returns guardrails null when no audit facts exist yet.",
+    inputSchema: { type: "object", properties: { repository: { type: "string", description: "owner/name of a repository selected in ShipLock" } }, additionalProperties: false },
+  },
+  {
     name: "list_intelligence_tasks",
     description:
       "List ShipLock intelligence tasks waiting for this account's coding agent: task id, repository, commit, and instruction. Run on your own schedule; tasks expire, and an unanswered task stays 'AI check pending' in ShipLock.",
@@ -107,6 +113,8 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
       result = await api("/api/mcp/findings");
     } else if (name === "get_fix") {
       result = await api(`/api/mcp/fix?id=${encodeURIComponent(args.id)}`);
+    } else if (name === "get_guardrails") {
+      result = await api(`/api/mcp/guardrails${args.repository ? `?repository=${encodeURIComponent(args.repository)}` : ""}`);
     } else if (name === "list_intelligence_tasks") {
       result = await api("/api/mcp/intelligence/tasks");
     } else if (name === "get_intelligence_task") {
