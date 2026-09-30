@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { Activity, GitPullRequest, Layers, LayoutDashboard, Boxes, Route, Settings } from "lucide-react";
 
@@ -21,6 +21,12 @@ export interface NavItem {
   count?: number;
 }
 
+/** A dot on the clicked tab until its page arrives, so a click always registers. */
+function Pending() {
+  const { pending } = useLinkStatus();
+  return <span aria-hidden className={`v3-nav-pending${pending ? " on" : ""}`} />;
+}
+
 /** Client half of the shell — it only needs the pathname to mark the active tab. */
 export function DashboardNav({ items }: { items: NavItem[] }) {
   const path = usePathname();
@@ -34,6 +40,7 @@ export function DashboardNav({ items }: { items: NavItem[] }) {
             <Icon size={16} />
             <span>{item.label}</span>
             {item.count ? <span className="v3-nav-count">{item.count}</span> : null}
+            <Pending />
           </Link>
         );
       })}

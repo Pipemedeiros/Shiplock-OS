@@ -6,6 +6,7 @@
 // is only ever read through the service-role client and only ever returned when
 // the CURRENT caller is paid — see lib/scanHistory.ts and AGENTS.md.
 
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { getSupabaseServer } from "@/lib/supabaseServer";
 import { getSupabaseAdmin } from "@/lib/supabase";
@@ -21,7 +22,9 @@ export interface DashboardSession {
  * Auth gate + paid status. Every dashboard page and the layout call this;
  * redirects to /auth when there's no session.
  */
-export async function requireDashboardSession(): Promise<DashboardSession> {
+// cache(): the layout and the page both call this; per request it now runs once
+// (one auth check and one profile read instead of two of each).
+export const requireDashboardSession = cache(async (): Promise<DashboardSession> => {
   const supabase = await getSupabaseServer();
   const {
     data: { user },
@@ -45,7 +48,7 @@ export async function requireDashboardSession(): Promise<DashboardSession> {
     provider: user.app_metadata?.provider ?? "email",
     isPaid: profile?.is_paid ?? false,
   };
-}
+});
 
 /**
  * The monitored project's URL, plus the bare project ref parsed out of it for
