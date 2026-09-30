@@ -18,24 +18,27 @@ const isDev = process.env.NODE_ENV !== "production";
 // falling back to 'unsafe-inline' — which would silently defeat the CSP's
 // actual purpose of blocking injected/attacker-controlled inline scripts.
 function buildCsp(nonce: string): string {
+  // Google One Tap: our nonced bundle inserts Google's client script, which
+  // 'strict-dynamic' trusts; the host is listed for browsers without it.
+  const google = "https://accounts.google.com";
   const scriptSrc = isDev
-    ? `'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval'`
-    : `'self' 'nonce-${nonce}' 'strict-dynamic'`;
+    ? `'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval' ${google}/gsi/client`
+    : `'self' 'nonce-${nonce}' 'strict-dynamic' ${google}/gsi/client`;
   // PostHog: the JS bundle ships from our own origin (npm package), but it
   // phones home to us.i.posthog.com (events/remote config) and
   // us-assets.i.posthog.com (surveys/toolbar assets) — both connect-src only.
   const connectSrc = isDev
-    ? "'self' ws: https://api.stripe.com https://*.supabase.co https://us.i.posthog.com https://us-assets.i.posthog.com"
-    : "'self' https://api.stripe.com https://*.supabase.co https://us.i.posthog.com https://us-assets.i.posthog.com";
+    ? `'self' ws: https://api.stripe.com https://*.supabase.co https://us.i.posthog.com https://us-assets.i.posthog.com ${google}`
+    : `'self' https://api.stripe.com https://*.supabase.co https://us.i.posthog.com https://us-assets.i.posthog.com ${google}`;
 
   return [
     "default-src 'self'",
     `script-src ${scriptSrc}`,
-    "style-src 'self' 'unsafe-inline'",
+    `style-src 'self' 'unsafe-inline' ${google}/gsi/style`,
     "img-src 'self' data:",
     "font-src 'self' data:",
     `connect-src ${connectSrc}`,
-    "frame-src https://js.stripe.com https://checkout.stripe.com",
+    `frame-src https://js.stripe.com https://checkout.stripe.com ${google}`,
     "object-src 'none'",
     "base-uri 'self'",
     "frame-ancestors 'none'",

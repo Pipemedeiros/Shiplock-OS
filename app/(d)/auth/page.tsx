@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSupabaseServer } from "@/lib/supabaseServer";
 import { AuthForm } from "@/components/auth-form";
+import { GoogleOneTap } from "@/components/GoogleOneTap";
 import { LockMark } from "@/components/d/Brand";
 import { safeNext } from "@/lib/authRedirect";
 
@@ -42,6 +43,7 @@ export default async function AuthPage({
         padding: "64px 24px",
       }}
     >
+      <GoogleOneTap next={nextPath} />
       <Link
         href="/"
         className="dxd-wordmark"

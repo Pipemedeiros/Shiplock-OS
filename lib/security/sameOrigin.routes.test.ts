@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Every cookie-authenticated mutation (16 routes) refuses a cross-site request before any
+// Every cookie-authenticated mutation (17 routes) refuses a cross-site request before any
 // authentication, storage, GitHub, or provider work. The guard is the first
 // statement, so nothing below it may run; any touched dependency throws.
 const touched = vi.hoisted(() => vi.fn(() => { throw new Error("touched before the same-origin guard"); }));
@@ -23,6 +23,7 @@ const routes: [string, () => Promise<{ POST: (request: Request) => Promise<Respo
   ["proving/run", () => import("@/app/api/proving/run/route")],
   ["fix/rate-limit", () => import("@/app/api/fix/rate-limit/route")],
   ["fix/preview", () => import("@/app/api/fix/preview/route")],
+  ["auth/welcome", () => import("@/app/api/auth/welcome/route")],
 ];
 
 describe("cookie-authenticated mutations refuse cross-site requests first", () => {

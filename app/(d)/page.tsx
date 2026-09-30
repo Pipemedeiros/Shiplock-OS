@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { GoogleOneTap } from "@/components/GoogleOneTap";
 import { ArrowRight, Check } from "lucide-react";
 import { LockMark } from "@/components/d/Brand";
 import { ReasoningAnimation } from "@/components/v3/ReasoningAnimation";
@@ -23,6 +24,7 @@ export default function Landing() {
   return (
     <main className="v3">
       <div className="v3-band">
+        <GoogleOneTap />
         <div className="v3-shell">
           <nav className="v3-nav-top">
             <span className="v3-mark"><LockMark size={20} /> ShipLock</span>

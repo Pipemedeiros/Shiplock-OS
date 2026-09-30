@@ -24,6 +24,19 @@ describe("Section 4 / Step 4A: Next.js proxy boundary", () => {
     expect(response.headers.get("x-middleware-request-x-nonce")).toBeTruthy();
   });
 
+  // Google One Tap (Felipe 2026-09-30): Google's script is loaded by our nonced
+  // bundle (strict-dynamic), and its prompt frame, styles and FedCM calls come
+  // from accounts.google.com. Nothing else is widened.
+  it("allows Google One Tap and nothing broader", async () => {
+    const csp = (await proxy(new NextRequest("https://shiplock.dev/"))).headers.get("content-security-policy") ?? "";
+    const directive = (name: string) => csp.split("; ").find((d) => d.startsWith(`${name} `)) ?? "";
+    expect(directive("frame-src")).toContain("https://accounts.google.com");
+    expect(directive("connect-src")).toContain("https://accounts.google.com");
+    expect(directive("style-src")).toContain("https://accounts.google.com/gsi/style");
+    expect(directive("script-src")).toContain("https://accounts.google.com/gsi/client");
+    expect(csp).not.toMatch(/https:\/\/\*\.google\.com|'unsafe-inline'[^;]*script|script-src[^;]*'unsafe-inline'/);
+  });
+
   it("refreshes auth only when a Supabase session cookie exists", async () => {
     const request = new NextRequest("https://shiplock.dev/dashboard", {
       headers: { cookie: "sb-project-auth-token.0=fixture" },

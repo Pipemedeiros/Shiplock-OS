@@ -26,7 +26,11 @@ export default function PrivacyPage() {
     <LegalPage title="Privacy policy" updated="2026-09-30" other={{ href: "/terms", label: "Terms" }}>
       <section>
         <h2>What we read</h2>
-        <p><b>Your account.</b> Your email address, and the basic profile Google or GitHub shares when you sign in with them.</p>
+        <p>
+          <b>Your account.</b> Your email address, and the basic profile Google or GitHub shares when you sign in with them.
+          Google&apos;s sign-in prompt is shown by Google, and it shares your name, email and picture with us only after you
+          choose to continue.
+        </p>
         <p>
           <b>Your repositories, through the GitHub App.</b> When you install the app and select repositories, we read
           those repositories at a specific commit to audit them: which routes exist, what they check, and which tables
