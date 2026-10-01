@@ -1268,6 +1268,37 @@ try {
       assert.equal(r.u, false, `${role} update`);
     }
   });
+  // 097: a newer queued audit of the same repository supersedes older queued
+  // ones, so the oldest-first queue runs what the customer just asked for and
+  // daily scheduled audits stop piling up while no worker runs.
+  await check("097 cancels older queued audits of the same repository and keeps the newest", async () => {
+    await db.exec("reset role");
+    await db.exec(await readFile(new URL("../supabase/migrations/097_supersede_stale_audits.sql", import.meta.url), "utf8"));
+    await db.exec("set role service_role");
+    const old=(await db.query("select * from public.enqueue_repository_audit($1,$2,'supersede-old')",[u1,r1])).rows[0];
+    const fresh=(await db.query("select * from public.enqueue_repository_audit($1,$2,'supersede-new')",[u1,r1])).rows[0];
+    await db.exec("reset role");
+    await db.query("update public.execution_jobs set created_at=now()-interval '2 days' where id=$1",[old.job_id]);
+    await db.exec("set role service_role");
+    const cancelled=(await db.query("select public.supersede_stale_audits() n")).rows[0].n;
+    assert.ok(cancelled>=1);
+    await db.exec("reset role");
+    const jobs=(await db.query("select id,status,error_code from public.execution_jobs where id=any($1) order by created_at",[[old.job_id,fresh.job_id]])).rows;
+    assert.deepEqual(jobs.map((j)=>j.status),["cancelled","queued"]);
+    assert.equal(jobs[0].error_code,"cancelled");
+    const runs=(await db.query("select id,status,error from public.audit_runs where id=any($1)",[[old.run_id,fresh.run_id]])).rows;
+    const byId=Object.fromEntries(runs.map((r)=>[r.id,r]));
+    assert.equal(byId[old.run_id].status,"failed");
+    assert.match(byId[old.run_id].error,/newer audit/);
+    assert.equal(byId[fresh.run_id].status,"queued");
+    // Running or other repositories' jobs are never touched; client roles cannot call it.
+    assert.equal((await db.query("select public.supersede_stale_audits() n")).rows[0].n,0);
+    for (const role of ["anon","authenticated"]) {
+      await db.exec(`set role ${role}`);
+      await assert.rejects(db.query("select public.supersede_stale_audits()"));
+      await db.exec("reset role");
+    }
+  });
   await check("client roles cannot commit provider results or read snapshots", async () => {
     await db.exec("reset role; set role authenticated");
     await assert.rejects(db.query("select public.persist_provider_monitor_result($1,$1,$1,'postgres-direct','x',null,'[]'::jsonb,false,'[]'::jsonb,'{}'::jsonb)",[legacy]));

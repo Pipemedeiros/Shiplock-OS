@@ -1,10 +1,10 @@
 import { beforeEach, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ auth: vi.fn(), profile: vi.fn(), repository: vi.fn(), filters: vi.fn(),
-  enqueue: vi.fn(), worker: vi.fn(), after: vi.fn() }));
+  enqueue: vi.fn(), worker: vi.fn(), after: vi.fn(), supersede: vi.fn() }));
 vi.mock("next/server", async (original) => ({ ...(await original<typeof import("next/server")>()), after: mocks.after }));
 vi.mock("@/lib/deep/proGate", () => ({ requireProUser: mocks.auth }));
-vi.mock("@/lib/jobs/queue", () => ({ enqueueAuditJob: mocks.enqueue }));
+vi.mock("@/lib/jobs/queue", () => ({ enqueueAuditJob: mocks.enqueue, supersedeStaleAudits: mocks.supersede }));
 vi.mock("@/lib/jobs/auditWorker", () => ({ runNextAuditJob: mocks.worker }));
 vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ from: (table: string) => {
   const query = { eq: (key: string,value: unknown) => { mocks.filters(table,key,value); return query; },
@@ -22,7 +22,7 @@ beforeEach(() => {
   mocks.profile.mockResolvedValue({data:{github_installation_id:42},error:null});
   mocks.repository.mockResolvedValue({data:{id:repo,full_name:"acme/app"},error:null});
   mocks.enqueue.mockResolvedValue({job_id:job,run_id:run}); mocks.worker.mockResolvedValue(true);
-  mocks.after.mockImplementation(() => undefined);
+  mocks.after.mockImplementation(() => undefined); mocks.supersede.mockResolvedValue(3);
 });
 
 it("returns one durable run receipt and schedules its worker after the response", async () => {
@@ -59,4 +59,20 @@ it("tells the customer plainly when the daily manual audit limit is reached (3H-
   expect(response.status).toBe(429);
   expect((await response.json()).error).toMatch(/20 audits in the last 24 hours/);
   expect(mocks.after).not.toHaveBeenCalled();
+});
+
+// 097 (2026-10-01): older queued audits of the repository are replaced before
+// the worker runs, so the click runs the audit just requested, not a stale one.
+it("replaces older queued audits before running the worker", async () => {
+  await POST(request({repository:"acme/app",requestId:"66666666-6666-4666-8666-666666666666"}));
+  await mocks.after.mock.calls[0][0]();
+  expect(mocks.supersede).toHaveBeenCalledOnce();
+  expect(mocks.supersede.mock.invocationCallOrder[0]).toBeLessThan(mocks.worker.mock.invocationCallOrder[0]);
+});
+
+it("still runs the worker when replacing stale audits fails", async () => {
+  mocks.supersede.mockRejectedValue(new Error("db"));
+  await POST(request({repository:"acme/app",requestId:"77777777-7777-4777-8777-777777777777"}));
+  await mocks.after.mock.calls[0][0]();
+  expect(mocks.worker).toHaveBeenCalledOnce();
 });

@@ -2,7 +2,7 @@ import { after, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireProUser } from "@/lib/deep/proGate";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { enqueueAuditJob } from "@/lib/jobs/queue";
+import { enqueueAuditJob, supersedeStaleAudits } from "@/lib/jobs/queue";
 import { runNextAuditJob } from "@/lib/jobs/auditWorker";
 import { crossSiteRefusal } from "@/lib/security/sameOrigin";
 import { quotaResponse } from "@/lib/quota";
@@ -67,6 +67,9 @@ export async function POST(request: Request) {
   try {
     const receipt = await enqueueAuditJob(user.userId, repo.id as string, `manual:${parsed.data.requestId ?? crypto.randomUUID()}`);
     after(async () => {
+      // 097: run the audit just requested, not an older queued one.
+      try { await supersedeStaleAudits(); }
+      catch { console.error("[api/audit] stale audits not superseded"); }
       try { await runNextAuditJob(); }
       catch (err) { console.error("[api/audit] queued worker stopped:", err instanceof Error ? err.message : "unknown error"); }
     });

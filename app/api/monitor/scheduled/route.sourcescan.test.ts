@@ -14,6 +14,7 @@ const pruneOldTrafficMock = vi.fn();
 const purgeIntelligenceMock = vi.fn();
 const pruneSnapshotsMock = vi.fn();
 const enqueueJobMock = vi.fn();
+const supersedeMock = vi.fn();
 
 let tableRows: Record<string, unknown[]> = {};
 
@@ -24,7 +25,7 @@ vi.mock("@/lib/jobs/scheduler", () => ({
   admitDueMonitoringPasses: admitMonitoringMock,
   admitDueIntelligenceScans: admitIntelligenceMock,
 }));
-vi.mock("@/lib/jobs/queue", () => ({ enqueueJob: enqueueJobMock }));
+vi.mock("@/lib/jobs/queue", () => ({ enqueueJob: enqueueJobMock, supersedeStaleAudits: supersedeMock }));
 vi.mock("@/lib/traffic/prune", () => ({ pruneOldTraffic: pruneOldTrafficMock }));
 vi.mock("@/lib/intelligence/retention", () => ({ purgeIntelligenceTasks: purgeIntelligenceMock }));
 vi.mock("@/lib/monitoring/snapshotRetention", () => ({ pruneProviderSnapshots: pruneSnapshotsMock }));
@@ -75,6 +76,7 @@ function request(secret = "cron-dummy") {
 
 describe("GET /api/monitor/scheduled — durable source admission", () => {
   beforeEach(() => {
+    supersedeMock.mockReset().mockResolvedValue(5);
     vi.clearAllMocks();
     tableRows = {};
     admitAuditsMock.mockResolvedValue({ eligible: 3, admitted: 2, failed: 1, limited: false });
@@ -127,6 +129,17 @@ describe("GET /api/monitor/scheduled — durable source admission", () => {
       monitorAdmissionsFailed: 1,
       monitorAdmissionLimited: false,
     });
+  });
+
+  // 097 (2026-10-01): after the day's audits are admitted, older queued audits
+  // of the same repository are replaced; a failure here never fails the pass.
+  it("replaces stale queued audits after admission and reports how many", async () => {
+    const body = await (await GET(request())).json();
+    expect(supersedeMock).toHaveBeenCalledOnce();
+    expect(supersedeMock.mock.invocationCallOrder[0]).toBeGreaterThan(admitAuditsMock.mock.invocationCallOrder[0]);
+    expect(body.staleAuditsReplaced).toBe(5);
+    supersedeMock.mockRejectedValue(new Error("db"));
+    expect((await GET(request())).status).toBe(200);
   });
 
   it("returns a retryable failure before side effects when either admission fails", async () => {

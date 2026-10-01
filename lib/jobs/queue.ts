@@ -150,3 +150,16 @@ export async function executeClaimedJob(job: ClaimedJob, stages: readonly ((job:
     throw error;
   }
 }
+
+/**
+ * Migration 097: keep only the newest queued manual or scheduled audit per
+ * repository, so the oldest-first queue runs what was just requested and
+ * scheduled audits do not pile up while no worker runs. Returns how many were
+ * replaced.
+ */
+export async function supersedeStaleAudits(): Promise<number> {
+  const { data, error } = await getSupabaseAdmin().rpc("supersede_stale_audits");
+  if (error) throw new Error("Stale audits could not be superseded");
+  return z.number().int().nonnegative().parse(data);
+}
+

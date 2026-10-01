@@ -15,7 +15,7 @@ import {
   admitDueRepositorySourceScans,
   admitDueIntelligenceScans,
 } from "@/lib/jobs/scheduler";
-import { enqueueJob } from "@/lib/jobs/queue";
+import { enqueueJob, supersedeStaleAudits } from "@/lib/jobs/queue";
 
 // Provider monitoring and all repository scans are admitted into the durable
 // queue. This route still performs bounded traffic aggregation, graph admission,
@@ -58,6 +58,9 @@ export async function GET(req: NextRequest) {
     console.error("[monitor/scheduled] durable work admission failed");
     return NextResponse.json({ error: "Scheduled work could not be queued." }, { status: 503 });
   }
+
+  // 097: keep only the newest queued audit per repository (fail-soft).
+  const staleAuditsReplaced = await supersedeStaleAudits().catch(() => 0);
 
   // Piggyback traffic-layer retention on the existing daily cron (Hobby plan
   // allows only daily-frequency crons, so we reuse this entry rather than add
@@ -150,6 +153,7 @@ export async function GET(req: NextRequest) {
   const expired = await expirePrepaidTerms();
 
   return NextResponse.json({
+    staleAuditsReplaced,
     checked: monitoringAdmission.eligible,
     succeeded: monitoringAdmission.admitted,
     failed: monitoringAdmission.failed,
