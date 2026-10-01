@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { parseRouteFacts, type MapRoute } from "@/lib/routeMap";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { Claim, Confidence, FixKind } from "./findings";
@@ -71,7 +72,8 @@ function severityRank(severity: Severity): number {
   return severity === "CRITICAL" ? 0 : severity === "WARNING" ? 1 : 2;
 }
 
-export async function getOpenFindings(userId: string): Promise<DashboardFinding[]> {
+// cache(): the dashboard layout and page both ask, once per request.
+export const getOpenFindings = cache(async (userId: string): Promise<DashboardFinding[]> => {
   const admin = getSupabaseAdmin();
 
   const { data } = await admin
@@ -112,7 +114,7 @@ export async function getOpenFindings(userId: string): Promise<DashboardFinding[
       };
     })
     .sort((a, b) => severityRank(a.severity) - severityRank(b.severity));
-}
+});
 
 export async function getRuns(userId: string, limit = 20): Promise<DashboardRun[]> {
   const admin = getSupabaseAdmin();
@@ -144,7 +146,7 @@ export async function getRuns(userId: string, limit = 20): Promise<DashboardRun[
   }));
 }
 
-export async function getRepositories(userId: string): Promise<DashboardRepo[]> {
+export const getRepositories = cache(async (userId: string): Promise<DashboardRepo[]> => {
   const admin = getSupabaseAdmin();
   const { data } = await admin
     .from("repositories")
@@ -158,7 +160,7 @@ export async function getRepositories(userId: string): Promise<DashboardRepo[]> 
     fullName: String(row.full_name),
     lastAuditAt: (row.last_audit_at as string) ?? null,
   }));
-}
+});
 
 /** Findings closed since a given point, for the "what changed" panel. */
 export async function getRecentlyClosed(userId: string, days = 30): Promise<{ title: string; when: string }[]> {

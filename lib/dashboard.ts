@@ -26,13 +26,17 @@ export interface DashboardSession {
 // (one auth check and one profile read instead of two of each).
 export const requireDashboardSession = cache(async (): Promise<DashboardSession> => {
   const supabase = await getSupabaseServer();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  // getClaims verifies the access token locally against the project's ES256
+  // key (JWKS cached), so a click no longer waits on the auth server. It
+  // refreshes a token about to expire, and rejects a bad signature or an
+  // expired token. PostgREST trusts the same token for RLS, so the boundary
+  // is unchanged; getUser cost a network round trip on every page.
+  const { data, error } = await supabase.auth.getClaims();
+  const claims = error ? null : data?.claims;
+  if (!claims?.sub) {
     redirect("/auth");
   }
+  const user = { id: claims.sub, email: claims.email as string | undefined, app_metadata: claims.app_metadata as { provider?: string } | undefined };
 
   // RLS-scoped read — the "users can read own profile" policy restricts this to
   // the caller's own row regardless of which auth method they used.

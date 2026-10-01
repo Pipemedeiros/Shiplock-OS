@@ -26,14 +26,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // A brand new account has nothing to show. Sending them to the dashboard's
   // empty state and asking them to find the link is a dead end; onboarding is
   // where the product actually starts.
-  const { data: profile } = await getSupabaseAdmin()
-    .from("user_profiles")
-    .select("github_installation_id")
-    .eq("id", userId)
-    .single();
+  // One round trip, not two: the onboarding check runs beside the sidebar reads.
+  const [{ data: profile }, findings, repos] = await Promise.all([
+    getSupabaseAdmin().from("user_profiles").select("github_installation_id").eq("id", userId).single(),
+    getOpenFindings(userId),
+    getRepositories(userId),
+  ]);
   if (!profile?.github_installation_id) redirect("/onboarding");
-
-  const [findings, repos] = await Promise.all([getOpenFindings(userId), getRepositories(userId)]);
 
   return (
     <div className="v3">
