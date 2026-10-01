@@ -34,26 +34,23 @@ export default async function Stack() {
     <>
       <div className="v3-page-hd">
         <div>
+          {latest ? <p className="v3-eyebrow">{latest.fullName} · Last audit <When at={latest.startedAt} /></p> : null}
           <h1>Stack</h1>
-          <p className="v3-sub" style={{ marginTop: 8, maxWidth: 620 }}>
-            Your repository already declares what your system talks to: the manifest, the imports,
-            the environment variable names, the schema. Nothing here was typed in.
-          </p>
         </div>
       </div>
 
       {!latest ? (
         <div className="v3-empty">
-          <p>No audit has run yet, so there is nothing read.</p>
+          <p>No audits yet.</p>
           <Link href="/onboarding" className="v3-btn v3-btn-sm v3-primary" style={{ marginTop: 16 }}>
-            Run the first audit
+            Run an audit
           </Link>
         </div>
       ) : !stack ? (
         // Deliberately not an empty stack: this run predates the column, and
         // "we did not record it" must not render as "your app uses nothing".
         <div className="v3-empty">
-          <p>This audit ran before we started recording the stack. The next one will show it.</p>
+          <p>Your stack appears after the next audit.</p>
         </div>
       ) : (
         <div className="v3-stack">
@@ -66,22 +63,9 @@ export default async function Stack() {
                 <p className="v3-serif" style={{ fontSize: 18, lineHeight: 1.45, maxWidth: 720 }}>
                   {domain.summary}
                 </p>
-                {domain.tenantKey ? (
-                  <p className="v3-sub" style={{ marginTop: 12, fontSize: 14 }}>
-                    We treat <code className="v3-file">{domain.tenantKey}</code> as the line between
-                    one customer and another. A route that reads a table without it is reading across
-                    that line, and that is the first thing every audit looks for.
-                  </p>
-                ) : (
-                  <p className="v3-sub" style={{ marginTop: 12, fontSize: 14 }}>
-                    We could not identify the column that separates one customer&apos;s rows from
-                    another&apos;s, so we do not assume one. Findings about cross-customer access stay
-                    conservative rather than guessing at your ownership model.
-                  </p>
-                )}
-                <p className="v3-small" style={{ marginTop: 12 }}>
-                  Read from your schema and routes. It shapes what the audit looks for, and is never
-                  a finding on its own.
+                <p className="v3-small" style={{ marginTop: 10 }}>
+                  Tenant column:{" "}
+                  {domain.tenantKey ? <code className="v3-file">{domain.tenantKey}</code> : "not identified, so cross customer findings stay conservative"}
                 </p>
               </div>
             </div>
@@ -89,10 +73,8 @@ export default async function Stack() {
 
           <div className="v3-card">
             <div className="v3-hd">
-              <h2 className="v3-eyebrow">{stack.tools.length} identified</h2>
-              <span className="v3-small">
-                from {latest.fullName} · <When at={latest.startedAt} date />
-              </span>
+              <h2 className="v3-eyebrow">Services</h2>
+              <span className="v3-small">{stack.tools.length} detected</span>
             </div>
             <div className="v3-card-p v3-grid-2" style={{ gap: 14 }}>
               {stack.tools.map((tool) => {
@@ -131,16 +113,14 @@ export default async function Stack() {
               <div className="v3-card-p">
                 {stack.authUnknown ? (
                   <p style={{ marginBottom: 8 }}>
-                    <strong style={{ fontWeight: 500 }}>No auth provider recognised.</strong>{" "}
-                    Findings that turn on who a caller is stay inferred. We cannot tell an
-                    unauthenticated route from one guarded by something we do not know the shape of.
+                    <strong style={{ fontWeight: 500 }}>Auth provider not identified.</strong>{" "}
+                    Findings about who a caller is stay inferred.
                   </p>
                 ) : null}
                 {stack.databaseUnknown ? (
                   <p>
-                    <strong style={{ fontWeight: 500 }}>No database recognised.</strong>{" "}
-                    We can see which code paths exist, not what they read. Table-level reasoning is
-                    limited to what the schema files declare.
+                    <strong style={{ fontWeight: 500 }}>Database not identified.</strong>{" "}
+                    Table checks use schema files only.
                   </p>
                 ) : null}
               </div>
@@ -152,12 +132,9 @@ export default async function Stack() {
               <h2 className="v3-eyebrow">Needs a live connection</h2>
             </div>
             <div className="v3-card-p">
-              <p style={{ maxWidth: 720 }}>
-                A row policy, a bucket permission and a production environment variable do not live
-                in your repository. Findings that depend on them are labelled{" "}
-                <strong style={{ fontWeight: 500 }}>inferred</strong> and stay that way. Connecting
-                your database read-only turns some of them into findings we can reproduce. That is an
-                upgrade, never a requirement.
+              <p className="v3-sub" style={{ maxWidth: 720, fontSize: 14 }}>
+                Row policies, bucket permissions and production settings live outside your repository.
+                Connect your database read only to verify them. Optional.
               </p>
               <Link
                 href="/dashboard/settings"

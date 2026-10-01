@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { requireDashboardSession } from "@/lib/dashboard";
 import { getOpenFindings } from "@/lib/agent/dashboardData";
-import { getRecentPullRequestReviews, type PullRequestReviewView } from "@/lib/agent/pullRequestReviews";
+import { getRecentPullRequestReviews } from "@/lib/agent/pullRequestReviews";
 import { Sev } from "@/components/v3/FindingParts";
-import { PullRequestFixButton } from "@/components/v3/PullRequestFixButton";
-import { aiCheckForPullRequest, getAiActivity, type AiActivity } from "@/lib/intelligence/activity";
-import { aiStateLabel } from "@/components/v3/AiChecks";
+import { getAiActivity } from "@/lib/intelligence/activity";
 import { OpenedPullRequests } from "@/components/v3/OpenedPullRequests";
 import { getOpenedPullRequests } from "@/lib/fixes/openedPullRequests";
 import { getCiStatuses } from "@/lib/fixes/prCiStatus";
+import { Fold } from "@/components/v3/Fold";
+import { CheckedPullRequests } from "@/components/v3/CheckedPullRequests";
 
 /**
  * The pull requests ShipLock opened, waiting on a human.
@@ -41,10 +41,7 @@ export default async function PullRequests() {
       <div className="v3-page-hd">
         <div>
           <h1>Pull requests</h1>
-          <p className="v3-sub" style={{ marginTop: 8, maxWidth: 620 }}>
-            Every pull request you open is checked, and each fix we open is a branch of its own. We
-            never merge, and we never push to your default branch. Approving is yours.
-          </p>
+          <p className="v3-small" style={{ marginTop: 6 }}>Checked automatically. Fixes open only when you click. ShipLock never merges.</p>
         </div>
       </div>
 
@@ -55,15 +52,10 @@ export default async function PullRequests() {
         <OpenedPullRequests opened={opened} ci={ci} />
 
         {eligible.length > 0 ? (
-          <div className="v3-card">
-            <div className="v3-hd">
-              <h2 className="v3-eyebrow">In progress</h2>
-              <span className="v3-small">{eligible.length}</span>
-            </div>
-            <div className="v3-card-p">
+          <Fold title="Ready to fix" status={`${eligible.length} without a pull request`}>
+            <div>
               <p className="v3-small" style={{ marginBottom: 12 }}>
-                These have a mechanical fix and no pull request yet. Open one from Risks when you
-                are ready; nothing is opened without your click.
+                Open a fix from Issues. Nothing is opened without your click.
               </p>
               <div className="v3-list">
                 {eligible.map((f) => (
@@ -74,19 +66,14 @@ export default async function PullRequests() {
                 ))}
               </div>
             </div>
-          </div>
+          </Fold>
         ) : null}
 
         {manual.length > 0 ? (
-          <div className="v3-card">
-            <div className="v3-hd">
-              <h2 className="v3-eyebrow">Manual fixes</h2>
-              <span className="v3-small">{manual.length}</span>
-            </div>
-            <div className="v3-card-p">
+          <Fold title="Manual fixes" status={`${manual.length} need your decision`}>
+            <div>
               <p className="v3-small" style={{ marginBottom: 12 }}>
-                These are decisions about your architecture rather than mechanical changes. Writing
-                the patch for you would be guessing at what you meant.
+                Architecture decisions, not mechanical changes, so ShipLock does not write the patch.
               </p>
               <div className="v3-list">
                 {manual.map((f) => (
@@ -97,85 +84,12 @@ export default async function PullRequests() {
                 ))}
               </div>
               <Link href="/dashboard/risks" className="v3-btn v3-btn-sm v3-ghost" style={{ marginTop: 12 }}>
-                Read the reasoning
+                View issues
               </Link>
             </div>
-          </div>
+          </Fold>
         ) : null}
       </div>
     </>
-  );
-}
-
-const verdictLabel: Record<PullRequestReviewView["verdict"], string> = {
-  block: "Risk found, check failed",
-  warn: "Worth a look",
-  pass: "Nothing found",
-};
-
-/** Your own pull requests as ShipLock checked them (8B-2): what each one
- * introduced, where, and how much of it we could read. */
-function aiLine(ai: AiActivity, review: PullRequestReviewView): string {
-  if (!ai.available) return "state unknown.";
-  const check = aiCheckForPullRequest(ai.checks, review.repository, review.number, review.headSha);
-  return check ? aiStateLabel[check.state] : "none requested for this commit. Not checked by AI.";
-}
-
-function CheckedPullRequests({ reviews, ai }: { reviews: PullRequestReviewView[]; ai: AiActivity }) {
-  return (
-    <div className="v3-card">
-      <div className="v3-hd">
-        <h2 className="v3-eyebrow">Pull request checks</h2>
-        <span className="v3-small">{reviews.length} recent</span>
-      </div>
-      <div className="v3-card-p">
-        {reviews.length === 0 ? (
-          <p className="v3-small">
-            No pull request has been checked yet. Each new pull request on a selected repository is
-            checked automatically, and the result shows up here and on GitHub.
-          </p>
-        ) : (
-          <div className="v3-list">
-            {reviews.map((review) => (
-              <div key={review.id} className="v3-row-pad">
-                <div className="v3-between">
-                  <b style={{ fontWeight: 500, fontSize: 14 }}>
-                    {review.title ?? `Pull request #${review.number}`}
-                  </b>
-                  <span className="v3-small">{verdictLabel[review.verdict]}</span>
-                </div>
-                <p className="v3-small" style={{ marginTop: 3 }}>
-                  #{review.number} · {review.repository}
-                  {review.headRef ? ` · ${review.headRef}` : ""}
-                  {review.coverageComplete ? "" : " · partial check, some files were not read"}
-                </p>
-                <p className="v3-small" style={{ marginTop: 3 }}>
-                  AI check: {aiLine(ai, review)}
-                </p>
-                {review.findings.map((finding) => (
-                  <div key={finding.id} style={{ marginTop: 8 }}>
-                    <div className="v3-between">
-                      <span style={{ fontSize: 13 }}>{finding.title}</span>
-                      <Sev severity={finding.severity} />
-                    </div>
-                    <p className="v3-small" style={{ marginTop: 2 }}>{finding.file}. {finding.evidence}</p>
-                    {review.sameRepository && review.headRef ? (
-                      <PullRequestFixButton reviewId={review.id} findingId={finding.id} />
-                    ) : review.sameRepository === false ? (
-                      <p className="v3-small" style={{ marginTop: 2 }}>From a fork, so the fix is yours to push.</p>
-                    ) : null}
-                  </div>
-                ))}
-                {review.url ? (
-                  <a href={review.url} target="_blank" rel="noreferrer" className="v3-btn v3-btn-sm v3-ghost" style={{ marginTop: 10 }}>
-                    Open on GitHub
-                  </a>
-                ) : null}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
   );
 }

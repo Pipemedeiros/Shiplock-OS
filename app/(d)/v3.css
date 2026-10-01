@@ -618,3 +618,20 @@
 /* .v3 button { color: inherit } outranks .v3-primary; buttons need their own text colour. */
 .v3 button.v3-primary { color: #fff; }
 .v3 button.v3-ondark { color: #eef2f7; }
+/* Fold: a card that opens on a click (Coverage, Stack, Pull requests). */
+.v3-fold > summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 52px; padding: 0 var(--pad);
+  cursor: pointer; list-style: none; }
+.v3-fold > summary::-webkit-details-marker { display: none; }
+.v3-fold > summary::after { content: ""; width: 7px; height: 7px; border-right: 1.5px solid var(--muted-2); border-bottom: 1.5px solid var(--muted-2);
+  transform: rotate(45deg); margin-left: 4px; transition: transform 120ms; flex: none; }
+.v3-fold[open] > summary::after { transform: rotate(-135deg); }
+.v3-fold > summary .v3-small { margin-left: auto; text-align: right; }
+.v3-fold[open] > summary { border-bottom: 1px solid var(--line-2); }
+.v3-fold > summary:hover { background: var(--sand); }
+.v3-prrow { border-bottom: 1px solid var(--line-2); }
+.v3-prrow:last-child { border-bottom: 0; }
+.v3-prrow > summary { display: flex; align-items: center; gap: 10px; min-height: 48px; cursor: pointer; list-style: none; flex-wrap: wrap; }
+.v3-prrow > summary::-webkit-details-marker { display: none; }
+.v3-prrow > summary b { font-weight: 500; font-size: 14px; min-width: 0; overflow-wrap: anywhere; }
+.v3-prrow > summary .v3-small { margin-left: auto; }
+.v3-prrow-body { padding: 0 0 14px; }

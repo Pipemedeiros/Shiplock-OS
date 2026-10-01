@@ -13,6 +13,7 @@ import { getTrafficSources } from "@/lib/traffic/sourceStatus";
 import { TrafficSources } from "@/components/v3/TrafficSources";
 import { getHotRoutes } from "@/lib/traffic/hotRoutes";
 import { When } from "@/components/v3/When";
+import { Fold } from "@/components/v3/Fold";
 
 export const metadata = { title: "Coverage" };
 
@@ -26,154 +27,109 @@ export const metadata = { title: "Coverage" };
  */
 export default async function Coverage() {
   const { userId } = await requireDashboardSession();
-  const [runs, evidence, ai, providers, traffic] = await Promise.all([getRuns(userId, 1), getEvidenceCoverage(userId),
-    getAiActivity(userId), getProviderCoverage(userId), getTrafficSources(userId)]);
-  // GitHub tree reads for rate-limit offers; any failure just offers nothing.
-  const hotRoutes = await getHotRoutes(userId).catch(() => ({}));
+  const [runs, evidence, ai, providers, traffic, hotRoutes, repos] = await Promise.all([getRuns(userId, 1), getEvidenceCoverage(userId),
+    getAiActivity(userId), getProviderCoverage(userId), getTrafficSources(userId),
+    // GitHub tree reads for rate-limit offers; any failure just offers nothing.
+    getHotRoutes(userId).catch(() => ({})), getRepositories(userId)]);
   const latest = runs[0];
   // G1: the same rules the PR check enforces and MCP serves.
-  const repo = latest ? (await getRepositories(userId)).find((r) => r.fullName === latest.fullName) : undefined;
+  const repo = latest ? repos.find((r) => r.fullName === latest.fullName) : undefined;
   const source = repo ? await loadRepositoryGraphSource(userId, repo.id) : null;
   const guardrails = repo && source?.routes ? deriveGuardrails(source.routes, { repository: repo.fullName, commit: null }) : null;
+
+  const aiStatus = !ai.available ? "Unavailable" : ai.paused ? "Not running" : `${ai.checks.length} ${ai.checks.length === 1 ? "check" : "checks"}`;
+  const providerStatus = !providers.available ? "Unavailable"
+    : providers.items.length === 0 ? "None connected" : `${providers.items.filter((p) => p.state === "complete").length} of ${providers.items.length} read in full`;
+  const trafficStatus = !traffic.available ? "Unavailable" : `${traffic.items.length} ${traffic.items.length === 1 ? "repository" : "repositories"}`;
+  const evidenceStatus = !evidence.available ? "Unavailable" : `${evidence.items.length} ${evidence.items.length === 1 ? "source" : "sources"}`;
 
   return (
     <>
       <div className="v3-page-hd">
         <div>
+          {latest ? <p className="v3-eyebrow">{latest.fullName} · Last audit <When at={latest.startedAt} /></p> : null}
           <h1>Coverage</h1>
         </div>
       </div>
 
-      {/* Work handed to the customer's own AI (10B-2d). Unanswered is not clean. */}
-      <div className="v3-card" style={{ marginBottom: 24 }}>
-        <div className="v3-hd">
-          <h2 className="v3-eyebrow">AI checks</h2>
-        </div>
-        <div className="v3-card-p"><AiChecks activity={ai} /></div>
-      </div>
+      <div className="v3-stack">
+        {!latest ? (
+          <div className="v3-empty">
+            <p>No audits yet.</p>
+            <Link href="/onboarding" className="v3-btn v3-btn-sm v3-primary" style={{ marginTop: 16 }}>Run an audit</Link>
+          </div>
+        ) : (
+          <>
+            <div className="v3-metrics">
+              <Stat label="Files read" value={latest.filesRead ?? 0} />
+              <Stat label="Entry points" value={latest.entriesFound ?? 0} />
+              <Stat label="Tables" value={latest.tablesFound ?? 0} />
+              <Stat label="Not checked" value={latest.coverage.length} warn />
+            </div>
 
-      {/* Latest read per connected provider (5A-3). */}
-      <div className="v3-card" style={{ marginBottom: 24 }}>
-        <div className="v3-hd">
-          <h2 className="v3-eyebrow">Guardrails</h2>
-        </div>
-        <div className="v3-card-p"><GuardrailList guardrails={guardrails} /></div>
-      </div>
+            <div className="v3-card">
+              <div className="v3-hd">
+                <h2 className="v3-eyebrow">Not checked</h2>
+              </div>
+              <div className="v3-card-p v3-cov">
+                {latest.coverage.length === 0 ? (
+                  <p className="v3-small">No gaps were recorded for this audit.</p>
+                ) : (
+                  latest.coverage.map((c) => (
+                    <div key={c.name}>
+                      <b>{c.name}</b>
+                      <span style={{ fontSize: 14, color: "var(--muted)" }}>
+                        {c.why}
+                        <small style={{ display: "block", marginTop: 5, fontFamily: "inherit", fontSize: 13 }}>{c.effect}</small>
+                      </span>
+                      {c.upgrade ? <Link href="/dashboard/settings" className="v3-btn v3-btn-sm v3-ghost">{c.upgrade}</Link>
+                        : <span className="v3-small">Nothing to connect</span>}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </>
+        )}
 
-      <div className="v3-card" style={{ marginBottom: 24 }}>
-        <div className="v3-hd">
-          <h2 className="v3-eyebrow">Connected providers</h2>
-        </div>
-        <div className="v3-card-p"><ProviderCoverage coverage={providers} /></div>
-      </div>
-
-      {/* Per repository traffic source (Q3 / 2F-5). */}
-      <div className="v3-card" style={{ marginBottom: 24 }}>
-        <div className="v3-hd">
-          <h2 className="v3-eyebrow">Traffic</h2>
-        </div>
-        <div className="v3-card-p"><TrafficSources sources={traffic} offers={hotRoutes} /></div>
-      </div>
-
-      <div className="v3-card" style={{ marginBottom: 24 }}>
-        <div className="v3-hd">
-          <h2 className="v3-eyebrow">Stored evidence</h2>
-        </div>
-        <div className="v3-card-p">
+        {/* Work handed to the customer's own AI (10B-2d). Unanswered is not clean. */}
+        <Fold title="AI checks" status={aiStatus}><AiChecks activity={ai} /></Fold>
+        <Fold title="Guardrails" status={guardrails ? `${guardrails.rules.length} rules` : "Not derived"}><GuardrailList guardrails={guardrails} /></Fold>
+        {/* Latest read per connected provider (5A-3). */}
+        <Fold title="Providers" status={providerStatus}><ProviderCoverage coverage={providers} /></Fold>
+        {/* Per repository traffic source (Q3 / 2F-5). */}
+        <Fold title="Traffic" status={trafficStatus}><TrafficSources sources={traffic} offers={hotRoutes} /></Fold>
+        <Fold title="Stored evidence" status={evidenceStatus}>
           <p className="v3-small" style={{ marginBottom: 16 }}>
-            Evidence across this account, separate from the repository audit below.
-            Dates show when information was recorded, not when your provider last changed it.
-            A complete collection does not mean the application is secure.
+            Dates show when evidence was recorded, not when your provider last changed. A complete collection does not mean the application is secure.
           </p>
           {!evidence.available ? (
-            <p>We could not load evidence history. Its age and completeness are unknown.</p>
+            <p>Evidence history could not be loaded. Its age and completeness are unknown.</p>
           ) : evidence.items.length === 0 ? (
-            <p>No stored collector evidence is available yet.</p>
+            <p>No stored evidence yet.</p>
           ) : (
             <ul className="v3-small">
               {evidence.items.map((item) => (
                 <li key={item.label} style={{ marginBottom: 12 }}>
                   <strong>{item.label}</strong>{": "}
-                  {item.completeness === "complete" ? "Collection complete" : item.completeness === "partial" ? "Partial collection" : "Completeness unknown"}
-                  <br />
-                  {item.recordedAt ? <time dateTime={item.recordedAt}>Recorded {item.recordedAt.replace("T", " ").replace(".000Z", " UTC").replace("Z", " UTC")}</time> : "Recording date unknown"}
+                  {item.completeness === "complete" ? "Complete" : item.completeness === "partial" ? "Partial" : "Completeness unknown"}
+                  {" · "}
+                  {item.recordedAt ? <When at={item.recordedAt} /> : "Date unknown"}
                 </li>
               ))}
             </ul>
           )}
-        </div>
+        </Fold>
       </div>
-
-      {!latest ? (
-        <div className="v3-empty">
-          <p>No audit has run yet.</p>
-          <Link href="/onboarding" className="v3-btn v3-btn-sm v3-primary" style={{ marginTop: 16 }}>
-            Run the first audit
-          </Link>
-        </div>
-      ) : (
-        <div className="v3-stack">
-          <div className="v3-card">
-            <div className="v3-hd">
-              <h2 className="v3-eyebrow">Last audit</h2>
-              <span className="v3-small"><When at={latest.startedAt} /></span>
-            </div>
-            <div className="v3-card-p v3-grid-3">
-              <div>
-                <p className="v3-serif" style={{ fontSize: 26 }}>{latest.filesRead ?? 0}</p>
-                <p className="v3-small">files</p>
-              </div>
-              <div>
-                <p className="v3-serif" style={{ fontSize: 26 }}>{latest.entriesFound ?? 0}</p>
-                <p className="v3-small">application entries</p>
-              </div>
-              <div>
-                <p className="v3-serif" style={{ fontSize: 26 }}>{latest.tablesFound ?? 0}</p>
-                <p className="v3-small">tables</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="v3-card">
-            <div className="v3-hd">
-              <h2 className="v3-eyebrow">Not checked</h2>
-              <span className="v3-small">And what would change it</span>
-            </div>
-            <div className="v3-card-p v3-cov">
-              {latest.coverage.length === 0 ? (
-                <p className="v3-small">No gaps were recorded for this run.</p>
-              ) : (
-                latest.coverage.map((c) => (
-                  <div key={c.name}>
-                    <b>{c.name}</b>
-                    <span style={{ fontSize: 14, color: "var(--muted)" }}>
-                      {c.why}
-                      <small style={{ display: "block", marginTop: 5, fontFamily: "inherit", fontSize: 13 }}>
-                        {c.effect}
-                      </small>
-                    </span>
-                    {c.upgrade ? (
-                      <Link href="/dashboard/settings" className="v3-btn v3-btn-sm v3-ghost">{c.upgrade}</Link>
-                    ) : (
-                      <span className="v3-small">Nothing to connect</span>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="v3-card v3-card-p">
-            <p className="v3-sub" style={{ fontSize: 14, maxWidth: 720 }}>
-              Connecting a read-only database role lets the audit read your access rules directly
-              instead of inferring them from code. It is not a setup step and nothing is withheld
-              without it. If someone has asked you a security question, the same picture as this
-              page (what was assessed, what could not be, what is open) can be published at a
-              private link from <Link href="/dashboard/settings">Settings</Link>.
-            </p>
-          </div>
-        </div>
-      )}
     </>
+  );
+}
+
+function Stat({ label, value, warn = false }: { label: string; value: number; warn?: boolean }) {
+  return (
+    <div className={`v3-metric${warn && value > 0 ? " tone-warn" : ""}`}>
+      <span className="v3-metric-label">{label}</span>
+      <b className="v3-metric-value">{value}</b>
+    </div>
   );
 }
