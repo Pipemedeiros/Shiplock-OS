@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
-  simulateRequest, type Attacker, type Exposure, type MapEdge, type MapNode, type Risk, type RouteMap as RouteMapData, type Simulation,
+  placeLabels, simulateRequest, type Attacker, type Exposure, type MapEdge, type MapNode, type Risk, type RouteMap as RouteMapData, type Simulation,
 } from "@/lib/routeMap";
 
 /**
@@ -206,6 +206,18 @@ export function RouteMap({ map }: { map: RouteMapData }) {
     const k = n.exposure ?? "none"; acc[k] = (acc[k] ?? 0) + 1; return acc;
   }, {});
 
+  const sizeOf = (n: MapNode, f: number) => (n.kind === "provider" ? 24 : n.kind === "control" ? 22 : n.kind === "table" ? 13 : n.kind === "helper" ? 10 : n.hot || n.finding ? 16 : 12) * f;
+  const labelText = (n: MapNode) => `${n.label}${n.kind === "provider" && n.connection === "coming_soon" ? " · coming soon" : ""}`;
+  const shownLabels = placeLabels(map.nodes.filter((n) => visible.has(n.id)).map((n) => {
+    const q = projected.get(n.id)!;
+    const s = sizeOf(n, q.f), font = 11 * Math.min(1.2, q.f);
+    const picked = n.id === selected, lit = onPath.has(n.id);
+    const priority = n.kind === "control" ? 6 : n.finding ? 5 : n.kind === "provider" ? 4 : n.hot ? 3 : n.kind === "route" && n.exposure === "open" ? 2
+      : n.kind === "table" ? 1 : n.kind === "route" ? 0.5 : 0;
+    return { id: n.id, x: q.x + s / 2 + 6, y: q.y - 8, w: labelText(n).length * font * 0.6 + 4, h: font + 4,
+      priority: priority + depth(q.z), force: picked || lit };
+  }));
+
   return (
     <div className="v3-map">
       <div
@@ -241,12 +253,11 @@ export function RouteMap({ map }: { map: RouteMapData }) {
         {[...map.nodes].filter((n) => visible.has(n.id)).sort((a, b) => projected.get(b.id)!.z - projected.get(a.id)!.z).map((n) => {
           const q = projected.get(n.id)!;
           const d = depth(q.z);
-          const base = n.kind === "provider" ? 24 : n.kind === "control" ? 22 : n.kind === "table" ? 13 : n.kind === "helper" ? 10 : n.hot || n.finding ? 16 : 12;
-          const s = base * q.f;
+          const s = sizeOf(n, q.f);
           const picked = n.id === selected;
           const lit = onPath.has(n.id);
           const fill = fillOf(n);
-          const label = picked || lit || n.kind === "control" || n.kind === "provider" || n.finding || n.hot || (n.kind === "route" && n.exposure === "open");
+          const label = shownLabels.has(n.id);
           return (
             <span key={n.id}>
               <button
@@ -267,7 +278,7 @@ export function RouteMap({ map }: { map: RouteMapData }) {
               {label && (
                 <span className="v3-map-label" style={{ left: q.x + s / 2 + 6, top: q.y - 8, fontSize: 11 * Math.min(1.2, q.f), opacity: 0.5 + 0.5 * d,
                   color: n.kind === "control" ? "#e8d3a0" : n.kind === "route" ? "#dfe6ef" : "#c3cfdd" }}>
-                  {n.label}{n.kind === "provider" && n.connection === "coming_soon" ? " · coming soon" : ""}
+                  {labelText(n)}
                 </span>
               )}
             </span>

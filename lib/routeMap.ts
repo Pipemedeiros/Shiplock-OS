@@ -269,3 +269,16 @@ export function simulateRequest(route: MapRoute, attacker: Attacker): Simulation
   if (route.ownershipFiltered) return { outcome: "scoped", reached: route.tables, steps: [...steps, `It reaches ${route.tables.join(", ")}, narrowed to the caller's own rows.`] };
   return { outcome: "reaches", reached: route.tables, steps: [...steps, `Nothing narrows the query to the caller. It reaches every row of ${route.tables.join(", ")}.`] };
 }
+
+export interface LabelBox { id: string; x: number; y: number; w: number; h: number; priority: number; force?: boolean }
+
+/** Greedy label placement: forced labels (the picked node, the simulated
+ * path) always show; others show in priority order unless they would cover a
+ * label already placed. */
+export function placeLabels(boxes: LabelBox[]): Set<string> {
+  const placed: LabelBox[] = [];
+  const hit = (a: LabelBox, b: LabelBox) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  const order = [...boxes].sort((a, b) => Number(!!b.force) - Number(!!a.force) || b.priority - a.priority);
+  for (const box of order) if (box.force || !placed.some((p) => hit(p, box))) placed.push(box);
+  return new Set(placed.map((p) => p.id));
+}

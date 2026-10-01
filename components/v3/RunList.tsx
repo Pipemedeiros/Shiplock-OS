@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { DashboardRun } from "@/lib/agent/dashboardData";
+import { When } from "@/components/v3/When";
 
 /**
  * The run log, with the trace behind a disclosure.
@@ -34,7 +35,7 @@ export function RunList({ runs }: { runs: DashboardRun[] }) {
               </p>
             </div>
             <div className="v3-row" style={{ gap: 14 }}>
-              <span className="v3-small">{new Date(run.startedAt).toLocaleString()}</span>
+              <span className="v3-small"><When at={run.startedAt} /></span>
               <button className="v3-btn v3-btn-sm v3-quiet" onClick={() => setOpen(open === run.id ? null : run.id)}>
                 {open === run.id ? "Hide trace" : "Trace"}
               </button>

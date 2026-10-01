@@ -7,6 +7,7 @@ import { RouteMap } from "@/components/v3/RouteMap";
 import { loadRepositoryGraphSource } from "@/lib/graph/repositorySource";
 import { getHotRoutes, type HotRouteOffer } from "@/lib/traffic/hotRoutes";
 import { buildRouteMap } from "@/lib/routeMap";
+import { When } from "@/components/v3/When";
 
 export const metadata = { title: "Overview" };
 
@@ -62,12 +63,12 @@ export default async function Overview() {
         <div>
           <p className="v3-eyebrow">
             {latest
-              ? `${latest.fullName} · audited ${new Date(latest.startedAt).toLocaleString()}`
+              ? <>{latest.fullName} · audited <When at={latest.startedAt} /></>
               : `${repos[0].fullName} · not audited yet`}
           </p>
           <h1 className="v3-serif">
             {criticals.length > 0
-              ? `${criticals.length} ${criticals.length === 1 ? "path" : "paths"} reach customer data.`
+              ? `${criticals.length} ${criticals.length === 1 ? "path reaches" : "paths reach"} customer data.`
               : findings.length > 0
                 ? `${findings.length} open ${findings.length === 1 ? "finding" : "findings"}.`
                 : latest
@@ -185,7 +186,7 @@ export default async function Overview() {
                     </span>
                   </div>
                   <span className="v3-small" style={{ whiteSpace: "nowrap" }}>
-                    {new Date(run.startedAt).toLocaleDateString()}
+                    <When at={run.startedAt} date />
                   </span>
                 </div>
               ))}

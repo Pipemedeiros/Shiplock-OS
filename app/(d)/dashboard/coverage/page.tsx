@@ -12,6 +12,7 @@ import { ProviderCoverage } from "@/components/v3/ProviderCoverage";
 import { getTrafficSources } from "@/lib/traffic/sourceStatus";
 import { TrafficSources } from "@/components/v3/TrafficSources";
 import { getHotRoutes } from "@/lib/traffic/hotRoutes";
+import { When } from "@/components/v3/When";
 
 export const metadata = { title: "Coverage" };
 
@@ -116,7 +117,7 @@ export default async function Coverage() {
           <div className="v3-card">
             <div className="v3-hd">
               <h2 className="v3-eyebrow">Read in the last audit</h2>
-              <span className="v3-small">{new Date(latest.startedAt).toLocaleString()}</span>
+              <span className="v3-small"><When at={latest.startedAt} /></span>
             </div>
             <div className="v3-card-p v3-grid-3">
               <div>

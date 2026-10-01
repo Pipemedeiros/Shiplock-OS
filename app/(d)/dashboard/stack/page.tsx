@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireDashboardSession } from "@/lib/dashboard";
 import { getRuns } from "@/lib/agent/dashboardData";
 import { StackConnection, StackDepth, connectionFor, depthOf } from "@/components/v3/StackDepth";
+import { When } from "@/components/v3/When";
 
 /**
  * What we read out of the repository, and how deeply we reasoned about each of
@@ -91,7 +92,7 @@ export default async function Stack() {
             <div className="v3-hd">
               <h2 className="v3-eyebrow">{stack.tools.length} identified</h2>
               <span className="v3-small">
-                from {latest.fullName} · {new Date(latest.startedAt).toLocaleDateString()}
+                from {latest.fullName} · <When at={latest.startedAt} date />
               </span>
             </div>
             <div className="v3-card-p v3-grid-2" style={{ gap: 14 }}>

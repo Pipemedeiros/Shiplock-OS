@@ -121,3 +121,21 @@ describe("route map, connections and simulation (Felipe 2026-09-30)", () => {
     expect(steps).not.toMatch(/[–—]/);
   });
 });
+
+describe("label placement (UX pass 2026-10-01: no overlapping labels)", () => {
+  it("keeps the higher priority label when two collide, and always keeps forced ones", async () => {
+    const { placeLabels } = await import("./routeMap");
+    const shown = placeLabels([
+      { id: "a", x: 0, y: 0, w: 80, h: 14, priority: 1 },
+      { id: "b", x: 10, y: 4, w: 80, h: 14, priority: 5 },
+      { id: "c", x: 200, y: 0, w: 80, h: 14, priority: 1 },
+      { id: "d", x: 400, y: 0, w: 40, h: 14, priority: 0, force: true },
+    ]);
+    expect([...shown].sort()).toEqual(["b", "c", "d"]);
+  });
+});
+
+it("hides a label that would cover a forced one", async () => {
+  const { placeLabels } = await import("./routeMap");
+  expect([...placeLabels([{ id: "x", x: 0, y: 0, w: 50, h: 14, priority: 9 }, { id: "f", x: 5, y: 0, w: 50, h: 14, priority: 0, force: true }])]).toEqual(["f"]);
+});

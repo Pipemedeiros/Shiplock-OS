@@ -1,6 +1,7 @@
 import { requireDashboardSession } from "@/lib/dashboard";
 import { getRecentlyClosed, getRuns } from "@/lib/agent/dashboardData";
 import { RunList } from "@/components/v3/RunList";
+import { When } from "@/components/v3/When";
 
 export const metadata = { title: "Activity" };
 
@@ -45,7 +46,7 @@ export default async function ActivityPage() {
                     <span className="v3-tag ok">closed</span>
                     <span style={{ fontSize: 14 }}>{c.title}</span>
                   </div>
-                  <span className="v3-small">{new Date(c.when).toLocaleDateString()}</span>
+                  <span className="v3-small"><When at={c.when} date /></span>
                 </div>
               ))}
             </div>
