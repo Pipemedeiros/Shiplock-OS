@@ -1,6 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "fluid": true,
+  "regions": [
+    "pdx1"
+  ],
   "crons": [
     {
       "path": "/api/monitor/scheduled",
