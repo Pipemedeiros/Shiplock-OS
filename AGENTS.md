@@ -68,41 +68,39 @@ agents (MCP/terminal/Codex/Claude Code) must consume the same facts and approval
 state, never a separate truth.
 
 The approved target packaging is two tiers, Free and Pro (Felipe,
-2026-09-29); neither is implemented or priced yet. **For the MVP the customer
-brings the intelligence for every model-assisted run, the first included**, so
-ShipLock can watch real scans run and price them from measured cost. The first
-audit still runs every deterministic check and reports model reasoning as not
-run until the customer's AI is connected. A ShipLock-funded first scan exists
-as one bounded, idempotent credit per account behind the switch
-`SHIPLOCK_FUNDED_FIRST_SCAN` (off unless exactly `"true"`, and not consumed
-while off); turning it on is Felipe's spending decision, and when ShipLock does
-pay it uses a top-tier model (Claude Opus 5.5 class or the OpenAI equivalent),
-never a small model. Do not silently grant another funded model run on
-repository changes, retries, or account recreation. Every scan reports
+2026-09-29); neither is implemented or priced yet.
+
+**ShipLock pays for no intelligence (Felipe, 2026-10-01, locked).** ShipLock
+is the harness and the cross-layer detection layer: collectors, deterministic
+checks, prompts, guards, correlation, approval, PR checks and suggestions,
+and audit history. The intelligence is the customer's own agent (Claude Code,
+Codex, or a ChatGPT connector once OpenAI approves it) operating ShipLock
+through the MCP server, on the customer's own subscription. ShipLock makes
+no model API calls of its own, for any run, the first included: no
+ShipLock-funded scan, no ShipLock key in any path, and no customer API key
+mode. The old funded first scan (`SHIPLOCK_FUNDED_FIRST_SCAN`, the
+first-scan credit) and the customer API-key worker are retired; their code
+is removed in the ledger's next items and stays off until then. Every audit
+runs every deterministic check on its own; model reasoning is shown as not
+run until the customer's agent answers, never as clean. Every scan reports
 partial/unread/model-skipped coverage honestly.
 
-For subsequent scheduled deep scans, PR reasoning, and AI-assisted repair,
-the customer supplies the intelligence and its token allowance through an
-explicitly connected, supported mode: a customer-owned model API credential,
-a running coding agent such as Claude Code or Codex, or a ChatGPT connector.
-These are **different transports**, not interchangeable credentials. An API
-key can fund inference but cannot by itself navigate a checkout; a passive MCP
-server cannot command a dormant desktop agent or debit a ChatGPT subscription
-on ShipLock's schedule. A ChatGPT plugin can expose ShipLock tools, but
-reliable trigger, result return, plan eligibility, and limits require a real
-host-specific proof. No adapter may be marketed or billed as working until it
-can return schema-validated, scoped evidence to the same guarded graph. When
-customer intelligence is disconnected, exhausted, or unavailable, deterministic
-collection may continue within budget; model-assisted work is explicitly
-pending/unread, never clean. ShipLock owns collectors, prompts, guards,
-correlation, approval, and audit history in every mode. Customer model output
+The customer's agent is a different transport from an API: a passive MCP
+server cannot start a dormant desktop agent or debit a subscription on
+ShipLock's schedule, so tasks wait visibly as pending until the agent picks
+them up. A ChatGPT connector can expose ShipLock tools, but reliable
+trigger, result return, plan eligibility, and limits require a real
+host-specific proof. No host may be marketed as working until it returns
+schema-validated, scoped evidence to the same guarded graph. When the agent
+is offline, deterministic collection continues within budget and
+model-assisted work is pending/unread, never clean. Customer model output
 never overrides source identity, deterministic admission, or approval.
 
 Free targets repository inventory, deterministic findings, honest coverage,
 and bounded manual/PR-triggered/scheduled rechecks; AI-assisted rechecks
-require the customer's connected intelligence. Paid targets optional live
+require the customer's connected agent. Paid targets optional live
 provider connections and cross-layer detection/proof, with the same
-customer-funded intelligence direction after the first scan. Meaningful-change
+customer agent providing the intelligence. Meaningful-change
 email alerts belong to paid only. A reviewable PR suggestion may be shown in
 either tier, but **every branch/PR write requires a separate customer click**;
 mere connection or a standing opt-in is insufficient. A suggestion is not proof
@@ -144,16 +142,15 @@ The market supports a credible experiment, not a claim of product-market fit.
 1. Sign in and install the GitHub App.
 2. Select repositories. ShipLock records installation, repository, default
    branch, and commit identity, then inventories the stack automatically.
-3. Run the first audit of the selected repository: every deterministic check,
-   with model reasoning on the customer's connected AI (ShipLock-funded only
-   when the switch above is on). The UI shows progress, findings, and explicit
-   unknown/unread coverage; it never turns missing evidence into clean.
-4. Ask the user to connect a supported customer-intelligence mode for later
-   model-assisted runs. Show what it can do, its limits, and whether it is
-   currently reachable; do not mistake GitHub access for AI funding.
+3. Run the first audit of the selected repository: every deterministic check.
+   The UI shows progress, findings, and explicit unknown/unread coverage; it
+   never turns missing evidence into clean.
+4. Ask the user to connect their own agent over MCP for model reasoning.
+   Show what it can do, its limits, and whether it is currently reachable;
+   do not mistake GitHub access for AI.
 5. Admit selected-repository PR events and customer schedules through durable,
    bounded jobs. Deterministic rechecks can continue; deep reasoning waits for
-   customer intelligence and never falls back to ShipLock-funded calls silently.
+   the customer's agent and never falls back to a ShipLock model call.
 6. Offer optional read-only provider connections inferred from code as paid
    depth. Explain what each lets ShipLock verify; a detected provider is not a
    bound account. Correlate only current, explicitly bound evidence. Offer
@@ -205,15 +202,13 @@ timeout, malformed output, and skipped reasoning are coverage states—not clean
 audits. A probabilistic model is never called “deterministic,” regardless of its
 benchmark accuracy.
 
-Every intelligence mode must return the same bounded result contract: tenant,
-selected repository and immutable commit, run/attempt identity, host/provider,
-credential or connection epoch (never the secret), source citations, structured
+Every agent host must return the same bounded result contract: tenant,
+selected repository and immutable commit, run/attempt identity, host,
+connection epoch (never a secret), source citations, structured
 hypotheses, usage/limit receipt when available, and explicit completeness or
 failure. The server validates identity, freshness, schema, citations, and
 deterministic admission before persistence. Treat customer model text as
-untrusted input, not as a collector snapshot or authorization to write. The
-first-scan credit is a durable, idempotent per-account entitlement with hard
-token/time ceilings; retrying the same run cannot mint a second credit.
+untrusted input, not as a collector snapshot or authorization to write.
 
 Authorized attack-based verification is part of the target product, with proof:
 run only against a disposable replica or an environment the customer explicitly
@@ -242,9 +237,8 @@ per-tenant fairness. Web requests are not the durable execution engine. Schedule
 and webhook paths enqueue the same job contracts rather than running parallel
 business logic.
 
-Jobs distinguish deterministic collection from intelligence requests and record
-who funds model invocation. After the first-scan entitlement is consumed, no
-worker may call a ShipLock-funded model as a fallback. Customer credentials are
+Jobs distinguish deterministic collection from agent tasks. No worker calls
+a model; agent tasks wait for the customer's host. Customer credentials are
 encrypted references, never job payloads; host/agent integrations need explicit
 availability and result-return contracts. A PR webhook may enqueue a
 deterministic recheck while the customer agent is offline, but its AI leg stays
@@ -268,7 +262,7 @@ limits, storage growth, noisy-neighbor behavior, and recovery have been measured
 
 GitHub selection/event → authenticated, quota-checked job admission → leased
 worker → bounded read-only collectors → versioned snapshots → deterministic
-facts/candidates → optional funded intelligence → citation/admission guards →
+facts/candidates → customer agent tasks over MCP → citation/admission guards →
 repository-bound evidence graph → founder findings/coverage → customer click
 and action receipt → reviewable repair PR → human merge → recheck. Paid provider
 snapshots and minimized traffic aggregates join only through current explicit
@@ -343,18 +337,16 @@ the proving ground and native-agent distribution are not launch-proven.
   `lib/agent/stack.ts` infers providers; `lib/graph/routeInventory.ts`,
   `callPath.ts`, and `declarations.ts` derive Next.js route facts from executed
   handler paths. Current route facts are route-wide, not per HTTP method or CFG.
-- `lib/agent/attack.ts` may call a model for hypotheses; `attackGuard.ts`
-  checks class and observed citations, `findings.ts` computes confidence and
-  severity ceilings, and `lib/proving/` alone may earn `proven`. A model skip or
-  malformed response is shown in Coverage and cannot resolve an old finding.
-  ShipLock's own key funds this path only when `SHIPLOCK_FUNDED_FIRST_SCAN` is
-  exactly `"true"` and `lib/agent/firstScanCredit.ts` claims the account's
-  single first-scan credit for the run's live audit lease; otherwise, and on
-  every later run, it skips reasoning and says so. Any other ShipLock-funded model
-  call must pass `lib/funding.ts` (off unless its flag is exactly `"true"`).
-  Customer-funded AI runs through `lib/intelligence/` (an encrypted customer API
-  key, or approved tasks an MCP host picks up) and never falls back to
-  ShipLock's key; `lib/security/modelFunding.test.ts` pins every model client.
+- `attackGuard.ts` checks class and observed citations of agent hypotheses,
+  `findings.ts` computes confidence and severity ceilings, and `lib/proving/`
+  alone may earn `proven`. A skipped or malformed answer is shown in Coverage
+  and cannot resolve an old finding. Legacy model clients still in the code
+  (`lib/agent/attack.ts` funded path behind `SHIPLOCK_FUNDED_FIRST_SCAN` and
+  `lib/agent/firstScanCredit.ts`, `lib/funding.ts` flags, the API-key worker
+  in `lib/intelligence/`) are retired: all off, scheduled for removal, never
+  to be re-enabled; `lib/security/modelFunding.test.ts` pins every client
+  until they are gone. The only intelligence path is approved tasks an MCP
+  host picks up.
 - `lib/monitoring/{registry,collectors,run,findings,diff}.ts` collects provider
   evidence through registered adapters. `lib/graph/{repositorySource,
   databaseSource,repositoryDatabase,graphRun,attackPaths}.ts` admits scoped
@@ -379,7 +371,7 @@ the proving ground and native-agent distribution are not launch-proven.
   remain unverified; do not describe native-agent parity as shipped.
 - Customer intelligence is a standing approval per host
   (`intelligence_connections`) that ShipLock turns into durable, bounded tasks;
-  an MCP host or the API-key worker answers them, and the server verifies each
+  the customer's MCP host answers them, and the server verifies each
   answer against GitHub before it reaches the dashboard. ShipLock cannot start
   a dormant agent, so tasks wait visibly as pending. No ChatGPT host exists, and
   no host has been proven end to end with a real customer; do not describe
@@ -429,7 +421,7 @@ and its exact status live only in `docs/MASTER-PLAN-PROGRESS.md`.
 - Build on the live UI in `app/(d)/` and its shared components with real
   tenant data; no mock or prototype screens.
 - Onboarding, as built: sign in; install the GitHub App; select a repository;
-  run the first audit (deterministic checks); connect your own AI (offered to
+  run the first audit (deterministic checks); connect your own agent over MCP (offered to
   every account, free included) for attack reasoning; then optional provider
   connections and traffic. Each step says what it unlocks and works without
   the later ones.
