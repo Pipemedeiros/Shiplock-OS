@@ -1,0 +1,51 @@
+{
+  "rule": "crawler-agreement",
+  "cases": [
+    {
+      "name": "deleted enforcing file",
+      "expectedPath": "app/crawlers.test.ts",
+      "edits": [
+        {
+          "path": "app/crawlers.test.ts",
+          "remove": true
+        }
+      ]
+    },
+    {
+      "name": "comments preserve the name and assertion markers",
+      "expectedPath": "app/crawlers.test.ts",
+      "edits": [
+        {
+          "path": "app/crawlers.test.ts",
+          "commentAll": true
+        }
+      ]
+    },
+    {
+      "name": "assertion gutted with the test name intact",
+      "expectedPath": "app/crawlers.test.ts",
+      "edits": [
+        {
+          "path": "app/crawlers.test.ts",
+          "replace": {
+            "from": "expect(",
+            "to": "void ("
+          }
+        }
+      ]
+    },
+    {
+      "name": "skipped test",
+      "expectedPath": "app/crawlers.test.ts",
+      "edits": [
+        {
+          "path": "app/crawlers.test.ts",
+          "replace": {
+            "from": "it(",
+            "to": "it.skip("
+          }
+        }
+      ]
+    }
+  ]
+}

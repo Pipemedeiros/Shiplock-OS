@@ -1,0 +1,25 @@
+{
+  "rule": "markdown-files",
+  "cases": [
+    {
+      "name": "extra contract",
+      "expectedPath": "docs/OTHER.MD",
+      "edits": [
+        {
+          "path": "docs/OTHER.MD",
+          "content": "# Another agent guide"
+        }
+      ]
+    },
+    {
+      "name": "case disguise",
+      "expectedPath": "claude.markdown",
+      "edits": [
+        {
+          "path": "claude.markdown",
+          "content": "extra instructions"
+        }
+      ]
+    }
+  ]
+}

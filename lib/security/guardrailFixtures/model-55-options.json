@@ -1,0 +1,80 @@
+{
+  "rule": "model-55-options",
+  "cases": [
+    {
+      "name": "temperature",
+      "expectedPath": "lib/intelligence/apiMode.ts",
+      "edits": [
+        {
+          "path": "lib/intelligence/apiMode.ts",
+          "replace": {
+            "from": "model: MODEL, max_tokens: maxTokens,",
+            "to": "model: MODEL, max_tokens: maxTokens, [\"temperature\"]: 1,"
+          }
+        }
+      ]
+    },
+    {
+      "name": "top_p",
+      "expectedPath": "lib/intelligence/apiMode.ts",
+      "edits": [
+        {
+          "path": "lib/intelligence/apiMode.ts",
+          "replace": {
+            "from": "model: MODEL, max_tokens: maxTokens,",
+            "to": "model: MODEL, max_tokens: maxTokens, [\"top_p\"]: 1,"
+          }
+        }
+      ]
+    },
+    {
+      "name": "top_k",
+      "expectedPath": "lib/intelligence/apiMode.ts",
+      "edits": [
+        {
+          "path": "lib/intelligence/apiMode.ts",
+          "replace": {
+            "from": "model: MODEL, max_tokens: maxTokens,",
+            "to": "model: MODEL, max_tokens: maxTokens, [\"top_k\"]: 1,"
+          }
+        }
+      ]
+    },
+    {
+      "name": "budget_tokens",
+      "expectedPath": "lib/intelligence/apiMode.ts",
+      "edits": [
+        {
+          "path": "lib/intelligence/apiMode.ts",
+          "replace": {
+            "from": "model: MODEL, max_tokens: maxTokens,",
+            "to": "model: MODEL, max_tokens: maxTokens, [\"budget_tokens\"]: 1,"
+          }
+        }
+      ]
+    },
+    {
+      "name": "disabled thinking via spread",
+      "expectedPath": "lib/intelligence/apiMode.ts",
+      "edits": [
+        {
+          "path": "lib/intelligence/apiMode.ts",
+          "replace": {
+            "from": "model: MODEL, max_tokens: maxTokens,",
+            "to": "model: MODEL, max_tokens: maxTokens, ...{ thinking: { type: \"disabled\" } },"
+          }
+        }
+      ]
+    },
+    {
+      "name": "constructed model id",
+      "expectedPath": "lib/security/modelRequest.ts",
+      "edits": [
+        {
+          "path": "lib/security/modelRequest.ts",
+          "content": "client.messages.create({ model: \"claude-opus\" + \"-5-5\", [\"tempera\" + \"ture\"]: 1 });"
+        }
+      ]
+    }
+  ]
+}

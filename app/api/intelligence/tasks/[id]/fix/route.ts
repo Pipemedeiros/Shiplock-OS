@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireProUser } from "@/lib/deep/proGate";
 import { resolveRepairTarget } from "@/lib/fixes/repairTarget";
 import { requestRepairAction } from "@/lib/jobs/repairAction";
-import { isSameOrigin } from "@/lib/security/sameOrigin";
+import { crossSiteRefusal } from "@/lib/security/sameOrigin";
 import { quotaResponse } from "@/lib/quota";
 
 /**
@@ -14,11 +14,10 @@ import { quotaResponse } from "@/lib/quota";
  */
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const refused = crossSiteRefusal(request);
+  if (refused) return refused;
   const user = await requireProUser();
   if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
-  if (!isSameOrigin(request)) {
-    return NextResponse.json({ error: "A same-origin request is required." }, { status: 403 });
-  }
   const id = z.uuid().safeParse((await params).id);
   if (!id.success) return NextResponse.json({ error: "Name an AI check." }, { status: 400 });
 

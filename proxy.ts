@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const isDev = process.env.NODE_ENV !== "production";
+const isDev = process.env.NODE_ENV === "development";
 
 // Nonce-based CSP, generated fresh per request, per Next.js's own guidance
 // for the App Router (https://nextjs.org/docs/app/guides/content-security-policy).
@@ -17,6 +17,16 @@ const isDev = process.env.NODE_ENV !== "production";
 // (needed for Next.js's code-split chunks) without listing every host or
 // falling back to 'unsafe-inline' — which would silently defeat the CSP's
 // actual purpose of blocking injected/attacker-controlled inline scripts.
+function supabaseOrigins(url: string | undefined): string {
+  try {
+    const origin = new URL(url ?? "").origin;
+    if (!/^https?:\/\//.test(origin)) return "";
+    return `${origin} ${origin.replace(/^https:/, "wss:").replace(/^http:/, "ws:")} `;
+  } catch {
+    return "";
+  }
+}
+
 function buildCsp(nonce: string): string {
   // Google One Tap: our nonced bundle inserts Google's client script, which
   // 'strict-dynamic' trusts; the host is listed for browsers without it.
@@ -27,9 +37,12 @@ function buildCsp(nonce: string): string {
   // PostHog: the JS bundle ships from our own origin (npm package), but it
   // phones home to us.i.posthog.com (events/remote config) and
   // us-assets.i.posthog.com (surveys/toolbar assets) — both connect-src only.
+  // Only our own Supabase project (REST and realtime), never *.supabase.co. A
+  // missing or malformed URL names no Supabase origin rather than crashing.
+  const supabase = supabaseOrigins(process.env.NEXT_PUBLIC_SUPABASE_URL);
   const connectSrc = isDev
-    ? `'self' ws: https://api.stripe.com https://*.supabase.co https://us.i.posthog.com https://us-assets.i.posthog.com ${google}`
-    : `'self' https://api.stripe.com https://*.supabase.co https://us.i.posthog.com https://us-assets.i.posthog.com ${google}`;
+    ? `'self' ws: https://api.stripe.com ${supabase}https://us.i.posthog.com https://us-assets.i.posthog.com ${google}`
+    : `'self' https://api.stripe.com ${supabase}https://us.i.posthog.com https://us-assets.i.posthog.com ${google}`;
 
   return [
     "default-src 'self'",

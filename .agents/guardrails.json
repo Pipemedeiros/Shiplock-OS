@@ -1,0 +1,476 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "markdown-files",
+      "statement": "Project Markdown exists only in the two contract files and vendored skills.",
+      "why": "AGENTS.md: These are the only two non-skill Markdown files in the repo.",
+      "severity": "block",
+      "kind": "file_policy",
+      "scope": [
+        "**"
+      ],
+      "enforcedBy": {
+        "file": "lib/security/repoGuardrails.test.ts",
+        "test": "enforces markdown-files"
+      },
+      "check": "markdown",
+      "allowed": [
+        "AGENTS.md",
+        "docs/MASTER-PLAN-PROGRESS.md",
+        ".agents/skills/**"
+      ]
+    },
+    {
+      "id": "anthropic-clients",
+      "statement": "Application model clients use only the reviewed modelFunding constructor allowlist.",
+      "why": "AGENTS.md: lib/security/modelFunding.test.ts pins every model client.",
+      "severity": "block",
+      "kind": "allowlist",
+      "scope": [
+        "app/**",
+        "lib/**",
+        "components/**",
+        "mcp/**"
+      ],
+      "enforcedBy": {
+        "file": "lib/security/repoGuardrails.test.ts",
+        "test": "enforces anthropic-clients"
+      },
+      "check": "anthropic",
+      "allowed": [
+        "lib/agent/attack.ts",
+        "lib/analyzer.ts",
+        "lib/graph/narrative.ts",
+        "lib/graph/defender.ts",
+        "lib/proving/agent.ts",
+        "lib/intelligence/apiMode.ts"
+      ]
+    },
+    {
+      "id": "customer-key",
+      "statement": "The customer API mode never reads the ShipLock Anthropic credential.",
+      "why": "AGENTS.md: Customer-funded AI never falls back to ShipLock key.",
+      "severity": "block",
+      "kind": "forbidden_pattern",
+      "scope": [
+        "lib/intelligence/apiMode.ts"
+      ],
+      "enforcedBy": {
+        "file": "lib/security/repoGuardrails.test.ts",
+        "test": "enforces customer-key"
+      },
+      "check": "customer-key"
+    },
+    {
+      "id": "funded-switches",
+      "statement": "Every reachable ShipLock model call preserves its reviewed opt-in switch and caller boundary.",
+      "why": "AGENTS.md funding contract and Felipe 2026-09-30: each switch is off unless exactly true.",
+      "severity": "block",
+      "kind": "required_pattern",
+      "scope": [
+        "app/**",
+        "lib/**",
+        "components/**",
+        "mcp/**"
+      ],
+      "enforcedBy": {
+        "file": "lib/security/repoGuardrails.test.ts",
+        "test": "enforces funded-switches"
+      },
+      "check": "funding",
+      "sourcePins": {
+        "lib/agent/attack.ts": "b6c522fa46b64058207127ecc9d6d21f32084fa9f798a5333622d986f4e30383",
+        "lib/analyzer.ts": "93dc450986858df02a7fc33a90057bcf1223a468fa4def71a3251b4d68ddf891",
+        "lib/graph/narrative.ts": "28af659da4a0b205635bd4b6b87faaa5649d01eeea3198037f09dab1c03354dd",
+        "lib/graph/defender.ts": "8bc2dd8fd5e2916398fa0f5154871d80df575acc757ceff2fc5f4df372fb3e28",
+        "lib/proving/agent.ts": "98ab47ac39eb480abc5dd06f24664ee72f2aff65f5c28d20b28791c0470998d9",
+        "lib/funding.ts": "46026e1ec459d1c6442efe821c4e3e5f26ad86be6b6b9fec27ea02b47bbee66b",
+        "lib/agent/firstScanCredit.ts": "4d7e4416324b5477098ae28572f1d6e258f7d0395ca4139df5d8d792662924a1",
+        "lib/agent/audit.ts": "94efe6cf8c35e015aceeac49eca568d2f3c9ef514524a11f74e074bede527020",
+        "lib/proving/run.ts": "2801f0ded95acb1fe679b34091eecfa10e7cec5d34aba3cd1f82567ecf25a5ae",
+        "lib/jobs/proofWorker.ts": "5a216fbb8ce6c2e499528328a62fcbe70505ec9c7c2bb35a0db875f6a577e620"
+      },
+      "importers": {
+        "lib/agent/attack.ts": [
+          "lib/agent/audit.ts"
+        ],
+        "lib/graph/defender.ts": [],
+        "lib/proving/agent.ts": [
+          "lib/jobs/proofWorker.ts",
+          "lib/proving/run.ts"
+        ]
+      }
+    },
+    {
+      "id": "first-scan-credit",
+      "statement": "The first funded audit requires an opt-in and a durable single-run credit.",
+      "why": "AGENTS.md: The first funded audit requires an opt-in and a durable single-run credit.",
+      "severity": "block",
+      "kind": "existing_test",
+      "scope": [
+        "**"
+      ],
+      "enforcedBy": {
+        "file": "lib/security/repoGuardrails.test.ts",
+        "test": "enforces first-scan-credit"
+      },
+      "testFile": "lib/agent/firstScanCredit.test.ts",
+      "testName": "funds the run only when the durable claim succeeds for this exact run and lease",
+      "assertionDigest": "f1f4ac7c2da9c9d2e78c388e1ed0a50ea0f4f15d6b67689d0613ced621ce50d3",
+      "sourcePins": {
+        "lib/agent/firstScanCredit.ts": "4d7e4416324b5477098ae28572f1d6e258f7d0395ca4139df5d8d792662924a1"
+      }
+    },
+    {
+      "id": "model-55-options",
+      "statement": "Model requests for 5.5 have no sampling parameters or disabled thinking.",
+      "why": "Felipe Q40 and AGENTS.md top-tier model contract: 5.5 rejects these request settings.",
+      "severity": "block",
+      "kind": "forbidden_pattern",
+      "scope": [
+        "app/**",
+        "lib/**",
+        "components/**",
+        "mcp/**"
+      ],
+      "enforcedBy": {
+        "file": "lib/security/repoGuardrails.test.ts",
+        "test": "enforces model-55-options"
+      },
+      "check": "model-options",
+      "sourcePins": {
+        "lib/agent/attack.ts": "b6c522fa46b64058207127ecc9d6d21f32084fa9f798a5333622d986f4e30383",
+        "lib/analyzer.ts": "93dc450986858df02a7fc33a90057bcf1223a468fa4def71a3251b4d68ddf891",
+        "lib/graph/narrative.ts": "28af659da4a0b205635bd4b6b87faaa5649d01eeea3198037f09dab1c03354dd",
+        "lib/graph/defender.ts": "8bc2dd8fd5e2916398fa0f5154871d80df575acc757ceff2fc5f4df372fb3e28",
+        "lib/proving/agent.ts": "98ab47ac39eb480abc5dd06f24664ee72f2aff65f5c28d20b28791c0470998d9",
+        "lib/intelligence/apiMode.ts": "ef27dab075e67382417b391b5094a16c69ecbbd8a5a9e9355f0578daa4b1667b"
+      }
+    },
+    {
+      "id": "client-server-boundary",
+      "statement": "Client modules cannot reach Supabase admin secrets or server crypto through runtime imports.",
+      "why": "AGENTS.md: Supabase admin stays server-only and tokens are encrypted.",
+      "severity": "block",
+      "kind": "forbidden_pattern",
+      "scope": [
+        "app/**",
+        "lib/**",
+        "components/**",
+        "mcp/**"
+      ],
+      "enforcedBy": {
+        "file": "lib/security/repoGuardrails.test.ts",
+        "test": "enforces client-server-boundary"
+      },
+      "check": "client-server"
+    },
+    {
+      "id": "receipted-pr-writes",
+      "statement": "Every PR writer stays behind the clicked and receipted repair worker.",
+      "why": "AGENTS.md: Every PR writer stays behind the clicked and receipted repair worker.",
+      "severity": "block",
+      "kind": "existing_test",
+      "scope": [
+        "**"
+      ],
+      "enforcedBy": {
+        "file": "lib/security/repoGuardrails.test.ts",
+        "test": "enforces receipted-pr-writes"
+      },
+      "testFile": "lib/security/prWrites.test.ts",
+      "testName": "each PR module is imported only by the receipted repair path",
+      "assertionDigest": "72259da8a81526bff136d397239052e50eec193e35f78e2e4125337d7d304c94",
+      "sourcePins": {
+        "lib/deep/github.ts": "81acb8550b40d868dccfed68cca972efda1532d9317b3d6604112312b3dfa619",
+        "lib/deep/githubFixRun.ts": "62bf494b3a55b2415d4da5b55b6b6c02711bd6cbd7295815f4d77a27138c207d",
+        "lib/fixes/aiFixPr.ts": "a661d8c11e0b1394d8139f5e02fbfd1fb9736ba1593ac8193601117da32720ec",
+        "lib/fixes/prRun.ts": "ac172740424c6bc53fe490115d90d6429fda7e9baff31c0d3dffc58c3a216cfe",
+        "lib/fixes/pullRequestFixPr.ts": "c9fd02509b7df459970c572aab3ecc70735cdb353a95ec19199bdca1ca5d3854",
+        "lib/fixes/rateLimitPr.ts": "dbfb1054037ce1c53cf46b8ab3d325ece2779e614afed341afe8bee2f55a1ae0",
+        "lib/fixes/riskFixPr.ts": "5e803d5a41232a13fdd3aa5a4f355f70bae80181d7d6716372f90fdcf608cbdc",
+        "lib/fixes/findingFixPr.ts": "93247d2a5ed4301a4ea9e8e52d3c0b847a29010ad13fd745fd79c1f1493a2437",
+        "lib/fixes/preview.ts": "2a50ff2fa8f6f245294b5472c3312f9e541bdf41c21d1efdc6b0a45d62545201",
+        "lib/jobs/repairWorker.ts": "b3322259fbd5abcfeadae29d97cd7af42b8e36d5689f45fbe72817464437c0fb"
+      },
+      "importers": {
+        "lib/deep/githubFixRun.ts": [
+          "lib/jobs/repairWorker.ts",
+          "lib/fixes/findingFixPr.ts",
+          "lib/fixes/preview.ts"
+        ],
+        "lib/fixes/aiFixPr.ts": [
+          "lib/jobs/repairWorker.ts",
+          "lib/fixes/findingFixPr.ts",
+          "lib/fixes/preview.ts"
+        ],
+        "lib/fixes/prRun.ts": [
+          "lib/jobs/repairWorker.ts",
+          "lib/fixes/findingFixPr.ts",
+          "lib/fixes/preview.ts"
+        ],
+        "lib/fixes/pullRequestFixPr.ts": [
+          "lib/jobs/repairWorker.ts",
+          "lib/fixes/findingFixPr.ts",
+          "lib/fixes/preview.ts"
+        ],
+        "lib/fixes/rateLimitPr.ts": [
+          "lib/jobs/repairWorker.ts",
+          "lib/fixes/findingFixPr.ts",
+          "lib/fixes/preview.ts"
+        ],
+        "lib/fixes/riskFixPr.ts": [
+          "lib/jobs/repairWorker.ts",
+          "lib/fixes/findingFixPr.ts",
+          "lib/fixes/preview.ts"
+        ],
+        "lib/fixes/findingFixPr.ts": [
+          "lib/jobs/repairWorker.ts",
+          "lib/fixes/findingFixPr.ts",
+          "lib/fixes/preview.ts"
+        ],
+        "lib/deep/github.ts#openPullRequest": [
+          "lib/deep/githubFixRun.ts",
+          "lib/fixes/aiFixPr.ts",
+          "lib/fixes/prRun.ts",
+          "lib/fixes/pullRequestFixPr.ts",
+          "lib/fixes/rateLimitPr.ts",
+          "lib/fixes/riskFixPr.ts"
+        ],
+        "lib/deep/github.ts#createBranch": [
+          "lib/deep/githubFixRun.ts",
+          "lib/fixes/aiFixPr.ts",
+          "lib/fixes/prRun.ts",
+          "lib/fixes/pullRequestFixPr.ts",
+          "lib/fixes/rateLimitPr.ts",
+          "lib/fixes/riskFixPr.ts"
+        ],
+        "lib/deep/github.ts#putFile": [
+          "lib/deep/githubFixRun.ts",
+          "lib/fixes/aiFixPr.ts",
+          "lib/fixes/prRun.ts",
+          "lib/fixes/pullRequestFixPr.ts",
+          "lib/fixes/rateLimitPr.ts",
+          "lib/fixes/riskFixPr.ts"
+        ]
+      }
+    },
+    {
+      "id": "cookie-origin",
+      "statement": "Every cookie-authenticated mutation refuses cross-site requests before auth and has a route test.",
+      "why": "AGENTS.md mutation invariant and Felipe 2026-09-30: no POST PUT PATCH DELETE grandfathered.",
+      "severity": "block",
+      "kind": "required_pattern",
+      "scope": [
+        "app/api/**/route.ts"
+      ],
+      "enforcedBy": {
+        "file": "lib/security/repoGuardrails.test.ts",
+        "test": "enforces cookie-origin"
+      },
+      "check": "cookie-origin"
+    },
+    {
+      "id": "nonce-csp",
+      "statement": "The proxy preserves a fresh nonce and narrow CSP with exact Supabase origins.",
+      "why": "AGENTS.md: The proxy preserves a fresh nonce and narrow CSP with exact Supabase origins.",
+      "severity": "block",
+      "kind": "existing_test",
+      "scope": [
+        "**"
+      ],
+      "enforcedBy": {
+        "file": "lib/security/repoGuardrails.test.ts",
+        "test": "enforces nonce-csp"
+      },
+      "testFile": "proxy.test.ts",
+      "testName": "uses exact Supabase HTTP and realtime origins with a fresh nonce in production",
+      "assertionDigest": "c5369787d92bf8e1ef6041665fbd88bc8e1cac3ce3b256aedd8ec68e12e636c4",
+      "sourcePins": {
+        "proxy.ts": "5c81cb7ffe58ddfed0d4828e1162c2c8b942cac9000a666acaece0eab353b510"
+      }
+    },
+    {
+      "id": "dynamic-layout",
+      "statement": "The root layout awaits connection so request nonces reach framework scripts.",
+      "why": "AGENTS.md: The root layout awaits connection so request nonces reach framework scripts.",
+      "severity": "block",
+      "kind": "existing_test",
+      "scope": [
+        "**"
+      ],
+      "enforcedBy": {
+        "file": "lib/security/repoGuardrails.test.ts",
+        "test": "enforces dynamic-layout"
+      },
+      "testFile": "app/layout.test.ts",
+      "testName": "renders every page per request so the CSP nonce reaches its scripts",
+      "assertionDigest": "d63798fc60e0f8d6a848a27a1e8f517df7407d03bc6e0aecae11db7f366ec13d",
+      "sourcePins": {
+        "app/layout.tsx": "50614b4f738b0f457fc04612550f283198d44751c229845f97ebc2c90efc95af"
+      }
+    },
+    {
+      "id": "customer-copy",
+      "statement": "Customer pages and components contain no em or en dash.",
+      "why": "AGENTS.md: Customer pages and components contain no em or en dash.",
+      "severity": "block",
+      "kind": "existing_test",
+      "scope": [
+        "**"
+      ],
+      "enforcedBy": {
+        "file": "lib/security/repoGuardrails.test.ts",
+        "test": "enforces customer-copy"
+      },
+      "testFile": "app/noDashes.test.ts",
+      "testName": "no em or en dash in any page or component outside comments",
+      "assertionDigest": "13950e0241982887fab07c987546dd6774a43339e6b2784229fa40ca99a96c81"
+    },
+    {
+      "id": "crawler-agreement",
+      "statement": "Robots rules and the sitemap agree with the pages named by llms.txt.",
+      "why": "AGENTS.md: Robots rules and the sitemap agree with the pages named by llms.txt.",
+      "severity": "block",
+      "kind": "existing_test",
+      "scope": [
+        "**"
+      ],
+      "enforcedBy": {
+        "file": "lib/security/repoGuardrails.test.ts",
+        "test": "enforces crawler-agreement"
+      },
+      "testFile": "app/crawlers.test.ts",
+      "testName": "contains every page llms.txt names",
+      "assertionDigest": "15012515008580f3dc5f00b75f5e932f605ccdf0fa9e70535538f4f02f9fbfe5"
+    },
+    {
+      "id": "tracked-secrets",
+      "statement": "Tracked files outside explicit test fixture data contain no credential-shaped values.",
+      "why": "AGENTS.md: No customer secret in jobs logs graph facts and no leaked secrets in handoff.",
+      "severity": "block",
+      "kind": "forbidden_pattern",
+      "scope": [
+        "**"
+      ],
+      "enforcedBy": {
+        "file": "lib/security/repoGuardrails.test.ts",
+        "test": "enforces tracked-secrets"
+      },
+      "check": "secrets",
+      "exclude": [
+        "lib/security/guardrailFixtures/**",
+        "**/fixtures/**",
+        "**/__fixtures__/**"
+      ],
+      "allowedValueDigests": [
+        "03d104c669e3c7b6be7f989db8b12c8b910d3be8c1e2a73c9369d3cc0ba803b5",
+        "08b8899f2532cf3fe6f1c8dd3d278bf298aeeaca760c98c35924319ff03f882b",
+        "161b03f76201792d5e42b9a3bc547d93745083b833934424a6f68df8c81712df",
+        "2b8e78a6171d01a060986c709b87aec21cc36cf39a998255e39548b1addbe761",
+        "3021d90eb9437b2d8f30e8363695c4418b5e5f1870801b5c317e9398ee0f572d",
+        "635ad930f02c045c9518097ceb6a50b62c18b00ae79d4ffe494f852056740ca5",
+        "8bcac7908eb950419537b91e19adc83ce2c9cbfdacf4f81157fdadfec11f7017",
+        "afbcc69435c1724682ae75775490c67a704a591a26780ee8ecd459e25fb5961f",
+        "b196ec7d2d8eb2add8ce03d0a65fed5b6fca88e0d2bcd27215861560ed391364",
+        "c4a120ac99410bfe21188da4029fdb80403ce080e941a9e3d6bbf013c4ca67f0",
+        "cbba12be3d95e2fe835134158d8115d94516ed85332006118ce89d7f1aac707e",
+        "ce8731352a3a4f2a6937c46d356207a050389f39f88f95f8360f03a66b380e01",
+        "d044ff41822a93e9d390dbd1773d4a4db15fb04f4831c68f3325006400be241d",
+        "ef2be813b8407efff705305cfcd3d8078c7e6b4ac428cb85e5323ea5836410b9",
+        "f8ebf7b634699c4eb8f9804f3954dce61020c352a68e51ac94732ae19dccbfc6"
+      ]
+    },
+    {
+      "id": "migration-sequence",
+      "statement": "Migration numbers start at one and have no gaps or duplicates.",
+      "why": "AGENTS.md: schema source is supabase/migrations and release numbers are controlled in the ledger.",
+      "severity": "block",
+      "kind": "file_policy",
+      "scope": [
+        "supabase/migrations/**"
+      ],
+      "enforcedBy": {
+        "file": "lib/security/repoGuardrails.test.ts",
+        "test": "enforces migration-sequence"
+      },
+      "check": "migrations"
+    },
+    {
+      "id": "migration-loads",
+      "statement": "Every migration after 095 executes in the local foundation SQL suite.",
+      "why": "AGENTS.md: load new migrations in scripts/test-foundation-sql.mjs with local checks.",
+      "severity": "block",
+      "kind": "file_policy",
+      "scope": [
+        "supabase/migrations/**"
+      ],
+      "enforcedBy": {
+        "file": "lib/security/repoGuardrails.test.ts",
+        "test": "enforces migration-loads"
+      },
+      "check": "migration-loads",
+      "sourcePins": {
+        "scripts/test-foundation-sql.mjs": "a0690a80631eccb85ac3e040c04b0056b56681ff7cda160dbba2922d9ef7f6b4"
+      }
+    },
+    {
+      "id": "provider-writes",
+      "statement": "Application code never merges deploys or writes provider settings.",
+      "why": "AGENTS.md: ShipLock never merges or deploys and provider SQL is read-only. Reviewed exceptions are pinned: the read-only SQL collector, and the dormant disposable-branch prover (lib/proving/branch.ts) with its switch file (arena.ts, BRANCH_PATH_ENABLED = false); any edit re-opens review.",
+      "severity": "block",
+      "kind": "forbidden_pattern",
+      "scope": [
+        "app/**",
+        "lib/**"
+      ],
+      "enforcedBy": {
+        "file": "lib/security/repoGuardrails.test.ts",
+        "test": "enforces provider-writes"
+      },
+      "check": "provider-writes",
+      "sourcePins": {
+        "lib/deep/supabaseMgmt.ts": "1e3b720888677b6e37b080c54696e32a1ce542d73ce3c2e7b88cd532669f0185",
+        "lib/proving/branch.ts": "baa0d6d31a6406247f8b90aa9fa79863e1e59de3d1a50861185ea1debef1564c",
+        "lib/proving/arena.ts": "c5dde5104e620bdb687fdd38f86255b1e893fb8f886ae670ee7688af8aadafb8"
+      }
+    },
+    {
+      "id": "verified-findings",
+      "statement": "Model-produced audit findings preserve the verifier before buildFindings.",
+      "why": "AGENTS.md: Model-produced audit findings preserve the verifier before buildFindings.",
+      "severity": "block",
+      "kind": "existing_test",
+      "scope": [
+        "**"
+      ],
+      "enforcedBy": {
+        "file": "lib/security/repoGuardrails.test.ts",
+        "test": "enforces verified-findings"
+      },
+      "testFile": "lib/agent/attack.verify.test.ts",
+      "testName": "keeps nothing when the verifier fails or has no key",
+      "assertionDigest": "ee961f342eb0da1fa3e801dbc17f0dba7762e371b12293cbd2af5b0976c83581",
+      "sourcePins": {
+        "lib/agent/audit.ts": "94efe6cf8c35e015aceeac49eca568d2f3c9ef514524a11f74e074bede527020",
+        "lib/agent/verify.ts": "ec42ba578412897ee1e9e270f4d1fb6b91c9b723efab77bb2f6b31f490c4387d"
+      }
+    },
+    {
+      "id": "agents-approval",
+      "statement": "A commit changing AGENTS.md declares Felipe approved in its message.",
+      "why": "AGENTS.md: only Claude edits this file with Felipe explicit approval.",
+      "severity": "warn",
+      "kind": "file_policy",
+      "scope": [
+        "AGENTS.md"
+      ],
+      "enforcedBy": {
+        "file": "lib/security/repoGuardrails.test.ts",
+        "test": "enforces agents-approval"
+      },
+      "check": "agents-approval"
+    }
+  ]
+}

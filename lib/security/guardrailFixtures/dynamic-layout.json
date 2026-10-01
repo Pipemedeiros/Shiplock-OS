@@ -1,0 +1,64 @@
+{
+  "rule": "dynamic-layout",
+  "cases": [
+    {
+      "name": "deleted enforcing file",
+      "expectedPath": "app/layout.test.ts",
+      "edits": [
+        {
+          "path": "app/layout.test.ts",
+          "remove": true
+        }
+      ]
+    },
+    {
+      "name": "comments preserve the name and assertion markers",
+      "expectedPath": "app/layout.test.ts",
+      "edits": [
+        {
+          "path": "app/layout.test.ts",
+          "commentAll": true
+        }
+      ]
+    },
+    {
+      "name": "assertion gutted with the test name intact",
+      "expectedPath": "app/layout.test.ts",
+      "edits": [
+        {
+          "path": "app/layout.test.ts",
+          "replace": {
+            "from": "expect(",
+            "to": "void ("
+          }
+        }
+      ]
+    },
+    {
+      "name": "skipped test",
+      "expectedPath": "app/layout.test.ts",
+      "edits": [
+        {
+          "path": "app/layout.test.ts",
+          "replace": {
+            "from": "it(",
+            "to": "it.skip("
+          }
+        }
+      ]
+    },
+    {
+      "name": "comment fakes connection",
+      "expectedPath": "app/layout.tsx",
+      "edits": [
+        {
+          "path": "app/layout.tsx",
+          "replace": {
+            "from": "await connection();",
+            "to": "// await connection();"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+import { crossSiteRefusal } from "@/lib/security/sameOrigin";
 import { toNextJsHandler } from "better-auth/next-js";
 import { getBetterAuth, isBetterAuthConfigured } from "@/lib/betterAuth";
 
@@ -18,6 +19,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const refused = crossSiteRefusal(req);
+  if (refused) return refused;
   if (!isBetterAuthConfigured()) return notConfigured();
   return toNextJsHandler(getBetterAuth()).POST(req);
 }

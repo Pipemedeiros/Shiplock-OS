@@ -438,16 +438,18 @@ and its exact status live only in `docs/MASTER-PLAN-PROGRESS.md`.
 ## Agent roles
 
 - Felipe decides product, pricing, spend, releases, and approvals.
-- Claude orchestrates: writes and orders the work queue in the ledger, reviews
-  every Codex commit, and releases (remote migrations, push, deploy checks)
-  only with Felipe's approval. Claude is the only agent that edits this file,
-  and only with Felipe's approval.
-- Codex implements queue items. In the ledger it only ticks its own item's
-  checkbox when acceptance is fully met and appends reports; it never edits
-  this file, rewrites or reorders the plan, pushes, deploys, applies remote
-  migrations, publishes packages, changes provider settings, or makes paid
-  calls. When a decision is Felipe's, it stops and reports `BLOCKED`.
-- Both agents leave the working tree clean after every commit.
+- Claude is the only agent working on ShipLock (Felipe, 2026-10-01): it plans
+  and orders the queue in the ledger, implements and reviews every change, and
+  releases (remote migrations, push, deploy checks) only with Felipe's
+  approval. It may start its own subagents for bounded work and reviews what
+  they produce before it is committed. Claude edits this file only with
+  Felipe's approval. When a decision is Felipe's, it stops and asks.
+- `.agents/guardrails.json` is the machine-checked form of this contract.
+  `lib/security/repoGuardrails.test.ts` enforces every rule in the normal test
+  run; each rule names its enforcement and carries a fixture that proves it can
+  fail. Never weaken a rule to pass; a reviewed exception is a pinned file
+  whose any edit re-opens review.
+- Leave the working tree clean after every commit.
 
 ## Felipe's working agreement
 
@@ -534,15 +536,14 @@ decisions, and unreviewed reports. Keep it short enough to read in one pass
   narratives. A fact that stays useful (a released migration number, a
   decision still binding) is kept as current state in one line, not as a
   story.
-- Codex appends a short report when an item is done or blocked. Claude reviews
-  it, folds anything still true into the current sections, and deletes the
-  report.
+- A subagent's report is reviewed by Claude, folded into the current
+  sections if still true, and deleted.
 - History lives in git: `git log -- docs/MASTER-PLAN-PROGRESS.md` and commit
   messages. Measurement inputs and results stay as JSON under
   `docs/evaluation/`.
-- At takeover, reconcile the ledger with `git status` and `git log` before
-  editing. Claude and Codex work sequentially; never overwrite another
-  agent's unfinished work or infer completion from its last message.
+- At the start of a session, reconcile the ledger with `git status` and
+  `git log` before editing; never overwrite unfinished work or infer
+  completion from a last message.
 
 `AGENTS.md` is the stable product spec, architecture, design rules, workflow,
 and code orientation. Keep status out of it: migration numbers, commit

@@ -1,3 +1,4 @@
+import { shiplockFundedCallAllowed } from "@/lib/funding";
 import Anthropic from "@anthropic-ai/sdk";
 import { recordModelUsage } from "@/lib/cost/modelUsage";
 import type { Severity } from "@/lib/types";
@@ -85,6 +86,7 @@ export type Proposer = (context: AgentContext, previous: AgentAttempt[]) => Prom
  */
 export function claudeProposer(userId: string): Proposer {
   return async (context, previous) => {
+    if (!shiplockFundedCallAllowed("proving")) return [];
     const client = new Anthropic();
     const schemaDescription =
       `table: ${context.schema}.${context.table}\n` +

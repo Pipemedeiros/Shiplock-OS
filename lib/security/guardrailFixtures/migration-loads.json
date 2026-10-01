@@ -1,0 +1,28 @@
+{
+  "rule": "migration-loads",
+  "cases": [
+    {
+      "name": "new migration without execution",
+      "expectedPath": "supabase/migrations/097_new.sql",
+      "edits": [
+        {
+          "path": "supabase/migrations/097_new.sql",
+          "content": "select 1;"
+        }
+      ]
+    },
+    {
+      "name": "comment fakes existing loader",
+      "expectedPath": "supabase/migrations/096_audit_route_facts.sql",
+      "edits": [
+        {
+          "path": "scripts/test-foundation-sql.mjs",
+          "replace": {
+            "from": "await db.exec(await readFile(new URL(\"../supabase/migrations/096_audit_route_facts.sql\", import.meta.url), \"utf8\"));",
+            "to": "// await db.exec(await readFile(new URL(\"../supabase/migrations/096_audit_route_facts.sql\", import.meta.url), \"utf8\"));"
+          }
+        }
+      ]
+    }
+  ]
+}

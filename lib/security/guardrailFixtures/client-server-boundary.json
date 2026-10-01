@@ -1,0 +1,49 @@
+{
+  "rule": "client-server-boundary",
+  "cases": [
+    {
+      "name": "aliased import",
+      "expectedPath": "components/Rogue.tsx",
+      "edits": [
+        {
+          "path": "components/Rogue.tsx",
+          "content": "\"use client\"; import { getSupabaseAdmin as db } from \"@/lib/supabase\"; db();"
+        }
+      ]
+    },
+    {
+      "name": "re-exported crypto",
+      "expectedPath": "components/Rogue.tsx",
+      "edits": [
+        {
+          "path": "components/Rogue.tsx",
+          "content": "\"use client\"; import { decrypt } from \"@/lib/security/cryptoBarrel\"; decrypt();"
+        },
+        {
+          "path": "lib/security/cryptoBarrel.ts",
+          "content": "export { decrypt } from \"../crypto\";"
+        }
+      ]
+    },
+    {
+      "name": "dynamic import",
+      "expectedPath": "components/Rogue.tsx",
+      "edits": [
+        {
+          "path": "components/Rogue.tsx",
+          "content": "\"use client\"; const m = await import(\"@/lib/\" + \"crypto\"); m.decrypt();"
+        }
+      ]
+    },
+    {
+      "name": "computed environment key",
+      "expectedPath": "components/Rogue.tsx",
+      "edits": [
+        {
+          "path": "components/Rogue.tsx",
+          "content": "\"use client\"; const x = process.env[\"SUPABASE_SERVICE_\" + \"ROLE_KEY\"];"
+        }
+      ]
+    }
+  ]
+}

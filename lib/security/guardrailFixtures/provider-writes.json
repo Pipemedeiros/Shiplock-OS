@@ -1,0 +1,65 @@
+{
+  "rule": "provider-writes",
+  "cases": [
+    {
+      "name": "split GitHub merge URL",
+      "expectedPath": "lib/security/provider.ts",
+      "edits": [
+        {
+          "path": "lib/security/provider.ts",
+          "content": "fetch(\"https://api.github.com/repos/acme/app/pulls/1/\" + \"merge\", { method: \"PUT\" });"
+        }
+      ]
+    },
+    {
+      "name": "computed SDK merge",
+      "expectedPath": "lib/security/provider.ts",
+      "edits": [
+        {
+          "path": "lib/security/provider.ts",
+          "content": "octokit.rest.pulls[\"mer\" + \"ge\"]({});"
+        }
+      ]
+    },
+    {
+      "name": "Vercel deployment",
+      "expectedPath": "lib/security/provider.ts",
+      "edits": [
+        {
+          "path": "lib/security/provider.ts",
+          "content": "const endpoint=\"https://api.\"+\"vercel.com/v13/deployments\"; fetch(endpoint, {method: \"POST\"});"
+        }
+      ]
+    },
+    {
+      "name": "Vercel environment write",
+      "expectedPath": "lib/security/provider.ts",
+      "edits": [
+        {
+          "path": "lib/security/provider.ts",
+          "content": "fetch(`https://api.vercel.com/v9/projects/${project}/env`, {method:\"PATCH\"});"
+        }
+      ]
+    },
+    {
+      "name": "Supabase settings write",
+      "expectedPath": "lib/security/provider.ts",
+      "edits": [
+        {
+          "path": "lib/security/provider.ts",
+          "content": "fetch(\"https://api.supabase.com/v1/projects/ref/config/auth\", {method: \"PATCH\"});"
+        }
+      ]
+    },
+    {
+      "name": "Supabase SQL write",
+      "expectedPath": "lib/security/provider.ts",
+      "edits": [
+        {
+          "path": "lib/security/provider.ts",
+          "content": "fetch(\"https://api.supabase.com/v1/projects/ref/database/query\", {method: \"POST\",body:JSON.stringify({query:\"drop table users\"})});"
+        }
+      ]
+    }
+  ]
+}

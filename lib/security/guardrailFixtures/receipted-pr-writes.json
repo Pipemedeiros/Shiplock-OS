@@ -1,0 +1,81 @@
+{
+  "rule": "receipted-pr-writes",
+  "cases": [
+    {
+      "name": "deleted enforcing file",
+      "expectedPath": "lib/security/prWrites.test.ts",
+      "edits": [
+        {
+          "path": "lib/security/prWrites.test.ts",
+          "remove": true
+        }
+      ]
+    },
+    {
+      "name": "comments preserve the name and assertion markers",
+      "expectedPath": "lib/security/prWrites.test.ts",
+      "edits": [
+        {
+          "path": "lib/security/prWrites.test.ts",
+          "commentAll": true
+        }
+      ]
+    },
+    {
+      "name": "assertion gutted with the test name intact",
+      "expectedPath": "lib/security/prWrites.test.ts",
+      "edits": [
+        {
+          "path": "lib/security/prWrites.test.ts",
+          "replace": {
+            "from": "expect(",
+            "to": "void ("
+          }
+        }
+      ]
+    },
+    {
+      "name": "skipped test",
+      "expectedPath": "lib/security/prWrites.test.ts",
+      "edits": [
+        {
+          "path": "lib/security/prWrites.test.ts",
+          "replace": {
+            "from": "it(",
+            "to": "it.skip("
+          }
+        }
+      ]
+    },
+    {
+      "name": "aliased write bypass",
+      "expectedPath": "app/api/pr-bypass/route.ts",
+      "edits": [
+        {
+          "path": "app/api/pr-bypass/route.ts",
+          "content": "import { openPullRequest as send } from \"@/lib/deep/github\"; export const POST = send;"
+        }
+      ]
+    },
+    {
+      "name": "relative path bypass",
+      "expectedPath": "lib/security/prBarrel.ts",
+      "edits": [
+        {
+          "path": "lib/security/prBarrel.ts",
+          "content": "export { runFixPr } from \"../fixes/prRun\";"
+        }
+      ]
+    },
+    {
+      "name": "dynamic PR module",
+      "expectedPath": "app/api/pr-bypass/route.ts",
+      "edits": [
+        {
+          "path": "app/api/pr-bypass/route.ts",
+          "content": "const writer = await import(\"@/lib/fixes/\" + \"prRun\"); writer.runFixPr();"
+        }
+      ]
+    }
+  ]
+}

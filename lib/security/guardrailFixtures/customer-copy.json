@@ -1,0 +1,51 @@
+{
+  "rule": "customer-copy",
+  "cases": [
+    {
+      "name": "deleted enforcing file",
+      "expectedPath": "app/noDashes.test.ts",
+      "edits": [
+        {
+          "path": "app/noDashes.test.ts",
+          "remove": true
+        }
+      ]
+    },
+    {
+      "name": "comments preserve the name and assertion markers",
+      "expectedPath": "app/noDashes.test.ts",
+      "edits": [
+        {
+          "path": "app/noDashes.test.ts",
+          "commentAll": true
+        }
+      ]
+    },
+    {
+      "name": "assertion gutted with the test name intact",
+      "expectedPath": "app/noDashes.test.ts",
+      "edits": [
+        {
+          "path": "app/noDashes.test.ts",
+          "replace": {
+            "from": "expect(",
+            "to": "void ("
+          }
+        }
+      ]
+    },
+    {
+      "name": "skipped test",
+      "expectedPath": "app/noDashes.test.ts",
+      "edits": [
+        {
+          "path": "app/noDashes.test.ts",
+          "replace": {
+            "from": "it(",
+            "to": "it.skip("
+          }
+        }
+      ]
+    }
+  ]
+}

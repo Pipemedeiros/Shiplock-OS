@@ -1,0 +1,35 @@
+{
+  "rule": "migration-sequence",
+  "cases": [
+    {
+      "name": "new gap",
+      "expectedPath": "supabase/migrations",
+      "edits": [
+        {
+          "path": "supabase/migrations/098_gap.sql",
+          "content": "select 1;"
+        }
+      ]
+    },
+    {
+      "name": "duplicate existing number",
+      "expectedPath": "supabase/migrations",
+      "edits": [
+        {
+          "path": "supabase/migrations/096_duplicate.sql",
+          "content": "select 1;"
+        }
+      ]
+    },
+    {
+      "name": "invalid name",
+      "expectedPath": "supabase/migrations",
+      "edits": [
+        {
+          "path": "supabase/migrations/not-numbered.sql",
+          "content": "select 1;"
+        }
+      ]
+    }
+  ]
+}

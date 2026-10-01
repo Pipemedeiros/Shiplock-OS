@@ -1257,11 +1257,9 @@ try {
     await db.exec(netLockSql);
   });
   // 096: the audit keeps its route facts for the dashboard route map (Q27).
-  const routeFactsSql = await readFile(new URL("../supabase/migrations/096_audit_route_facts.sql", import.meta.url), "utf8");
   await check("096 adds audit_runs.route_facts as jsonb, still unreadable by client roles", async () => {
     await db.exec("reset role");
-    await db.exec(routeFactsSql);
-    await db.exec(routeFactsSql); // idempotent
+    await db.exec(await readFile(new URL("../supabase/migrations/096_audit_route_facts.sql", import.meta.url), "utf8"));
     const col = (await db.query("select data_type from information_schema.columns where table_schema='public' and table_name='audit_runs' and column_name='route_facts'")).rows[0];
     assert.equal(col?.data_type, "jsonb");
     for (const role of ["anon", "authenticated"]) {

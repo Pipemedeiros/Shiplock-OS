@@ -1,0 +1,77 @@
+{
+  "rule": "nonce-csp",
+  "cases": [
+    {
+      "name": "deleted enforcing file",
+      "expectedPath": "proxy.test.ts",
+      "edits": [
+        {
+          "path": "proxy.test.ts",
+          "remove": true
+        }
+      ]
+    },
+    {
+      "name": "comments preserve the name and assertion markers",
+      "expectedPath": "proxy.test.ts",
+      "edits": [
+        {
+          "path": "proxy.test.ts",
+          "commentAll": true
+        }
+      ]
+    },
+    {
+      "name": "assertion gutted with the test name intact",
+      "expectedPath": "proxy.test.ts",
+      "edits": [
+        {
+          "path": "proxy.test.ts",
+          "replace": {
+            "from": "expect(",
+            "to": "void ("
+          }
+        }
+      ]
+    },
+    {
+      "name": "skipped test",
+      "expectedPath": "proxy.test.ts",
+      "edits": [
+        {
+          "path": "proxy.test.ts",
+          "replace": {
+            "from": "it(",
+            "to": "it.skip("
+          }
+        }
+      ]
+    },
+    {
+      "name": "production unsafe inline",
+      "expectedPath": "proxy.ts",
+      "edits": [
+        {
+          "path": "proxy.ts",
+          "replace": {
+            "from": "'strict-dynamic' ${google}/gsi/client",
+            "to": "'strict-dynamic' 'unsafe-inline' ${google}/gsi/client"
+          }
+        }
+      ]
+    },
+    {
+      "name": "wildcard host",
+      "expectedPath": "proxy.ts",
+      "edits": [
+        {
+          "path": "proxy.ts",
+          "replace": {
+            "from": "${supabase}https://us.i.posthog.com",
+            "to": "https://*.supabase.co https://us.i.posthog.com"
+          }
+        }
+      ]
+    }
+  ]
+}

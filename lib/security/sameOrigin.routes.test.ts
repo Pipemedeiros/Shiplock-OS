@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Every cookie-authenticated mutation (17 routes) refuses a cross-site request before any
+// Every cookie-authenticated mutation (including dormant handlers) refuses a cross-site request before any
 // authentication, storage, GitHub, or provider work. The guard is the first
 // statement, so nothing below it may run; any touched dependency throws.
 const touched = vi.hoisted(() => vi.fn(() => { throw new Error("touched before the same-origin guard"); }));
@@ -9,7 +9,15 @@ vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: touched }));
 vi.mock("@/lib/supabaseServer", () => ({ getSupabaseServer: touched }));
 vi.mock("@/lib/dashboard", () => ({ requireDashboardSession: touched }));
 
-const routes: [string, () => Promise<{ POST: (request: Request) => Promise<Response> }>][] = [
+vi.mock("@/lib/betterAuth", () => ({ getBetterAuth: touched, isBetterAuthConfigured: touched }));
+
+const routes: [string, () => Promise<object>][] = [
+  ["deep/postgres/repository", () => import("@/app/api/deep/postgres/repository/route")],
+  ["deep/supabase/repository", () => import("@/app/api/deep/supabase/repository/route")],
+  ["intelligence/connection", () => import("@/app/api/intelligence/connection/route")],
+  ["intelligence/credential", () => import("@/app/api/intelligence/credential/route")],
+  ["intelligence/tasks/[id]/fix", () => import("@/app/api/intelligence/tasks/[id]/fix/route")],
+  ["2fa/[...all]", () => import("@/app/api/2fa/[...all]/route")],
   ["repos", () => import("@/app/api/repos/route")],
   ["deep/supabase/scan", () => import("@/app/api/deep/supabase/scan/route")],
   ["deep/supabase/disconnect", () => import("@/app/api/deep/supabase/disconnect/route")],
@@ -29,12 +37,14 @@ const routes: [string, () => Promise<{ POST: (request: Request) => Promise<Respo
 describe("cookie-authenticated mutations refuse cross-site requests first", () => {
   beforeEach(() => { touched.mockClear(); });
   it.each(routes)("%s", async (path, load) => {
-    const { POST } = await load();
+    const handlers = await load() as Record<string, (request: Request, context: { params: Promise<{ id: string }> }) => Promise<Response>>;
+    for (const method of ["POST", "PUT", "PATCH", "DELETE"].filter(m => m in handlers)) {
     for (const origin of ["https://evil.example", null]) {
-      const response = await POST(new Request(`https://shiplock.dev/api/${path}`, {
-        method: "POST", headers: { "content-type": "application/json", ...(origin ? { origin } : {}) }, body: "{}",
-      }));
+      const response = await handlers[method](new Request(`https://shiplock.dev/api/${path}`, {
+        method, headers: { "content-type": "application/json", ...(origin ? { origin } : {}) }, body: "{}",
+      }), { params: Promise.resolve({ id: "test" }) });
       expect(response.status).toBe(403);
+    }
     }
     expect(touched).not.toHaveBeenCalled();
   });

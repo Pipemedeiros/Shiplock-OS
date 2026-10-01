@@ -1,3 +1,5 @@
+import { shiplockFundedCallAllowed } from "@/lib/funding";
+import { recordModelUsage } from "@/lib/cost/modelUsage";
 import Anthropic from "@anthropic-ai/sdk";
 import type { AttackPath } from "./attackPaths";
 import {
@@ -115,9 +117,10 @@ function describe(paths: AttackPath[], evidence: DefenceEvidence): string {
 }
 
 /** Asks the model for counter-evidence. Any failure yields an empty map. */
-export function claudeDefenceProposer(): DefenceProposer {
+export function claudeDefenceProposer(userId?: string): DefenceProposer {
   return async (paths, evidence) => {
     const out = new Map<string, DefenceClaim[]>();
+    if (!userId || !shiplockFundedCallAllowed("graph-defence")) return out;
     try {
       const client = new Anthropic();
       const response = await client.messages.create(
@@ -130,6 +133,7 @@ export function claudeDefenceProposer(): DefenceProposer {
         { timeout: TIMEOUT_MS, maxRetries: 0 }
       );
 
+      await recordModelUsage({ userId, purpose: "narrative", model: response.model, stopReason: response.stop_reason, usage: response.usage });
       console.log(
         `[defender] model=${MODEL} input=${response.usage.input_tokens} output=${response.usage.output_tokens} paths=${paths.length}`
       );

@@ -1,0 +1,18 @@
+{
+  "rule": "agents-approval",
+  "cases": [
+    {
+      "name": "unapproved contract commit",
+      "expectedPath": "AGENTS.md",
+      "edits": [],
+      "commits": [
+        {
+          "changedPaths": [
+            "AGENTS.md"
+          ],
+          "message": "Routine agent changes"
+        }
+      ]
+    }
+  ]
+}

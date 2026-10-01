@@ -1,0 +1,59 @@
+{
+  "rule": "cookie-origin",
+  "cases": [
+    {
+      "name": "comment fakes first guard",
+      "expectedPath": "app/api/unguarded/route.ts",
+      "edits": [
+        {
+          "path": "app/api/unguarded/route.ts",
+          "content": "import { requireProUser } from \"@/lib/deep/proGate\"; export async function POST(req) { /* crossSiteRefusal(req) */ return requireProUser(); }"
+        }
+      ]
+    },
+    {
+      "name": "guard result ignored",
+      "expectedPath": "app/api/unguarded/route.ts",
+      "edits": [
+        {
+          "path": "app/api/unguarded/route.ts",
+          "content": "import { requireProUser } from \"@/lib/deep/proGate\"; import { crossSiteRefusal } from \"@/lib/security/sameOrigin\"; export async function DELETE(req) { const refused = crossSiteRefusal(req); return requireProUser(); }"
+        }
+      ]
+    },
+    {
+      "name": "local fake guard",
+      "expectedPath": "app/api/unguarded/route.ts",
+      "edits": [
+        {
+          "path": "app/api/unguarded/route.ts",
+          "content": "import { requireProUser } from \"@/lib/deep/proGate\"; const crossSiteRefusal=()=>null; export async function PATCH(req) { const refused=crossSiteRefusal(req); if(refused)return refused; return requireProUser(); }"
+        }
+      ]
+    },
+    {
+      "name": "guarded route missing from test census",
+      "expectedPath": "app/api/unguarded/route.ts",
+      "edits": [
+        {
+          "path": "app/api/unguarded/route.ts",
+          "content": "import { requireProUser as auth } from \"@/lib/deep/proGate\"; import { crossSiteRefusal as refuse } from \"@/lib/security/sameOrigin\"; export async function PUT(req) { const refused=refuse(req); if(refused)return refused; return auth(); }"
+        }
+      ]
+    },
+    {
+      "name": "barrel hides cookie auth",
+      "expectedPath": "app/api/unguarded/route.ts",
+      "edits": [
+        {
+          "path": "app/api/unguarded/route.ts",
+          "content": "import { auth } from \"@/lib/security/authBarrel\"; export async function POST(req) { return auth(); }"
+        },
+        {
+          "path": "lib/security/authBarrel.ts",
+          "content": "export { requireProUser as auth } from \"../deep/proGate\";"
+        }
+      ]
+    }
+  ]
+}

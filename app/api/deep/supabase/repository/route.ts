@@ -3,7 +3,7 @@ import { requireProUser } from "@/lib/deep/proGate";
 import { SupabaseBindingCollector, SupabaseRepositoryConfirmation, changeSupabaseRepositoryBinding,
   getSupabaseRepositoryBindings } from "@/lib/deep/supabaseRepositoryBinding";
 import { readDatabaseBindingJson } from "@/lib/deep/databaseBindingRequest";
-import { isSameOrigin } from "@/lib/security/sameOrigin";
+import { crossSiteRefusal } from "@/lib/security/sameOrigin";
 
 const unavailable = () => NextResponse.json({ error: "Database association unavailable. Try again." }, { status: 503 });
 export async function GET(request: Request) {
@@ -20,12 +20,11 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const refused = crossSiteRefusal(request);
+  if (refused) return refused;
   try {
     const pro = await requireProUser();
     if (!pro) return NextResponse.json({ error: "Sign in to manage database associations." }, { status: 403 });
-    if (!isSameOrigin(request)) {
-      return NextResponse.json({ error: "A same-origin request is required." }, { status: 403 });
-    }
     if (!/^application\/json(?:\s*;|$)/i.test(request.headers.get("content-type") ?? "")) {
       return NextResponse.json({ error: "Send a JSON confirmation." }, { status: 415 });
     }

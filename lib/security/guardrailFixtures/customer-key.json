@@ -1,0 +1,46 @@
+{
+  "rule": "customer-key",
+  "cases": [
+    {
+      "name": "computed environment read",
+      "expectedPath": "lib/intelligence/apiMode.ts",
+      "edits": [
+        {
+          "path": "lib/intelligence/apiMode.ts",
+          "replace": {
+            "from": "apiKey: credential.apiKey",
+            "to": "apiKey: process.env[\"ANTHROPIC_\" + \"API_KEY\"]"
+          }
+        }
+      ]
+    },
+    {
+      "name": "environment alias",
+      "expectedPath": "lib/intelligence/apiMode.ts",
+      "edits": [
+        {
+          "path": "lib/intelligence/apiMode.ts",
+          "content": "const settings = process.env; const key = settings.ANTHROPIC_API_KEY;"
+        }
+      ]
+    },
+    {
+      "name": "helper hides key",
+      "expectedPath": "lib/intelligence/apiMode.ts",
+      "edits": [
+        {
+          "path": "lib/intelligence/apiMode.ts",
+          "content": "import { key } from \"../security/keyBarrel\"; key();"
+        },
+        {
+          "path": "lib/security/keyBarrel.ts",
+          "content": "export { key } from \"./secretHelper\";"
+        },
+        {
+          "path": "lib/security/secretHelper.ts",
+          "content": "export const key = () => process.env.ANTHROPIC_API_KEY;"
+        }
+      ]
+    }
+  ]
+}
