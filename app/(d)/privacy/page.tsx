@@ -64,6 +64,8 @@ export default function PrivacyPage() {
       <section>
         <h2>Cookies</h2>
         <p>
+          ShipLock watches its own site the way it watches yours: for each request to shiplock.dev it keeps the path,
+          method, user agent and a salted hash of the visitor, never the address, the query string or any content.
           Sign-in cookies are always on because the app cannot work without them. Analytics cookies (PostHog) start
           only after you accept them in the cookie banner. If you choose Reject, we remember it and never ask again on
           that browser.

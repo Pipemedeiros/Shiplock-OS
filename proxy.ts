@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
+import { observeSelf } from "@/lib/traffic/selfObserve";
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -86,7 +87,9 @@ function hasSessionCookie(request: NextRequest): boolean {
 // middleware sits in front of all of them. The landing page had the most,
 // since it takes the most anonymous traffic and every one of those was asking
 // the auth server to refresh a session that did not exist.
-export async function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest, event?: NextFetchEvent) {
+  // ShipLock watching its own traffic (selfObserve.ts): after the response.
+  event?.waitUntil(observeSelf(request));
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const csp = buildCsp(nonce);
 

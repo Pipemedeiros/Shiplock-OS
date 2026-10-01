@@ -16,6 +16,25 @@ export type TrafficIdentity = { userId: string; email: string | null; siteId: st
 
 const UUID = z.uuid();
 
+/**
+ * The same checks as a token, for a site addressed by id: ShipLock's own proxy
+ * (selfObserve.ts) files its traffic this way, so no token is needed in config.
+ */
+export async function resolveTrafficSiteById(siteId: string): Promise<TrafficIdentity | null> {
+  if (!UUID.safeParse(siteId).success) return null;
+  const admin = getSupabaseAdmin();
+  const { data: site } = await admin.from("traffic_sites").select("id, user_id, repository_id")
+    .eq("id", siteId).is("revoked_at", null).maybeSingle();
+  if (!site) return null;
+  const { data: profile } = await admin.from("user_profiles").select("id, email, is_paid").eq("id", site.user_id).maybeSingle();
+  if (!profile || !trafficEntitled(profile)) return null;
+  const { data: repository } = await admin.from("repositories").select("id")
+    .eq("id", site.repository_id).eq("user_id", site.user_id).eq("selected", true).maybeSingle();
+  if (!repository) return null;
+  return { userId: profile.id as string, email: (profile.email as string | null) ?? null,
+    siteId: site.id as string, repositoryId: site.repository_id as string };
+}
+
 export async function resolveTrafficToken(token: string): Promise<TrafficIdentity | null> {
   if (!UUID.safeParse(token).success) return null;
   const admin = getSupabaseAdmin();

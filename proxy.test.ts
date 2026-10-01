@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const proxyMocks = vi.hoisted(() => ({ getUser: vi.fn() }));
+const proxyMocks = vi.hoisted(() => ({ getUser: vi.fn(), observe: vi.fn() }));
+vi.mock("@/lib/traffic/selfObserve", () => ({ observeSelf: proxyMocks.observe }));
 vi.mock("@supabase/ssr", () => ({
   createServerClient: vi.fn(() => ({ auth: { getUser: proxyMocks.getUser } })),
 }));
@@ -74,6 +75,17 @@ describe("Section 4 / Step 4A: Next.js proxy boundary", () => {
       expect(csp).not.toMatch(/supabase/);
     }
     vi.unstubAllEnvs();
+  });
+
+  // Dogfooding (Felipe 2026-10-01): ShipLock observes its own traffic after
+  // the response, never in front of it.
+  it("hands each request to self-observation off the response path", async () => {
+    const waitUntil = vi.fn();
+    proxyMocks.observe.mockResolvedValue(undefined);
+    const request = new NextRequest("https://shiplock.dev/dashboard");
+    await proxy(request, { waitUntil } as never);
+    expect(proxyMocks.observe).toHaveBeenCalledWith(request);
+    expect(waitUntil).toHaveBeenCalledTimes(1);
   });
 
   it("refreshes auth only when a Supabase session cookie exists", async () => {
