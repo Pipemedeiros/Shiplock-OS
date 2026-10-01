@@ -13,7 +13,7 @@ import { startAndWaitForAudit } from "./auditClient";
  * On success the route is refreshed, so the server components re-read the new
  * findings instead of the client holding a second copy of them.
  */
-export function RunAuditButton({ repository }: { repository: string }) {
+export function RunAuditButton({ repository, secondary = false }: { repository: string; secondary?: boolean }) {
   const router = useRouter();
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +21,7 @@ export function RunAuditButton({ repository }: { repository: string }) {
   return (
     <div style={{ textAlign: "right" }}>
       <button
-        className="v3-btn v3-btn-sm v3-primary"
+        className={`v3-btn v3-btn-sm ${secondary ? "v3-ondark" : "v3-primary"}`}
         disabled={running}
         onClick={async () => {
           setRunning(true);

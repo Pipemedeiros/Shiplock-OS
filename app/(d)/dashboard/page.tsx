@@ -1,26 +1,29 @@
 import Link from "next/link";
 import { requireDashboardSession } from "@/lib/dashboard";
 import { getOpenFindings, getRecentlyClosed, getRepositories, getRuns } from "@/lib/agent/dashboardData";
-import { Chain, Conf, Sev } from "@/components/v3/FindingParts";
+import { Chain, Claims, Conf, Sev } from "@/components/v3/FindingParts";
 import { RunAuditButton } from "@/components/v3/RunAuditButton";
 import { RouteMap } from "@/components/v3/RouteMap";
 import { loadRepositoryGraphSource } from "@/lib/graph/repositorySource";
 import { getHotRoutes, type HotRouteOffer } from "@/lib/traffic/hotRoutes";
 import { buildRouteMap } from "@/lib/routeMap";
 import { When } from "@/components/v3/When";
+import { Verdict } from "@/components/v3/Verdict";
+import { verdictOf } from "@/lib/verdict";
+import { getRecentPullRequestReviews } from "@/lib/agent/pullRequestReviews";
 
 export const metadata = { title: "Overview" };
 
 export default async function Overview() {
   const { userId } = await requireDashboardSession();
-  const [findings, runs, repos, closed] = await Promise.all([
+  const [findings, runs, repos, closed, reviews] = await Promise.all([
     getOpenFindings(userId),
     getRuns(userId, 5),
     getRepositories(userId),
     getRecentlyClosed(userId),
+    getRecentPullRequestReviews(userId).catch(() => []),
   ]);
 
-  const criticals = findings.filter((f) => f.severity === "CRITICAL");
   const lead = findings[0];
   const latest = runs[0];
   const waiting = findings.filter((f) => f.fixKind === "pr");
@@ -43,6 +46,15 @@ export default async function Overview() {
       })
     : null;
 
+  const routeNodes = map?.nodes.filter((n) => n.kind === "route") ?? [];
+  const routeCount = routeNodes.length;
+  const openRoutes = routeNodes.filter((n) => n.exposure === "open").length;
+  const unscopedRoutes = routeNodes.filter((n) => n.exposure === "unscoped").length;
+  const exposedRoutes = openRoutes + unscopedRoutes;
+  const blockedPrs = reviews.filter((r) => r.verdict === "block").length;
+  const unread = latest?.coverage.length ?? 0;
+  const verdict = verdictOf({ audited: Boolean(latest), lastRunFailed: latest?.status === "failed", findings, unread, blockedPrs });
+
   if (repos.length === 0) {
     return (
       <div className="v3-empty">
@@ -59,25 +71,36 @@ export default async function Overview() {
 
   return (
     <>
-      <div className="v3-page-hd">
-        <div>
-          <p className="v3-eyebrow">
-            {latest
-              ? <>{latest.fullName} · audited <When at={latest.startedAt} /></>
-              : `${repos[0].fullName} · not audited yet`}
-          </p>
-          <h1 className="v3-serif">
-            {criticals.length > 0
-              ? `${criticals.length} ${criticals.length === 1 ? "path reaches" : "paths reach"} customer data.`
-              : findings.length > 0
-                ? `${findings.length} open ${findings.length === 1 ? "finding" : "findings"}.`
-                : latest
-                  ? "Nothing open."
-                  : "Ready for the first audit."}
-          </h1>
-        </div>
-        <RunAuditButton repository={repos[0].fullName} />
-      </div>
+      <Verdict
+        verdict={verdict}
+        context={latest
+          ? <>{latest.fullName} · audited <When at={latest.startedAt} /></>
+          : `${repos[0].fullName} · not audited yet`}
+        action={
+          verdict.level === "exposed" || verdict.level === "at_risk" ? (
+            <>
+              <Link href="/dashboard/risks" className="v3-btn v3-primary">Show me the fix</Link>
+              <RunAuditButton repository={repos[0].fullName} secondary />
+            </>
+          ) : verdict.level === "nothing_open" ? (
+            <>
+              <RunAuditButton repository={repos[0].fullName} />
+              <Link href="/dashboard/coverage" className="v3-btn v3-btn-sm v3-ondark">What was not read</Link>
+            </>
+          ) : <RunAuditButton repository={repos[0].fullName} />
+        }
+        layers={[
+          { href: "/dashboard/risks", label: "Ways in", value: String(exposedRoutes), tone: exposedRoutes ? "crit" : "muted",
+            plain: exposedRoutes ? "routes that reach data without the right check" : "no route reaches data without a check",
+            engineer: `${routeCount} routes read · ${openRoutes} no sign in · ${unscopedRoutes} not scoped to the caller` },
+          { href: "/dashboard/prs", label: "Pull requests", value: String(blockedPrs), tone: blockedPrs ? "warn" : "muted",
+            plain: reviews.length ? `blocked out of ${reviews.length} checked` : "checked automatically once opened",
+            engineer: `${reviews.filter((r) => r.verdict === "block").length} block · ${reviews.filter((r) => r.verdict === "warn").length} warn · ${reviews.filter((r) => !r.coverageComplete).length} partial` },
+          { href: "/dashboard/coverage", label: "Not read", value: String(unread), tone: unread ? "warn" : "muted",
+            plain: unread ? "areas the audit could not see, so no answer there" : "every area this audit covers was read",
+            engineer: latest?.coverage.map((c) => c.name).join(" · ") || "no coverage notes" },
+        ]}
+      />
 
       <div className="v3-stack">
         <section aria-labelledby="route-map">
@@ -109,7 +132,11 @@ export default async function Overview() {
             <div className="v3-card-p">
               <h3 className="v3-serif" style={{ fontSize: 21 }}>{lead.title}</h3>
               <p className="v3-sub" style={{ marginTop: 8, maxWidth: 700 }}>{lead.consequence}</p>
-              {lead.entry ? <Chain entry={lead.entry} file={lead.file} blastRadius={lead.blastRadius} /> : null}
+              <details className="v3-proof" style={{ marginTop: 12 }}>
+                <summary>Show the proof</summary>
+                {lead.entry ? <Chain entry={lead.entry} file={lead.file} blastRadius={lead.blastRadius} /> : null}
+                <Claims claims={lead.claims} />
+              </details>
               <div className="v3-row" style={{ marginTop: 18 }}>
                 <Link href="/dashboard/risks" className="v3-btn v3-btn-sm v3-primary">Open the evidence</Link>
                 {lead.fixPrUrl ? (
@@ -199,19 +226,6 @@ export default async function Overview() {
           </div>
         </div>
 
-        {latest && latest.coverage.length > 0 ? (
-          <div className="v3-card">
-            <div className="v3-hd">
-              <h2 className="v3-eyebrow">What this audit did not cover</h2>
-              <Link href="/dashboard/coverage" className="v3-small">Coverage</Link>
-            </div>
-            <div className="v3-card-p">
-              <div className="v3-row" style={{ gap: 8 }}>
-                {latest.coverage.map((c) => <span key={c.name} className="v3-tag">{c.name}</span>)}
-              </div>
-            </div>
-          </div>
-        ) : null}
       </div>
     </>
   );

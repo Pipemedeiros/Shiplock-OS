@@ -44,6 +44,9 @@ const OUTCOME: Record<Simulation["outcome"], { label: string; tone: string }> = 
   unknown: { label: "Unknown: a check we could not read", tone: "#e8d3a0" },
 };
 const RISKY: Exposure[] = ["open", "unscoped", "unknown"];
+const HOME: View = { yaw: -0.3, pitch: 0.14, zoom: 1 };
+const GROUP: Record<Exposure, string> = { open: "No sign in", unknown: "Could not read", unscoped: "Not limited to own rows",
+  scoped: "Own rows only", secret: "Secret required", none: "No data" };
 
 export function project(p: [number, number, number], view: View, cx: number, cy: number, scale: number) {
   const [x, y, z] = p;
@@ -104,7 +107,7 @@ export function RouteMap({ map }: { map: RouteMapData }) {
   const box = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; y: number; view: View } | null>(null);
   const [size, setSize] = useState({ w: 760, h: 540 });
-  const [view, setView] = useState<View>({ yaw: 0.55, pitch: 0.5, zoom: 1 });
+  const [view, setView] = useState<View>(HOME);
   const motionOk = useSyncExternalStore(subscribeMotion, () => !window.matchMedia(REDUCED).matches, () => false);
   const [stopped, setStopped] = useState(false);
   const [showShared, setShowShared] = useState(false);
@@ -128,7 +131,8 @@ export function RouteMap({ map }: { map: RouteMapData }) {
   useEffect(() => {
     if (!spin) return;
     let frame = 0;
-    const tick = () => { setView((v) => ({ ...v, yaw: v.yaw + 0.0022 })); frame = requestAnimationFrame(tick); };
+    // A slow sway around the reading angle, not a spin: the lanes stay readable.
+    const tick = (now: number) => { setView((v) => ({ ...v, yaw: HOME.yaw + 0.16 * Math.sin(now / 4200) })); frame = requestAnimationFrame(tick); };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
   }, [spin]);
@@ -174,8 +178,8 @@ export function RouteMap({ map }: { map: RouteMapData }) {
     return keep;
   }, [map, showShared, riskyOnly]);
 
-  const scale = Math.min(size.w, size.h) / 560;
-  const projected = useMemo(() => new Map(map.nodes.map((n) => [n.id, project(n.p, view, size.w / 2, size.h / 2 + 10, scale)])), [map.nodes, view, size, scale]);
+  const scale = Math.min(size.w / 760, size.h / 540);
+  const projected = useMemo(() => new Map(map.nodes.map((n) => [n.id, project(n.p, view, size.w / 2, size.h / 2 + 14, scale)])), [map.nodes, view, size, scale]);
   const zs = [...projected.values()].map((q) => q.z);
   const zMin = Math.min(...zs), zMax = Math.max(...zs);
   const depth = (z: number) => (zMax === zMin ? 1 : 1 - (z - zMin) / (zMax - zMin)); // 1 near, 0 far
@@ -208,12 +212,14 @@ export function RouteMap({ map }: { map: RouteMapData }) {
 
   const sizeOf = (n: MapNode, f: number) => (n.kind === "provider" ? 24 : n.kind === "control" ? 22 : n.kind === "table" ? 13 : n.kind === "helper" ? 10 : n.hot || n.finding ? 16 : 12) * f;
   const labelText = (n: MapNode) => `${n.label}${n.kind === "provider" && n.connection === "coming_soon" ? " · coming soon" : ""}`;
-  const shownLabels = placeLabels(map.nodes.filter((n) => visible.has(n.id)).map((n) => {
+  // Concise: a plain route shows its name when picked or on a simulated path;
+  // findings and hot routes always try to.
+  const shownLabels = placeLabels(map.nodes.filter((n) => visible.has(n.id)
+    && (n.kind !== "route" || n.finding || n.hot || n.id === selected || onPath.has(n.id))).map((n) => {
     const q = projected.get(n.id)!;
     const s = sizeOf(n, q.f), font = 11 * Math.min(1.2, q.f);
     const picked = n.id === selected, lit = onPath.has(n.id);
-    const priority = n.kind === "control" ? 6 : n.finding ? 5 : n.kind === "provider" ? 4 : n.hot ? 3 : n.kind === "route" && n.exposure === "open" ? 2
-      : n.kind === "table" ? 1 : n.kind === "route" ? 0.5 : 0;
+    const priority = n.kind === "control" ? 6 : n.finding ? 5 : n.kind === "provider" ? 4 : n.hot ? 3 : n.kind === "table" ? 1 : 0;
     return { id: n.id, x: q.x + s / 2 + 6, y: q.y - 8, w: labelText(n).length * font * 0.6 + 4, h: font + 4,
       priority: priority + depth(q.z), force: picked || lit };
   }));
@@ -228,7 +234,7 @@ export function RouteMap({ map }: { map: RouteMapData }) {
         onPointerMove={(e) => {
           const d = drag.current;
           if (!d) return;
-          setView({ ...d.view, yaw: d.view.yaw + (e.clientX - d.x) / 180, pitch: Math.max(0.05, Math.min(1.25, d.view.pitch + (e.clientY - d.y) / 240)) });
+          setView({ ...d.view, yaw: d.view.yaw + (e.clientX - d.x) / 180, pitch: Math.max(-0.5, Math.min(1.1, d.view.pitch + (e.clientY - d.y) / 240)) });
         }}
         onPointerUp={() => { drag.current = null; }}
       >
@@ -284,6 +290,18 @@ export function RouteMap({ map }: { map: RouteMapData }) {
             </span>
           );
         })}
+        {map.lanes.filter((l) => l.label !== "Shared code" || showShared).map((l) => {
+          const q = project(l.p, view, size.w / 2, size.h / 2 + 14, scale);
+          return <span key={l.label} className="v3-map-lane" style={{ left: q.x, top: q.y }}>{l.label}</span>;
+        })}
+        {map.groups.filter((g) => !riskyOnly || RISKY.includes(g.exposure)).map((g) => {
+          const q = project(g.p, view, size.w / 2, size.h / 2 + 14, scale);
+          return (
+            <span key={g.exposure} className="v3-map-group" style={{ left: q.x, top: q.y - 8 }}>
+              <i style={{ background: EXPOSURE[g.exposure].color }} />{GROUP[g.exposure]} <b>{g.count}</b>
+            </span>
+          );
+        })}
         <div className="v3-map-toolbar" role="group" aria-label="Map view">
           <button type="button" aria-pressed={riskyOnly} onClick={() => setRiskyOnly((v) => !v)}>Only exposed paths</button>
           <button type="button" aria-pressed={showShared} onClick={() => setShowShared((v) => !v)}>Shared code</button>
@@ -292,6 +310,7 @@ export function RouteMap({ map }: { map: RouteMapData }) {
           {motionOk && <button type="button" onClick={() => { setSim(null); setStopped((v) => !v); }}>{spin ? "Pause" : "Rotate"}</button>}
           <button type="button" aria-label="Zoom in" onClick={() => setView((v) => ({ ...v, zoom: Math.min(1.9, v.zoom + 0.15) }))}>+</button>
           <button type="button" aria-label="Zoom out" onClick={() => setView((v) => ({ ...v, zoom: Math.max(0.55, v.zoom - 0.15) }))}>−</button>
+          <button type="button" aria-label="Reset view" onClick={() => setView(HOME)}>⟲</button>
         </div>
       </div>
 

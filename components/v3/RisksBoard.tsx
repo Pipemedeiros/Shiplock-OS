@@ -96,8 +96,8 @@ export function RisksBoard({ findings, proofs = {} }: { findings: DashboardFindi
                   {f.fixPrUrl ? <span className="v3-tag ok">PR #{f.fixPrNumber}</span> : null}
                 </div>
                 <h2>{f.title}</h2>
-                <p>{f.consequence}</p>
-                <p className="v3-small">{f.repository ?? ""}{f.file ? ` · ${f.file}` : ""}</p>
+                <p className="plain">{f.consequence}</p>
+                <p className="v3-small eng v3-mono">{f.file ?? f.repository ?? ""}{f.entry ? ` · ${f.entry}` : ""} · {f.attackClass}</p>
               </button>
             ))}
           </div>

@@ -429,6 +429,15 @@ and its exact status live only in `docs/MASTER-PLAN-PROGRESS.md`.
   the later ones.
 - Stack: every detected provider is listed; a live connection is offered only
   where a collector exists, otherwise "Live connection coming soon".
+- Overview leads with one verdict a non-expert can read in a second
+  (Exposed, At risk, Nothing open, Unknown; a glyph as well as a colour),
+  then the three layers that make the product: ways in (cross-layer
+  findings), pull requests (PR scanning and suggestions), and what was not
+  read. Every page offers Plain and Engineer views of the same facts; detail
+  and proof open on a click rather than filling the page with text.
+- Learn from Aikido (one verdict, noise hidden, fix PRs), Strix (proof per
+  finding), Wiz (a graph from code to data) and Snyk/Semgrep (reachability,
+  PR checks), and make it simpler without making it shallower.
 - Planned (Felipe, 2026-09-29): a zoomable network map of the application's
   routes and what they reach (tables, providers, hot routes), in the spirit of
   an Obsidian graph: readable detail for engineers, an inviting picture for
@@ -512,6 +521,14 @@ skill files. No repo-local `.claude` directory or duplicate tree is needed.
   over UI/UX rules (local Python, no network), bound to the existing v3
   design; its results are reference data, never a new look or a generated
   design document.
+- Design references (Felipe, 2026-10-01: use on every design change, with UI
+  UX Pro): Awesome DESIGN.md at
+  `~/starred-repos/VoltAgent__awesome-design-md/design-md/` (read Linear,
+  Sentry and Vercel for dense product UI; take principles, never their
+  palettes or brand) and Awesome Claude Code at
+  `~/starred-repos/hesreallyhim__awesome-claude-code/` (an index of agent
+  tooling to search before building workflow tooling). Both are user-level
+  references on Felipe's machine, not repository dependencies.
 - GStack (`.agents/skills/gstack/SKILL.md`): a repo-safe review subset, not the
   upstream runtime. No setup, auto-update, telemetry, paid tests, or external
   mutation by default.

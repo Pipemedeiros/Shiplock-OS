@@ -7,6 +7,8 @@ import { getOpenFindings, getRepositories } from "@/lib/agent/dashboardData";
 import { LockMark } from "@/components/d/Brand";
 import { SignOutButton } from "@/components/sign-out-button";
 import { DashboardNav } from "@/components/v3/DashboardNav";
+import { ViewMode, VIEW_COOKIE } from "@/components/v3/ViewMode";
+import { cookies } from "next/headers";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -33,9 +35,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
     getRepositories(userId),
   ]);
   if (!profile?.github_installation_id) redirect("/onboarding");
+  const view = (await cookies()).get(VIEW_COOKIE)?.value === "engineer" ? "engineer" : "plain";
 
   return (
-    <div className="v3">
+    <div className="v3" data-view={view}>
       <div className="v3-app">
         <aside className="v3-side">
           <Link href="/" className="v3-side-brand"><LockMark size={19} /> <span>ShipLock</span></Link>
@@ -67,6 +70,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
               { href: "/dashboard/settings", label: "Settings", icon: "settings" },
             ]}
           />
+
+          <ViewMode initial={view} />
 
           <div className="v3-side-foot">
             <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{email}</span>
