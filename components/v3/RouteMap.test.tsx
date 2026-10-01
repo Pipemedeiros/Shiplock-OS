@@ -16,7 +16,7 @@ describe("RouteMap (Q27)", () => {
 
   it("renders every node as a labelled button and opens on the worst finding", () => {
     expect(html.match(/<button[^>]*class="v3-map-node/g)).toHaveLength(map.nodes.length);
-    expect(html).toContain('aria-label="route /api/invoices, open critical finding"');
+    expect(html).toContain('aria-label="route /api/invoices, Signed in, not limited to own rows, open critical finding"');
     expect(html).toContain("Open critical finding");
     expect(html).toContain('href="/dashboard/risks"');
   });
@@ -40,7 +40,9 @@ describe("RouteMap (Q27)", () => {
   it("walks a simulated request along the map's own edges only", () => {
     const route = map.nodes.find((n) => n.kind === "route")!;
     const sim = simulateRequest(route.fact!, "signed_in");
-    expect(simulationPath(map, route.id, sim)).toEqual(["route:/api/invoices", "table:invoices"]);
-    expect(simulationPath(map, route.id, simulateRequest({ ...route.fact!, authenticated: true }, "anonymous"))).toEqual(["route:/api/invoices"]);
+    // Signed in and not scoped: through the sign-in check straight to the table.
+    expect(simulationPath(map, route.id, sim)).toEqual(["route:/api/invoices", "control:session", "table:invoices"]);
+    // No sign-in: stopped at the sign-in check.
+    expect(simulationPath(map, route.id, simulateRequest(route.fact!, "anonymous"))).toEqual(["route:/api/invoices", "control:session"]);
   });
 });

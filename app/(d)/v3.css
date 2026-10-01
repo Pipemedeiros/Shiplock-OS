@@ -557,3 +557,18 @@
 .v3-nav-pending { width: 6px; height: 6px; border-radius: 50%; background: var(--bronze); margin-left: auto; opacity: 0; transition: opacity 120ms; }
 .v3-nav-pending.on { opacity: 1; animation: v3-pulse 1s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .v3-skel, .v3-nav-pending.on { animation: none; } }
+/* Security map v2 (2026-10-01): depth backdrop, animated risky flows, view toolbar. */
+.v3-map-stage { background: radial-gradient(ellipse at 50% 40%, #1a2b45 0%, var(--navy) 62%, #0a1322 100%); }
+.v3-flow { animation: v3-flow 1.6s linear infinite; }
+.v3-flow.fast { animation-duration: 0.9s; }
+@keyframes v3-flow { to { stroke-dashoffset: -24; } }
+.v3-map-toolbar { position: absolute; left: 12px; top: 12px; display: flex; gap: 6px; flex-wrap: wrap; }
+.v3-map-toolbar button { min-height: 30px; padding: 0 10px; border-radius: var(--r); border: 1px solid var(--line-navy);
+  background: rgba(15,27,45,.75); color: var(--muted-navy); font-size: 12px; cursor: pointer; }
+.v3-map-toolbar button[aria-pressed="true"] { color: #eef2f7; border-color: var(--bronze-l); }
+.v3-map-count { margin-left: auto; color: #c3cfdd; font-variant-numeric: tabular-nums; }
+.v3-map-node.finding { outline: 2px solid #ff9d85; outline-offset: 2px; }
+.v3-map-node.k-control { outline: 1px solid rgba(232,211,160,.6); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { .v3-flow { animation: none; } }
+.v3-map-side { max-height: 540px; overflow-y: auto; }
+@media (max-width: 760px) { .v3-map-side { max-height: none; } }

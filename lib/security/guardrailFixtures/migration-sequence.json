@@ -6,7 +6,7 @@
       "expectedPath": "supabase/migrations",
       "edits": [
         {
-          "path": "supabase/migrations/098_gap.sql",
+          "path": "supabase/migrations/999_gap.sql",
           "content": "select 1;"
         }
       ]

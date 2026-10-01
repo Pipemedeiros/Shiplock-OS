@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildRouteMap, compactRouteFacts, simulateRequest, type MapRoute } from "./routeMap";
+import { buildRouteMap, compactRouteFacts, exposureOf, simulateRequest, type MapRoute, type RouteMap } from "./routeMap";
 
 const route = (path: string, tables: string[], over: Partial<MapRoute> = {}): MapRoute =>
   ({ path, file: `app${path}/route.ts`, tables, authenticated: true, ownershipFiltered: true, machineGated: false, ...over });
+const pairs = (map: RouteMap) => map.edges.map((e) => [e.from, e.to]);
+const edge = (map: RouteMap, from: string, to: string) => map.edges.find((e) => e.from === from && e.to === to);
 
 const input = {
   routes: [route("/api/invoices", ["invoices"]), route("/api/export", ["invoices", "customers"]), route("/api/health", [])],
@@ -13,17 +15,19 @@ const input = {
 };
 
 describe("route map (Q27)", () => {
-  it("has a node only where a fact exists, and edges only for observed reads", () => {
+  it("has a node only where a fact exists, and edges only for observed reads and controls", () => {
     const map = buildRouteMap(input);
     expect(map.nodes.map((n) => `${n.kind}:${n.label}`).sort()).toEqual([
+      "control:Rows scoped to the caller", "control:Sign-in check",
       "provider:Stripe", "provider:Supabase",
       "route:/api/export", "route:/api/health", "route:/api/invoices",
       "table:customers", "table:invoices",
     ]);
-    expect(map.edges).toEqual(expect.arrayContaining([
-      ["route:/api/invoices", "table:invoices"], ["route:/api/export", "table:customers"], ["table:invoices", "provider:supabase"],
+    expect(pairs(map)).toEqual(expect.arrayContaining([
+      ["route:/api/invoices", "control:session"], ["control:session", "control:scope"], ["control:scope", "table:invoices"],
+      ["table:invoices", "provider:supabase"],
     ]));
-    expect(map.edges.some(([a, b]) => a.includes("health") || b.includes("stripe"))).toBe(false);
+    expect(map.edges.some((e) => e.from.includes("health") || e.to.includes("stripe"))).toBe(false);
   });
 
   it("marks findings, hot routes and the live connection state from facts", () => {
@@ -37,11 +41,11 @@ describe("route map (Q27)", () => {
 
   it("links tables to the most specific database provider", () => {
     const map = buildRouteMap({ ...input, tools: [...input.tools, { id: "postgres", name: "Postgres", kind: "database" }] });
-    expect(map.edges).toContainEqual(["table:invoices", "provider:supabase"]);
-    expect(map.edges.some(([, b]) => b === "provider:postgres")).toBe(false);
+    expect(pairs(map)).toContainEqual(["table:invoices", "provider:supabase"]);
+    expect(map.edges.some((e) => e.to === "provider:postgres")).toBe(false);
   });
 
-  it("lays out deterministically in three layers and caps the graph", () => {
+  it("lays out deterministically in layers and caps the graph", () => {
     const a = buildRouteMap(input);
     expect(buildRouteMap(input)).toEqual(a);
     const y = (kind: string) => a.nodes.filter((n) => n.kind === kind).map((n) => n.p[1]);
@@ -50,6 +54,39 @@ describe("route map (Q27)", () => {
     const many = buildRouteMap({ ...input, routes: Array.from({ length: 200 }, (_, i) => route(`/api/r${i}`, [`t${i % 90}`])) });
     expect(many.nodes.filter((n) => n.kind === "route")).toHaveLength(120);
     expect(many.truncated).toBe(true);
+  });
+});
+
+describe("security view (Felipe 2026-10-01: distinguishable, auth to database, data flow)", () => {
+  it("classifies each route by what it exposes, from facts only", () => {
+    expect(exposureOf(route("/a", ["t"], { authenticated: false, ownershipFiltered: false }))).toBe("open");
+    expect(exposureOf(route("/a", ["t"], { ownershipFiltered: false }))).toBe("unscoped");
+    expect(exposureOf(route("/a", ["t"]))).toBe("scoped");
+    expect(exposureOf(route("/a", ["t"], { machineGated: true, authenticated: false }))).toBe("secret");
+    expect(exposureOf(route("/a", ["t"], { authenticated: false, identityReadable: false }))).toBe("unknown");
+    expect(exposureOf(route("/a", []))).toBe("none");
+  });
+
+  it("routes data through the controls it passes, and colours each flow by risk", () => {
+    const map = buildRouteMap({ ...input, routes: [
+      route("/open", ["users"], { authenticated: false, ownershipFiltered: false }),
+      route("/unscoped", ["orders"], { ownershipFiltered: false }),
+      route("/scoped", ["orders"]),
+      route("/hook", ["events"], { machineGated: true, authenticated: false, ownershipFiltered: false }),
+    ] });
+    expect(edge(map, "route:/open", "table:users")).toMatchObject({ kind: "flow", risk: "open" });
+    expect(edge(map, "route:/unscoped", "control:session")).toMatchObject({ kind: "guard" });
+    expect(edge(map, "control:session", "table:orders")).toMatchObject({ kind: "flow", risk: "unscoped" });
+    expect(edge(map, "control:scope", "table:orders")).toMatchObject({ kind: "flow", risk: "guarded" });
+    expect(edge(map, "route:/hook", "control:secret")).toMatchObject({ kind: "guard" });
+    expect(edge(map, "control:secret", "table:events")).toMatchObject({ kind: "flow", risk: "guarded" });
+    expect(map.nodes.find((n) => n.id === "route:/open")).toMatchObject({ exposure: "open" });
+    expect(map.nodes.find((n) => n.id === "control:session")?.detail).toMatch(/2 routes/);
+  });
+
+  it("names no control a route was not read to have", () => {
+    const map = buildRouteMap({ ...input, routes: [route("/open", ["users"], { authenticated: false, ownershipFiltered: false })] });
+    expect(map.nodes.some((n) => n.kind === "control")).toBe(false);
   });
 });
 
@@ -66,7 +103,8 @@ describe("route map, connections and simulation (Felipe 2026-09-30)", () => {
   it("connects routes through the code files they share, only when two or more share one", () => {
     const map = buildRouteMap({ ...input, routes: [full("/api/a", ["lib/auth.ts", "lib/only-a.ts"]), full("/api/b", ["lib/auth.ts"])] });
     expect(map.nodes.filter((n) => n.kind === "helper").map((n) => n.label)).toEqual(["lib/auth.ts"]);
-    expect(map.edges).toEqual(expect.arrayContaining([["route:/api/a", "helper:lib/auth.ts"], ["route:/api/b", "helper:lib/auth.ts"]]));
+    expect(pairs(map)).toEqual(expect.arrayContaining([["route:/api/a", "helper:lib/auth.ts"], ["route:/api/b", "helper:lib/auth.ts"]]));
+    expect(edge(map, "route:/api/a", "helper:lib/auth.ts")).toMatchObject({ kind: "shared" });
     expect(map.nodes.find((n) => n.id === "helper:lib/auth.ts")?.detail).toMatch(/2 routes/);
   });
 

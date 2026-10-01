@@ -18,9 +18,23 @@ export type MapRoute = {
 export type MapTool = { id: string; name: string; kind: StackKind };
 export type MapFinding = { entry: string | null; severity: "CRITICAL" | "WARNING" | "INFO"; title: string };
 
+export type Exposure = "open" | "unscoped" | "scoped" | "secret" | "unknown" | "none";
+export type Risk = "open" | "unknown" | "unscoped" | "guarded";
+/** guard: route into a control; flow: data reaching a table (with its risk); shared: code; store: table to its database. */
+export type MapEdge = { from: string; to: string; kind: "guard" | "flow" | "shared" | "store"; risk?: Risk };
+
+/** What a route exposes, from the controls the audit read (never guessed). */
+export function exposureOf(r: MapRoute): Exposure {
+  if (r.tables.length === 0) return "none";
+  if (r.machineGated) return r.machineGateReadable === false ? "unknown" : "secret";
+  if (!r.authenticated) return r.identityReadable === false ? "unknown" : "open";
+  if (!r.ownershipFiltered) return r.ownershipReadable === false ? "unknown" : "unscoped";
+  return "scoped";
+}
+
 export type MapNode = {
   id: string;
-  kind: "route" | "table" | "provider" | "helper";
+  kind: "route" | "table" | "provider" | "helper" | "control";
   label: string;
   p: [number, number, number];
   detail: string;
@@ -30,8 +44,16 @@ export type MapNode = {
   connection?: "available" | "coming_soon";
   /** Route nodes carry their facts so the map can simulate a request. */
   fact?: MapRoute;
+  exposure?: Exposure;
 };
-export type RouteMap = { nodes: MapNode[]; edges: [string, string][]; truncated: boolean };
+export type RouteMap = { nodes: MapNode[]; edges: MapEdge[]; truncated: boolean };
+
+const CONTROLS = {
+  session: { label: "Sign-in check", detail: (n: number) => `A sign-in check read on ${n} route${n === 1 ? "" : "s"}.` },
+  scope: { label: "Rows scoped to the caller", detail: (n: number) => `Queries narrowed to the caller's own rows on ${n} route${n === 1 ? "" : "s"}.` },
+  secret: { label: "Secret or signature", detail: (n: number) => `A secret or signature required on ${n} route${n === 1 ? "" : "s"}.` },
+} as const;
+const RISK_RANK: Record<Risk, number> = { open: 0, unknown: 1, unscoped: 2, guarded: 3 };
 
 const MAX_ROUTES = 120;
 const MAX_HELPERS = 30;
@@ -99,7 +121,7 @@ export function buildRouteMap(input: { routes: MapRoute[]; tools: MapTool[]; fin
       r.authenticated ? "Requires a signed-in caller." : "No sign-in check read.",
       r.tables.length ? (r.ownershipFiltered ? "Scoped to the caller's rows." : "Not scoped to the caller's rows.") : "Reaches no table we read.",
     ].join(" ");
-    nodes.push({ id: `route:${r.path}`, kind: "route", label: r.path, p: routeSpots[i], file: r.file, fact: r,
+    nodes.push({ id: `route:${r.path}`, kind: "route", label: r.path, p: routeSpots[i], file: r.file, fact: r, exposure: exposureOf(r),
       detail: finding ? `${finding.title}. ${controls}` : controls,
       ...(finding ? { finding: finding.severity } : {}), ...(hot.has(r.file) ? { hot: true } : {}) });
   });
@@ -108,7 +130,7 @@ export function buildRouteMap(input: { routes: MapRoute[]; tools: MapTool[]; fin
     const readers = routes.filter((r) => r.tables.includes(t)).length;
     nodes.push({ id: `table:${t}`, kind: "table", label: t, p: tableSpots[i], detail: `Reached by ${readers} route${readers === 1 ? "" : "s"}.` });
   });
-  const providerSpots = spiral(providers.length, 110, 190, 0);
+  const providerSpots = spiral(providers.length, 220, 230, 0);
   providers.forEach((t, i) => {
     const connection = LIVE.has(t.id) ? "available" : "coming_soon";
     nodes.push({ id: `provider:${t.id}`, kind: "provider", label: t.name, p: providerSpots[i], connection,
@@ -127,15 +149,43 @@ export function buildRouteMap(input: { routes: MapRoute[]; tools: MapTool[]; fin
       detail: `Shared code executed by ${n} routes. A change here changes all of them.` });
   });
 
-  const edges: [string, string][] = [];
-  for (const r of routes) for (const f of new Set(r.via ?? [])) if (helperSet.has(f)) edges.push([`route:${r.path}`, `helper:${f}`]);
-  for (const r of routes) for (const t of r.tables) if (tableSet.has(t)) edges.push([`route:${r.path}`, `table:${t}`]);
-  if (database) for (const t of tables) edges.push([`table:${t}`, `provider:${database.id}`]);
+  // Data flow: each route passes the controls the audit read on it, in order,
+  // before reaching its tables. A flow's risk is what reaches the table.
+  const edgeMap = new Map<string, MapEdge>();
+  const add = (e: MapEdge) => {
+    const key = `${e.from}>${e.to}>${e.kind}`;
+    const prior = edgeMap.get(key);
+    if (!prior || (e.risk && prior.risk && RISK_RANK[e.risk] < RISK_RANK[prior.risk])) edgeMap.set(key, e);
+  };
+  const controlUse = { session: 0, scope: 0, secret: 0 };
+  for (const r of routes) {
+    for (const f of new Set(r.via ?? [])) if (helperSet.has(f)) add({ from: `route:${r.path}`, to: `helper:${f}`, kind: "shared" });
+    const reached = r.tables.filter((t) => tableSet.has(t));
+    if (reached.length === 0) continue;
+    const from = `route:${r.path}`;
+    const exposure = exposureOf(r);
+    const flow = (src: string, risk: Risk) => { for (const t of reached) add({ from: src, to: `table:${t}`, kind: "flow", risk }); };
+    if (exposure === "secret") {
+      controlUse.secret++; add({ from, to: "control:secret", kind: "guard" }); flow("control:secret", "guarded");
+    } else if (r.authenticated && r.identityReadable !== false) {
+      controlUse.session++; add({ from, to: "control:session", kind: "guard" });
+      if (exposure === "scoped") {
+        controlUse.scope++; add({ from: "control:session", to: "control:scope", kind: "guard" }); flow("control:scope", "guarded");
+      } else flow("control:session", exposure === "unknown" ? "unknown" : "unscoped");
+    } else flow(from, exposure === "unknown" ? "unknown" : "open");
+  }
+  const controlSpots: [number, number, number][] = [[-170, -20, 60], [170, -20, 60], [0, -20, -180]];
+  (Object.keys(CONTROLS) as (keyof typeof CONTROLS)[]).forEach((key, i) => {
+    if (controlUse[key] === 0) return;
+    nodes.push({ id: `control:${key}`, kind: "control", label: CONTROLS[key].label, p: controlSpots[i], detail: CONTROLS[key].detail(controlUse[key]) });
+  });
+  if (database) for (const t of tables) add({ from: `table:${t}`, to: `provider:${database.id}`, kind: "store" });
+  const edges = [...edgeMap.values()];
   relax(nodes, edges);
   return { nodes, edges, truncated: input.routes.length > routes.length || tableSet.size < new Set(routes.flatMap((r) => r.tables)).size };
 }
 
-const LAYER_Y = { route: -120, helper: -40, table: 40, provider: 170 } as const;
+const LAYER_Y = { route: -150, helper: -95, control: -30, table: 70, provider: 230 } as const;
 const FIT_RADIUS = 240;
 
 /**
@@ -144,10 +194,10 @@ const FIT_RADIUS = 240;
  * fixed iteration count, no randomness; then scaled to a fixed radius so the
  * stage can fit any repository.
  */
-function relax(nodes: MapNode[], edges: [string, string][]): void {
+function relax(nodes: MapNode[], edges: MapEdge[]): void {
   const index = new Map(nodes.map((n, i) => [n.id, i]));
   const pos = nodes.map((n) => [...n.p] as [number, number, number]);
-  const links = edges.map(([a, b]) => [index.get(a)!, index.get(b)!] as const);
+  const links = edges.map((e) => [index.get(e.from)!, index.get(e.to)!] as const);
   const n = nodes.length;
   for (let step = 0; step < 160; step++) {
     const force = pos.map(() => [0, 0, 0]);
@@ -170,8 +220,12 @@ function relax(nodes: MapNode[], edges: [string, string][]): void {
     }
     const cool = 1 - step / 160;
     for (let i = 0; i < n; i++) {
-      force[i][1] += (LAYER_Y[nodes[i].kind] - pos[i][1]) * 0.05;
+      // Controls and providers hold their layer firmly so the flow reads top to bottom.
+      const hold = nodes[i].kind === "control" || nodes[i].kind === "provider" ? 0.2 : 0.05;
+      force[i][1] += (LAYER_Y[nodes[i].kind] - pos[i][1]) * hold;
       force[i][0] -= pos[i][0] * 0.004; force[i][2] -= pos[i][2] * 0.004;
+      // Controls are pinned: they are the gates every flow passes through.
+      if (nodes[i].kind === "control") continue;
       for (let k = 0; k < 3; k++) pos[i][k] += Math.max(-12, Math.min(12, force[i][k] * 4)) * cool;
     }
   }
