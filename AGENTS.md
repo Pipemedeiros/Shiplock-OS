@@ -429,12 +429,14 @@ and its exact status live only in `docs/MASTER-PLAN-PROGRESS.md`.
   the later ones.
 - Stack: every detected provider is listed; a live connection is offered only
   where a collector exists, otherwise "Live connection coming soon".
-- Overview leads with one verdict a non-expert can read in a second
-  (Exposed, At risk, Nothing open, Unknown; a glyph as well as a colour),
-  then the three layers that make the product: ways in (cross-layer
-  findings), pull requests (PR scanning and suggestions), and what was not
-  read. Every page offers Plain and Engineer views of the same facts; detail
-  and proof open on a click rather than filling the page with text.
+- Overview is a simple dashboard: one status a non-expert reads in a second
+  (Exposed, At risk, No open issues, Not audited; a glyph as well as a
+  colour), four metrics (open issues, exposed routes, blocked pull requests,
+  not checked), the 3D map, then an issues table. One view for everyone;
+  detail and proof open on a click rather than filling the page with text.
+- Product copy follows Stripe, Cloudflare and Supabase dashboards: short
+  nouns for titles ("Issues", "Coverage"), plain labels ("View all", "Run
+  an audit"), no conversational headings.
 - Learn from Aikido (one verdict, noise hidden, fix PRs), Strix (proof per
   finding), Wiz (a graph from code to data) and Snyk/Semgrep (reachability,
   PR checks), and make it simpler without making it shallower.

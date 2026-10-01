@@ -40,8 +40,7 @@ export default async function PullRequests() {
     <>
       <div className="v3-page-hd">
         <div>
-          <p className="v3-eyebrow">Opened by ShipLock, waiting on you</p>
-          <h1 className="v3-serif">Pull requests</h1>
+          <h1>Pull requests</h1>
           <p className="v3-sub" style={{ marginTop: 8, maxWidth: 620 }}>
             Every pull request you open is checked, and each fix we open is a branch of its own. We
             never merge, and we never push to your default branch. Approving is yours.
@@ -58,7 +57,7 @@ export default async function PullRequests() {
         {eligible.length > 0 ? (
           <div className="v3-card">
             <div className="v3-hd">
-              <h2 className="v3-eyebrow">Being prepared</h2>
+              <h2 className="v3-eyebrow">In progress</h2>
               <span className="v3-small">{eligible.length}</span>
             </div>
             <div className="v3-card-p">
@@ -81,7 +80,7 @@ export default async function PullRequests() {
         {manual.length > 0 ? (
           <div className="v3-card">
             <div className="v3-hd">
-              <h2 className="v3-eyebrow">Not a pull request</h2>
+              <h2 className="v3-eyebrow">Manual fixes</h2>
               <span className="v3-small">{manual.length}</span>
             </div>
             <div className="v3-card-p">
@@ -126,7 +125,7 @@ function CheckedPullRequests({ reviews, ai }: { reviews: PullRequestReviewView[]
   return (
     <div className="v3-card">
       <div className="v3-hd">
-        <h2 className="v3-eyebrow">Checked on your pull requests</h2>
+        <h2 className="v3-eyebrow">Pull request checks</h2>
         <span className="v3-small">{reviews.length} recent</span>
       </div>
       <div className="v3-card-p">

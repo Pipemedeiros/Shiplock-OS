@@ -96,8 +96,8 @@ export function RisksBoard({ findings, proofs = {} }: { findings: DashboardFindi
                   {f.fixPrUrl ? <span className="v3-tag ok">PR #{f.fixPrNumber}</span> : null}
                 </div>
                 <h2>{f.title}</h2>
-                <p className="plain">{f.consequence}</p>
-                <p className="v3-small eng v3-mono">{f.file ?? f.repository ?? ""}{f.entry ? ` · ${f.entry}` : ""} · {f.attackClass}</p>
+                <p>{f.consequence}</p>
+                <p className="v3-small">{f.entry ?? f.file ?? f.repository ?? ""}</p>
               </button>
             ))}
           </div>
@@ -132,7 +132,7 @@ function Inspector({ finding, proof }: { finding: DashboardFinding; proof: Proof
       </div>
 
       <div className="v3-tabs">
-        {([["why", "Why we believe this"], ["fix", "The fix"]] as const).map(([k, label]) => (
+        {([["why", "Evidence"], ["fix", "Fix"]] as const).map(([k, label]) => (
           <button key={k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{label}</button>
         ))}
       </div>

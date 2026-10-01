@@ -179,7 +179,7 @@ export function RouteMap({ map }: { map: RouteMapData }) {
   }, [map, showShared, riskyOnly]);
 
   const scale = Math.min(size.w / 760, size.h / 540);
-  const projected = useMemo(() => new Map(map.nodes.map((n) => [n.id, project(n.p, view, size.w / 2, size.h / 2 + 14, scale)])), [map.nodes, view, size, scale]);
+  const projected = useMemo(() => new Map(map.nodes.map((n) => [n.id, project(n.p, view, size.w / 2 - 24, size.h / 2 + 14, scale)])), [map.nodes, view, size, scale]);
   const zs = [...projected.values()].map((q) => q.z);
   const zMin = Math.min(...zs), zMax = Math.max(...zs);
   const depth = (z: number) => (zMax === zMin ? 1 : 1 - (z - zMin) / (zMax - zMin)); // 1 near, 0 far
@@ -291,11 +291,11 @@ export function RouteMap({ map }: { map: RouteMapData }) {
           );
         })}
         {map.lanes.filter((l) => l.label !== "Shared code" || showShared).map((l) => {
-          const q = project(l.p, view, size.w / 2, size.h / 2 + 14, scale);
+          const q = project(l.p, view, size.w / 2 - 24, size.h / 2 + 14, scale);
           return <span key={l.label} className="v3-map-lane" style={{ left: q.x, top: q.y }}>{l.label}</span>;
         })}
         {map.groups.filter((g) => !riskyOnly || RISKY.includes(g.exposure)).map((g) => {
-          const q = project(g.p, view, size.w / 2, size.h / 2 + 14, scale);
+          const q = project(g.p, view, size.w / 2 - 24, size.h / 2 + 14, scale);
           return (
             <span key={g.exposure} className="v3-map-group" style={{ left: q.x, top: q.y - 8 }}>
               <i style={{ background: EXPOSURE[g.exposure].color }} />{GROUP[g.exposure]} <b>{g.count}</b>

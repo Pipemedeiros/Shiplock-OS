@@ -34,8 +34,7 @@ export default async function Stack() {
     <>
       <div className="v3-page-hd">
         <div>
-          <p className="v3-eyebrow">Read out of your code</p>
-          <h1 className="v3-serif">Your stack</h1>
+          <h1>Stack</h1>
           <p className="v3-sub" style={{ marginTop: 8, maxWidth: 620 }}>
             Your repository already declares what your system talks to: the manifest, the imports,
             the environment variable names, the schema. Nothing here was typed in.
@@ -61,7 +60,7 @@ export default async function Stack() {
           {domain ? (
             <div className="v3-card">
               <div className="v3-hd">
-                <h2 className="v3-eyebrow">What we understand your product to be</h2>
+                <h2 className="v3-eyebrow">Product</h2>
               </div>
               <div className="v3-card-p">
                 <p className="v3-serif" style={{ fontSize: 18, lineHeight: 1.45, maxWidth: 720 }}>
@@ -127,7 +126,7 @@ export default async function Stack() {
           {(stack.authUnknown || stack.databaseUnknown) && (
             <div className="v3-card v3-card-warn">
               <div className="v3-hd">
-                <h2 className="v3-eyebrow">What we could not identify</h2>
+                <h2 className="v3-eyebrow">Not identified</h2>
               </div>
               <div className="v3-card-p">
                 {stack.authUnknown ? (
@@ -150,7 +149,7 @@ export default async function Stack() {
 
           <div className="v3-card">
             <div className="v3-hd">
-              <h2 className="v3-eyebrow">Where reading the code is not enough</h2>
+              <h2 className="v3-eyebrow">Needs a live connection</h2>
             </div>
             <div className="v3-card-p">
               <p style={{ maxWidth: 720 }}>

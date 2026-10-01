@@ -573,40 +573,6 @@
 .v3-map-side { max-height: 540px; overflow-y: auto; }
 @media (max-width: 760px) { .v3-map-side { max-height: none; } }
 
-/* ── Verdict and view mode (Felipe 2026-10-01: "know if they're cooked") ──
-   One word with a glyph, so the answer never rests on colour alone. Plain and
-   engineer copy are both rendered; the data-view attribute picks one. */
-.v3[data-view="plain"] .eng, .v3[data-view="engineer"] .plain, .v3:not([data-view]) .eng { display: none; }
-.v3-viewmode { display: flex; gap: 4px; margin: 14px 4px 0; padding: 3px; border: 1px solid var(--line-navy); border-radius: calc(var(--r) + 2px); }
-.v3-viewmode button { flex: 1; min-height: 30px; border: 0; border-radius: var(--r); background: transparent; color: var(--muted-navy); font-size: 12.5px; }
-.v3-viewmode button[aria-pressed="true"] { background: var(--navy-2); color: #eef2f7; }
-.v3-verdict { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 28px; background: var(--navy); color: #eef2f7;
-  border-radius: var(--r); padding: 28px; }
-.v3-verdict-ctx { font-size: 12.5px; color: var(--muted-navy); letter-spacing: .02em; }
-.v3-verdict-word { display: flex; align-items: center; gap: 14px; margin-top: 10px !important; font-family: var(--dx-font-newsreader), Georgia, serif;
-  font-size: 46px; font-weight: 400 !important; letter-spacing: -0.02em; }
-.v3-verdict-glyph { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; border: 2px solid currentColor;
-  font: 600 20px/1 var(--dx-font-geist), system-ui, sans-serif; }
-.v3-verdict.lvl-exposed .v3-verdict-word { color: #ff8a6e; }
-.v3-verdict.lvl-at_risk .v3-verdict-word { color: #f2b84b; }
-.v3-verdict.lvl-nothing_open .v3-verdict-word { color: #9fd3b8; }
-.v3-verdict.lvl-unknown .v3-verdict-word { color: #c3cfdd; }
-.v3-verdict-say { margin-top: 10px !important; font-size: 16px; line-height: 1.5; color: #dfe6ef; max-width: 520px; }
-.v3-verdict-layers { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; align-content: center; }
-.v3-vt { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 2px 12px; padding: 12px 14px; border-radius: var(--r);
-  border: 1px solid var(--line-navy); transition: border-color 120ms, background 120ms; }
-.v3-vt:hover { border-color: var(--bronze-l); background: rgba(255,255,255,.03); }
-.v3-vt-label { font-size: 12px; color: var(--muted-navy); text-transform: uppercase; letter-spacing: .08em; }
-.v3-vt-value { grid-row: span 2; font: 500 22px/1 var(--dx-font-geist), system-ui, sans-serif; font-variant-numeric: tabular-nums; }
-.v3-vt.tone-crit .v3-vt-value { color: #ff8a6e; }
-.v3-vt.tone-warn .v3-vt-value { color: #f2b84b; }
-.v3-vt-sub { font-size: 13px; color: #c3cfdd; }
-.v3-proof > summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 6px; min-height: 32px; font-size: 13.5px;
-  color: var(--bronze); font-weight: 500; }
-.v3-proof > summary::-webkit-details-marker { display: none; }
-.v3-proof > summary::before { content: "+"; display: inline-grid; place-items: center; width: 18px; height: 18px; border: 1px solid currentColor; border-radius: 50%; font-size: 12px; }
-.v3-proof[open] > summary::before { content: "−"; }
-@media (max-width: 860px) { .v3-verdict { grid-template-columns: 1fr; padding: 22px 18px; } .v3-verdict-word { font-size: 36px; } }
 /* Lanes (2026-10-01): headers and exposure groups on the organized map. */
 .v3-map-lane { position: absolute; transform: translate(-50%, -100%); pointer-events: none; white-space: nowrap;
   font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted-navy); }
@@ -614,3 +580,41 @@
   font-size: 11.5px; color: #c3cfdd; }
 .v3-map-group i { width: 7px; height: 7px; border-radius: 50%; }
 .v3-map-group b { font-weight: 500; color: #eef2f7; font-variant-numeric: tabular-nums; }
+
+/* ── Overview (2026-10-01, simplified): status, metrics, map, issues ───── */
+.v3-verdict { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 18px;
+  background: var(--navy); color: #eef2f7; border-radius: var(--r); padding: 22px 24px; }
+.v3-verdict-glyph { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; border: 2px solid currentColor;
+  font: 600 20px/1 var(--dx-font-geist), system-ui, sans-serif; }
+.v3-verdict-word { font-family: var(--dx-font-newsreader), Georgia, serif; font-size: 30px; line-height: 1.1; letter-spacing: -0.015em; }
+.v3-verdict-say { margin-top: 4px !important; font-size: 14.5px; color: #c7d2df; }
+.v3-verdict-act { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.v3-verdict.lvl-exposed .v3-verdict-glyph, .v3-verdict.lvl-exposed .v3-verdict-word { color: #ff8a6e; }
+.v3-verdict.lvl-at_risk .v3-verdict-glyph, .v3-verdict.lvl-at_risk .v3-verdict-word { color: #f2b84b; }
+.v3-verdict.lvl-clear .v3-verdict-glyph, .v3-verdict.lvl-clear .v3-verdict-word { color: #9fd3b8; }
+.v3-verdict.lvl-unknown .v3-verdict-glyph, .v3-verdict.lvl-unknown .v3-verdict-word { color: #c3cfdd; }
+.v3-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.v3-metric { display: flex; flex-direction: column; gap: 6px; padding: 16px 18px; background: var(--paper); border: 1px solid var(--line);
+  border-radius: var(--r); transition: border-color 120ms; }
+.v3-metric:hover { border-color: var(--muted-2); }
+.v3-metric-label { font-size: 13px; color: var(--muted); }
+.v3-metric-value { font: 500 28px/1.1 var(--dx-font-geist), system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+.v3-metric.tone-crit .v3-metric-value { color: var(--crit); }
+.v3-metric.tone-warn .v3-metric-value { color: var(--warn); }
+.v3-metric-link { font-size: 13px; color: var(--bronze); }
+.v3-issues { width: 100%; border-collapse: collapse; font-size: 14px; }
+.v3-issues th { text-align: left; font-weight: 500; font-size: 12px; color: var(--muted); padding: 10px 16px; border-bottom: 1px solid var(--line); }
+.v3-issues td { padding: 12px 16px; border-bottom: 1px solid var(--line-2); vertical-align: middle; }
+.v3-issues tr:last-child td { border-bottom: 0; }
+.v3-issues tbody tr:hover { background: var(--sand); }
+.v3-issues td > a:not(.v3-tag) { display: block; }
+.v3-issues .route { font-family: var(--dx-font-geist-mono), monospace; font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
+@media (max-width: 860px) {
+  .v3-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .v3-verdict { grid-template-columns: auto minmax(0, 1fr); }
+  .v3-verdict-act { grid-column: 1 / -1; justify-content: flex-start; }
+  .v3-issues .hide-sm { display: none; }
+}
+/* .v3 button { color: inherit } outranks .v3-primary; buttons need their own text colour. */
+.v3 button.v3-primary { color: #fff; }
+.v3 button.v3-ondark { color: #eef2f7; }

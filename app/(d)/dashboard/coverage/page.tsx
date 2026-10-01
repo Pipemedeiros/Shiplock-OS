@@ -40,15 +40,14 @@ export default async function Coverage() {
     <>
       <div className="v3-page-hd">
         <div>
-          <p className="v3-eyebrow">What we read, and what we did not</p>
-          <h1 className="v3-serif">Coverage</h1>
+          <h1>Coverage</h1>
         </div>
       </div>
 
       {/* Work handed to the customer's own AI (10B-2d). Unanswered is not clean. */}
       <div className="v3-card" style={{ marginBottom: 24 }}>
         <div className="v3-hd">
-          <h2 className="v3-eyebrow">Your AI checks</h2>
+          <h2 className="v3-eyebrow">AI checks</h2>
         </div>
         <div className="v3-card-p"><AiChecks activity={ai} /></div>
       </div>
@@ -116,7 +115,7 @@ export default async function Coverage() {
         <div className="v3-stack">
           <div className="v3-card">
             <div className="v3-hd">
-              <h2 className="v3-eyebrow">Read in the last audit</h2>
+              <h2 className="v3-eyebrow">Last audit</h2>
               <span className="v3-small"><When at={latest.startedAt} /></span>
             </div>
             <div className="v3-card-p v3-grid-3">
@@ -137,7 +136,7 @@ export default async function Coverage() {
 
           <div className="v3-card">
             <div className="v3-hd">
-              <h2 className="v3-eyebrow">Not covered</h2>
+              <h2 className="v3-eyebrow">Not checked</h2>
               <span className="v3-small">And what would change it</span>
             </div>
             <div className="v3-card-p v3-cov">

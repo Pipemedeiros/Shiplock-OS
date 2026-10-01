@@ -3,7 +3,7 @@ import { getOpenFindings } from "@/lib/agent/dashboardData";
 import { RisksBoard } from "@/components/v3/RisksBoard";
 import { getProofViews, proofOffers, provingEnabled } from "@/lib/proving/proofStatus";
 
-export const metadata = { title: "Risks" };
+export const metadata = { title: "Issues" };
 
 export default async function Risks() {
   const { userId } = await requireDashboardSession();
@@ -14,8 +14,7 @@ export default async function Risks() {
     <>
       <div className="v3-page-hd">
         <div>
-          <p className="v3-eyebrow">Ordered by what they reach</p>
-          <h1 className="v3-serif">Every way in, and the check that is missing.</h1>
+          <h1>Issues</h1>
         </div>
       </div>
       <RisksBoard findings={findings} proofs={proofs} />

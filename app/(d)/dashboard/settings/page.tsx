@@ -49,8 +49,7 @@ export default async function SettingsPage() {
     <>
       <div className="v3-page-hd">
         <div>
-          <p className="v3-eyebrow">Connections and account</p>
-          <h1 className="v3-serif">Settings</h1>
+          <h1>Settings</h1>
         </div>
       </div>
 
@@ -91,7 +90,7 @@ export default async function SettingsPage() {
         {/* Traffic bound to a repository through a site (2F-2b). Enabled mirrors
             the ingest rule (is_paid; free vs paid is parked by Felipe). */}
         <div className="v3-card">
-          <div className="v3-hd"><h2 className="v3-eyebrow">Traffic, optional</h2></div>
+          <div className="v3-hd"><h2 className="v3-eyebrow">Traffic</h2></div>
           <div className="v3-card-p">
             <TrafficSites enabled={profile?.is_paid === true} repositories={repos.map((r) => ({ id: r.id, fullName: r.fullName }))} />
           </div>
@@ -99,7 +98,7 @@ export default async function SettingsPage() {
 
         <div className="v3-card">
           <div className="v3-hd">
-            <h2 className="v3-eyebrow">Database, optional</h2>
+            <h2 className="v3-eyebrow">Database</h2>
             <span className={`v3-tag ${databaseConnected ? "ok" : ""}`}>
               {databaseConnected ? "connected" : "not connected"}
             </span>
@@ -123,7 +122,7 @@ export default async function SettingsPage() {
             them a security question. */}
         <div className="v3-card">
           <div className="v3-hd">
-            <h2 className="v3-eyebrow">Shareable assessment</h2>
+            <h2 className="v3-eyebrow">Shared report</h2>
             <span className={`v3-tag ${profile?.verified_report_enabled ? "ok" : ""}`}>
               {profile?.verified_report_enabled ? "published" : "not published"}
             </span>

@@ -13,15 +13,14 @@ export default async function ActivityPage() {
     <>
       <div className="v3-page-hd">
         <div>
-          <p className="v3-eyebrow">Everything we did, and when</p>
-          <h1 className="v3-serif">Activity</h1>
+          <h1>Activity</h1>
         </div>
       </div>
 
       <div className="v3-stack">
         <div className="v3-card">
           <div className="v3-hd">
-            <h2 className="v3-eyebrow">Audit runs</h2>
+            <h2 className="v3-eyebrow">Audits</h2>
             <span className="v3-small">Open one to read it line by line</span>
           </div>
           <div className="v3-card-p">
