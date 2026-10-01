@@ -9,8 +9,9 @@ deprecation notices.
 
 # ShipLock product and architecture contract
 
-This is the sole living product, architecture, and agent-work contract for both
-Claude Code and Codex. Claude Code v2.1.277+ reads `AGENTS.md` in supported
+This is the sole living product, architecture, and agent-work contract.
+Claude Code is the only agent on ShipLock (Codex only if Felipe brings it
+back). Claude Code v2.1.277+ reads `AGENTS.md` in supported
 sessions when this project has no `CLAUDE.md`; older or unsupported sessions
 must be pointed here explicitly. Before any implementation, read this file and
 `docs/MASTER-PLAN-PROGRESS.md` completely, then read the Ponytail and
@@ -30,6 +31,11 @@ security team. The first buyer is a founder, technical or not: the surface must
 state consequence, evidence, and the next safe action without requiring security
 expertise. The underlying evidence must remain inspectable enough that a strong
 backend engineer can challenge every claim.
+
+The core (Felipe, 2026-10-01): cross-layer detection, PR scanning, and PR
+suggestions, all built on the strict findings of each audit, presented so a
+founder sees at once whether they are exposed and an engineer can open the
+proof. Everything else serves that.
 
 The thesis (Felipe, 2026-09-29): some risks are invisible in code alone. A
 route whose code looks safe, or whose hole is small, becomes a real incident
@@ -499,7 +505,7 @@ and its exact status live only in `docs/MASTER-PLAN-PROGRESS.md`.
 - Do not deploy, apply migrations remotely, alter GitHub/provider settings,
   merge PRs, or push to a remote unless Felipe explicitly requests it.
 
-## Skill routing for Claude Code and Codex
+## Skill routing
 
 The five checked-in, self-contained skill entry points live only in
 `.agents/skills/`. The three core skills are Ponytail, Superpowers, and UI UX
@@ -508,11 +514,9 @@ including cleanup and documentation changes, and UI UX Pro on every change to
 how a page looks, reads, moves, or is used. Read their full `SKILL.md` files,
 not just their names. Use GStack for security-sensitive diff
 review, higher-risk QA, or an explicit review request; use Ruflo only for
-explicitly authorized parallel-agent coordination. Codex discovers this skill
-directory; Claude Code's new `AGENTS.md` support does not by itself establish
-automatic discovery of
-`.agents/skills/`, so Claude must follow these paths and read the selected
-skill files. No repo-local `.claude` directory or duplicate tree is needed.
+explicitly authorized parallel-agent coordination. Claude Code does not
+discover `.agents/skills/` on its own, so Claude follows these paths and
+reads the selected skill files. No repo-local `.claude` directory or duplicate tree is needed.
 
 - Ponytail (`.agents/skills/ponytail/SKILL.md`): scoped cleanup after tracing
   callers; preserve security boundaries.
