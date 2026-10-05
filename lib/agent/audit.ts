@@ -1,6 +1,6 @@
 import { scanPublicCredentialValues } from "@/lib/deep/clientExposure";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { getInstallationToken } from "@/lib/deep/github";
+import { getBranchSha, getInstallationToken } from "@/lib/deep/github";
 import { fetchRepoArchive, type ArchiveFile } from "@/lib/deep/repoArchive";
 import { scanSecrets } from "@/lib/deep/githubScan";
 import { scanCredentialHandling } from "@/lib/deep/credentialHandling";
@@ -18,6 +18,7 @@ import { extractTables, extractColumns } from "./schema";
 import { inferDomain } from "./domain";
 import { loadLiveFacts } from "./liveFacts";
 import { unassessedNote, summarizeUnassessed } from "./unassessed";
+import { offerAuditReasoning, reasoningContext } from "@/lib/intelligence/reasoning";
 
 /**
  * One audit of one repository, start to finish.
@@ -274,6 +275,9 @@ export interface RunAuditOptions {
   installationId: number;
   repositoryId: string;
   fullName: string;
+  /** The branch whose head is audited. The audit pins its commit, so every
+   * fact, and any later reasoning over them, names one immutable commit. */
+  defaultBranch: string;
   trigger?: string;
   /** True when this account also has a database connected. Changes coverage. */
   hasDatabase?: boolean;
@@ -340,7 +344,8 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
     step(`Read-only checkout of ${fullName}`);
 
     const token = await getInstallationToken(installationId);
-    const archive = await fetchRepoArchive(token, fullName);
+    const commit = await getBranchSha(token, fullName, options.defaultBranch);
+    const archive = await fetchRepoArchive(token, fullName, commit);
     step(
       `${archive.files.length} files read`,
       `${Math.round(archive.bytesRead / 1024)} KB of source${archive.skipped ? `, ${archive.skipped} skipped` : ""}`,
@@ -413,7 +418,7 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
     // check above ran; attack reasoning is the customer's own agent over MCP
     // and is reported as not run here, never as clean.
     step(
-      "Attack reasoning not run",
+      "Attack reasoning not run in this audit",
       routeSupport.level === "inventory_only" ? routeSupport.reason : "it runs on your own agent over MCP; ShipLock makes no AI calls",
     );
 
@@ -494,6 +499,7 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
         trace,
         coverage,
         files_read: archive.files.length,
+        commit_sha: commit,
         // The numbers behind the coverage note, kept as data so the Verified
         // report does not have to parse them out of a sentence.
         unassessed: summarizeUnassessed(routes),
@@ -527,6 +533,20 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
     const { error: factsError } = await admin.from("audit_runs")
       .update({ route_facts: compactRouteFacts(routes) }).eq("id", runId);
     if (factsError) console.warn(`[audit] route facts not stored for ${runId}: ${factsError.message}`);
+
+    // Ask the customer's approved agent to reason over this audit
+    // (lib/intelligence/reasoning.ts). Best effort: the audit is already
+    // durable, and Coverage says reasoning has not run until an answer is
+    // verified and admitted.
+    try {
+      await offerAuditReasoning({ userId, repositoryId, runId, commit, fullName,
+        contents: new Map(archive.files.map((f) => [f.path, f.content])),
+        context: reasoningContext({ routes: routes.filter((r) => !notes.some((n) => n.path === r.path)), stack, tables, domain,
+          files: archive.files.map((f) => f.path), liveFacts, possessionGates: gates, oneIdAccess: oneId,
+          hasDatabase: options.hasDatabase ?? false }) });
+    } catch (err) {
+      console.warn(`[audit] reasoning task not offered for ${runId}: ${err instanceof Error ? err.message : "unknown"}`);
+    }
 
     const { error: repoError } = await admin
       .from("repositories")

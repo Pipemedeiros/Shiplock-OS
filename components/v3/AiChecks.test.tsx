@@ -4,7 +4,7 @@ import { AiChecks, aiStateLabel } from "./AiChecks";
 import type { AiCheck } from "@/lib/intelligence/activity";
 
 const check = (state: AiCheck["state"], extra: Partial<AiCheck> = {}): AiCheck => ({ taskId: state, repository: "acme/app",
-  kind: "pr", pullRequest: 7, commit: "a".repeat(40), state, createdAt: "2026-09-23T10:00:00Z", expiresAt: "2026-09-23T20:00:00Z", answer: null, ...extra });
+  kind: "pr", pullRequest: 7, commit: "a".repeat(40), state, createdAt: "2026-09-23T10:00:00Z", expiresAt: "2026-09-23T20:00:00Z", answer: null, note: null, ...extra });
 
 describe("AiChecks (10B-2d)", () => {
   it("labels every unanswered state as not checked", () => {
@@ -34,6 +34,19 @@ describe("AiChecks (10B-2d)", () => {
     expect(html).not.toMatch(/clean|secure/i);
     // Each PR needs its own click (10B-3b).
     expect(html).toContain("Preview the pull request");
+  });
+
+  it("names audit reasoning and proof, and states what ShipLock checked instead of a proposed change (098)", () => {
+    const html = renderToStaticMarkup(<AiChecks activity={{ available: true, paused: null, checks: [
+      check("proposal", { kind: "audit", pullRequest: null, note: "2 attack paths passed ShipLock's checks and are being proven. 3 were discarded." }),
+      check("pending", { taskId: "p", kind: "proof", pullRequest: null }),
+    ] }} />);
+    expect(html).toContain("Attack reasoning on an audit");
+    expect(html).toContain("Proof of attack paths");
+    expect(html).toContain("2 attack paths passed");
+    expect(html).not.toContain("proposed a change");
+    expect(html).toContain("Waiting for your AI");
+    expect(html).not.toMatch(/clean|secure/i);
   });
 
   it("offers no pull request for a finding that needs your judgment", () => {

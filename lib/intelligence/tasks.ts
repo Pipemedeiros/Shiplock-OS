@@ -6,6 +6,7 @@ import {
   addSecurityHeaders, addWorkflowPermissions, disableProductionSourceMaps, removeSecretLogging, type Codemod,
 } from "@/lib/fixes/codemods";
 import { checkResultEvidence, intelligenceResultSchema, sourceHash, type SourceFile } from "./exchange";
+import { submitReasoningResult, submitVerificationResult, taskBrief, type ReasoningTask } from "./reasoning";
 
 // Durable customer-intelligence tasks (10B-1b). A customer's own agent reads a
 // task, reasons over its own checkout, and submits one
@@ -29,6 +30,10 @@ const taskRowSchema = z.object({
   status: z.enum(["pending", "proposal_received", "needs_human", "unavailable", "cancelled"]),
   result: z.unknown().nullable(), expires_at: z.string(),
   repositories: z.object({ full_name: z.string() }),
+  // Review tasks (deep and PR scans) or audit reasoning and its verification
+  // (lib/intelligence/reasoning.ts, migration 098).
+  kind: z.enum(["review", "attack_reasoning", "attack_verification"]),
+  audit_run_id: z.uuid().nullable(), parent_task_id: z.uuid().nullable(), context: z.unknown().nullable(),
 });
 type TaskRow = z.infer<typeof taskRowSchema>;
 
@@ -43,7 +48,7 @@ export function mechanicalEdit(file: Readonly<SourceFile>, proposed: string): bo
 
 async function loadTask(userId: string, taskId: string): Promise<TaskRow | null> {
   const { data, error } = await getSupabaseAdmin().from("intelligence_tasks")
-    .select("id, user_id, repository_id, commit_sha, host, instruction, sources, status, result, expires_at, repositories(full_name)")
+    .select("id, user_id, repository_id, commit_sha, host, instruction, sources, status, result, expires_at, kind, audit_run_id, parent_task_id, context, repositories(full_name)")
     .eq("id", taskId).eq("user_id", userId).maybeSingle();
   if (error) throw new Error("task_unreadable");
   const row = taskRowSchema.safeParse(data);
@@ -62,9 +67,10 @@ export async function getIntelligenceTask(userId: string, taskId: string) {
     sources: task.sources, permission: "propose_only" as const,
     // The agent spends its own allowance; ShipLock does not verify who paid.
     funding: "unverified" as const,
-    status: expired ? "expired" as const : task.status, expiresAt: task.expires_at,
-    limits: { citations: 16, edits: 3, resultBytes: 64_000 },
-    resultSchema: z.toJSONSchema(durableResultSchema),
+    status: expired ? "expired" as const : task.status, expiresAt: task.expires_at, kind: task.kind,
+    ...(task.kind === "review"
+      ? { limits: { citations: 16, edits: 3, resultBytes: 64_000 }, resultSchema: z.toJSONSchema(durableResultSchema) }
+      : taskBrief(task as ReasoningTask)),
   };
 }
 
@@ -72,12 +78,14 @@ export async function submitIntelligenceResult(userId: string, taskId: string, r
   let bytes: string | undefined;
   try { bytes = JSON.stringify(raw); } catch { throw new Error("invalid_result"); }
   if (bytes && Buffer.byteLength(bytes) > 64_000) throw new Error("result_too_large");
+  const loaded = await loadTask(userId, taskId);
+  if (!loaded || loaded.host === "api") throw new Error("task_unavailable");
+  if (loaded.kind === "attack_reasoning") return submitReasoningResult(userId, loaded as ReasoningTask, raw);
+  if (loaded.kind === "attack_verification") return submitVerificationResult(userId, loaded as ReasoningTask, raw);
   const parsed = durableResultSchema.safeParse(raw);
   if (!parsed.success) throw new Error("invalid_result");
   const result = parsed.data;
-
-  const task = await loadTask(userId, taskId);
-  if (!task || task.host === "api") throw new Error("task_unavailable");
+  const task = loaded;
   if (result.identity.taskId !== task.id || result.identity.tenantId !== task.user_id
       || result.identity.repositoryId !== task.repository_id || result.identity.commit !== task.commit_sha
       || result.host !== task.host) {
@@ -158,13 +166,14 @@ export async function createIntelligenceTask(input: {
 const pendingRowSchema = z.object({
   id: z.uuid(), commit_sha: z.string(), host: z.enum(["codex", "claude-code", "chatgpt", "api"]),
   instruction: z.string(), expires_at: z.string(), repositories: z.object({ full_name: z.string() }),
+  kind: z.enum(["review", "attack_reasoning", "attack_verification"]),
 });
 
 /** What a customer's host polls for (10B-2a): its own pending, unexpired
  * tasks, newest first. Paths and hashes come from getIntelligenceTask. */
 export async function listPendingIntelligenceTasks(userId: string) {
   const { data, error } = await getSupabaseAdmin().from("intelligence_tasks")
-    .select("id, commit_sha, host, instruction, expires_at, repositories(full_name)")
+    .select("id, commit_sha, host, instruction, expires_at, kind, repositories(full_name)")
     .eq("user_id", userId).eq("status", "pending").gt("expires_at", new Date().toISOString())
     // Tasks of the retired API-key mode are never offered to an agent.
     .neq("host", "api")
@@ -173,6 +182,6 @@ export async function listPendingIntelligenceTasks(userId: string) {
   return (data ?? []).flatMap((raw) => {
     const row = pendingRowSchema.safeParse(raw);
     return row.success ? [{ taskId: row.data.id, repository: row.data.repositories.full_name, commit: row.data.commit_sha,
-      host: row.data.host, instruction: row.data.instruction, expiresAt: row.data.expires_at }] : [];
+      host: row.data.host, kind: row.data.kind, instruction: row.data.instruction, expiresAt: row.data.expires_at }] : [];
   });
 }

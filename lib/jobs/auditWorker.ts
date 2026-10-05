@@ -8,7 +8,8 @@ const profileSchema = z.object({
   supabase_mgmt_token_encrypted: z.unknown().nullable().optional(),
   postgres_dsn_encrypted: z.unknown().nullable().optional(),
 });
-const repositorySchema = z.object({ full_name: z.string().regex(/^[\w.-]+\/[\w.-]+$/), selected: z.literal(true) });
+const repositorySchema = z.object({ full_name: z.string().regex(/^[\w.-]+\/[\w.-]+$/), selected: z.literal(true),
+  default_branch: z.string().min(1) });
 const runSchema = z.object({
   status: z.enum(["queued", "running", "complete", "failed"]),
   full_name: z.string(),
@@ -23,7 +24,7 @@ export async function executeAuditJob(job: ClaimedJob): Promise<void> {
   const [profileRead, repositoryRead, runRead] = await Promise.all([
     admin.from("user_profiles").select("github_installation_id, supabase_mgmt_token_encrypted, postgres_dsn_encrypted")
       .eq("id", job.user_id).maybeSingle(),
-    admin.from("repositories").select("full_name, selected").eq("id", job.repository_id)
+    admin.from("repositories").select("full_name, selected, default_branch").eq("id", job.repository_id)
       .eq("user_id", job.user_id).maybeSingle(),
     admin.from("audit_runs").select("status, full_name, trigger").eq("id", job.audit_run_id)
       .eq("user_id", job.user_id).eq("repository_id", job.repository_id).maybeSingle(),
@@ -43,6 +44,7 @@ export async function executeAuditJob(job: ClaimedJob): Promise<void> {
     installationId: profile.data.github_installation_id,
     repositoryId: job.repository_id,
     fullName: repository.data.full_name,
+    defaultBranch: repository.data.default_branch,
     trigger: run.data.trigger,
     hasDatabase: Boolean(profile.data.supabase_mgmt_token_encrypted || profile.data.postgres_dsn_encrypted),
     runId: job.audit_run_id,

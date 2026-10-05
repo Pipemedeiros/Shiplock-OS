@@ -58,19 +58,19 @@ const TOOLS = [
   {
     name: "list_intelligence_tasks",
     description:
-      "List ShipLock intelligence tasks waiting for this account's coding agent: task id, repository, commit, and instruction. Run on your own schedule; tasks expire, and an unanswered task stays 'AI check pending' in ShipLock.",
+      "List ShipLock intelligence tasks waiting for this account's coding agent: task id, kind, repository, commit, and instruction. Kinds: review (a deep or pull request scan), attack_reasoning (reason over an audit's route inventory), attack_verification (prove or refute attack claims with quoted lines). Run on your own schedule; tasks expire, and an unanswered task stays 'AI check pending' in ShipLock.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
   {
     name: "get_intelligence_task",
     description:
-      "Read one intelligence task: repository, commit, instruction, the file paths and SHA-256 hashes it covers, limits, and the exact JSON schema a result must match. ShipLock never sends source; read the files from your own checkout at that commit.",
+      "Read one intelligence task: kind, repository, commit, instruction, the file paths and SHA-256 hashes it covers, limits, and the exact JSON schema a result must match. An attack_reasoning task adds system and prompt (the audit's route inventory); an attack_verification task adds system and claims. ShipLock never sends source; read the files from your own checkout at that commit.",
     inputSchema: { type: "object", properties: { taskId: { type: "string" } }, required: ["taskId"], additionalProperties: false },
   },
   {
     name: "submit_intelligence_result",
     description:
-      "Submit one result for a task, matching the task's resultSchema. Quote cited lines exactly; propose edits only for mechanical changes, and use status needs_human for anything that depends on ownership, authorization, or business policy. ShipLock re-reads cited files from GitHub before accepting, stores a proposal only, and never applies it or opens a PR.",
+      "Submit one result for a task, matching the task's resultSchema. Quote cited lines exactly; propose edits only for mechanical changes, and use status needs_human for anything that depends on ownership, authorization, or business policy. ShipLock checks every attack hypothesis against the audit's facts and re-reads cited files from GitHub before accepting; only a claim proved by quoted lines becomes a finding. It never applies an edit or opens a PR.",
     inputSchema: {
       type: "object",
       properties: { taskId: { type: "string" }, result: { type: "object" } },

@@ -34,14 +34,14 @@ const job: ClaimedJob = {
 beforeEach(() => {
   vi.clearAllMocks();
   state.reads.user_profiles.mockResolvedValue({data:{github_installation_id:42,supabase_mgmt_token_encrypted:"cipher",postgres_dsn_encrypted:null},error:null});
-  state.reads.repositories.mockResolvedValue({data:{full_name:"acme/app",selected:true},error:null});
+  state.reads.repositories.mockResolvedValue({data:{full_name:"acme/app",selected:true,default_branch:"main"},error:null});
   state.reads.audit_runs.mockResolvedValue({data:{full_name:"acme/app",status:"queued",trigger:"pull_request"},error:null});
   state.runAudit.mockResolvedValue({});
 });
 
 it("re-reads current tenant context and executes the queue-created run", async () => {
   await executeAuditJob(job);
-  expect(state.runAudit).toHaveBeenCalledWith({userId:job.user_id,installationId:42,repositoryId:job.repository_id,
+  expect(state.runAudit).toHaveBeenCalledWith({userId:job.user_id,installationId:42,repositoryId:job.repository_id,defaultBranch:"main",
     fullName:"acme/app",trigger:"pull_request",hasDatabase:true,runId:job.audit_run_id,
     jobLease:{jobId:job.id,token:job.lease_token}});
   expect(state.filters).toHaveBeenCalledWith("repositories","user_id",job.user_id);
@@ -54,7 +54,7 @@ it("treats an already-complete run as the durable acknowledgement", async () => 
 });
 
 it("permanently refuses changed or malformed tenant context", async () => {
-  state.reads.repositories.mockResolvedValue({data:{full_name:"other/app",selected:true},error:null});
+  state.reads.repositories.mockResolvedValue({data:{full_name:"other/app",selected:true,default_branch:"main"},error:null});
   await expect(executeAuditJob(job)).rejects.toBeInstanceOf(PermanentJobError);
   expect(state.runAudit).not.toHaveBeenCalled();
 });

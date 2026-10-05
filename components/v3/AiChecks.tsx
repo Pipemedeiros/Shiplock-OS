@@ -21,6 +21,8 @@ const pauseText = {
 
 function scope(check: AiCheck): string {
   if (check.kind === "deep") return `Weekly deep scan · ${check.repository}`;
+  if (check.kind === "audit") return `Attack reasoning on an audit · ${check.repository}`;
+  if (check.kind === "proof") return `Proof of attack paths · ${check.repository}`;
   if (check.pullRequest) return `#${check.pullRequest} · ${check.repository}`;
   return check.repository;
 }
@@ -44,8 +46,10 @@ export function AiChecks({ activity }: { activity: AiActivity }) {
             <div key={check.taskId} className="v3-row-pad">
               <div className="v3-between">
                 <span style={{ fontSize: 13 }}>{scope(check)} <span className="v3-small">at {check.commit.slice(0, 7)}</span></span>
-                <span className="v3-small">{aiStateLabel[check.state]}</span>
+                <span className="v3-small">{check.note && check.state === "proposal" ? "Answered" : aiStateLabel[check.state]}</span>
               </div>
+              {/* Counts from ShipLock's own checks of an audit answer, not the AI's words. */}
+              {check.note ? <p className="v3-small" style={{ marginTop: 6 }}>{check.note}</p> : null}
               {check.answer ? (
                 <div className="v3-small" style={{ marginTop: 6 }}>
                   {/* Model text, rendered as plain text: a claim ShipLock checked against GitHub, not a verdict. */}

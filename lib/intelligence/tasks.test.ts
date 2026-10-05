@@ -25,6 +25,7 @@ const row = {
   id: taskId, user_id: userId, repository_id: repositoryId, commit_sha: commit, host: "claude-code",
   instruction: "Propose the source-map fix.", sources: [{ path, sourceHash: hash(before) }], status: "pending",
   result: null, result_digest: null, expires_at: "2099-01-01T00:00:00.000Z", repositories: { full_name: "acme/app" },
+  kind: "review", audit_run_id: null, parent_task_id: null, context: null,
 };
 const result = (over: Record<string, unknown> = {}) => ({
   version: 1, identity: { taskId, tenantId: userId, repositoryId, commit }, host: "claude-code", model: "claude-haiku-4-5",
@@ -67,6 +68,22 @@ describe("getIntelligenceTask", () => {
   it("returns null for another tenant's or unknown task", async () => {
     mocks.task.mockResolvedValue({ data: null, error: null });
     expect(await getIntelligenceTask(userId, taskId)).toBeNull();
+  });
+});
+
+describe("audit reasoning tasks (098)", () => {
+  const verification = { ...row, kind: "attack_verification", audit_run_id: repositoryId, parent_task_id: taskId,
+    context: { version: 1, hypotheses: [], items: [] } };
+  it("briefs a verification task with its claims and its own result schema", async () => {
+    mocks.task.mockResolvedValue({ data: verification, error: null });
+    const task = await getIntelligenceTask(userId, taskId);
+    expect(task).toMatchObject({ kind: "attack_verification", claims: [] });
+    expect(JSON.stringify(task!.resultSchema)).toContain("verdicts");
+  });
+  it("judges a verification answer by its kind, never as a review proposal", async () => {
+    mocks.task.mockResolvedValue({ data: verification, error: null });
+    await expect(submitIntelligenceResult(userId, taskId, result())).rejects.toThrow("invalid_result");
+    expect(mocks.rpc).not.toHaveBeenCalled();
   });
 });
 
@@ -148,12 +165,12 @@ describe("createIntelligenceTask", () => {
 describe("listPendingIntelligenceTasks (10B-2a)", () => {
   it("returns only the caller's pending, unexpired tasks, newest first, without source", async () => {
     mocks.list.mockResolvedValue({ data: [
-      { id: taskId, repository_id: repositoryId, commit_sha: commit, host: "claude-code", instruction: "x",
+      { id: taskId, repository_id: repositoryId, commit_sha: commit, host: "claude-code", instruction: "x", kind: "attack_reasoning",
         expires_at: "2099-01-01T00:00:00.000Z", repositories: { full_name: "acme/app" } },
     ], error: null });
     const { listPendingIntelligenceTasks } = await import("./tasks");
     expect(await listPendingIntelligenceTasks(userId)).toEqual([{ taskId, repository: "acme/app", commit, host: "claude-code",
-      instruction: "x", expiresAt: "2099-01-01T00:00:00.000Z" }]);
+      kind: "attack_reasoning", instruction: "x", expiresAt: "2099-01-01T00:00:00.000Z" }]);
     expect(mocks.filters).toHaveBeenCalledWith("intelligence_tasks", "user_id", userId);
     expect(mocks.filters).toHaveBeenCalledWith("intelligence_tasks", "status", "pending");
     expect(mocks.filters).toHaveBeenCalledWith("intelligence_tasks", "gt:expires_at", expect.any(String));

@@ -1299,6 +1299,72 @@ try {
       await db.exec("reset role");
     }
   });
+  // 098: audit reasoning on the customer's agent. Hypotheses become a
+  // verification task; only a verified answer for the newest complete audit
+  // admits findings, and nothing here ever archives one.
+  await check("098 binds reasoning to the newest complete audit and admits verified findings only", async () => {
+    await db.exec("reset role");
+    await db.exec(await readFile(new URL("../supabase/migrations/098_audit_reasoning_tasks.sql", import.meta.url), "utf8"));
+    const commit="d".repeat(40);
+    const runAt=async (minutesAgo)=>(await db.query("insert into public.audit_runs(user_id,repository_id,full_name,status,commit_sha,finished_at) values ($1,$2,'acme/one','complete',$3,now()-make_interval(mins=>$4)) returning id",[u1,r1,commit,minutesAgo])).rows[0].id;
+    const older=await runAt(30), run=await runAt(10);
+    const otherRun=(await db.query("insert into public.audit_runs(user_id,repository_id,full_name,status,commit_sha,finished_at) values ($1,$2,'acme/two','complete',$3,now()) returning id",[u2,r2,commit])).rows[0].id;
+    await db.exec("set role service_role");
+    await db.query("select public.approve_intelligence_connection($1,'codex','off','off',50000,50000000)",[u1]);
+    await assert.rejects(db.query("select public.approve_intelligence_connection($1,'api','off','off',50000,50000000)",[u1]), /invalid intelligence host/);
+    const ctx=JSON.stringify({version:1,prompt:"routes"});
+    const reason=(r,key,user=u1,repo=r1,c=commit)=>db.query("select public.create_audit_reasoning_task($1,$2,$3,$4,'codex','Reason over the audit.',$5,$6,now()+interval '10 minutes',$7) as id",[user,repo,r,c,sources,ctx,key]);
+    const oldTask=(await reason(older,"reason:old")).rows[0].id;
+    const task=(await reason(run,"reason:new")).rows[0].id;
+    assert.equal((await reason(run,"reason:new")).rows[0].id,task);
+    await assert.rejects(reason(run,"reason:x",u1,r1,"e".repeat(40)), /audit unavailable/);
+    await assert.rejects(reason(otherRun,"reason:y",u1,r1), /audit unavailable/);
+    await assert.rejects(reason(run,"review-key"), /invalid intelligence task/);
+    await db.exec("reset role");
+    const rows=Object.fromEntries((await db.query("select id,kind,status,audit_run_id from public.intelligence_tasks where id=any($1)",[[oldTask,task]])).rows.map((r)=>[r.id,r]));
+    assert.equal(rows[task].kind,"attack_reasoning");
+    assert.equal(rows[oldTask].status,"cancelled", "a newer audit's reasoning supersedes the older one");
+    // The kind shape is enforced by the table itself.
+    await assert.rejects(db.query("update public.intelligence_tasks set context=null where id=$1",[task]));
+    await assert.rejects(db.query("update public.intelligence_tasks set audit_run_id=$2 where id=$1",[task,otherRun]));
+    await db.exec("set role service_role");
+    const verify=(key,parent=task)=>db.query("select public.create_verification_task($1,$2,'Verify 1 claim.',$3,$4,$5) as id",[u1,parent,sources,JSON.stringify({version:1,items:[]}),key]);
+    await assert.rejects(verify("verify:a"), /parent unavailable/, "the reasoning answer comes first");
+    await db.query("select public.submit_intelligence_result($1,$2,'proposal_received',$3,$4)",[u1,task,JSON.stringify({status:"proposed"}),"a1".repeat(32)]);
+    await assert.rejects(verify("bad-key"), /invalid intelligence task/);
+    const vtask=(await verify("verify:a")).rows[0].id;
+    assert.equal((await verify("verify:a")).rows[0].id,vtask);
+    await assert.rejects(db.query("select public.submit_intelligence_result($1,$2,'proposal_received',$3,$4)",[u1,vtask,JSON.stringify({}),"a2".repeat(32)]), /task unavailable/, "verification never completes without admission");
+    const finding={id:"agent:missing_authentication:/api/orders",severity:"WARNING",title:"Orders readable",consequence:"Anyone can read orders.",confidence:"inferred",fixKind:"manual",claims:[{claim:"no session",origin:"routes",verified:true}],attackClass:"missing_authentication",entry:"/api/orders",file:"app/api/orders/route.ts"};
+    const admit=(t,findings,digest,status="proposal_received",user=u1)=>db.query("select public.admit_verified_findings($1,$2,$3,$4,$5,$6) as outcome",[user,t,status,JSON.stringify({status}),digest,JSON.stringify(findings)]);
+    await assert.rejects(admit(vtask,[{...finding,id:"secret:x"}],"b1".repeat(32)), /invalid finding/);
+    await assert.rejects(admit(vtask,[finding],"b2".repeat(32),"unavailable"), /invalid intelligence result/);
+    await assert.rejects(admit(vtask,[finding],"b3".repeat(32),"proposal_received",u2), /task unavailable/);
+    await assert.rejects(admit(task,[finding],"b4".repeat(32)), /task unavailable/);
+    assert.equal((await admit(vtask,[finding],"b5".repeat(32))).rows[0].outcome,"accepted");
+    assert.equal((await admit(vtask,[finding],"b5".repeat(32))).rows[0].outcome,"replayed");
+    await assert.rejects(admit(vtask,[],"b6".repeat(32)), /already_completed/);
+    await db.exec("reset role");
+    const stored=(await db.query("select run_id,source,archived_at from public.deep_findings where user_id=$1 and finding_id=$2",[u1,finding.id])).rows;
+    assert.deepEqual(stored,[{run_id:run,source:"agent",archived_at:null}]);
+    // A newer complete audit makes the old reasoning stale: no new findings.
+    const v2=(await db.query("select public.create_verification_task($1,$2,'Verify again.',$3,$4,'verify:b') as id",[u1,task,sources,JSON.stringify({version:1,items:[1]})])).rows[0].id;
+    await runAt(1);
+    await db.exec("set role service_role");
+    await assert.rejects(admit(v2,[{...finding,id:"agent:injection:/api/orders"}],"b7".repeat(32)), /task_stale/);
+    await assert.rejects(verify("verify:c"), /task_stale/);
+    for (const role of ["anon","authenticated"]) {
+      await db.exec(`reset role; set role ${role}`);
+      await assert.rejects(db.query("select public.admit_verified_findings($1,$1,'unavailable','{}'::jsonb,$2,'[]'::jsonb)",[u1,"9".repeat(64)]));
+      await assert.rejects(db.query("select public.create_audit_reasoning_task($1,$1,$1,$2,'codex','x','[]'::jsonb,'{}'::jsonb,now(),'reason:z')",[u1,commit]));
+      await assert.rejects(db.query("select public.create_verification_task($1,$1,'x','[]'::jsonb,'{}'::jsonb,'verify:z')",[u1]));
+      await assert.rejects(db.query("select public.shape_intelligence_task($1,'attack_reasoning',$1,null,'{}'::jsonb)",[u1]));
+      await assert.rejects(db.query("select public.audit_run_is_current($1,$1)",[u1]));
+    }
+    await db.exec("reset role; set role service_role");
+    await assert.rejects(db.query("select public.shape_intelligence_task($1,'attack_reasoning',$1,null,'{}'::jsonb)",[u1]), "the shaping helper is internal only");
+    await db.exec("reset role");
+  });
   await check("client roles cannot commit provider results or read snapshots", async () => {
     await db.exec("reset role; set role authenticated");
     await assert.rejects(db.query("select public.persist_provider_monitor_result($1,$1,$1,'postgres-direct','x',null,'[]'::jsonb,false,'[]'::jsonb,'{}'::jsonb)",[legacy]));

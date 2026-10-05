@@ -13,8 +13,10 @@
  * cannot prove, including anything that depends on code or config it was not
  * shown, is "unverified": kept as a lead in Coverage, never a finding.
  *
- * This file is pure (prompt, schema, context, citation check). The one model
- * call lives in attack.ts, the allowlisted client.
+ * This file is pure (prompt, schema, context, citation check). ShipLock makes
+ * no model call: in the product the verifier is the customer's agent over MCP
+ * (lib/intelligence/reasoning.ts); offline, the corpus harness
+ * (scripts/corpusModel.ts).
  */
 
 export type VerifyItem = {

@@ -8,7 +8,7 @@ const STATUS: Record<string, number> = {
   invalid_result: 422, result_too_large: 413, scope_mismatch: 422, source_not_allowed: 422,
   citation_mismatch: 422, missing_evidence: 422, missing_patch: 422, invalid_unavailable: 422,
   human_decision_required: 422, edit_not_allowed: 422, source_changed: 409, source_unreadable: 503,
-  task_expired: 409, task_scope_changed: 409, already_completed: 409, task_unavailable: 404,
+  task_expired: 409, task_scope_changed: 409, already_completed: 409, task_stale: 409, task_unavailable: 404,
 };
 
 /** A customer's host submits one result for its own task (10B-1b). ShipLock
@@ -23,8 +23,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!body || typeof body !== "object" || !("result" in body)) {
     return NextResponse.json({ error: "invalid_result" }, { status: 422 });
   }
-  // API-key tasks are answered only by ShipLock on the customer's key (10B-2e);
-  // an agent over MCP may not answer as that host.
+  // "api" is the retired API-key host (Felipe, 2026-10-01): no agent may
+  // answer as it.
   const result = body.result as { host?: unknown } | null;
   if (result && typeof result === "object" && result.host === "api") {
     return NextResponse.json({ error: "api_mode_task" }, { status: 403 });

@@ -73,6 +73,25 @@ describe("AI check states (10B-2d)", () => {
     expect(state.filters).toHaveBeenCalledWith("intelligence_scan_jobs", "in", "job_id", [job]);
   });
 
+  it("describes audit reasoning and its proof by what ShipLock checked, never as a proposed change (098)", async () => {
+    state.tasks.mockReturnValue({ data: [
+      { id: "r1", commit_sha: "e".repeat(40), status: "proposal_received", expires_at: "2026-09-23T20:00:00Z", created_at: "2026-09-23T09:00:00Z",
+        idempotency_key: "reason:x", kind: "attack_reasoning", repositories: { full_name: "acme/app" },
+        result: { admitted: [{ entry: "/a" }, { entry: "/b" }], rejected: 3 } },
+      { id: "v1", commit_sha: "e".repeat(40), status: "proposal_received", expires_at: "2026-09-23T20:00:00Z", created_at: "2026-09-23T09:30:00Z",
+        idempotency_key: "verify:x:0", kind: "attack_verification", repositories: { full_name: "acme/app" },
+        result: { confirmed: 1, refuted: 2, unverified: 1 } },
+      { id: "v2", commit_sha: "e".repeat(40), status: "pending", expires_at: "2026-09-23T20:00:00Z", created_at: "2026-09-23T09:40:00Z",
+        idempotency_key: "verify:x:1", kind: "attack_verification", repositories: { full_name: "acme/app" }, result: null },
+    ], error: null });
+    const activity = await getAiActivity("u1", now);
+    expect(activity).toMatchObject({ available: true, checks: [
+      { taskId: "r1", kind: "audit", answer: null, note: "2 attack paths passed ShipLock's checks and are being proven. 3 were discarded." },
+      { taskId: "v1", kind: "proof", answer: null, note: "1 confirmed with quoted lines and added to Issues. 2 ruled out. 1 not proven." },
+      { taskId: "v2", kind: "proof", state: "pending", note: null },
+    ] });
+  });
+
   it("reports unavailable rather than an empty, clean-looking list when storage fails", async () => {
     state.tasks.mockReturnValue({ data: null, error: { message: "down" } });
     expect(await getAiActivity("u1", now)).toEqual({ available: false });
@@ -82,7 +101,7 @@ describe("AI check states (10B-2d)", () => {
   });
 
   it("finds the newest AI check for a pull request", () => {
-    const base = { repository: "acme/app", kind: "pr", commit: "a", createdAt: "x", expiresAt: "x", answer: null } as const;
+    const base = { repository: "acme/app", kind: "pr", commit: "a", createdAt: "x", expiresAt: "x", answer: null, note: null } as const;
     const checks: AiCheck[] = [
       { ...base, taskId: "new", pullRequest: 7, state: "pending" },
       { ...base, taskId: "old", pullRequest: 7, state: "expired" },

@@ -10,8 +10,11 @@ export type AiCheckState = "pending" | "expired" | "withdrawn" | "unavailable" |
  * edit bodies. It is the AI's claim, already checked against GitHub. */
 export type AiAnswer = { summary: string; citations: { path: string; startLine: number; endLine: number }[]; editedFiles: string[] };
 export type AiCheck = {
-  taskId: string; repository: string; kind: "deep" | "pr" | "other"; pullRequest: number | null;
+  taskId: string; repository: string; kind: "deep" | "pr" | "other" | "audit" | "proof"; pullRequest: number | null;
   commit: string; state: AiCheckState; createdAt: string; expiresAt: string; answer: AiAnswer | null;
+  /** For audit reasoning and its proof: what ShipLock's own checks made of
+   * the answer, in counts. Never the agent's prose. */
+  note: string | null;
 };
 export type AiPause = "not_connected" | "revoked" | "budget" | null;
 export type AiActivity = { available: false } | { available: true; paused: AiPause; checks: AiCheck[] };
@@ -39,7 +42,23 @@ const answerSchema = z.object({
 });
 const taskRow = z.object({ id: z.string(), commit_sha: z.string(), status: z.string(), expires_at: z.string(),
   created_at: z.string(), idempotency_key: z.string(), repositories: z.object({ full_name: z.string() }),
-  result: z.unknown().optional() });
+  result: z.unknown().optional(), kind: z.enum(["review", "attack_reasoning", "attack_verification"]).default("review") });
+
+const count = z.number().int().nonnegative();
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+/** Counts ShipLock computed when it judged an audit reasoning or proof answer. */
+function noteOf(kind: z.infer<typeof taskRow>["kind"], status: string, result: unknown): string | null {
+  if (status !== "proposal_received") return null;
+  if (kind === "attack_reasoning") {
+    const r = z.object({ admitted: z.array(z.unknown()), rejected: count }).safeParse(result);
+    return r.success ? `${plural(r.data.admitted.length, "attack path", "attack paths")} passed ShipLock's checks and ${r.data.admitted.length === 1 ? "is" : "are"} being proven. ${r.data.rejected} ${r.data.rejected === 1 ? "was" : "were"} discarded.` : null;
+  }
+  if (kind === "attack_verification") {
+    const r = z.object({ confirmed: count, refuted: count, unverified: count }).safeParse(result);
+    return r.success ? `${r.data.confirmed} confirmed with quoted lines and added to Issues. ${r.data.refuted} ruled out. ${r.data.unverified} not proven.` : null;
+  }
+  return null;
+}
 
 function answerOf(status: string, result: unknown): AiAnswer | null {
   if (status !== "needs_human" && status !== "proposal_received") return null;
@@ -58,7 +77,7 @@ export async function getAiActivity(userId: string, now = Date.now()): Promise<A
     const [connection, tasks] = await Promise.all([
       getIntelligenceConnection(userId),
       admin.from("intelligence_tasks")
-        .select("id, commit_sha, status, expires_at, created_at, idempotency_key, result, repositories(full_name)")
+        .select("id, commit_sha, status, expires_at, created_at, idempotency_key, result, kind, repositories(full_name)")
         .eq("user_id", userId).gt("created_at", new Date(now - 30 * 86_400_000).toISOString())
         .order("created_at", { ascending: false }).limit(50),
     ]);
@@ -75,10 +94,12 @@ export async function getAiActivity(userId: string, now = Date.now()): Promise<A
     }
     const checks = rows.map((row): AiCheck => {
       const scan = scans.get(JOB_KEY.exec(row.idempotency_key)?.[1] ?? "");
-      return { taskId: row.id, repository: row.repositories.full_name, kind: scan?.scan ?? "other",
+      const audit = row.kind !== "review";
+      return { taskId: row.id, repository: row.repositories.full_name,
+        kind: row.kind === "attack_reasoning" ? "audit" : row.kind === "attack_verification" ? "proof" : scan?.scan ?? "other",
         pullRequest: scan?.pull_request_number ?? null, commit: row.commit_sha,
         state: aiStateOf(row.status, row.expires_at, now), createdAt: row.created_at, expiresAt: row.expires_at,
-        answer: answerOf(row.status, row.result) };
+        answer: audit ? null : answerOf(row.status, row.result), note: noteOf(row.kind, row.status, row.result) };
     });
     return { available: true, paused: pausedReason(connection), checks };
   } catch {
