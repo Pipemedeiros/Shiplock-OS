@@ -475,16 +475,24 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
 
     step("Audit complete", `${findings.length} open ${findings.length === 1 ? "path" : "paths"}`);
 
-    // Reasoning did not run, so this audit cannot reassess what an earlier
-    // reasoned run found: earlier findings stay open (a skipped answer never
-    // resolves an old finding, AGENTS.md).
-    step("Previous findings retained", "This run was incomplete. Earlier findings remain open until they can be reassessed.");
+    // Only what this run re-checked may close: a deterministic class it read
+    // in full. Findings from the customer's agent stay open, because an audit
+    // that did not reason cannot reassess them (AGENTS.md: a skipped answer
+    // never resolves an old finding).
+    const retire = retirableClasses({ truncated: archive.truncated, skipped: archive.skipped, routes });
+    if (retire.length < 2) {
+      step("Some earlier findings retained", "This run could not re-check everything. Findings it could not reassess remain open.");
+    }
     coverage.push({
-      name: "Previous findings remain open",
-      why: "This run could not fully reassess the repository.",
-      effect: "New findings were saved, but earlier findings were not marked resolved just because they were missing from this run.",
+      name: "Earlier findings this audit could not reassess remain open",
+      why: retire.length === 2
+        ? "This audit re-checked committed credentials and permission gaps in full. Findings your AI proved are reassessed only by your AI."
+        : retire.length === 1
+          ? "This audit re-checked committed credentials in full, but some routes could not be read, so permission gaps and findings your AI proved were not reassessed."
+          : "This audit did not read every file, so no earlier finding was reassessed.",
+      effect: "Anything not re-checked was kept open rather than marked resolved because it was missing from this run.",
     });
-    await persistFindings(userId, repositoryId, runId, findings, null, true, options.jobLease);
+    await persistFindings(userId, repositoryId, runId, findings, null, retire, options.jobLease);
 
     // No write follows an audit. Opening a branch/PR is a separate, explicit
     // customer action through the repair endpoints. Analysis permission is not
@@ -597,9 +605,23 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
   }
 }
 
+export type RetirableClass = "committed_secret" | "permission_gap";
+
 /**
- * Atomically writes findings and, only after that succeeds, archives agent
- * findings from this repository that a complete run did not reproduce.
+ * The deterministic classes this run re-checked in full, so an earlier
+ * finding of that class it did not reproduce may close. Credentials need the
+ * whole archive; permission gaps also need every route's facts readable.
+ */
+export function retirableClasses(run: { truncated: boolean; skipped: number; routes: RouteFact[] }): RetirableClass[] {
+  if (run.truncated || run.skipped > 0) return [];
+  const readable = run.routes.every((r) => r.identityReadable && r.ownershipReadable && r.dataReadable
+    && r.machineGateReadable && r.serviceRoleReadable);
+  return readable ? ["committed_secret", "permission_gap"] : ["committed_secret"];
+}
+
+/**
+ * Atomically writes findings and, only after that succeeds, archives earlier
+ * findings of the retirable classes that this run did not reproduce.
  *
  * The database RPC owns both operations and validates the tenant/repository/run
  * relationship. A failed statement rolls the entire replacement back, so a
@@ -611,12 +633,12 @@ export async function persistFindings(
   runId: string,
   findings: AgentFinding[],
   client: Pick<ReturnType<typeof getSupabaseAdmin>, "rpc"> | null = null,
-  preserveExisting = false,
+  retire: RetirableClass[] = [],
   jobLease?: { jobId: string; token: string },
 ): Promise<void> {
-  const { error } = await (client ?? getSupabaseAdmin()).rpc("persist_repository_findings", {
+  const { error } = await (client ?? getSupabaseAdmin()).rpc("persist_audit_findings", {
     p_user: userId, p_repository: repositoryId, p_run: runId,
-    p_findings: findings, p_preserve: preserveExisting,
+    p_findings: findings, p_retire: retire,
     p_job: jobLease?.jobId ?? null, p_token: jobLease?.token ?? null,
   });
   if (error) throw new Error("Findings could not be saved");

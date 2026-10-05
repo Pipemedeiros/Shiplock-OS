@@ -1365,6 +1365,39 @@ try {
     await assert.rejects(db.query("select public.shape_intelligence_task($1,'attack_reasoning',$1,null,'{}'::jsonb)",[u1]), "the shaping helper is internal only");
     await db.exec("reset role");
   });
+  // 099: an audit retires only the deterministic classes it re-checked; a
+  // finding the customer's agent proved is never closed by an audit.
+  await check("099 retires re-checked deterministic findings and never an agent's proven finding", async () => {
+    await db.exec("reset role");
+    await db.exec(await readFile(new URL("../supabase/migrations/099_audit_finding_retirement.sql", import.meta.url), "utf8"));
+    const auditRun=(await db.query("insert into public.audit_runs(user_id,repository_id,full_name,status) values ($1,$2,'acme/three','running') returning id",[u1,r3])).rows[0].id;
+    const seed=(id,cls)=>db.query("insert into public.deep_findings(user_id,repository_id,source,finding_id,severity,title,consequence,attack_class,confidence,fix_kind,claims) values ($1,$2,'agent',$3,'WARNING','t','c',$4,'inferred','manual','[]'::jsonb)",[u1,r3,id,cls]);
+    await seed("secret:a.ts","committed_secret"); await seed("secret:b.ts","committed_secret");
+    await seed("agent:permission_gap:POST:/x:order","permission_gap"); await seed("agent:missing_authentication:/api/o","missing_authentication");
+    const open=async()=>(await db.query("select finding_id from public.deep_findings where user_id=$1 and repository_id=$2 and archived_at is null order by finding_id",[u1,r3])).rows.map((r)=>r.finding_id);
+    const reproduced={id:"secret:b.ts",severity:"CRITICAL",title:"Key committed",consequence:"c",confidence:"corroborated",fixKind:"manual",claims:[],attackClass:"committed_secret"};
+    await db.exec("set role service_role");
+    const persist=(findings,retire)=>db.query("select public.persist_audit_findings($1,$2,$3,$4,$5::text[])",[u1,r3,auditRun,JSON.stringify(findings),retire]);
+    await assert.rejects(persist([],["missing_authentication"]), /invalid findings/);
+    await assert.rejects(persist([],null), /invalid findings/);
+    await persist([reproduced],[]);
+    await db.exec("reset role");
+    // "same-route" was left by an earlier check with no class: never retired either.
+    assert.deepEqual(await open(),["agent:missing_authentication:/api/o","agent:permission_gap:POST:/x:order","same-route","secret:a.ts","secret:b.ts"], "an incomplete run retires nothing");
+    await db.exec("set role service_role");
+    await persist([reproduced],["committed_secret"]);
+    await db.exec("reset role");
+    assert.deepEqual(await open(),["agent:missing_authentication:/api/o","agent:permission_gap:POST:/x:order","same-route","secret:b.ts"]);
+    await db.exec("set role service_role");
+    await persist([reproduced],["committed_secret","permission_gap"]);
+    await db.exec("reset role");
+    assert.deepEqual(await open(),["agent:missing_authentication:/api/o","same-route","secret:b.ts"], "the proven finding stays open");
+    for (const role of ["anon","authenticated"]) {
+      await db.exec(`set role ${role}`);
+      await assert.rejects(db.query("select public.persist_audit_findings($1,$2,$3,'[]'::jsonb,'{}'::text[])",[u1,r3,auditRun]));
+      await db.exec("reset role");
+    }
+  });
   await check("client roles cannot commit provider results or read snapshots", async () => {
     await db.exec("reset role; set role authenticated");
     await assert.rejects(db.query("select public.persist_provider_monitor_result($1,$1,$1,'postgres-direct','x',null,'[]'::jsonb,false,'[]'::jsonb,'{}'::jsonb)",[legacy]));
