@@ -27,7 +27,6 @@ vi.mock("./repositoryDatabase", () => ({
   loadRepositoryDatabaseEvidence: vi.fn(async () => ({ admission: "unknown", snapshots: {} })),
   projectRepositoryDatabaseEvidence: vi.fn(() => ({})),
 }));
-vi.mock("./narrative", () => ({ generateNarratives: vi.fn() }));
 
 import { loadGraphInput } from "./graphRun";
 

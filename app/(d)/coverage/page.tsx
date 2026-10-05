@@ -34,15 +34,15 @@ const AREAS = [
   {
     id: "01",
     name: "Repository audit",
-    // lib/agent/audit.ts: fetchRepoArchive → collectRoutes → proposeAttacks →
+    // lib/agent/audit.ts: fetchRepoArchive → collectRoutes → (customer agent over MCP) →
     // attackGuard → persistFindings. Triggered by POST /api/audit and by the
     // GitHub App webhook (app/api/monitor/github/route.ts).
-    lead: "We read your repository as one archive, work out which endpoints reach which tables and who can call them, and reason about how a stranger or another tenant would get to your users' data.",
+    lead: "We read your repository as one archive and work out which endpoints reach which tables and who can call them. Reasoning about how a stranger or another tenant would get to your users' data runs on your own agent once you connect it; ShipLock makes no AI calls of its own.",
     detail: [
       // lib/graph/routeInventory.ts, callPath.ts, declarations.ts.
       "Every route is traced from its exported handler through the code it actually runs: the wrappers it is passed to, the helpers it calls, the module it re-exports. From that we record whether a caller is identified, whether the query is narrowed to that caller, and which tables it touches. Evidence comes from behaviour, never from a type declaration or an import.",
-      // lib/agent/attack.ts + attackGuard.ts: model proposes, guard disposes.
-      "A model proposes attack paths over those facts. A deterministic guard then refuses anything that cites an endpoint, file or table we did not observe, and anything that contradicts a fact we read. What survives is reported with the reasoning, line by line, so you can disagree with it.",
+      // lib/agent/attack.ts + attackGuard.ts: the customer's agent proposes, the guard disposes.
+      "Your agent proposes attack paths over those facts. A deterministic guard then refuses anything that cites an endpoint, file or table we did not observe, and anything that contradicts a fact we read. What survives is reported with the reasoning, line by line, so you can disagree with it.",
       // lib/agent/unassessed.ts, wired in buildCoverage (lib/agent/audit.ts).
       "Where a check runs somewhere we could not follow, the endpoint is reported as unassessed, with the proportion and a named sample, at the top of the Coverage page. An endpoint we could not judge is never shown as clean.",
     ],

@@ -129,19 +129,13 @@ describe("proving a table", () => {
     expect(propose).toHaveBeenCalled();
   });
 
-  // 6-0: the agent leg calls a model on ShipLock's key. Without an injected
-  // proposer it runs only when that spend is explicitly turned on.
-  it("never builds ShipLock's model proposer unless SHIPLOCK_FUNDED_PROVING is exactly true", async () => {
-    const agent = await import("./agent");
-    const build = vi.spyOn(agent, "claudeProposer");
+  // ShipLock makes no model call: without an injected proposer the agent leg
+  // does not run, and a table the fixed probe cleared stays unproven.
+  it("runs no agent leg without an injected proposer", async () => {
     const clean = fakeArena({ leaked: 0 });
     openArenaMock.mockResolvedValue({ arena: clean.arena, reason: "" });
-    vi.stubEnv("SHIPLOCK_FUNDED_PROVING", "1");
     const r = await runProvingGround(ctx({ propose: undefined }));
-    vi.unstubAllEnvs();
-    expect(build).not.toHaveBeenCalled();
     expect(r.findings).toEqual([]);
-    build.mockRestore();
   });
 
   it("tears the arena down on success", async () => {

@@ -22,12 +22,12 @@ const after = before.replace("productionBrowserSourceMaps: true", "productionBro
 const taskId = "11111111-1111-4111-8111-111111111111", userId = "22222222-2222-4222-8222-222222222222";
 const repositoryId = "33333333-3333-4333-8333-333333333333", commit = "a".repeat(40);
 const row = {
-  id: taskId, user_id: userId, repository_id: repositoryId, commit_sha: commit, host: "api",
+  id: taskId, user_id: userId, repository_id: repositoryId, commit_sha: commit, host: "claude-code",
   instruction: "Propose the source-map fix.", sources: [{ path, sourceHash: hash(before) }], status: "pending",
   result: null, result_digest: null, expires_at: "2099-01-01T00:00:00.000Z", repositories: { full_name: "acme/app" },
 };
 const result = (over: Record<string, unknown> = {}) => ({
-  version: 1, identity: { taskId, tenantId: userId, repositoryId, commit }, host: "api", model: "claude-haiku-4-5",
+  version: 1, identity: { taskId, tenantId: userId, repositoryId, commit }, host: "claude-code", model: "claude-haiku-4-5",
   status: "proposed", summary: "Disable production browser source maps.",
   citations: [{ path, sourceHash: hash(before), startLine: 2, endLine: 2, quote: "  productionBrowserSourceMaps: true," }],
   edits: [{ path, baseHash: hash(before), content: after }], usage: null, ...over,
@@ -44,16 +44,24 @@ beforeEach(() => {
 describe("getIntelligenceTask", () => {
   it("returns the owner's task with paths, hashes, and limits, never source or funding claims", async () => {
     const task = await getIntelligenceTask(userId, taskId);
-    expect(task).toMatchObject({ identity: { taskId, tenantId: userId, repositoryId, commit }, host: "api",
-      repository: "acme/app", permission: "propose_only", funding: "customer_api_key", status: "pending",
+    expect(task).toMatchObject({ identity: { taskId, tenantId: userId, repositoryId, commit }, host: "claude-code",
+      repository: "acme/app", permission: "propose_only", funding: "unverified", status: "pending",
       sources: [{ path, sourceHash: hash(before) }] });
     expect(JSON.stringify(task)).not.toContain("productionBrowserSourceMaps");
     expect(mocks.filters).toHaveBeenCalledWith("intelligence_tasks", "user_id", userId);
   });
 
-  it("labels funding: API mode runs on the customer's key; a pull host's funding is not verified (10B-2e)", async () => {
+  it("never claims who funded a task: the agent spends its own allowance, unverified", async () => {
     mocks.task.mockResolvedValue({ data: { ...row, host: "codex" }, error: null });
     expect(await getIntelligenceTask(userId, taskId)).toMatchObject({ funding: "unverified" });
+    mocks.task.mockResolvedValue({ data: { ...row, host: "api" }, error: null });
+    expect(await getIntelligenceTask(userId, taskId)).toMatchObject({ funding: "unverified" });
+  });
+
+  it("refuses an answer to a task of the retired API-key mode (Felipe, 2026-10-01)", async () => {
+    mocks.task.mockResolvedValue({ data: { ...row, host: "api" }, error: null });
+    await expect(submitIntelligenceResult(userId, taskId, result({ host: "api" }))).rejects.toThrow("task_unavailable");
+    expect(mocks.rpc).not.toHaveBeenCalled();
   });
 
   it("returns null for another tenant's or unknown task", async () => {
@@ -109,10 +117,10 @@ describe("createIntelligenceTask", () => {
     mocks.task.mockResolvedValue({ data: { full_name: "acme/app" }, error: null });
     mocks.rpc.mockResolvedValue({ data: taskId, error: null });
     const { createIntelligenceTask } = await import("./tasks");
-    expect(await createIntelligenceTask({ userId, repositoryId, commit, host: "api", instruction: "x", paths: [path], minutes: 10, key: "k1" })).toBe(taskId);
+    expect(await createIntelligenceTask({ userId, repositoryId, commit, host: "codex", instruction: "x", paths: [path], minutes: 10, key: "k1" })).toBe(taskId);
     const [name, args] = mocks.rpc.mock.calls[0];
     expect(name).toBe("create_intelligence_task");
-    expect(args).toMatchObject({ p_user: userId, p_repository: repositoryId, p_commit: commit, p_host: "api", p_key: "k1",
+    expect(args).toMatchObject({ p_user: userId, p_repository: repositoryId, p_commit: commit, p_host: "codex", p_key: "k1",
       p_sources: [{ path, sourceHash: hash(before) }] });
     expect(mocks.file).toHaveBeenCalledWith("token", "acme/app", path, commit);
   });
@@ -120,10 +128,10 @@ describe("createIntelligenceTask", () => {
   it("refuses an unselected repository or an unreadable file", async () => {
     const { createIntelligenceTask } = await import("./tasks");
     mocks.task.mockResolvedValue({ data: null, error: null });
-    await expect(createIntelligenceTask({ userId, repositoryId, commit, host: "api", instruction: "x", paths: [path], minutes: 10, key: "k2" })).rejects.toThrow("repository_unavailable");
+    await expect(createIntelligenceTask({ userId, repositoryId, commit, host: "codex", instruction: "x", paths: [path], minutes: 10, key: "k2" })).rejects.toThrow("repository_unavailable");
     mocks.task.mockResolvedValue({ data: { full_name: "acme/app" }, error: null });
     mocks.file.mockResolvedValue(null);
-    await expect(createIntelligenceTask({ userId, repositoryId, commit, host: "api", instruction: "x", paths: [path], minutes: 10, key: "k3" })).rejects.toThrow("source_unreadable");
+    await expect(createIntelligenceTask({ userId, repositoryId, commit, host: "codex", instruction: "x", paths: [path], minutes: 10, key: "k3" })).rejects.toThrow("source_unreadable");
     expect(mocks.rpc).not.toHaveBeenCalled();
   });
 
@@ -149,7 +157,7 @@ describe("listPendingIntelligenceTasks (10B-2a)", () => {
     expect(mocks.filters).toHaveBeenCalledWith("intelligence_tasks", "user_id", userId);
     expect(mocks.filters).toHaveBeenCalledWith("intelligence_tasks", "status", "pending");
     expect(mocks.filters).toHaveBeenCalledWith("intelligence_tasks", "gt:expires_at", expect.any(String));
-    // API-mode tasks are ShipLock's to run on the customer's key, never an agent's (10B-2e).
+    // Tasks of the retired API-key mode are never offered to an agent.
     expect(mocks.filters).toHaveBeenCalledWith("intelligence_tasks", "neq:host", "api");
   });
 });

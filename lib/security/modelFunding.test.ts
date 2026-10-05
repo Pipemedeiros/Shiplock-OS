@@ -2,57 +2,49 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-// ShipLock-funded model calls are a cost and a contract boundary (AGENTS.md:
-// one bounded first scan per account; afterwards the customer funds AI). Every
-// place that builds a model client must be listed here with the reason it may
-// spend, so a new unbounded, ShipLock-keyed route cannot land unnoticed. The
-// 2026-09-23 removal of /api/deep/github/reason (a signed-in POST that spent
-// ShipLock's key with no bound) is why this exists.
-const ALLOWED: Record<string, string> = {
-  "lib/agent/attack.ts": "audit hypotheses; called only when the first-scan credit is claimed (3G-1)",
-  "lib/analyzer.ts": "legacy scan report; off unless SHIPLOCK_FUNDED_SCAN_REPORT=true (3G-2)",
-  "lib/graph/narrative.ts": "graph narrative; off unless SHIPLOCK_FUNDED_NARRATIVES=true (3G-2)",
-  "lib/graph/defender.ts": "unused per AGENTS.md; must not gain a caller without a bound",
-  "lib/proving/agent.ts": "proving ground; not launch-proven per AGENTS.md",
-  "lib/intelligence/apiMode.ts": "customer-funded: explicit customer key only, never ShipLock's",
-};
+// ShipLock pays for no intelligence (Felipe, 2026-10-01, AGENTS.md Product).
+// The customer's own agent, over MCP, is the only AI path. So no product file
+// may construct a model client, import a model SDK, call a model API host, or
+// read a model key or a funded-call switch. The offline corpus harness under
+// scripts/ is a developer tool Felipe runs on his own key and is out of scope.
+const PRODUCT = ["app", "lib", "components", "mcp/index.mjs", "proxy.ts"];
+const MODEL_SDK = /from\s+["'](?:@anthropic-ai\/|openai["'/]|@ai-sdk\/|ai["']|@google\/(?:generative-ai|genai)|@mistralai\/|cohere-ai|groq-sdk)|require\(\s*["'](?:@anthropic-ai\/|openai)|import\(\s*["'](?:@anthropic-ai\/|openai)/;
+const MODEL_HOST = /api\.anthropic\.com|api\.openai\.com|generativelanguage\.googleapis\.com/;
+const MODEL_KEY = /process\.env(?:\.|\[\s*["'])(?:ANTHROPIC_API_KEY|OPENAI_API_KEY|SHIPLOCK_FUNDED_[A-Z_]+)/;
 
-function sources(dir: string): string[] {
-  return readdirSync(dir).flatMap((name) => {
-    const path = join(dir, name);
-    if (statSync(path).isDirectory()) return sources(path);
-    return /\.(ts|tsx|mjs)$/.test(name) && !/\.test\./.test(name) ? [path] : [];
+function sources(path: string): string[] {
+  if (!statSync(path).isDirectory()) return [path];
+  return readdirSync(path).flatMap((name) => {
+    const child = join(path, name);
+    if (statSync(child).isDirectory()) return name === "node_modules" ? [] : sources(child);
+    return /\.(ts|tsx|mjs|js)$/.test(name) && !/\.test\./.test(name) ? [child] : [];
   });
 }
+const product = PRODUCT.flatMap(sources).map((file) => ({ file, code: readFileSync(file, "utf8") }));
 
-describe("model clients are an allowlisted, reviewed set", () => {
-  it("only the listed files construct an Anthropic client", () => {
-    const found = ["lib", "app"].flatMap(sources).filter((file) => /new Anthropic\(/.test(readFileSync(file, "utf8")));
-    expect(found.sort()).toEqual(Object.keys(ALLOWED).sort());
+describe("ShipLock makes no model call of its own", () => {
+  it("reads every product source", () => {
+    expect(product.length).toBeGreaterThan(200);
   });
 
-  it("the customer-funded path never falls back to ShipLock's environment key", () => {
-    const code = readFileSync("lib/intelligence/apiMode.ts", "utf8");
-    expect(code).toMatch(/new Anthropic\(\{ apiKey: credential\.apiKey/);
-    expect(code).not.toMatch(/ANTHROPIC_API_KEY\b(?![^\n]*environment)/);
+  it("no product file imports a model SDK or constructs a model client", () => {
+    expect(product.filter(({ code }) => MODEL_SDK.test(code) || /new Anthropic\(|new OpenAI\(/.test(code)).map((s) => s.file)).toEqual([]);
   });
 
-  // Q10: cost per run must be measurable, so each model client's response
-  // leaves a usage receipt, in the client or the caller that owns the run.
-  // `defender.ts` has no caller.
-  const RECEIPT_OWNER: Record<string, string | null> = {
-    "lib/agent/attack.ts": "lib/agent/audit.ts",
-    "lib/analyzer.ts": "lib/analyzer.ts",
-    "lib/graph/narrative.ts": "lib/graph/graphRun.ts",
-    "lib/intelligence/apiMode.ts": "lib/intelligence/apiMode.ts",
-    "lib/graph/defender.ts": null,
-    "lib/proving/agent.ts": "lib/proving/agent.ts",
-  };
-  it("every model client's usage is receipted by it or its run owner", () => {
-    expect(Object.keys(RECEIPT_OWNER).sort()).toEqual(Object.keys(ALLOWED).sort());
-    for (const [client, owner] of Object.entries(RECEIPT_OWNER)) {
-      if (!owner) continue;
-      expect({ client, records: /\brecordModelUsage\(/.test(readFileSync(owner, "utf8")) }).toEqual({ client, records: true });
-    }
+  it("no product file names a model API host", () => {
+    expect(product.filter(({ code }) => MODEL_HOST.test(code)).map((s) => s.file)).toEqual([]);
+  });
+
+  it("no product file reads a model key or a funded-call switch", () => {
+    expect(product.filter(({ code }) => MODEL_KEY.test(code)).map((s) => s.file)).toEqual([]);
+  });
+
+  it("the app starts without a model key", () => {
+    expect(readFileSync("lib/env.ts", "utf8")).not.toMatch(/ANTHROPIC_API_KEY/);
+  });
+
+  it("the model SDK is not a runtime dependency of the app", () => {
+    const pkg = JSON.parse(readFileSync("package.json", "utf8")) as { dependencies?: Record<string, string> };
+    expect(Object.keys(pkg.dependencies ?? {}).filter((d) => /^@anthropic-ai\/|^openai$/.test(d))).toEqual([]);
   });
 });

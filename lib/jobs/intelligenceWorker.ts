@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { createIntelligenceTask } from "@/lib/intelligence/tasks";
-import { runApiModeTask } from "@/lib/intelligence/apiMode";
 import { getBranchSha, getInstallationToken, listPullRequestFileNames, listTree } from "@/lib/deep/github";
 import { claimJob, executeClaimedJob, PermanentJobError, type ClaimedJob } from "./queue";
 
@@ -66,8 +65,11 @@ export async function executeIntelligenceJob(job: ClaimedJob): Promise<void> {
     throw new Error("Intelligence scan context could not be read");
   }
   const connection = connectionSchema.safeParse(connectionRead.data);
-  // Revoked since admission: the customer withdrew consent, so do nothing.
-  if (!connection.success || connection.data.revoked_at) return;
+  // Revoked since admission: the customer withdrew consent, so do nothing. A
+  // retired API-key approval ("api") is not consent for any host: ShipLock
+  // runs no model (Felipe, 2026-10-01), and only the customer's agent answers.
+  if (!connection.success || connection.data.revoked_at || connection.data.host === "api") return;
+  const host = connection.data.host;
   const profile = profileSchema.safeParse(profileRead.data);
   const repository = repositorySchema.safeParse(repositoryRead.data);
   const context = contextSchema.safeParse(contextRead.data);
@@ -100,22 +102,15 @@ export async function executeIntelligenceJob(job: ClaimedJob): Promise<void> {
   }
   if (paths.length === 0) return;
 
-  let taskId: string;
   try {
-    taskId = await createIntelligenceTask({ userId: job.user_id, repositoryId: job.repository_id, commit,
-      host: connection.data.host, instruction, paths, minutes: TASK_MINUTES, key: `job:${job.id}` });
+    await createIntelligenceTask({ userId: job.user_id, repositoryId: job.repository_id, commit,
+      host, instruction, paths, minutes: TASK_MINUTES, key: `job:${job.id}` });
   } catch (error) {
     const code = error instanceof Error ? error.message : "";
     // Revoked since admission, or the customer's monthly limit is reached.
     if (code === "intelligence_not_approved" || code === "intelligence_budget_exhausted") return;
     if (code === "repository_unavailable") throw new PermanentJobError("Repository no longer available");
     throw error;
-  }
-  // API-key mode: ShipLock answers now, on the customer's key. A retry of this
-  // job finds the task answered and does not call the model again.
-  if (connection.data.host === "api") {
-    await runApiModeTask({ userId: job.user_id, taskId, token, fullName,
-      runTokenBudget: connection.data.run_token_budget });
   }
 }
 

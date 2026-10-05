@@ -12,7 +12,6 @@ vi.mock("@/lib/scanner", () => ({ scanProject: mocks.scan, scanCriticalChecks: m
 vi.mock("@/lib/crypto", () => ({ decrypt: () => "private-anon-key" }));
 vi.mock("./alerts", () => ({ sendNewFindingsAlert: mocks.alert }));
 vi.mock("@/lib/security/exposedPathsRun", () => ({ runExposedPathScan: vi.fn() }));
-vi.mock("@/lib/graph/narrative", () => ({ generateNarratives: vi.fn() }));
 vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ from: (table: string) => {
   const read = () => table === "graph_facts" ? mocks.graphRead() :
     Promise.resolve({ data: { findings: [{ id: "old", severity: "WARNING", title: "old", consequence: "old" }] }, error: null });

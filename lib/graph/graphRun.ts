@@ -1,6 +1,5 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { findAttackPaths } from "./attackPaths";
-import { generateNarratives } from "./narrative";
 import type { GraphInput } from "./graph";
 import type { RouteFact } from "./routeInventory";
 import type { ReachabilityIndex } from "./reachability";
@@ -8,7 +7,6 @@ import type { TableInventory } from "@/lib/exposure/model";
 import { loadRepositoryReachability, loadRepositoryGraphSource } from "./repositorySource";
 import { loadCurrentDatabaseEvidence } from "./databaseSource";
 import { loadRepositoryDatabaseEvidence, projectRepositoryDatabaseEvidence } from "./repositoryDatabase";
-import { recordModelUsage } from "@/lib/cost/modelUsage";
 import { collectTrafficFacts } from "@/lib/traffic/graphFacts";
 
 // Persistence and execution for the reasoner.
@@ -374,21 +372,6 @@ export async function persistGraphPaths(
   const retainedCount = absent.length - resolved.length;
   const fresh = paths.filter((p) => !active.has(p.id));
   if (fresh.length > 0) {
-    // The ONE LLM call in the monitoring path, and it is gated to fire only on
-    // genuinely new correlated findings — never on a routine pass, which keeps
-    // routine scheduled polls at zero model calls. Batched
-    // into a single call for the whole set: prompt caching does not help across
-    // 48h passes, so batching is the lever that does.
-    //
-    // Fails into silence: on any error every path keeps the deterministic
-    // wording findAttackPaths already produced, so a customer never sees a blank
-    // finding because the model was unavailable.
-    const narratives = await generateNarratives(fresh);
-    if (narratives.model) {
-      await recordModelUsage({ userId, purpose: "narrative", model: narratives.model, stopReason: null,
-        usage: { input_tokens: narratives.tokensIn, output_tokens: narratives.tokensOut } });
-    }
-
     const { error: insertError } = await admin.from("deep_findings").insert(
       fresh.map((p) => ({
         user_id: userId,
@@ -397,10 +380,9 @@ export async function persistGraphPaths(
         finding_id: p.id,
         severity: p.severity,
         title: p.title,
-        // The guard-approved narrative when there is one, the deterministic
-        // template otherwise. Never blank, and never model output that failed
-        // the guard.
-        consequence: narratives.accepted.get(p.id) ?? p.consequence,
+        // The deterministic wording findAttackPaths wrote. ShipLock makes no
+        // model call, so no narrative replaces it.
+        consequence: p.consequence,
         // Which collectors agreed. This is the one field that distinguishes a
         // correlated finding from a scanner's guess, and it used to be computed
         // and then discarded here — findAttackPaths already enforces

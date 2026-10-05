@@ -17,12 +17,19 @@ describe("privacy policy", () => {
     expect(t).not.toMatch(/anon \(public\) key you paste/);
   });
   it("lists sub-processors including the conditional ones", () => {
-    for (const name of ["Supabase", "Vercel", "GitHub", "Resend", "PostHog", "Stripe", "Anthropic"]) expect(t).toContain(name);
+    for (const name of ["Supabase", "Vercel", "GitHub", "Resend", "PostHog", "Stripe"]) expect(t).toContain(name);
     expect(t).toMatch(/only after you accept/i);
+  });
+  // ShipLock makes no model call (Felipe, 2026-10-01): no model provider is a
+  // sub-processor, and no customer key is stored for AI.
+  it("names no model provider as a sub-processor and offers no saved key", () => {
+    expect(t).not.toContain("Anthropic");
+    expect(t).not.toMatch(/API key you\s+save|key is encrypted at rest and used/i);
+    expect(t).toContain("ShipLock makes no AI calls of its own");
   });
   it("is in the v3 frame, dated, links terms, and has no dashes", () => {
     expect(html).toContain('class="v3');
-    expect(t).toContain("Last updated 2026-09-30");
+    expect(t).toContain("Last updated 2026-10-05");
     expect(html).toContain('href="/terms"');
     expect(t).not.toMatch(/[–—]/);
   });

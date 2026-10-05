@@ -18,12 +18,11 @@ const PROCESSORS: [string, string][] = [
   ["Resend", "Email: the welcome email, and alerts if you turn them on. Receives your email address."],
   ["PostHog", "Product analytics, only after you accept analytics cookies. Never your code or findings."],
   ["Stripe", "Billing, when paid plans open. Card details go to Stripe; we never see them."],
-  ["Anthropic", "Only if ShipLock itself pays for an AI run, which is off today. Your own AI runs under your own account with your provider."],
 ];
 
 export default function PrivacyPage() {
   return (
-    <LegalPage title="Privacy policy" updated="2026-09-30" other={{ href: "/terms", label: "Terms" }}>
+    <LegalPage title="Privacy policy" updated="2026-10-05" other={{ href: "/terms", label: "Terms" }}>
       <section>
         <h2>What we read</h2>
         <p>
@@ -44,10 +43,9 @@ export default function PrivacyPage() {
           Disconnecting deletes them.
         </p>
         <p>
-          <b>Your own AI, if you connect it.</b> AI reasoning runs on your own AI: Claude Code, Codex, or an API key you
-          save. An API key is encrypted at rest and used only for tasks you approved; the files a task covers go to
-          your model provider under your account. With a coding agent, we send the task and file hashes; your agent
-          reads the files from your own checkout.
+          <b>Your own AI, if you connect it.</b> AI reasoning runs on your own AI, an agent such as Claude Code or Codex,
+          under your account with your provider. ShipLock makes no AI calls of its own. We send your agent the task
+          and file hashes; it reads the files from your own checkout.
         </p>
         <p>
           <b>Traffic, if you add the traffic snippet.</b>{" "}For each request it reports the path, method, user agent, a

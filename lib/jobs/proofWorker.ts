@@ -1,12 +1,10 @@
 import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { shiplockFundedCallAllowed } from "@/lib/funding";
 import { loadRepositoryDatabaseEvidence } from "@/lib/graph/repositoryDatabase";
 import { openEmbeddedHost } from "@/lib/proving/embeddedHost";
 import { openArena, type Arena, type ProvingHost } from "@/lib/proving/arena";
 import { buildControlProbeSql, buildLeakProbeSql } from "@/lib/proving/replica";
 import { pickOwnerColumn } from "@/lib/proving/tenantProbe";
-import { claudeProposer, runAdversarialAgent } from "@/lib/proving/agent";
 import type { PgPolicy } from "@/lib/proving/policyTypes";
 import { claimJob, executeClaimedJob, PermanentJobError, withLeaseHeartbeat, type ClaimedJob } from "./queue";
 
@@ -174,7 +172,7 @@ export async function executeProofJob(job: ClaimedJob): Promise<void> {
       if (stopped) return { outcome: "aborted", reason: stopped };
       if (!opened.arena) return couldNot(policies.length === 0 ? "no_policies" : "not_replicable");
       arena = opened.arena;
-      return await probe(arena, ownerColumn, policies, snapshot.columns.filter((c) => c.table === table).map((c) => c.column));
+      return await probe(arena, ownerColumn);
     } catch (err) {
       const reason = stopped ?? stopReason(err);
       if (reason) return { outcome: "aborted", reason };
@@ -185,21 +183,16 @@ export async function executeProofJob(job: ClaimedJob): Promise<void> {
     }
   }
 
-  async function probe(arena: Arena, ownerColumn: string, policies: PgPolicy[], columns: string[]): Promise<Outcome> {
+  async function probe(arena: Arena, ownerColumn: string): Promise<Outcome> {
     // The control gates everything: tenant A must see exactly its own row, or
     // the reconstruction is broken and "no leak" would mean nothing.
     const control = num(await arena.run(buildControlProbeSql(arena.schema, table, ownerColumn)), "visible");
     if (control !== 1) return couldNot("control_failed");
     const leaked = num(await arena.run(buildLeakProbeSql(arena.schema, table, ownerColumn)), "leaked");
     if (leaked > 0) return { outcome: "reproduced", reason: null };
-    // Variants the fixed probe cannot express need a model, which spends
-    // ShipLock's key: only behind the explicit funding flag, receipted.
-    if (!shiplockFundedCallAllowed("proving")) return { outcome: "ran", reason: null };
-    const { finding } = await runAdversarialAgent({
-      schema: arena.schema, table, columns,
-      policies: policies.map((p) => ({ name: p.policyname, cmd: p.cmd, using: p.qual })),
-    }, (sql) => arena.run(sql), claudeProposer(userId));
-    return { outcome: finding ? "reproduced" : "ran", reason: null };
+    // Variants the fixed probe cannot express need a model, and ShipLock makes
+    // no model call: the test ran and reproduced nothing, which is not clean.
+    return { outcome: "ran", reason: null };
   }
 }
 

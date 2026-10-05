@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { checkRule, FIXTURES, matches, registrySchema, syntaxDigest, type CommitEvidence, type Snapshot } from "./repoGuardrails";
 
-const expectedIds = ["markdown-files", "anthropic-clients", "customer-key", "funded-switches", "first-scan-credit", "model-55-options", "client-server-boundary", "receipted-pr-writes", "cookie-origin", "nonce-csp", "dynamic-layout", "customer-copy", "crawler-agreement", "tracked-secrets", "migration-sequence", "migration-loads", "provider-writes", "verified-findings", "agents-approval"];
+const expectedIds = ["markdown-files", "model-clients", "model-keys", "client-server-boundary", "receipted-pr-writes", "cookie-origin", "nonce-csp", "dynamic-layout", "customer-copy", "crawler-agreement", "tracked-secrets", "migration-sequence", "migration-loads", "provider-writes", "agents-approval"];
 const registry = registrySchema.parse(JSON.parse(readFileSync(".agents/guardrails.json", "utf8")));
 const tracked = execFileSync("git", ["ls-files", "-z"], { encoding: "utf8" }).split("\0").filter(Boolean);
 const files: Snapshot = new Map(tracked.filter(p => !p.startsWith(FIXTURES)).map(p => {

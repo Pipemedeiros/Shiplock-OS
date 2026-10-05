@@ -7,12 +7,14 @@ import {
 } from "@/lib/fixes/codemods";
 import { checkResultEvidence, intelligenceResultSchema, sourceHash, type SourceFile } from "./exchange";
 
-// Durable customer-intelligence tasks (10B-1b). A customer's own agent or model
-// credential reads a task, reasons over its own checkout, and submits one
+// Durable customer-intelligence tasks (10B-1b). A customer's own agent reads a
+// task, reasons over its own checkout, and submits one
 // result. ShipLock stores paths and hashes, never source, and re-reads every
 // cited file from GitHub at the pinned commit before accepting anything. A
 // result is a proposal: nothing here applies an edit, opens a PR, or funds a
-// model call, and self-reported usage is never treated as verified.
+// model call, and self-reported usage is never treated as verified. "api" is
+// the retired customer API-key mode (Felipe, 2026-10-01): its old rows are
+// read, never offered to an agent and never answered.
 
 const durableResultSchema = intelligenceResultSchema.extend({
   identity: z.object({
@@ -58,9 +60,8 @@ export async function getIntelligenceTask(userId: string, taskId: string) {
     host: task.host, repository: task.repositories.full_name, instruction: task.instruction,
     // Paths and hashes only: the agent reads its own checkout at this commit.
     sources: task.sources, permission: "propose_only" as const,
-    // API mode runs on the customer's saved key (10B-2e); for a pull host,
-    // who pays for inference is not verified by ShipLock.
-    funding: task.host === "api" ? "customer_api_key" as const : "unverified" as const,
+    // The agent spends its own allowance; ShipLock does not verify who paid.
+    funding: "unverified" as const,
     status: expired ? "expired" as const : task.status, expiresAt: task.expires_at,
     limits: { citations: 16, edits: 3, resultBytes: 64_000 },
     resultSchema: z.toJSONSchema(durableResultSchema),
@@ -76,7 +77,7 @@ export async function submitIntelligenceResult(userId: string, taskId: string, r
   const result = parsed.data;
 
   const task = await loadTask(userId, taskId);
-  if (!task) throw new Error("task_unavailable");
+  if (!task || task.host === "api") throw new Error("task_unavailable");
   if (result.identity.taskId !== task.id || result.identity.tenantId !== task.user_id
       || result.identity.repositoryId !== task.repository_id || result.identity.commit !== task.commit_sha
       || result.host !== task.host) {
@@ -124,7 +125,7 @@ export async function submitIntelligenceResult(userId: string, taskId: string, r
  * and hashed by ShipLock, so a host can never supply the hashes it will later
  * be checked against. Idempotent per `key`. */
 export async function createIntelligenceTask(input: {
-  userId: string; repositoryId: string; commit: string; host: "codex" | "claude-code" | "chatgpt" | "api";
+  userId: string; repositoryId: string; commit: string; host: "codex" | "claude-code" | "chatgpt";
   instruction: string; paths: string[]; minutes: number; key: string;
 }): Promise<string> {
   const admin = getSupabaseAdmin();
@@ -165,7 +166,7 @@ export async function listPendingIntelligenceTasks(userId: string) {
   const { data, error } = await getSupabaseAdmin().from("intelligence_tasks")
     .select("id, commit_sha, host, instruction, expires_at, repositories(full_name)")
     .eq("user_id", userId).eq("status", "pending").gt("expires_at", new Date().toISOString())
-    // API-mode tasks are run by ShipLock on the customer's key, not by an agent.
+    // Tasks of the retired API-key mode are never offered to an agent.
     .neq("host", "api")
     .order("created_at", { ascending: false }).limit(20);
   if (error) throw new Error("tasks_unreadable");

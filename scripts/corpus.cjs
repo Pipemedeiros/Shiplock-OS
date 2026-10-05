@@ -82,7 +82,7 @@ function loadProductModules() {
   };
   require.extensions[".ts"] = (module, file) => {
     const source = fs.readFileSync(file, "utf8");
-    if (file.startsWith(path.join(root, "lib") + path.sep)) loaded[path.relative(root, file)] = sha(source);
+    if (file.startsWith(path.join(root, "lib") + path.sep) || file === path.join(root, "scripts", "corpusModel.ts")) loaded[path.relative(root, file)] = sha(source);
     module._compile(ts.transpileModule(source, {
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
     }).outputText, file);
@@ -101,6 +101,8 @@ function loadProductModules() {
     ...require("../lib/agent/possessionGate.ts"),
     ...require("../lib/agent/unassessed.ts"),
     ...require("../lib/agent/evaluation.ts"),
+    // The harness's own model calls; the product makes none (Felipe, 2026-10-01).
+    ...require("./corpusModel.ts"),
   };
 }
 

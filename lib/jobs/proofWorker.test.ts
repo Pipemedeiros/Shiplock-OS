@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
-const m = vi.hoisted(() => ({ read: vi.fn(), rpc: vi.fn(), filters: vi.fn(), db: vi.fn(), host: vi.fn(), run: vi.fn(), close: vi.fn(), hosted: vi.fn(), model: vi.fn() }));
+const m = vi.hoisted(() => ({ read: vi.fn(), rpc: vi.fn(), filters: vi.fn(), db: vi.fn(), host: vi.fn(), run: vi.fn(), close: vi.fn(), hosted: vi.fn() }));
 vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ rpc: m.rpc, from: (table: string) => {
   const q = { select: () => q, eq: (k: string, v: unknown) => { m.filters(table, k, v); return q; }, is: (k: string, v: unknown) => { m.filters(table,k,v); return q; }, maybeSingle: () => m.read(table) };
   return q;
@@ -7,7 +7,6 @@ vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ rpc: m.rpc, from: 
 vi.mock("@/lib/graph/repositoryDatabase", () => ({ loadRepositoryDatabaseEvidence: m.db }));
 vi.mock("@/lib/proving/embeddedHost", () => ({ openEmbeddedHost: m.host }));
 vi.mock("@/lib/proving/host", () => ({ provingHost: m.hosted }));
-vi.mock("@/lib/proving/agent", async original => ({ ...await original<typeof import("@/lib/proving/agent")>(), claudeProposer: m.model }));
 import { executeProofJob } from "./proofWorker";
 import type { ClaimedJob } from "./queue";
 const id = "11111111-1111-4111-8111-111111111111";
@@ -18,7 +17,7 @@ const job = { id, user_id: user, repository_id: repo, kind: "proof", audit_run_i
 let rows: Record<string, unknown>, budget: number, control: number, leak: number;
 const policy = { schemaname: "public", tablename: "orders", policyname: "p", roles: ["authenticated"], cmd: "SELECT", qual: "true", with_check: null };
 beforeEach(() => {
-  vi.clearAllMocks(); vi.stubEnv("SHIPLOCK_FUNDED_PROVING", "false"); budget = 60; control = 1; leak = 0;
+  vi.clearAllMocks(); budget = 60; control = 1; leak = 0;
   rows = { proof_runs: null, repositories: { selected: true }, user_profiles: { proving_ground_enabled: true, autonomy_kill_switch: false },
     deep_findings: { finding_id: "f", blast_radius: "orders", archived_at: null } };
   m.read.mockImplementation(async table => ({ data: table === "proof_authorizations" ? { id: authorization, user_id: user, repository_id: repo, finding_id: "f", table_name: "public.orders", target_kind: "replica", status: "consumed", statement_budget: budget, expires_at: "2099-01-01T00:00:00Z" } : rows[table], error: null }));
@@ -34,7 +33,7 @@ it.each([0, 1])("records ran/reproduced (%i), uses the observed owner and never 
   expect(recorded()).toMatchObject({ p_user: user, p_job: id, p_token: id, p_outcome: n ? "reproduced" : "ran", p_reason: null });
   expect(m.run.mock.calls.some(([, sql]) => sql.includes('"owner_id"'))).toBe(true);
   expect(m.run.mock.calls.some(([, sql]) => sql.includes('"user_id"'))).toBe(false);
-  expect(m.close).toHaveBeenCalledOnce(); expect(m.hosted).not.toHaveBeenCalled(); expect(m.model).not.toHaveBeenCalled();
+  expect(m.close).toHaveBeenCalledOnce(); expect(m.hosted).not.toHaveBeenCalled();
   expect(m.db).toHaveBeenCalledWith(user, repo);
 });
 it.each(["missing", "other_table", "archived"])("refuses finding mismatch %s before opening the host", async kind => {
@@ -112,11 +111,8 @@ it.each([
   arrange(); await executeProofJob(job);
   expect(recorded()).toMatchObject({ p_outcome: "could_not_test", p_reason: reason }); expect(m.host).not.toHaveBeenCalled();
 });
-it("calls the proving model only when funded, for this user, after the free probe found nothing", async () => {
-  vi.stubEnv("SHIPLOCK_FUNDED_PROVING", "true");
-  m.model.mockReturnValue(async () => []);
+it("records a cleared fixed probe as ran, with no model leg", async () => {
   await executeProofJob(job);
-  expect(m.model).toHaveBeenCalledExactlyOnceWith(user);
   expect(recorded()).toMatchObject({ p_outcome: "ran" });
 });
 it("claims only proof jobs and registers after repair", async () => {

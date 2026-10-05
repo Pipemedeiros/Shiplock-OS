@@ -22,131 +22,42 @@
       ]
     },
     {
-      "id": "anthropic-clients",
-      "statement": "Application model clients use only the reviewed modelFunding constructor allowlist.",
-      "why": "AGENTS.md: lib/security/modelFunding.test.ts pins every model client.",
-      "severity": "block",
-      "kind": "allowlist",
-      "scope": [
-        "app/**",
-        "lib/**",
-        "components/**",
-        "mcp/**"
-      ],
-      "enforcedBy": {
-        "file": "lib/security/repoGuardrails.test.ts",
-        "test": "enforces anthropic-clients"
-      },
-      "check": "anthropic",
-      "allowed": [
-        "lib/agent/attack.ts",
-        "lib/analyzer.ts",
-        "lib/graph/narrative.ts",
-        "lib/graph/defender.ts",
-        "lib/proving/agent.ts",
-        "lib/intelligence/apiMode.ts"
-      ]
-    },
-    {
-      "id": "customer-key",
-      "statement": "The customer API mode never reads the ShipLock Anthropic credential.",
-      "why": "AGENTS.md: Customer-funded AI never falls back to ShipLock key.",
-      "severity": "block",
-      "kind": "forbidden_pattern",
-      "scope": [
-        "lib/intelligence/apiMode.ts"
-      ],
-      "enforcedBy": {
-        "file": "lib/security/repoGuardrails.test.ts",
-        "test": "enforces customer-key"
-      },
-      "check": "customer-key"
-    },
-    {
-      "id": "funded-switches",
-      "statement": "Every reachable ShipLock model call preserves its reviewed opt-in switch and caller boundary.",
-      "why": "AGENTS.md funding contract and Felipe 2026-09-30: each switch is off unless exactly true.",
-      "severity": "block",
-      "kind": "required_pattern",
-      "scope": [
-        "app/**",
-        "lib/**",
-        "components/**",
-        "mcp/**"
-      ],
-      "enforcedBy": {
-        "file": "lib/security/repoGuardrails.test.ts",
-        "test": "enforces funded-switches"
-      },
-      "check": "funding",
-      "sourcePins": {
-        "lib/agent/attack.ts": "b6c522fa46b64058207127ecc9d6d21f32084fa9f798a5333622d986f4e30383",
-        "lib/analyzer.ts": "93dc450986858df02a7fc33a90057bcf1223a468fa4def71a3251b4d68ddf891",
-        "lib/graph/narrative.ts": "28af659da4a0b205635bd4b6b87faaa5649d01eeea3198037f09dab1c03354dd",
-        "lib/graph/defender.ts": "8bc2dd8fd5e2916398fa0f5154871d80df575acc757ceff2fc5f4df372fb3e28",
-        "lib/proving/agent.ts": "98ab47ac39eb480abc5dd06f24664ee72f2aff65f5c28d20b28791c0470998d9",
-        "lib/funding.ts": "46026e1ec459d1c6442efe821c4e3e5f26ad86be6b6b9fec27ea02b47bbee66b",
-        "lib/agent/firstScanCredit.ts": "4d7e4416324b5477098ae28572f1d6e258f7d0395ca4139df5d8d792662924a1",
-        "lib/agent/audit.ts": "94efe6cf8c35e015aceeac49eca568d2f3c9ef514524a11f74e074bede527020",
-        "lib/proving/run.ts": "2801f0ded95acb1fe679b34091eecfa10e7cec5d34aba3cd1f82567ecf25a5ae",
-        "lib/jobs/proofWorker.ts": "5a216fbb8ce6c2e499528328a62fcbe70505ec9c7c2bb35a0db875f6a577e620"
-      },
-      "importers": {
-        "lib/agent/attack.ts": [
-          "lib/agent/audit.ts"
-        ],
-        "lib/graph/defender.ts": [],
-        "lib/proving/agent.ts": [
-          "lib/jobs/proofWorker.ts",
-          "lib/proving/run.ts"
-        ]
-      }
-    },
-    {
-      "id": "first-scan-credit",
-      "statement": "The first funded audit requires an opt-in and a durable single-run credit.",
-      "why": "AGENTS.md: The first funded audit requires an opt-in and a durable single-run credit.",
-      "severity": "block",
-      "kind": "existing_test",
-      "scope": [
-        "**"
-      ],
-      "enforcedBy": {
-        "file": "lib/security/repoGuardrails.test.ts",
-        "test": "enforces first-scan-credit"
-      },
-      "testFile": "lib/agent/firstScanCredit.test.ts",
-      "testName": "funds the run only when the durable claim succeeds for this exact run and lease",
-      "assertionDigest": "f1f4ac7c2da9c9d2e78c388e1ed0a50ea0f4f15d6b67689d0613ced621ce50d3",
-      "sourcePins": {
-        "lib/agent/firstScanCredit.ts": "4d7e4416324b5477098ae28572f1d6e258f7d0395ca4139df5d8d792662924a1"
-      }
-    },
-    {
-      "id": "model-55-options",
-      "statement": "Model requests for 5.5 have no sampling parameters or disabled thinking.",
-      "why": "Felipe Q40 and AGENTS.md top-tier model contract: 5.5 rejects these request settings.",
+      "id": "model-clients",
+      "statement": "Product code never imports a model SDK or calls a model API host.",
+      "why": "AGENTS.md Product (Felipe, 2026-10-01): ShipLock pays for no intelligence and makes no model API calls of its own; the customer's agent over MCP is the only AI path.",
       "severity": "block",
       "kind": "forbidden_pattern",
       "scope": [
         "app/**",
         "lib/**",
         "components/**",
-        "mcp/**"
+        "mcp/**",
+        "proxy.ts"
       ],
       "enforcedBy": {
         "file": "lib/security/repoGuardrails.test.ts",
-        "test": "enforces model-55-options"
+        "test": "enforces model-clients"
       },
-      "check": "model-options",
-      "sourcePins": {
-        "lib/agent/attack.ts": "b6c522fa46b64058207127ecc9d6d21f32084fa9f798a5333622d986f4e30383",
-        "lib/analyzer.ts": "93dc450986858df02a7fc33a90057bcf1223a468fa4def71a3251b4d68ddf891",
-        "lib/graph/narrative.ts": "28af659da4a0b205635bd4b6b87faaa5649d01eeea3198037f09dab1c03354dd",
-        "lib/graph/defender.ts": "8bc2dd8fd5e2916398fa0f5154871d80df575acc757ceff2fc5f4df372fb3e28",
-        "lib/proving/agent.ts": "98ab47ac39eb480abc5dd06f24664ee72f2aff65f5c28d20b28791c0470998d9",
-        "lib/intelligence/apiMode.ts": "ef27dab075e67382417b391b5094a16c69ecbbd8a5a9e9355f0578daa4b1667b"
-      }
+      "check": "model-clients"
+    },
+    {
+      "id": "model-keys",
+      "statement": "Product code never reads a model API key or a funded-call switch.",
+      "why": "AGENTS.md Product (Felipe, 2026-10-01): no ShipLock key in any path, no customer API key mode, and the funded first scan is retired.",
+      "severity": "block",
+      "kind": "forbidden_pattern",
+      "scope": [
+        "app/**",
+        "lib/**",
+        "components/**",
+        "mcp/**",
+        "proxy.ts"
+      ],
+      "enforcedBy": {
+        "file": "lib/security/repoGuardrails.test.ts",
+        "test": "enforces model-keys"
+      },
+      "check": "model-keys"
     },
     {
       "id": "client-server-boundary",
@@ -434,27 +345,6 @@
         "lib/deep/supabaseMgmt.ts": "1e3b720888677b6e37b080c54696e32a1ce542d73ce3c2e7b88cd532669f0185",
         "lib/proving/branch.ts": "baa0d6d31a6406247f8b90aa9fa79863e1e59de3d1a50861185ea1debef1564c",
         "lib/proving/arena.ts": "c5dde5104e620bdb687fdd38f86255b1e893fb8f886ae670ee7688af8aadafb8"
-      }
-    },
-    {
-      "id": "verified-findings",
-      "statement": "Model-produced audit findings preserve the verifier before buildFindings.",
-      "why": "AGENTS.md: Model-produced audit findings preserve the verifier before buildFindings.",
-      "severity": "block",
-      "kind": "existing_test",
-      "scope": [
-        "**"
-      ],
-      "enforcedBy": {
-        "file": "lib/security/repoGuardrails.test.ts",
-        "test": "enforces verified-findings"
-      },
-      "testFile": "lib/agent/attack.verify.test.ts",
-      "testName": "keeps nothing when the verifier fails or has no key",
-      "assertionDigest": "ee961f342eb0da1fa3e801dbc17f0dba7762e371b12293cbd2af5b0976c83581",
-      "sourcePins": {
-        "lib/agent/audit.ts": "94efe6cf8c35e015aceeac49eca568d2f3c9ef514524a11f74e074bede527020",
-        "lib/agent/verify.ts": "ec42ba578412897ee1e9e270f4d1fb6b91c9b723efab77bb2f6b31f490c4387d"
       }
     },
     {

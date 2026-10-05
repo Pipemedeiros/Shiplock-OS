@@ -15,7 +15,7 @@ import { aiCheckForPullRequest, aiStateOf, getAiActivity, pausedReason, type AiC
 
 const now = Date.parse("2026-09-23T12:00:00Z");
 const approved = { state: "approved", host: "codex", deepScan: "weekly", prScan: "every_pr", runTokenBudget: 1000,
-  monthlyTokenBudget: 10000, approvedAt: "x", budgetEnforcement: "advisory", pullRequests: "each_needs_a_click", monthReportedTokens: 0 } as const;
+  monthlyTokenBudget: 10000, approvedAt: "x", pullRequests: "each_needs_a_click", monthReportedTokens: 0 } as const;
 const job = "44444444-4444-4444-8444-444444444444";
 
 beforeEach(() => {
@@ -50,6 +50,7 @@ describe("AI check states (10B-2d)", () => {
 
   it("explains why new AI checks are not being created", () => {
     expect(pausedReason({ state: "none" })).toBe("not_connected");
+    expect(pausedReason({ state: "retired" })).toBe("not_connected");
     expect(pausedReason({ ...approved, state: "revoked" })).toBe("revoked");
     expect(pausedReason({ ...approved, monthReportedTokens: 10000 })).toBe("budget");
     expect(pausedReason(approved)).toBeNull();

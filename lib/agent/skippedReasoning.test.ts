@@ -49,4 +49,15 @@ describe("a reasoning step that did not run", () => {
     // safety. Whatever the wording, it has to deny cleanliness somewhere.
     expect(`${note!.why} ${note!.effect}`).toMatch(/means nothing|not (a )?clean|were not looked for|did not run/i);
   });
+
+  // ShipLock makes no model call (Felipe, 2026-10-01): attack reasoning is the
+  // customer's own agent over MCP, so the note says that and offers it.
+  it("names the customer's agent as what runs the reasoning", () => {
+    const deep: StackReport = { tools: [{ id: "next", name: "Next.js", kind: "framework", evidence: "package.json", usedIn: [] }],
+      authUnknown: false, databaseUnknown: true } as unknown as StackReport;
+    const note = buildCoverage(deep, false, 0, false, 0, 0, [], true, false, [], false).find((n) => /reason/i.test(n.name))!;
+    expect(note.why).toMatch(/your own agent/i);
+    expect(note.why).not.toMatch(/time|call itself failed/i);
+    expect(note.upgrade).toBe("Connect your agent");
+  });
 });

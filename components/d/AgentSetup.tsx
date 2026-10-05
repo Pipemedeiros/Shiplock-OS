@@ -13,7 +13,7 @@ import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
 export const MCP_PACKAGE_PUBLISHED = false;
 
 export interface TokenMeta { id: string; name: string; created_at: string; last_used_at: string | null }
-type Host = "claude-code" | "codex" | "chatgpt" | "api";
+type Host = "claude-code" | "codex" | "chatgpt";
 
 export function setupCommand(host: "claude-code" | "codex", token: string): string {
   if (host === "claude-code") return `claude mcp add shiplock --env SHIPLOCK_TOKEN=${token} -- npx -y shiplock-mcp`;
@@ -28,7 +28,6 @@ export function AgentSetupView({ host, tokens, fresh, busy, error, onGenerate, o
   host: Host; tokens: TokenMeta[]; fresh: string | null; busy: boolean; error: string;
   onGenerate: () => void; onRevoke: (id: string) => void; published?: boolean;
 }) {
-  if (host === "api") return null;
   if (host === "chatgpt") {
     return <p style={note}>ChatGPT connection is not available yet. Choose Claude Code or Codex to connect an agent today.</p>;
   }

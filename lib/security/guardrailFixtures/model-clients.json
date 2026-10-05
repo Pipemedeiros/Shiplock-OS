@@ -1,0 +1,40 @@
+{
+  "rule": "model-clients",
+  "cases": [
+    {
+      "name": "aliased constructor",
+      "expectedPath": "lib/security/rogueModel.ts",
+      "edits": [{ "path": "lib/security/rogueModel.ts", "content": "import Model from \"@anthropic-ai/sdk\"; new Model();" }]
+    },
+    {
+      "name": "dynamic module string",
+      "expectedPath": "lib/security/rogueModel.ts",
+      "edits": [{ "path": "lib/security/rogueModel.ts", "content": "const mod = \"@anthropic\" + \"-ai/sdk\"; const { default: Model } = await import(mod); new Model();" }]
+    },
+    {
+      "name": "CommonJS runtime import",
+      "expectedPath": "lib/security/rogueModel.ts",
+      "edits": [{ "path": "lib/security/rogueModel.ts", "content": "const { default: Model } = require(\"@anthropic-ai/sdk\"); new Model();" }]
+    },
+    {
+      "name": "barrel re-export",
+      "expectedPath": "lib/security/rogueModel.ts",
+      "edits": [{ "path": "lib/security/rogueModel.ts", "content": "export { default as Innocent } from \"@anthropic-ai/sdk\";" }]
+    },
+    {
+      "name": "another provider's SDK",
+      "expectedPath": "app/api/rogue/route.ts",
+      "edits": [{ "path": "app/api/rogue/route.ts", "content": "import OpenAI from \"openai\"; export const POST = () => new OpenAI();" }]
+    },
+    {
+      "name": "raw fetch to a folded model host",
+      "expectedPath": "lib/security/rogueModel.ts",
+      "edits": [{ "path": "lib/security/rogueModel.ts", "content": "const host = \"api.\" + \"anthropic.com\"; await fetch(`https://${host}/v1/messages`, { method: \"POST\" });" }]
+    },
+    {
+      "name": "unknown dynamic module",
+      "expectedPath": "app/api/rogue/route.ts",
+      "edits": [{ "path": "app/api/rogue/route.ts", "content": "const engine = await import(process.env.MODULE); engine.run();" }]
+    }
+  ]
+}

@@ -27,7 +27,7 @@ export function aiStateOf(status: string, expiresAt: string, now: number): AiChe
 }
 
 export function pausedReason(connection: ConnectionView): AiPause {
-  if (connection.state === "none") return "not_connected";
+  if (connection.state === "none" || connection.state === "retired") return "not_connected";
   if (connection.state === "revoked") return "revoked";
   return connection.monthReportedTokens >= connection.monthlyTokenBudget ? "budget" : null;
 }

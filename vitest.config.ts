@@ -30,7 +30,6 @@ export default defineConfig({
       NEXT_PUBLIC_APP_URL: "https://shiplock.dev",
       ENCRYPTION_KEY: Buffer.alloc(32, 7).toString("base64"),
       CRON_SECRET: "cron-dummy",
-      ANTHROPIC_API_KEY: "sk-ant-dummy",
     },
   },
 });

@@ -10,10 +10,6 @@ const updateSpy = vi.fn();
 const repositoriesSelectMock = vi.fn();
 const findingFilterSpy = vi.fn();
 
-vi.mock("./narrative", () => ({
-  generateNarratives: async () => ({ accepted: new Map() }),
-}));
-
 vi.mock("@/lib/supabase", () => ({
   getSupabaseAdmin: () => ({
     from: (table: string) => {

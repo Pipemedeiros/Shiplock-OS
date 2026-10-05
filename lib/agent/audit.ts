@@ -6,9 +6,7 @@ import { scanSecrets } from "@/lib/deep/githubScan";
 import { scanCredentialHandling } from "@/lib/deep/credentialHandling";
 import { scanNextConfigEnv } from "@/lib/deep/nextConfigEnv";
 import type { RouteFact } from "@/lib/graph/routeInventory";
-import { proposeAttacks, riskyRoutesOmitted, routesOmitted, verifyAdmitted } from "./attack";
-import { claimFirstScanCredit } from "./firstScanCredit";
-import { recordModelUsage } from "@/lib/cost/modelUsage";
+import { riskyRoutesOmitted, routesOmitted } from "./attack";
 import { crossTenantNotes, renderCrossTenantNote } from "./crossTenantNotes";
 import { countUnanalyzedSurfaces } from "@/lib/graph/unanalyzedSurfaces";
 import { applicationEntries } from "@/lib/graph/applicationEntries";
@@ -193,16 +191,14 @@ export function buildCoverage(
     // find, and without saying so it is indistinguishable from a clean audit.
     notes.push({
       name: "Reasoning about who can reach what",
-      // Two causes reach this note and the wording must fit both: the run ran
-      // out of time to reason safely, or the reasoning call itself failed.
-      // Naming only the first was accurate until `agent.skipped` started
-      // routing here too.
+      // ShipLock makes no model call (Felipe, 2026-10-01). Attack reasoning is
+      // the customer's own agent over MCP, so a deep stack is told that.
       why: routeSupport.level === "inventory_only"
         ? routeSupport.reason
-        : "The reasoning step did not run — either this repository took long enough to read that there was not enough time left to reason over it safely, or the reasoning call itself failed.",
+        : "Attack reasoning runs on your own agent over MCP, and it has not answered for this run. ShipLock makes no AI calls of its own.",
       effect:
         "Committed credentials and dependency advisories were still checked. Attack paths were not looked for at all, so this run finding none means nothing.",
-      ...(routeSupport.level === "deep" ? { upgrade: "Run the audit again" } : {}),
+      ...(routeSupport.level === "deep" ? { upgrade: "Connect your agent" } : {}),
     });
   }
 
@@ -272,28 +268,6 @@ function tablesFrom(routes: RouteFact[], files: ArchiveFile[]): string[] {
   const fromRoutes = routes.flatMap((r) => r.tables);
   return [...new Set([...fromSchema, ...fromRoutes])].sort();
 }
-
-/**
- * How long the whole audit may take before it stops reasoning and reports.
- *
- * The route runs synchronously inside a serverless function. On Vercel Hobby
- * with Fluid compute that function stops at 300 seconds (routes declare
- * maxDuration 300; 2026-09-29, before which the code capped itself at 60),
- * so the budget leaves 20 seconds to save the result. Being killed there is the
- * worst possible outcome: the audit_runs row is already inserted as "running",
- * so a customer with a large repository would watch a spinner forever while the
- * function that was going to finish it no longer exists.
- *
- * Ingestion and the deterministic scans are fast even on a 2,359-file monorepo,
- * about four seconds of compute. What varies is the tarball download and the
- * model call. So the budget is spent where it can be given up: if there is not
- * enough time left to reason, the run completes with what the deterministic
- * collectors found and says on the Coverage page that reasoning was skipped.
- * A shorter honest audit beats a run that never finishes.
- */
-export const AUDIT_BUDGET_MS = 280_000;
-/** Reasoning needs roughly this long, measured across real repositories. */
-export const REASONING_RESERVE_MS = 25_000;
 
 export interface RunAuditOptions {
   userId: string;
@@ -435,20 +409,13 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       domain.summary,
     );
 
-    const elapsed = Date.now() - startedAt;
-    const timeLeft = AUDIT_BUDGET_MS - elapsed;
-    const canReason = routeSupport.level === "deep" && timeLeft >= REASONING_RESERVE_MS;
-
-    if (!canReason) {
-      if (routeSupport.level === "inventory_only") {
-        step("Deep route reasoning not run", routeSupport.reason);
-      } else {
-        step(
-          "Reasoning skipped to finish inside the time budget",
-          `${Math.round(elapsed / 1000)}s spent reading this repository, which leaves too little to reason safely`,
-        );
-      }
-    }
+    // ShipLock makes no model call (Felipe, 2026-10-01). Every deterministic
+    // check above ran; attack reasoning is the customer's own agent over MCP
+    // and is reported as not run here, never as clean.
+    step(
+      "Attack reasoning not run",
+      routeSupport.level === "inventory_only" ? routeSupport.reason : "it runs on your own agent over MCP; ShipLock makes no AI calls",
+    );
 
     // CROSS-TENANT MACHINE-GATED ENDPOINTS BECOME NOTES, NOT CANDIDATES.
     //
@@ -457,129 +424,18 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
     // file, named mechanism, and never where the check sits behind a
     // process.env comparison, because on a self-hosted deployment that gate
     // does not run and the note would be a confident instruction not to look.
-    // Everything else in population A stays a candidate.
     const notes = crossTenantNotes(routes, new Map(archive.files.map((f) => [f.path, f])));
-    const noted = new Set(notes.map((n) => n.path));
-    const reasonedRoutes = routes.filter((r) => !noted.has(r.path));
 
-    // POSSESSION GATES REWORD A FINDING; THEY REMOVE NOTHING.
-    //
-    // Read after the notes and handed to the guard alone. Every route stays in
-    // reasonedRoutes and the prompt is unchanged: a missing_authentication the
-    // guard admits on a route whose gate we READ is reported as
-    // possession_gated, at informational severity, naming the lookup, the
-    // binding and the mint. An unreadable gate leaves the critical standing.
+    // POSSESSION GATES REWORD A FINDING; THEY REMOVE NOTHING. Read here so a
+    // deterministic finding on a route whose gate we READ is worded as
+    // possession_gated; an unreadable gate leaves the finding standing.
     const byPath = new Map(archive.files.map((f) => [f.path, f]));
     const gates = possessionGates(routes, byPath);
     // Q21: anonymous routes whose only way in is a random-minted id cap at WARNING.
     const oneId = oneIdAccess(routes, byPath);
 
-    // ShipLock funds one model-assisted audit per account (3G-1). A later run
-    // keeps every deterministic check; its reasoning step says it did not run.
-    const funding = canReason ? await claimFirstScanCredit(userId, runId, options.jobLease) : null;
-    const reasons = canReason && funding?.funded === true;
-    if (reasons) step("Reasoning about who can reach what");
-    const agent = reasons
-      ? await proposeAttacks({
-      routes: reasonedRoutes,
-      stack,
-      tables,
-      domain,
-      liveFacts,
-      possessionGates: gates,
-      files: archive.files.map((f) => f.path),
-      // Whatever is left of the budget, less a margin to persist the findings
-      // and finish the run. Reasoning is the step we give up, so it is the step
-      // that gets bounded.
-      timeoutMs: Math.max(5_000, AUDIT_BUDGET_MS - (Date.now() - startedAt) - 6_000),
-        })
-      : {
-          admitted: [],
-          rejected: [],
-          unassessed: [],
-          unmatchedEntries: [],
-          model: "none",
-          skipped: true,
-          skipReason: funding && !funding.funded ? funding.reason
-            : routeSupport.level === "inventory_only"
-            ? "the repository framework is inventory-only"
-            : "not enough time left in this run",
-        };
-
-    // Q10: one cost receipt per funded model response, before anything can fail.
-    if (agent.usage) {
-      await recordModelUsage({ userId, purpose: "first_scan", auditRunId: runId, model: agent.usage.model,
-        usage: agent.usage, stopReason: agent.usage.stopReason });
-    }
-
-    if (agent.skipped) {
-      step("Attack reasoning did not run", agent.skipReason);
-    } else {
-      if (agent.parseFailed) {
-        step("Reasoning response could not be fully read", "Recovered findings still pass the evidence guard. This run's reasoning coverage is incomplete.");
-      }
-      if (agent.truncated) {
-        step(
-          "Reasoning hit its output limit",
-          "The findings below were completed and checked; anything still being written is missing from this run.",
-        );
-      }
-      // A RUN WHERE EVERYTHING WAS THROWN AWAY IS NOT A CLEAN RUN.
-      // The model named routes and we could not match a single one, which means
-      // the audit produced nothing for a reason that has nothing to do with the
-      // customer's code. Said loudly, because for four measurement stages this
-      // rendered as "0 attack paths" and was indistinguishable from a repository
-      // with no attack paths in it.
-      if (agent.admitted.length === 0 && (agent.unmatchedEntries ?? []).length > 0) {
-        step(
-          "This run's reasoning was discarded",
-          `Every proposed finding named an endpoint we could not match (${agent.unmatchedEntries.slice(0, 3).join(", ")}). This is a fault on our side, not a result about your code.`,
-        );
-      }
-      if ((agent.unassessed ?? []).length > 0) {
-        step(
-          `${agent.unassessed.length} endpoint${agent.unassessed.length === 1 ? "" : "s"} left unjudged`,
-          "A possible problem was proposed on these and dropped: the check that decides who may see the data runs somewhere we could not follow.",
-        );
-      }
-      step(
-        `${agent.admitted.length} attack ${agent.admitted.length === 1 ? "path" : "paths"} proposed and checked`,
-        agent.rejected.length
-          ? `${agent.rejected.length} discarded for citing something we did not observe`
-          : undefined,
-        agent.admitted.length > 0,
-      );
-    }
-
-    // P1: a proposal is a finding only once the skeptical verifier confirms it
-    // with quotes that exist in the code. The credit that funded the proposal
-    // funds this check; unconfirmed proposals never render as findings.
-    let verified = agent.admitted;
-    let verificationOpen = false;
-    if (!agent.skipped && agent.admitted.length > 0) {
-      step("Checking each proposed path against the code");
-      const check = await verifyAdmitted({
-        admitted: agent.admitted,
-        routes,
-        files: new Map(archive.files.map((f) => [f.path, f.content])),
-        timeoutMs: Math.max(5_000, AUDIT_BUDGET_MS - (Date.now() - startedAt) - 6_000),
-      });
-      for (const usage of check.usages) {
-        await recordModelUsage({ userId, purpose: "first_scan", auditRunId: runId, model: usage.model, usage, stopReason: usage.stopReason });
-      }
-      verified = check.kept;
-      verificationOpen = check.failed || check.unverified > 0;
-      step(
-        `${check.kept.length} confirmed in the code`,
-        [check.refuted ? `${check.refuted} ruled out by the code` : "",
-          check.unverified ? `${check.unverified} could not be confirmed from the code we read and are not shown as findings` : ""]
-          .filter(Boolean).join("; ") || undefined,
-        check.kept.length > 0,
-      );
-    }
-
     const findings = buildFindings({
-      admitted: verified,
+      admitted: [],
       deterministic,
       routes,
       stack,
@@ -602,38 +458,28 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       routesOmitted({ routes, stack, tables, domain, files: [] }),
       riskyRoutesOmitted({ routes, stack, tables, domain, files: [] }),
       liveFacts.length > 0 ? ["connected"] : [],
-      // A model call that FAILED is a skipped reasoning step, exactly like one
-      // we never had time to start. This used to pass `!canReason` alone -- the
-      // time-budget check -- so a 400 from the API produced an audit with zero
-      // reasoned findings, no coverage note, and nothing distinguishing it from
-      // a clean result. Ten such calls were mistaken for ten measured zeros on
-      // 2026-09-08 before the discipline of diagnosing every zero caught it.
-      !canReason || agent.skipped === true,
-      agent.truncated === true,
+      // Reasoning did not run in this audit: always disclosed, never clean.
+      true,
+      false,
       routes,
-      agent.admitted.length === 0 && (agent.unmatchedEntries ?? []).length > 0,
+      false,
       notes.map(renderCrossTenantNote),
-      agent.parseFailed === true,
+      false,
       { ...countUnanalyzedSurfaces(archive.files), analyzedActions: entries.actions, analyzedProcedures: entries.procedures },
     );
 
     step("Audit complete", `${findings.length} open ${findings.length === 1 ? "path" : "paths"}`);
 
-    const preserveExisting = agent.skipped || agent.parseFailed === true ||
-      agent.truncated === true || archive.truncated || archive.skipped > 0 ||
-      routes.some((route) => !route.identityReadable || !route.ownershipReadable ||
-        !route.dataReadable || !route.machineGateReadable || !route.serviceRoleReadable) ||
-      routesOmitted({ routes, stack, tables, domain, files: [] }) > 0 ||
-      (agent.unassessed ?? []).length > 0 || (agent.unmatchedEntries ?? []).length > 0 || verificationOpen;
-    if (preserveExisting) {
-      step("Previous findings retained", "This run was incomplete. Earlier findings remain open until they can be reassessed.");
-      coverage.push({
-        name: "Previous findings remain open",
-        why: "This run could not fully reassess the repository.",
-        effect: "New findings were saved, but earlier findings were not marked resolved just because they were missing from this run.",
-      });
-    }
-    await persistFindings(userId, repositoryId, runId, findings, null, preserveExisting, options.jobLease);
+    // Reasoning did not run, so this audit cannot reassess what an earlier
+    // reasoned run found: earlier findings stay open (a skipped answer never
+    // resolves an old finding, AGENTS.md).
+    step("Previous findings retained", "This run was incomplete. Earlier findings remain open until they can be reassessed.");
+    coverage.push({
+      name: "Previous findings remain open",
+      why: "This run could not fully reassess the repository.",
+      effect: "New findings were saved, but earlier findings were not marked resolved just because they were missing from this run.",
+    });
+    await persistFindings(userId, repositoryId, runId, findings, null, true, options.jobLease);
 
     // No write follows an audit. Opening a branch/PR is a separate, explicit
     // customer action through the repair endpoints. Analysis permission is not

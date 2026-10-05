@@ -2,10 +2,9 @@
  * The deterministic half of the repository agent.
  *
  * The model proposes attack hypotheses; this file disposes of them. That split
- * is the same one enforced in lib/proving/agentGuard.ts and
- * lib/graph/narrativeGuard.ts, and it is the reason an LLM can be pointed at a
- * customer's codebase at all: nothing the model emits is trusted as a fact, a
- * location, or a permission.
+ * is the same one enforced in lib/proving/agentGuard.ts, and it is the reason
+ * a customer's agent can reason over their codebase at all: nothing it emits
+ * is trusted as a fact, a location, or a permission.
  *
  * Strix validates a hypothesis by exploiting it. We cannot -- the target is a
  * customer's production application, and attacking it is permanently out of

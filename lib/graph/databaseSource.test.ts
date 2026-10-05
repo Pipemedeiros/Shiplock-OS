@@ -16,7 +16,6 @@ vi.mock("@/lib/supabase", () => ({
     return { select: () => query, insert: writes, update: writes, upsert: writes };
   } }),
 }));
-vi.mock("./narrative", () => ({ generateNarratives: vi.fn(() => { throw new Error("No model call permitted"); }) }));
 
 const at = "2026-09-17T10:00:00.000Z";
 const now = Date.parse("2026-09-17T11:00:00.000Z");

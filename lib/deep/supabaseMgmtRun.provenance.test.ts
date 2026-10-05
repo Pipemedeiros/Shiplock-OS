@@ -17,7 +17,6 @@ vi.mock("./supabaseMgmt", async (original) => ({
   fetchStorageConfig: vi.fn().mockResolvedValue({}), fetchBackupConfig: vi.fn().mockResolvedValue(null),
   fetchRealtimeAndHooks: vi.fn().mockResolvedValue({}), fetchAuthAuditLog: vi.fn().mockResolvedValue([]),
 }));
-vi.mock("@/lib/graph/narrative", () => ({ generateNarratives: vi.fn() }));
 vi.mock("@/lib/runtime/authRun", () => ({ runAuthLogScan: vi.fn() }));
 vi.mock("@/lib/proving/run", () => ({ runProvingGround: mocks.proving }));
 vi.mock("@/lib/proving/host", () => ({ provingHost: vi.fn() }));

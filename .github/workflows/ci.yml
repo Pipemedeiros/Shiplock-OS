@@ -47,4 +47,3 @@ jobs:
           NEXT_PUBLIC_APP_URL: https://ci.example.com
           ENCRYPTION_KEY: ci-encryption-key-that-is-long-enough-32
           CRON_SECRET: ci-cron-secret
-          ANTHROPIC_API_KEY: ci-anthropic-key

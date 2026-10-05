@@ -1,0 +1,25 @@
+{
+  "rule": "model-keys",
+  "cases": [
+    {
+      "name": "direct environment read",
+      "expectedPath": "lib/security/rogueKey.ts",
+      "edits": [{ "path": "lib/security/rogueKey.ts", "content": "export const key = process.env.ANTHROPIC_API_KEY;" }]
+    },
+    {
+      "name": "computed environment read",
+      "expectedPath": "lib/security/rogueKey.ts",
+      "edits": [{ "path": "lib/security/rogueKey.ts", "content": "export const key = process.env[\"ANTHROPIC_\" + \"API_KEY\"];" }]
+    },
+    {
+      "name": "environment alias",
+      "expectedPath": "lib/security/rogueKey.ts",
+      "edits": [{ "path": "lib/security/rogueKey.ts", "content": "const settings = process.env; export const key = settings.OPENAI_API_KEY;" }]
+    },
+    {
+      "name": "funded-call switch",
+      "expectedPath": "lib/agent/audit.ts",
+      "edits": [{ "path": "lib/agent/audit.ts", "replace": { "from": "export async function runRepositoryAudit(", "to": "export const funded = process.env.SHIPLOCK_FUNDED_FIRST_SCAN === \"true\";\nexport async function runRepositoryAudit(" } }]
+    }
+  ]
+}

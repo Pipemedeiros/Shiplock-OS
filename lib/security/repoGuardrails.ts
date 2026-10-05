@@ -15,19 +15,15 @@ const base = {
   enforcedBy: z.object({ file: pathSchema, test: z.string().min(1) }).strict(),
 };
 const ruleSchema = z.discriminatedUnion("kind", [
-  z.object({ ...base, kind: z.literal("forbidden_pattern"), check: z.enum(["client-server", "customer-key", "model-options", "secrets", "provider-writes"]), sourcePins: pins.optional(),
+  z.object({ ...base, kind: z.literal("forbidden_pattern"), check: z.enum(["client-server", "model-clients", "model-keys", "secrets", "provider-writes"]), sourcePins: pins.optional(),
     // Reviewed fake secrets in detector tests, by SHA-256 of the exact value. Adding one is a visible review.
     allowedValueDigests: z.array(z.string().regex(/^[a-f0-9]{64}$/)).optional() }).strict(),
-  z.object({ ...base, kind: z.literal("required_pattern"), check: z.enum(["cookie-origin", "funding"]), sourcePins: pins.optional(), importers: z.record(pathSchema, z.array(pathSchema)).optional() }).strict(),
-  z.object({ ...base, kind: z.literal("allowlist"), check: z.literal("anthropic"), allowed: z.array(pathSchema).min(1) }).strict(),
+  z.object({ ...base, kind: z.literal("required_pattern"), check: z.literal("cookie-origin"), sourcePins: pins.optional(), importers: z.record(pathSchema, z.array(pathSchema)).optional() }).strict(),
   z.object({ ...base, kind: z.literal("file_policy"), check: z.enum(["markdown", "migrations", "migration-loads", "agents-approval"]), sourcePins: pins.optional(), allowed: z.array(pathSchema).optional() }).strict(),
   z.object({ ...base, kind: z.literal("existing_test"), testFile: pathSchema, testName: z.string().min(1), assertionDigest: z.string().regex(/^[a-f0-9]{64}$/), importers: z.record(pathSchema, z.array(pathSchema)).optional(), sourcePins: pins.optional() }).strict(),
 ]);
 export const registrySchema = z.object({ version: z.literal(1), rules: z.array(ruleSchema).min(15) }).strict().superRefine((r, ctx) => {
   if (new Set(r.rules.map(rule => rule.id)).size !== r.rules.length) ctx.addIssue({ code: "custom", message: "Duplicate rule ids" });
-  for (const rule of r.rules) {
-    if (rule.kind === "required_pattern" && rule.check === "funding" && !rule.sourcePins) ctx.addIssue({ code: "custom", message: "Funding requires reviewed source pins" });
-  }
 });
 export type Guardrail = z.infer<typeof ruleSchema>;
 export type Snapshot = Map<string, string>;
@@ -162,6 +158,10 @@ export function unreviewedSecrets(text: string, allowed: ReadonlySet<string>): s
     .concat([...text.matchAll(PEM_BODY)].map((m) => m[0])).filter((v) => !allowed.has(valueDigest(v)));
 }
 
+const MODEL_SDK = /^(?:@anthropic-ai\/|openai(?:$|\/)|@ai-sdk\/|ai$|@google\/(?:generative-ai|genai)|@mistralai\/|cohere-ai|groq-sdk)/;
+const MODEL_HOST = /api\.anthropic\.com|api\.openai\.com|generativelanguage\.googleapis\.com/;
+const MODEL_KEY = /^(?:ANTHROPIC_API_KEY|OPENAI_API_KEY|SHIPLOCK_FUNDED_[A-Z_]+)$/;
+
 export function checkRule(rule: Guardrail, files: Snapshot, commits: CommitEvidence[] = []): Violation[] {
   const hits: Violation[] = [];
   const hit = (path: string, reason: string) => hits.push({ rule: rule.id, path, reason, severity: rule.severity });
@@ -209,27 +209,7 @@ export function checkRule(rule: Guardrail, files: Snapshot, commits: CommitEvide
         if (!loads.some(call => nodes(call).some(n => ts.isStringLiteralLike(n) && n.text === `../${path}`))) hit(path, "New migration is not executed by the local SQL suite");
       }
     }
-  } else if (rule.kind === "allowlist") {
-    // Runtime SDK imports (including aliased/barrel/dynamic/require) are more
-    // conservative than checking the spelling of a constructor expression.
-    for (const p of prod) {
-      if (project.imports(p).some(e => e.target === "@anthropic-ai/sdk" || e.target.startsWith("@anthropic-ai/sdk/")) && !rule.allowed.includes(p)) hit(p, "Unreviewed runtime model SDK import");
-    }
-    const fundingTest = files.get("lib/security/modelFunding.test.ts") ?? "";
-    const allowedNode = nodes(source("funding.test.ts", fundingTest)).find(n => ts.isVariableDeclaration(n) && n.name.getText() === "ALLOWED");
-    const allowed = allowedNode && ts.isVariableDeclaration(allowedNode) && allowedNode.initializer && ts.isObjectLiteralExpression(allowedNode.initializer)
-      ? allowedNode.initializer.properties.filter(ts.isPropertyAssignment).map(p => ts.isStringLiteralLike(p.name) ? p.name.text : "") : [];
-    if (JSON.stringify([...allowed].sort()) !== JSON.stringify([...rule.allowed].sort())) hit("lib/security/modelFunding.test.ts", "Constructor allowlist drift");
-    // A caller cannot import a barrel that makes the SDK available unless the
-    // barrel itself is reviewed above. Pin the original assertion too.
   } else if (rule.kind === "required_pattern") {
-    if (rule.check === "funding") {
-      for (const p of prod) for (const edge of project.imports(p)) {
-        const allow = rule.importers?.[edge.target];
-        if (allow && !allow.includes(p)) hit(p, `Unreviewed caller of funded boundary ${edge.target}`);
-        if (edge.target === "!unresolved-import") hit(p, "Unresolvable module expression hides a funding caller");
-      }
-    }
     if (rule.check === "cookie-origin") {
       const listing = "lib/security/sameOrigin.routes.test.ts";
       const listed = project.imports(listing).map(e => e.target);
@@ -270,23 +250,19 @@ export function checkRule(rule: Guardrail, files: Snapshot, commits: CommitEvide
         if (unsafe) { hit(p, `Client reaches server secret or admin through ${dep}`); break; }
       }
     }
-    if (rule.check === "customer-key") for (const p of selected) {
-      // Follow helpers, aliases and barrel exports; ignore the env schema's
-      // declaration of the key, which is not a property read to fund inference.
-      for (const dep of project.reachable(p)) if (nodes(project.sf(dep)).some(n => project.property(dep, n) === "ANTHROPIC_API_KEY")) hit(p, `Customer path reads ShipLock key through ${dep}`);
-    }
-    if (rule.check === "model-options") for (const p of prod) {
-      for (const call of nodes(project.sf(p)).filter(ts.isCallExpression)) {
-        if (project.property(p, call.expression) !== "create" || !call.arguments[0]) continue;
-        const request = unwrap(call.arguments[0]);
-        const requestNodes = nodes(request);
-        const hasModel = requestNodes.some(n => ts.isIdentifier(n) && n.text === "model" || ts.isPropertyAssignment(n) && project.value(p, n.name) === "model");
-        if (!hasModel) continue;
-        const values = requestNodes.map(n => project.value(p, n)).filter((v): v is string => v !== undefined);
-        const model55 = values.some(v => /-5-5$/.test(v));
-        const forbidden = requestNodes.some(n => ts.isPropertyAssignment(n) && /^(temperature|top_p|top_k|budget_tokens)$/.test(project.value(p, n.name) ?? n.name.getText()));
-        if (model55 && (forbidden || values.includes("disabled"))) hit(p, "5.5 request has forbidden sampling or disabled thinking");
+    // ShipLock makes no model call (Felipe, 2026-10-01). Runtime SDK imports
+    // (aliased, barrel, dynamic or require) and folded model API hosts are
+    // checked rather than the spelling of a constructor; a module expression
+    // that cannot be resolved could hide one, so it fails too.
+    if (rule.check === "model-clients") for (const p of prod) {
+      for (const edge of project.imports(p)) {
+        if (MODEL_SDK.test(edge.target)) hit(p, `Runtime model SDK import ${edge.target}`);
+        if (edge.target === "!unresolved-import") hit(p, "Unresolvable module expression could hide a model SDK");
       }
+      if (nodes(project.sf(p)).some(n => { const v = project.value(p, n); return v !== undefined && MODEL_HOST.test(v); })) hit(p, "Model API host");
+    }
+    if (rule.check === "model-keys") for (const p of prod) {
+      if (nodes(project.sf(p)).some(n => MODEL_KEY.test(project.property(p, n) ?? ""))) hit(p, "Reads a model key or a funded-call switch");
     }
     if (rule.check === "provider-writes") for (const p of prod) {
       const sf = project.sf(p), all = nodes(sf);

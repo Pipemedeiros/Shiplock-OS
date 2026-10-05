@@ -17,7 +17,6 @@ const envSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().url(),
   ENCRYPTION_KEY: z.string().min(32),
   CRON_SECRET: z.string().min(1),
-  ANTHROPIC_API_KEY: z.string().min(1),
   // Optional: the Vercel Integration (OAuth) may not be registered yet.
   // lib/deep/vercel.ts throws a clear error at call time if these are unset —
   // they must stay optional here so app startup isn't blocked on them.

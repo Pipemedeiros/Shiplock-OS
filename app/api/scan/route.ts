@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const analysis = await analyzeResult(scanResult, userId);
+  const analysis = await analyzeResult(scanResult);
 
   // scan_history stores both shapes regardless of paywall status at scan
   // time — the dashboard picks preview vs. full based on the caller's

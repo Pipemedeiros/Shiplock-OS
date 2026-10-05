@@ -1,9 +1,6 @@
-import { shiplockFundedCallAllowed } from "@/lib/funding";
-import Anthropic from "@anthropic-ai/sdk";
-import { recordModelUsage } from "@/lib/cost/modelUsage";
 import type { Severity } from "@/lib/types";
 import { assertAgentAction, checkAgentAction, summariseAttempts, type AgentAttempt } from "./agentGuard";
-import { TENANT_A, TENANT_B } from "./tenantProbe";
+import { TENANT_B } from "./tenantProbe";
 
 // The adversarial agent.
 //
@@ -26,34 +23,13 @@ import { TENANT_A, TENANT_B } from "./tenantProbe";
 // proxy against a live app; this is a long way from that and should not be
 // described as equivalent.
 //
-// Cost and blast radius are bounded before capability: a hard cap on rounds and
-// queries, a small model by default, and every proposal recorded whether it ran
-// or not.
+// Blast radius is bounded before capability: a hard cap on rounds and queries,
+// and every proposal recorded whether it ran or not. ShipLock makes no model
+// call (Felipe, 2026-10-01): the proposer is injected, and without one the
+// table stays unproven, never clean.
 
 const MAX_ROUNDS = 3;
 const MAX_QUERIES_PER_ROUND = 4;
-const TIMEOUT_MS = 30_000;
-
-// Haiku by default to keep optional proof reasoning bounded. The task is
-// generating candidate SQL against a described schema, not deep reasoning, and
-// the guard means a weaker proposal is cheap rather than dangerous.
-const MODEL = "claude-haiku-4-5-20251001";
-
-const SYSTEM_PROMPT = `You test whether a Postgres row-level-security policy isolates tenants.
-
-You are given one table in schema {schema}, its columns, and its policies. Two synthetic tenants exist:
-A = ${TENANT_A} (you are signed in as A)
-B = ${TENANT_B}
-
-Propose SELECT queries that would return rows belonging to B. If any does, the policy fails to isolate tenants.
-
-Rules:
-- SELECT only. One statement. No semicolons.
-- Every table must be schema-qualified with {schema}.
-- Never reference pg_catalog, information_schema, auth.users, storage, or any other schema.
-- auth.uid() is allowed.
-
-Return JSON only: {"queries":["...","..."]}. No prose.`;
 
 export interface AgentContext {
   schema: string;
@@ -76,56 +52,6 @@ export type QueryRunner = (sql: string) => Promise<Record<string, unknown>[]>;
 
 /** Proposes queries. Injected so the loop can be tested without a model. */
 export type Proposer = (context: AgentContext, previous: AgentAttempt[]) => Promise<string[]>;
-
-/**
- * Asks the model for candidate queries.
- *
- * Failure returns an empty list, never a throw: an agent that cannot think of
- * anything is a quiet run, and the deterministic probe has already covered the
- * common case regardless.
- */
-export function claudeProposer(userId: string): Proposer {
-  return async (context, previous) => {
-    if (!shiplockFundedCallAllowed("proving")) return [];
-    const client = new Anthropic();
-    const schemaDescription =
-      `table: ${context.schema}.${context.table}\n` +
-      `columns: ${context.columns.join(", ")}\n` +
-      `policies:\n` +
-      context.policies.map((p) => `  ${p.name} (${p.cmd}) USING ${p.using ?? "-"}`).join("\n");
-
-    const tried =
-      previous.length > 0
-        ? `\n\nAlready tried (do not repeat):\n${previous.slice(-6).map((a) => a.sql).join("\n")}`
-        : "";
-
-    try {
-      const response = await client.messages.create(
-        {
-          model: MODEL,
-          max_tokens: 700,
-          system: SYSTEM_PROMPT.replace(/\{schema\}/g, context.schema),
-          messages: [{ role: "user", content: schemaDescription + tried }],
-        },
-        { timeout: TIMEOUT_MS, maxRetries: 0 }
-      );
-
-      // Q10: every returned response leaves a receipt, parseable or not; a
-      // call that failed returned no usage to record.
-      await recordModelUsage({ userId, purpose: "proving", model: response.model, stopReason: response.stop_reason, usage: response.usage });
-
-      const text = response.content.filter((b) => b.type === "text").map((b) => b.text).join("");
-      const match = /\{[\s\S]*\}/.exec(text);
-      if (!match) return [];
-      const parsed = JSON.parse(match[0]) as { queries?: unknown };
-      if (!Array.isArray(parsed.queries)) return [];
-      return parsed.queries.filter((q): q is string => typeof q === "string").slice(0, MAX_QUERIES_PER_ROUND);
-    } catch (err) {
-      console.error("[proving-agent] proposal failed:", err instanceof Error ? err.message : err);
-      return [];
-    }
-  };
-}
 
 /**
  * Did this result actually expose the other tenant?

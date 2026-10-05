@@ -39,6 +39,8 @@ describe("/api/intelligence/connection (10B-2b)", () => {
     expect((await POST(post(approval, "https://evil.example"))).status).toBe(403);
     expect((await POST(post({ ...approval, allowProposals: false }))).status).toBe(400);
     expect((await POST(post({ ...approval, allowPullRequests: true }))).status).toBe(400);
+    // ShipLock runs no model, so a customer API key is not a host (Felipe, 2026-10-01).
+    expect((await POST(post({ ...approval, host: "api" }))).status).toBe(400);
     expect((await POST(new Request(url, { method: "POST", headers: { origin: "https://shiplock.dev" }, body: "x" }))).status).toBe(415);
     expect((await DELETE(new Request(url, { method: "DELETE", headers: { origin: "https://evil.example" } }))).status).toBe(403);
     expect(mocks.approve).not.toHaveBeenCalled();
