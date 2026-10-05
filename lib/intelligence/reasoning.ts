@@ -2,7 +2,7 @@ import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { getFile, getInstallationToken } from "@/lib/deep/github";
 import { buildPrompt, MAX_PROMPT_ROUTES, rankRoutes, SYSTEM, type AgentInput } from "@/lib/agent/attack";
-import { guardHypotheses, type AttackClass, type Hypothesis } from "@/lib/agent/attackGuard";
+import { guardHypotheses, safeConsequence, type AttackClass, type Hypothesis } from "@/lib/agent/attackGuard";
 import { buildFindings } from "@/lib/agent/findings";
 import type { PossessionGate } from "@/lib/agent/possessionGate";
 import { routeAnalysisSupport, type StackReport } from "@/lib/agent/stack";
@@ -317,7 +317,9 @@ export async function submitVerificationResult(userId: string, task: ReasoningTa
     }
   }
   const verdicts = checkVerdicts(result.verdicts as RawVerdict[], verification.items, files, new Set(listed.keys()));
-  const applied = applyVerdicts(verification.hypotheses, verdicts);
+  // The verifier's statement replaces the proposer's wording only when it is
+  // safe prose; otherwise the guarded hypothesis wording stands.
+  const applied = applyVerdicts(verification.hypotheses, verdicts.map((v) => safeConsequence(v.statement.trim()) ? v : { ...v, statement: "" }));
   const findings = buildFindings({
     admitted: applied.kept, deterministic: [], routes: context.routes, stack: context.stack, repositoryId: task.repository_id,
     hasDatabase: context.hasDatabase, liveFacts: context.liveFacts, possessionGates: new Map(context.possessionGates),

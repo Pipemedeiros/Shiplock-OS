@@ -105,6 +105,9 @@ const MAX_CONSEQUENCE = 400;
 
 /** Markup or control characters, which must never reach a renderer or a PR body. */
 const UNSAFE_PROSE = /[<>\u0000-\u001F]/;
+/** A consequence sentence any renderer can carry: bounded, no markup, no
+ * control characters. The same rule the guard applies to hypothesis prose. */
+export const safeConsequence = (text: string) => text.length > 0 && text.length <= MAX_CONSEQUENCE && !UNSAFE_PROSE.test(text);
 
 /**
  * THE CLASS/FACT COMPATIBILITY MATRIX.

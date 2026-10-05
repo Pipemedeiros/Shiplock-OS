@@ -161,6 +161,16 @@ describe("submitVerificationResult", () => {
     expect(mocks.file).toHaveBeenCalledWith("token", "acme/app", handler, commit);
   });
 
+  it("never lets the verifier's wording carry markup or control characters into a finding", async () => {
+    for (const statement of ["<img src=x onerror=alert(1)> reads every order", "Reads orders\u0007", "x".repeat(401)]) {
+      vi.clearAllMocks();
+      mocks.rpc.mockResolvedValue({ data: "accepted", error: null });
+      await submitVerificationResult(user, verificationTask(), verifyAnswer([verdict({ statement: statement.slice(0, 600) })]));
+      expect(admitted().p_findings).toEqual([expect.objectContaining({ consequence: expect.not.stringMatching(/[<>\u0000-\u001F]/) })]);
+      expect(admitted().p_findings[0].consequence.length).toBeLessThanOrEqual(400);
+    }
+  });
+
   it("admits nothing when a quote is not on its line", async () => {
     await submitVerificationResult(user, verificationTask(), verifyAnswer([verdict({ citations: [
       { role: "reach", path: handler, line: 1, quote: "export async function GET() {" },
