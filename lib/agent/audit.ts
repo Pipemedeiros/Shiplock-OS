@@ -18,7 +18,7 @@ import { extractTables, extractColumns } from "./schema";
 import { inferDomain } from "./domain";
 import { loadLiveFacts } from "./liveFacts";
 import { unassessedNote, summarizeUnassessed } from "./unassessed";
-import { offerAuditReasoning, reasoningContext } from "@/lib/intelligence/reasoning";
+import { approvedAgent, offerAuditReasoning, reasoningContext, type ApprovedAgent } from "@/lib/intelligence/reasoning";
 
 /**
  * One audit of one repository, start to finish.
@@ -84,6 +84,8 @@ export function buildCoverage(
   crossTenant: string[] = [],
   reasoningParseFailed = false,
   unanalyzed: { serverActionFiles: number; trpcFiles: number; analyzedActions?: number; analyzedProcedures?: number } = { serverActionFiles: 0, trpcFiles: 0 },
+  /** The customer has an approved agent, which is asked to reason over this audit. */
+  agentConnected = false,
 ): CoverageNote[] {
   const notes: CoverageNote[] = [];
   const routeSupport = routeAnalysisSupport(stack);
@@ -196,10 +198,12 @@ export function buildCoverage(
       // the customer's own agent over MCP, so a deep stack is told that.
       why: routeSupport.level === "inventory_only"
         ? routeSupport.reason
-        : "Attack reasoning runs on your own agent over MCP, and it has not answered for this run. ShipLock makes no AI calls of its own.",
+        : agentConnected
+          ? "Attack reasoning runs on your own agent over MCP. ShipLock asked it to reason over this audit; its progress is under AI checks. ShipLock makes no AI calls of its own."
+          : "Attack reasoning runs on your own agent over MCP, and none is connected. ShipLock makes no AI calls of its own.",
       effect:
-        "Committed credentials and dependency advisories were still checked. Attack paths were not looked for at all, so this run finding none means nothing.",
-      ...(routeSupport.level === "deep" ? { upgrade: "Connect your agent" } : {}),
+        "Committed credentials and dependency advisories were still checked. Attack paths were not looked for in this audit, so this run finding none means nothing.",
+      ...(routeSupport.level === "deep" && !agentConnected ? { upgrade: "Connect your agent" } : {}),
     });
   }
 
@@ -455,6 +459,18 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       step(finding.title, finding.consequence, true);
     }
 
+    // Whether the customer's agent will be asked to reason over this audit,
+    // so Coverage points to its AI check instead of offering a connection.
+    const reasoning = reasoningContext({ routes: routes.filter((r) => !notes.some((n) => n.path === r.path)), stack, tables, domain,
+      files: archive.files.map((f) => f.path), liveFacts, possessionGates: gates, oneIdAccess: oneId,
+      hasDatabase: options.hasDatabase ?? false });
+    let agent: ApprovedAgent | null = null;
+    try {
+      agent = reasoning ? await approvedAgent(userId) : null;
+    } catch {
+      console.warn(`[audit] agent approval unreadable for ${runId}; reasoning not offered`);
+    }
+
     const coverage = buildCoverage(
       stack,
       archive.truncated,
@@ -471,6 +487,7 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       notes.map(renderCrossTenantNote),
       false,
       { ...countUnanalyzedSurfaces(archive.files), analyzedActions: entries.actions, analyzedProcedures: entries.procedures },
+      agent !== null,
     );
 
     step("Audit complete", `${findings.length} open ${findings.length === 1 ? "path" : "paths"}`);
@@ -547,11 +564,8 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
     // durable, and Coverage says reasoning has not run until an answer is
     // verified and admitted.
     try {
-      await offerAuditReasoning({ userId, repositoryId, runId, commit, fullName,
-        contents: new Map(archive.files.map((f) => [f.path, f.content])),
-        context: reasoningContext({ routes: routes.filter((r) => !notes.some((n) => n.path === r.path)), stack, tables, domain,
-          files: archive.files.map((f) => f.path), liveFacts, possessionGates: gates, oneIdAccess: oneId,
-          hasDatabase: options.hasDatabase ?? false }) });
+      await offerAuditReasoning({ userId, repositoryId, runId, commit, fullName, agent, context: reasoning,
+        contents: new Map(archive.files.map((f) => [f.path, f.content])) });
     } catch (err) {
       console.warn(`[audit] reasoning task not offered for ${runId}: ${err instanceof Error ? err.message : "unknown"}`);
     }

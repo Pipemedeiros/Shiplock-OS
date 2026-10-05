@@ -60,4 +60,14 @@ describe("a reasoning step that did not run", () => {
     expect(note.why).not.toMatch(/time|call itself failed/i);
     expect(note.upgrade).toBe("Connect your agent");
   });
+
+  it("with an agent connected, points to its AI check instead of offering a connection", () => {
+    const deep: StackReport = { tools: [{ id: "next", name: "Next.js", kind: "framework", evidence: "package.json", usedIn: [] }],
+      authUnknown: false, databaseUnknown: true } as unknown as StackReport;
+    const notes = buildCoverage(deep, false, 0, false, 0, 0, [], true, false, [], false, [], false, undefined, true);
+    const note = notes.find((n) => /reason/i.test(n.name))!;
+    expect(note.why).toMatch(/AI checks/);
+    expect(note.upgrade).toBeUndefined();
+    expect(`${note.why} ${note.effect}`).toMatch(/not looked for|unknown|means nothing/i);
+  });
 });

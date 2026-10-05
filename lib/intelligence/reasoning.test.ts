@@ -12,7 +12,7 @@ vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ rpc: mocks.rpc, fr
   return chain;
 } }) }));
 
-import { offerAuditReasoning, reasoningContext, submitReasoningResult, submitVerificationResult, taskBrief,
+import { approvedAgent, offerAuditReasoning, reasoningContext, submitReasoningResult, submitVerificationResult, taskBrief,
   verificationBatches, type ReasoningContext, type ReasoningTask } from "./reasoning";
 
 const hash = (s: string) => createHash("sha256").update(s).digest("hex");
@@ -67,8 +67,9 @@ describe("reasoningContext", () => {
 });
 
 describe("offerAuditReasoning", () => {
-  const offer = () => offerAuditReasoning({ userId: user, repositoryId: repo, runId: run, commit, fullName: "acme/app", context: ctx,
-    contents: new Map([[handler, source]]) });
+  const agent = { host: "claude-code" as const, runTokenBudget: 50000 };
+  const offer = (approved: typeof agent | null = agent) => offerAuditReasoning({ userId: user, repositoryId: repo, runId: run, commit,
+    fullName: "acme/app", context: ctx, contents: new Map([[handler, source]]), agent: approved });
 
   it("creates one reasoning task per audit for the approved host, hashing handlers from the audit's own archive", async () => {
     expect(await offer()).toBe(taskId);
@@ -85,8 +86,10 @@ describe("offerAuditReasoning", () => {
     for (const data of [null, { host: "codex", revoked_at: "2026-10-01T00:00:00Z", run_token_budget: 1000 },
       { host: "api", revoked_at: null, run_token_budget: 1000 }]) {
       mocks.read.mockResolvedValueOnce({ data, error: null });
-      expect(await offer()).toBeNull();
+      expect(await approvedAgent(user)).toBeNull();
     }
+    expect(await approvedAgent(user)).toEqual(agent);
+    expect(await offer(null)).toBeNull();
     expect(mocks.rpc).not.toHaveBeenCalled();
   });
 

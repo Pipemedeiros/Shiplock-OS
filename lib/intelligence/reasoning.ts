@@ -72,6 +72,19 @@ export function reasoningContext(input: {
 const connectionSchema = z.object({ host: z.enum(["claude-code", "codex", "chatgpt", "api"]), revoked_at: z.string().nullable(),
   run_token_budget: z.number().int().positive() });
 
+export type ApprovedAgent = { host: "claude-code" | "codex" | "chatgpt"; runTokenBudget: number };
+
+/** The customer's live approval for an agent host, or null (none, revoked,
+ * or the retired API-key mode). */
+export async function approvedAgent(userId: string): Promise<ApprovedAgent | null> {
+  const { data, error } = await getSupabaseAdmin().from("intelligence_connections").select("host, revoked_at, run_token_budget")
+    .eq("user_id", userId).maybeSingle();
+  if (error) throw new Error("connection_unreadable");
+  const connection = connectionSchema.safeParse(data);
+  if (!connection.success || connection.data.revoked_at || connection.data.host === "api") return null;
+  return { host: connection.data.host, runTokenBudget: connection.data.run_token_budget };
+}
+
 /**
  * After a complete audit: ask the customer's approved agent to reason over it.
  * Best effort and never fatal, because the audit is already durable; the
@@ -80,15 +93,10 @@ const connectionSchema = z.object({ host: z.enum(["claude-code", "codex", "chatg
  */
 export async function offerAuditReasoning(input: {
   userId: string; repositoryId: string; runId: string; commit: string; fullName: string;
-  context: ReasoningContext | null; contents: ReadonlyMap<string, string>;
+  context: ReasoningContext | null; contents: ReadonlyMap<string, string>; agent: ApprovedAgent | null;
 }): Promise<string | null> {
-  if (!input.context) return null;
+  if (!input.context || !input.agent) return null;
   const admin = getSupabaseAdmin();
-  const { data, error } = await admin.from("intelligence_connections").select("host, revoked_at, run_token_budget")
-    .eq("user_id", input.userId).maybeSingle();
-  if (error) throw new Error("connection_unreadable");
-  const connection = connectionSchema.safeParse(data);
-  if (!connection.success || connection.data.revoked_at || connection.data.host === "api") return null;
   const sources = [...new Set(input.context.routes.map((r) => r.file))]
     .filter((path) => input.contents.has(path)).slice(0, MAX_SOURCES)
     .map((path) => ({ path, sourceHash: sourceHash(input.contents.get(path)!) }));
@@ -98,10 +106,10 @@ export async function offerAuditReasoning(input: {
     + "this commit, and answer with hypotheses: a JSON array as system describes, at most 60. Cite only routes, files, "
     + "tables and fact ids that appear in the prompt. ShipLock checks every hypothesis, then asks you to prove each one "
     + "with quoted lines before it becomes a finding. If you cannot finish, answer unavailable; never report clean for "
-    + `what you did not read. Stay within ${connection.data.run_token_budget} tokens for this task.`;
+    + `what you did not read. Stay within ${input.agent.runTokenBudget} tokens for this task.`;
   const { data: id, error: createError } = await admin.rpc("create_audit_reasoning_task", {
     p_user: input.userId, p_repository: input.repositoryId, p_run: input.runId, p_commit: input.commit,
-    p_host: connection.data.host, p_instruction: instruction, p_sources: sources, p_context: input.context,
+    p_host: input.agent.host, p_instruction: instruction, p_sources: sources, p_context: input.context,
     p_expires_at: new Date(Date.now() + TASK_MINUTES * 60_000).toISOString(), p_key: `reason:${input.runId}`,
   });
   if (createError) {
