@@ -78,9 +78,9 @@ Codex, or a ChatGPT connector once OpenAI approves it) operating ShipLock
 through the MCP server, on the customer's own subscription. ShipLock makes
 no model API calls of its own, for any run, the first included: no
 ShipLock-funded scan, no ShipLock key in any path, and no customer API key
-mode. The old funded first scan (`SHIPLOCK_FUNDED_FIRST_SCAN`, the
-first-scan credit) and the customer API-key worker are retired; their code
-is removed in the ledger's next items and stays off until then. Every audit
+mode. The old funded first scan and the customer API-key worker are
+removed; guardrails forbid any model client or model key in product code.
+Every audit
 runs every deterministic check on its own; model reasoning is shown as not
 run until the customer's agent answers, never as clean. Every scan reports
 partial/unread/model-skipped coverage honestly.
@@ -316,8 +316,7 @@ checks, provider collectors, the evidence graph, reviewable fix paths, traffic
 observation, MCP routes, and a durable audit queue foundation. Reuse these; do
 not replace them with a greenfield subsystem. A file's existence is not proof
 that a production path calls it: trace registration, producer, worker, UI, and
-consumer before claiming a capability. `lib/graph/defender.ts` remains unused;
-the proving ground and native-agent distribution are not launch-proven.
+consumer before claiming a capability. The proving ground and native-agent distribution are not launch-proven.
 
 ### Source map and actual flow
 
@@ -340,13 +339,13 @@ the proving ground and native-agent distribution are not launch-proven.
 - `attackGuard.ts` checks class and observed citations of agent hypotheses,
   `findings.ts` computes confidence and severity ceilings, and `lib/proving/`
   alone may earn `proven`. A skipped or malformed answer is shown in Coverage
-  and cannot resolve an old finding. Legacy model clients still in the code
-  (`lib/agent/attack.ts` funded path behind `SHIPLOCK_FUNDED_FIRST_SCAN` and
-  `lib/agent/firstScanCredit.ts`, `lib/funding.ts` flags, the API-key worker
-  in `lib/intelligence/`) are retired: all off, scheduled for removal, never
-  to be re-enabled; `lib/security/modelFunding.test.ts` pins every client
-  until they are gone. The only intelligence path is approved tasks an MCP
-  host picks up.
+  and cannot resolve an old finding. ShipLock contains no model client
+  (`lib/security/modelFunding.test.ts`, guardrails `model-clients` and
+  `model-keys`); the developer corpus harness keeps its calls in
+  `scripts/corpusModel.ts`. The only intelligence path is approved tasks an
+  MCP host picks up: `lib/intelligence/reasoning.ts` turns a complete audit
+  into an attack-reasoning task, guards the hypotheses, asks for quoted
+  proof, and admits only proven claims for the newest audit.
 - `lib/monitoring/{registry,collectors,run,findings,diff}.ts` collects provider
   evidence through registered adapters. `lib/graph/{repositorySource,
   databaseSource,repositoryDatabase,graphRun,attackPaths}.ts` admits scoped
