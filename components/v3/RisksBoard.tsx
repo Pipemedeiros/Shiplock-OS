@@ -11,6 +11,7 @@ import { Chain, Claims, Conf, Sev } from "./FindingParts";
 import { repairMessage, waitForRepair } from "@/lib/repairReceiptClient";
 import type { ProofOffer } from "@/lib/proving/proofStatus";
 import { ProofPanel } from "./ProofButton";
+import { AgentHandoff } from "./AgentHandoff";
 
 /**
  * The list and the inspector, side by side.
@@ -192,6 +193,10 @@ function Inspector({ finding, proof }: { finding: DashboardFinding; proof: Proof
                   }
                 }}
               />
+            ) : null}
+
+            {!finding.fixPrUrl ? (
+              <AgentHandoff finding={{ id: finding.id, title: finding.title, repository: finding.repository, fixKind: finding.fixKind }} />
             ) : null}
 
             {error ? <p role="alert" className="v3-small" style={{ color: "var(--crit)" }}>{error}</p> : null}
