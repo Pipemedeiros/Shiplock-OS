@@ -27,6 +27,9 @@ import { sourceHash } from "./exchange";
 // secret, never a row value.
 
 const MAX_FILES = 2_000;
+const MAX_VIA = 12;
+/** JSON bytes a task context may use, well under the 256 KB column limit. */
+const MAX_CONTEXT_BYTES = 180_000;
 const MAX_HYPOTHESES = 60;
 const VERIFY_BATCH = 10;
 const MAX_SOURCES = 16;
@@ -53,20 +56,31 @@ export function reasoningContext(input: {
   oneIdAccess: ReadonlyMap<string, Gate>; hasDatabase: boolean;
 }): ReasoningContext | null {
   if (routeAnalysisSupport(input.stack).level !== "deep") return null;
-  const shown = rankRoutes(input.routes.filter((r) => r.tables.length > 0), new Set(input.domain?.sensitive ?? []))
-    .slice(0, MAX_PROMPT_ROUTES);
-  if (shown.length === 0) return null;
-  const onShown = new Set(shown.map((r) => r.path));
+  // Helper lists are capped as on the route map (lib/routeMap.ts): a file a
+  // route reached beyond them is not citable, which can only reject more.
+  let shown = rankRoutes(input.routes.filter((r) => r.tables.length > 0), new Set(input.domain?.sensitive ?? []))
+    .slice(0, MAX_PROMPT_ROUTES).map((r) => ({ ...r, via: r.via.slice(0, MAX_VIA) }));
   const schema = input.files.filter((f) => /(^|\/)schema\.prisma$|\.sql$|(^|\/)schema\.[cm]?[jt]s$/.test(f));
-  const files = [...new Set([...shown.flatMap((r) => [r.file, ...r.via]), ...schema])].slice(0, MAX_FILES);
-  const pick = (gates: ReadonlyMap<string, Gate>) => [...gates].filter(([path]) => onShown.has(path));
-  return {
-    version: 1, system: SYSTEM,
-    prompt: buildPrompt({ routes: shown, stack: input.stack, tables: input.tables, files, domain: input.domain, liveFacts: input.liveFacts }),
-    routes: shown, files, tables: input.tables, liveFacts: input.liveFacts.slice(0, 20),
-    possessionGates: pick(input.possessionGates), oneIdAccess: pick(input.oneIdAccess),
-    stack: input.stack, hasDatabase: input.hasDatabase,
+  const build = (routes: RouteFact[]): ReasoningContext => {
+    const onShown = new Set(routes.map((r) => r.path));
+    const files = [...new Set([...routes.flatMap((r) => [r.file, ...r.via]), ...schema])].slice(0, MAX_FILES);
+    const pick = (gates: ReadonlyMap<string, Gate>) => [...gates].filter(([path]) => onShown.has(path));
+    return {
+      version: 1, system: SYSTEM,
+      prompt: buildPrompt({ routes, stack: input.stack, tables: input.tables, files, domain: input.domain, liveFacts: input.liveFacts }),
+      routes, files, tables: input.tables.slice(0, 400), liveFacts: input.liveFacts.slice(0, 20),
+      possessionGates: pick(input.possessionGates), oneIdAccess: pick(input.oneIdAccess),
+      stack: input.stack, hasDatabase: input.hasDatabase,
+    };
   };
+  // Drop the lowest-ranked routes until the stored context fits; the prompt
+  // and the guard always see the same routes.
+  while (shown.length > 0) {
+    const context = build(shown);
+    if (Buffer.byteLength(JSON.stringify(context)) <= MAX_CONTEXT_BYTES) return context;
+    shown = shown.slice(0, Math.max(0, Math.floor(shown.length * 0.8)));
+  }
+  return null;
 }
 
 const connectionSchema = z.object({ host: z.enum(["claude-code", "codex", "chatgpt", "api"]), revoked_at: z.string().nullable(),

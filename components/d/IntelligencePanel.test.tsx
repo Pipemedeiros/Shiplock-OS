@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { IntelligenceApprovalView, defaultDraft } from "./IntelligencePanel";
+import { IntelligenceApprovalView, RemoveKeyView, defaultDraft } from "./IntelligencePanel";
 
 const handlers = () => ({ onChange: vi.fn(), onApprove: vi.fn(), onRevoke: vi.fn(), onRemoveKey: vi.fn() });
 const approved = { state: "approved", host: "codex", deepScan: "weekly", prScan: "daily", runTokenBudget: 50000,
@@ -43,6 +43,16 @@ describe("IntelligencePanel (10B-2b)", () => {
     expect(stored).toContain("Remove key");
     expect(stored).not.toContain("sk-ant");
     expect(html()).not.toContain("Remove key");
+  });
+
+  it("asks once more before erasing a stored key, which cannot be undone", () => {
+    const first = renderToStaticMarkup(RemoveKeyView({ confirming: false, busy: false, onAsk: vi.fn(), onConfirm: vi.fn(), onCancel: vi.fn() }));
+    expect(first).toContain("Remove key");
+    expect(first).not.toContain("Cancel");
+    const second = renderToStaticMarkup(RemoveKeyView({ confirming: true, busy: false, onAsk: vi.fn(), onConfirm: vi.fn(), onCancel: vi.fn() }));
+    expect(second).toContain("Remove for good");
+    expect(second).toContain("Cancel");
+    expect(second).toContain('role="group"');
   });
 
   it("cannot approve without proposal consent", () => {

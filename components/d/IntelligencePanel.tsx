@@ -80,7 +80,7 @@ export function IntelligenceApprovalView({ connection, apiKey, draft, busy, erro
         {apiKey.stored && (
           <div style={{ ...note, color: "var(--ink)", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <span>An API key ending in {apiKey.hint} is still stored, encrypted, and is no longer used.</span>
-            <button type="button" className="v3-btn v3-btn-sm v3-ghost" onClick={onRemoveKey} disabled={busy}>Remove key</button>
+            <RemoveKey busy={busy} onRemove={onRemoveKey} />
           </div>
         )}
         <p style={note}>
@@ -104,6 +104,29 @@ export function IntelligenceApprovalView({ connection, apiKey, draft, busy, erro
       </div>
     </div>
   );
+}
+
+/** Erasing a stored key cannot be undone, so it takes a second click. Inline,
+ * not a browser dialog. */
+export function RemoveKeyView({ confirming, busy, onAsk, onConfirm, onCancel }: {
+  confirming: boolean; busy: boolean; onAsk: () => void; onConfirm: () => void; onCancel: () => void;
+}) {
+  if (!confirming) {
+    return <button type="button" className="v3-btn v3-btn-sm v3-ghost" onClick={onAsk} disabled={busy}>Remove key</button>;
+  }
+  return (
+    <span role="group" aria-label="Confirm removing the stored key" style={{ display: "inline-flex", gap: 8 }}>
+      <button type="button" className="v3-btn v3-btn-sm v3-ghost" onClick={onConfirm} disabled={busy}
+        style={{ color: "var(--crit)" }}>Remove for good</button>
+      <button type="button" className="v3-btn v3-btn-sm v3-ghost" onClick={onCancel} disabled={busy}>Cancel</button>
+    </span>
+  );
+}
+
+function RemoveKey({ busy, onRemove }: { busy: boolean; onRemove: () => void }) {
+  const [confirming, setConfirming] = useState(false);
+  return <RemoveKeyView confirming={confirming} busy={busy} onAsk={() => setConfirming(true)}
+    onConfirm={() => { setConfirming(false); onRemove(); }} onCancel={() => setConfirming(false)} />;
 }
 
 export function IntelligencePanel() {

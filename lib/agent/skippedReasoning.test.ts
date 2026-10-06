@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCoverage } from "./audit";
+import { buildCoverage, reasoningNote } from "./audit";
 import type { StackReport } from "./stack";
 
 /**
@@ -69,5 +69,16 @@ describe("a reasoning step that did not run", () => {
     expect(note.why).toMatch(/AI checks/);
     expect(note.upgrade).toBeUndefined();
     expect(`${note.why} ${note.effect}`).toMatch(/not looked for|unknown|means nothing/i);
+  });
+
+  it("says so when a connected agent could not be sent this audit, under the same note name", () => {
+    const deep: StackReport = { tools: [{ id: "next", name: "Next.js", kind: "framework", evidence: "package.json", usedIn: [] }],
+      authUnknown: false, databaseUnknown: true } as unknown as StackReport;
+    const sent = reasoningNote(deep, "asked"), notSent = reasoningNote(deep, "not_sent"), none = reasoningNote(deep, "none");
+    expect(new Set([sent.name, notSent.name, none.name]).size).toBe(1);
+    expect(notSent.why).toMatch(/could not be sent/);
+    expect(notSent.why).not.toMatch(/AI checks|none is connected/);
+    expect(notSent.upgrade).toBe("Run the audit again");
+    expect(none.upgrade).toBe("Connect your agent");
   });
 });

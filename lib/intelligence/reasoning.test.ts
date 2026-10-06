@@ -60,6 +60,18 @@ describe("reasoningContext", () => {
     expect(ctx.system).toContain("security engineer");
   });
 
+  it("stays well inside the task's 256 KB context limit on a very large repository", () => {
+    const via = Array.from({ length: 500 }, (_, i) => `packages/shared/src/very/deep/module/path/number-${i}/index.ts`);
+    const routes = Array.from({ length: 120 }, (_, i) => route({ path: `/api/resource-${i}/[id]/sub/[sub]`,
+      file: `app/api/resource-${i}/[id]/sub/[sub]/route.ts`, via, tables: ["orders", "users", "invoices"] }));
+    const big = context({ routes, files: [...routes.map((r) => r.file), ...via] })!;
+    expect(Buffer.byteLength(JSON.stringify(big))).toBeLessThan(200_000);
+    expect(big.routes.length).toBeGreaterThan(0);
+    // The prompt lists exactly the routes the guard will accept.
+    for (const r of big.routes) expect(big.prompt).toContain(`${r.path} id=`);
+    expect(big.files.length).toBeLessThanOrEqual(2000);
+  });
+
   it("asks nothing of an inventory-only stack or of routes that reach no table", () => {
     expect(context({ stack: { tools: [], authUnknown: true, databaseUnknown: true } as unknown as StackReport })).toBeNull();
     expect(context({ routes: [route({ tables: [] })] })).toBeNull();

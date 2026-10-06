@@ -21,7 +21,7 @@ const durableResultSchema = intelligenceResultSchema.extend({
   identity: z.object({
     taskId: z.uuid(), tenantId: z.uuid(), repositoryId: z.uuid(), commit: z.string().regex(/^[a-f0-9]{40}$/),
   }).strict(),
-  host: z.enum(["codex", "claude-code", "chatgpt", "api"]),
+  host: z.enum(["codex", "claude-code", "chatgpt"]),
 }).strict();
 const taskRowSchema = z.object({
   id: z.uuid(), user_id: z.uuid(), repository_id: z.uuid(), commit_sha: z.string(),

@@ -1,6 +1,7 @@
 import { scanPublicCredentialValues } from "@/lib/deep/clientExposure";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { getBranchSha, getInstallationToken } from "@/lib/deep/github";
+import { getInstallationToken } from "@/lib/deep/github";
+import { getHeadCommit } from "@/lib/deep/headCommit";
 import { fetchRepoArchive, type ArchiveFile } from "@/lib/deep/repoArchive";
 import { scanSecrets } from "@/lib/deep/githubScan";
 import { scanCredentialHandling } from "@/lib/deep/credentialHandling";
@@ -192,19 +193,7 @@ export function buildCoverage(
     // The most important coverage note there is. A run that read the code but
     // never reasoned over it has found only what the deterministic collectors
     // find, and without saying so it is indistinguishable from a clean audit.
-    notes.push({
-      name: "Reasoning about who can reach what",
-      // ShipLock makes no model call (Felipe, 2026-10-01). Attack reasoning is
-      // the customer's own agent over MCP, so a deep stack is told that.
-      why: routeSupport.level === "inventory_only"
-        ? routeSupport.reason
-        : agentConnected
-          ? "Attack reasoning runs on your own agent over MCP. ShipLock asked it to reason over this audit; its progress is under AI checks. ShipLock makes no AI calls of its own."
-          : "Attack reasoning runs on your own agent over MCP, and none is connected. ShipLock makes no AI calls of its own.",
-      effect:
-        "Committed credentials and dependency advisories were still checked. Attack paths were not looked for in this audit, so this run finding none means nothing.",
-      ...(routeSupport.level === "deep" && !agentConnected ? { upgrade: "Connect your agent" } : {}),
-    });
+    notes.push(reasoningNote(stack, agentConnected ? "asked" : "none"));
   }
 
   if (reasoningTruncated) {
@@ -266,6 +255,31 @@ export function buildCoverage(
 
   return notes;
 }
+
+/**
+ * The reasoning note. ShipLock makes no model call (Felipe, 2026-10-01):
+ * attack reasoning is the customer's own agent over MCP. "asked" when a task
+ * was created for this audit, "not_sent" when an agent is connected but the
+ * task could not be created, "none" when no agent is connected. One name in
+ * every state, so a later correction replaces the note rather than adding one.
+ */
+export function reasoningNote(stack: StackReport, agent: "asked" | "not_sent" | "none"): CoverageNote {
+  const routeSupport = routeAnalysisSupport(stack);
+  const deep = routeSupport.level === "deep";
+  return {
+    name: REASONING_NOTE,
+    why: !deep ? routeSupport.reason
+      : agent === "asked"
+        ? "Attack reasoning runs on your own agent over MCP. ShipLock asked it to reason over this audit; its progress is under AI checks. ShipLock makes no AI calls of its own."
+        : agent === "not_sent"
+          ? "Attack reasoning runs on your own agent over MCP, but this audit could not be sent to it, for example because its monthly limit was reached. ShipLock makes no AI calls of its own."
+          : "Attack reasoning runs on your own agent over MCP, and none is connected. ShipLock makes no AI calls of its own.",
+    effect:
+      "Committed credentials and dependency advisories were still checked. Attack paths were not looked for in this audit, so this run finding none means nothing.",
+    ...(deep && agent === "none" ? { upgrade: "Connect your agent" } : deep && agent === "not_sent" ? { upgrade: "Run the audit again" } : {}),
+  };
+}
+const REASONING_NOTE = "Reasoning about who can reach what";
 
 /** Table names referenced by any route, unioned with what the schema declares. */
 function tablesFrom(routes: RouteFact[], files: ArchiveFile[]): string[] {
@@ -348,7 +362,7 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
     step(`Read-only checkout of ${fullName}`);
 
     const token = await getInstallationToken(installationId);
-    const commit = await getBranchSha(token, fullName, options.defaultBranch);
+    const commit = await getHeadCommit(token, fullName, options.defaultBranch);
     const archive = await fetchRepoArchive(token, fullName, commit);
     step(
       `${archive.files.length} files read`,
@@ -563,11 +577,18 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
     // (lib/intelligence/reasoning.ts). Best effort: the audit is already
     // durable, and Coverage says reasoning has not run until an answer is
     // verified and admitted.
+    let taskId: string | null = null;
     try {
-      await offerAuditReasoning({ userId, repositoryId, runId, commit, fullName, agent, context: reasoning,
+      taskId = await offerAuditReasoning({ userId, repositoryId, runId, commit, fullName, agent, context: reasoning,
         contents: new Map(archive.files.map((f) => [f.path, f.content])) });
     } catch (err) {
       console.warn(`[audit] reasoning task not offered for ${runId}: ${err instanceof Error ? err.message : "unknown"}`);
+    }
+    // Coverage said the agent was asked. If no task exists, say what is true.
+    if (agent && !taskId) {
+      const corrected = coverage.map((note) => (note.name === REASONING_NOTE ? reasoningNote(stack, "not_sent") : note));
+      const { error: noteError } = await admin.from("audit_runs").update({ coverage: corrected }).eq("id", runId);
+      if (noteError) console.error(`[audit] reasoning note not corrected for ${runId}: ${noteError.message}`);
     }
 
     const { error: repoError } = await admin
