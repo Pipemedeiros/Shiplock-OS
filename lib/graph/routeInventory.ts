@@ -352,6 +352,9 @@ const HEADER_READ_RE =
 const MACHINE_GATE_RE =
   /\b(CRON_SECRET|WEBHOOK_SECRET|constructEvent|timingSafeEqual|createHmac|verifyHmac|verifySignature|x-hub-signature|stripe-signature)\b|\.eq\s*\(\s*["']\w*token["']|\bverify[A-Za-z]*(?:Signature|Webhook)[A-Za-z]*\s*\(|\breceiver\s*\.\s*verify\s*\(|(?:!==|===|!=|==)\s*process\.env\.[A-Z0-9_]*(?:SECRET|TOKEN|API_KEY|KEY)\b/i;
 
+/** A wrapper that looked the caller up in a membership table. */
+const MEMBERSHIP_LOOKUP_RE = /\.from\s*\(\s*["'`]\w*(?:member|membership)\w*["'`]\s*\)|\b\w*[mM]embership\w*\s*\.\s*(?:findFirst|findUnique|findMany)\s*\(/;
+
 const SERVICE_ROLE_RE =
   /\b(getSupabaseAdmin|SUPABASE_SERVICE_ROLE_KEY|SERVICE_ROLE_KEY|service_role)\b/;
 
@@ -1244,7 +1247,15 @@ export function analyzeRouteFile(
       const w = traced.sources.find((s) => s.path === p);
       return w !== undefined && STRONG_USER_AUTH_RE.test(w.src);
     });
-  const injectedIdentities = wrapperResolvesIdentity ? traced!.injected : [];
+  // Context handed on in other shapes (a later parameter, or destructured in
+  // the body) counts only when the wrapper also looked the caller up in a
+  // membership table: then the id is the membership's, not the request's.
+  const wrapperReadsMembership = traced !== null && traced.wrapperPaths.some((p) => {
+    const w = traced.sources.find((s) => s.path === p);
+    return w !== undefined && MEMBERSHIP_LOOKUP_RE.test(w.src);
+  });
+  const injectedIdentities = wrapperResolvesIdentity
+    ? [...traced!.injected, ...(wrapperReadsMembership ? traced!.contextInjected : [])] : [];
 
   // The gap questions are asked of the route as written -- wrapper names,
   // `({ workspace }) =>` parameters, 401s -- so they read the unblanked entry
@@ -1408,6 +1419,8 @@ export function analyzeRouteFile(
         filterable = filterable.replace(new RegExp(`\\b${esc}\\s*\\??\\.\\s*(?:\\w*Id|id|uid|sub)\\b`, "g"), "serverEstablishedId");
         // The whole injected object handed on: getDefaultProgramIdOrThrow(workspace).
         filterable = filterable.replace(new RegExp(`\\(\\s*${esc}\\s*\\)`, "g"), "(serverEstablishedId)");
+        // An id the wrapper established, used by itself: `.eq("workspace_id", workspaceId)`.
+        if (/(?:Id|_id)$|^id$/.test(name)) filterable = filterable.replace(new RegExp(`\\b${esc}\\b`, "g"), "serverEstablishedId");
       }
       filterable = propagateDerived(filterable);
     }

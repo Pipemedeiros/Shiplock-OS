@@ -77,6 +77,14 @@ export interface Trace {
    * this module decides from `wrapperPaths`.
    */
   injected: string[];
+  /**
+   * Names the handler takes from a context object its wrapper hands it in
+   * another shape: a later destructured parameter (`(request, { workspaceId })`)
+   * or a named parameter destructured in the body (`const { workspaceId } =
+   * context`). Kept apart from `injected` because the caller credits them only
+   * when the wrapper also reads a membership table.
+   */
+  contextInjected: string[];
   /** Files holding the wrappers the handler was passed to. */
   wrapperPaths: string[];
   /**
@@ -258,6 +266,7 @@ class Walker {
   readonly reachedNormally = new Set<string>();
   readonly reachedAsIdentityConfig = new Set<string>();
   readonly injected = new Set<string>();
+  readonly contextInjected = new Set<string>();
   readonly wrapperPaths = new Set<string>();
   /** Identity calls that run only under a condition on a parameter, per file. */
   readonly conditionalIdentityCalls = new Map<string, Set<ts.Node>>();
@@ -460,7 +469,7 @@ class Walker {
       const identity = this.isIdentityCall(node.expression.getText(mod.sf));
       if (callee) {
         this.include(callee, false, this.suppliedAt(node, this.unwrap(callee.node)), infra);
-        if (root) this.recordWrapper(callee, node);
+        if (root) this.recordWrapper(callee, node, mod);
       } else {
         this.walk(mod, node.expression, new Set(), infra);
       }
@@ -479,16 +488,36 @@ class Walker {
   }
 
   /** `withX(async ({ partner }) => …)` at the root: remember the wrapper and what its handler destructures. */
-  private recordWrapper(callee: Value, call: ts.CallExpression | ts.NewExpression): void {
+  private recordWrapper(callee: Value, call: ts.CallExpression | ts.NewExpression, mod: Module): void {
     this.wrapperPaths.add(callee.mod.path);
     for (const arg of call.arguments ?? []) {
-      const fn = this.unwrap(arg);
-      if (!isFunctionLike(fn)) continue;
-      const first = fn.parameters[0];
-      if (!first || !ts.isObjectBindingPattern(first.name)) continue;
-      for (const el of first.name.elements) {
-        if (ts.isIdentifier(el.name) && !FRAMEWORK_INJECTED.has(el.name.text)) this.injected.add(el.name.text);
+      let fn = this.unwrap(arg);
+      // A named handler: `withRLSContext(handleList)`.
+      if (ts.isIdentifier(fn)) {
+        const named = this.resolveChain(mod, fn);
+        fn = named ? this.unwrap(named.node) : fn;
       }
+      if (!isFunctionLike(fn)) continue;
+      fn.parameters.forEach((param, index) => {
+        if (ts.isObjectBindingPattern(param.name)) {
+          for (const el of param.name.elements) {
+            if (!ts.isIdentifier(el.name) || FRAMEWORK_INJECTED.has(el.name.text)) continue;
+            (index === 0 ? this.injected : this.contextInjected).add(el.name.text);
+          }
+        } else if (index > 0 && ts.isIdentifier(param.name) && fn.body && ts.isBlock(fn.body)) {
+          // `const { workspaceId } = context` at the top of the body.
+          const holder = param.name.text;
+          for (const st of fn.body.statements) {
+            if (!ts.isVariableStatement(st)) continue;
+            for (const d of st.declarationList.declarations) {
+              if (!ts.isObjectBindingPattern(d.name) || !d.initializer || !ts.isIdentifier(d.initializer) || d.initializer.text !== holder) continue;
+              for (const el of d.name.elements) {
+                if (ts.isIdentifier(el.name) && !FRAMEWORK_INJECTED.has(el.name.text)) this.contextInjected.add(el.name.text);
+              }
+            }
+          }
+        }
+      });
     }
   }
 
@@ -818,6 +847,7 @@ export function traceExecutedSources(entry: RepoFile, byPath: Map<string, RepoFi
     sources,
     methods: [...methods].sort(),
     injected: [...walker.injected].sort(),
+    contextInjected: [...walker.contextInjected].sort(),
     wrapperPaths: [...walker.wrapperPaths].sort(),
     conditionalIdentityPaths: [...walker.conditionalIdentityCalls.keys()].sort(),
     unfollowed: [...walker.beyondBudget].filter((p) => !walker.executed.has(p)).sort(),
