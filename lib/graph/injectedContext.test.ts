@@ -111,4 +111,33 @@ describe("a workspace a membership helper returned", () => {
     expect(fact(route, membershipHelper).ownershipFiltered).toBe(false);
   });
 
+  // corpus-owner/inspector requireWorkspaceId and requireWorkspace: the lookup is
+  // one call away inside the helper's own file, and the id comes back bare.
+  const sameFile = `${membershipHelper.replace("export async", "async")}
+export async function requireWorkspaceId() {
+  const membership = await getWorkspaceMembership();
+  if (!membership) throw new Error("No workspace found");
+  return membership.workspaceId;
+}`;
+  const callsBare = `import { requireWorkspaceId } from "@/lib/rls";
+export async function GET(request) {
+  const workspaceId = await requireWorkspaceId();
+  const { data } = await supabase.from("accounts").select("*").eq("workspace_id", workspaceId);
+  return NextResponse.json(data);
+}`;
+
+  it("scopes a bare workspace id a helper returned from a membership lookup in its own file", () => {
+    expect(fact(callsBare, sameFile).ownershipFiltered).toBe(true);
+  });
+
+  it("does not scope when the same-file callee reads no membership table", () => {
+    const header = sameFile.replace(`const { data } = await supabase.from("workspace_members").select("workspace_id").eq("user_id", user.id).single();`,
+      `const data = { workspace_id: headers().get("x-workspace") };`);
+    expect(fact(callsBare, header).ownershipFiltered).toBe(false);
+  });
+
+  it("does not scope a bare holder whose name is not an id", () => {
+    const route = callsBare.replace(/workspaceId/g, "workspace");
+    expect(fact(route, sameFile).ownershipFiltered).toBe(false);
+  });
 });

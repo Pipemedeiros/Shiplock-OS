@@ -649,7 +649,9 @@ export function serverEstablishedIdentities(src: string, resolvers: string[] = [
   const verified = boundFrom(src, VERIFIER_CALL);
   if (resolvers.length === 0) return verified;
   const more = boundFrom(src, `${RECEIVER}(?:${resolvers.map((r) => r.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\s*\\(`);
-  return { names: [...verified.names, ...more.names], holders: [...verified.holders, ...more.holders] };
+  // `const workspaceId = await requireWorkspaceId()`: an id-named holder is the id.
+  const bareIds = more.holders.filter((h) => /(?:^id|Id)$/.test(h));
+  return { names: [...verified.names, ...more.names, ...bareIds], holders: [...verified.holders, ...more.holders] };
 }
 
 /**
@@ -664,10 +666,13 @@ export function membershipResolvers(file: string, content: string, byPath: Map<s
     const helper = byPath.get(path);
     const body = helper ? functionBody(helper.content, name) : null;
     if (!helper || body === null) continue;
+    // One call away: imported callees, and callees declared in the helper's own file.
     const reached = [body];
-    for (const [callee, calleePath] of importsOf(path, helper.content, byPath)) {
-      if (!new RegExp(`\\b${callee}\\s*\\(`).test(body)) continue;
-      const calleeBody = functionBody(byPath.get(calleePath)?.content ?? "", callee);
+    const imported = importsOf(path, helper.content, byPath);
+    for (const callee of new Set([...body.matchAll(/\b(\w+)\s*\(/g)].map((m) => m[1]))) {
+      if (callee === name) continue;
+      if (!imported.has(callee) && !new RegExp(`\\bfunction\\s+${callee}\\b|\\b(?:const|let)\\s+${callee}\\s*=`).test(helper.content)) continue;
+      const calleeBody = functionBody(imported.has(callee) ? byPath.get(imported.get(callee)!)?.content ?? "" : helper.content, callee);
       if (calleeBody) reached.push(calleeBody);
     }
     const text = reached.join("\n");
