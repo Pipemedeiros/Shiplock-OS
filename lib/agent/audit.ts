@@ -280,7 +280,7 @@ export function reasoningNote(stack: StackReport, agent: "asked" | "not_sent" | 
     ...(deep && agent === "none" ? { upgrade: "Connect your agent" } : deep && agent === "not_sent" ? { upgrade: "Run the audit again" } : {}),
   };
 }
-const REASONING_NOTE = "Reasoning about who can reach what";
+export const REASONING_NOTE = "Reasoning about who can reach what";
 
 /** Table names referenced by any route, unioned with what the schema declares. */
 function tablesFrom(routes: RouteFact[], files: ArchiveFile[]): string[] {

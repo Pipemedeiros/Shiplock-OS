@@ -6,6 +6,7 @@ import type { CoverageNote, TraceStep } from "./audit";
 import type { StackReport } from "./stack";
 import type { DomainModel } from "./domain";
 import type { Severity } from "@/lib/types";
+import { withReasoningOutcome, type RunTask } from "@/lib/intelligence/reasoningOutcome";
 
 /**
  * Everything the dashboard reads.
@@ -126,7 +127,23 @@ export async function getRuns(userId: string, limit = 20): Promise<DashboardRun[
     .order("started_at", { ascending: false })
     .limit(limit);
 
-  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+  const rows = (data ?? []) as Array<Record<string, unknown>>;
+  // Item 0c: each run's attack reasoning note follows its own tasks (098).
+  // A failed read keeps the note the audit stored.
+  const runIds = rows.map((row) => String(row.id));
+  const { data: taskRows } = runIds.length
+    ? await admin.from("intelligence_tasks").select("audit_run_id, kind, status, expires_at, result")
+        .eq("user_id", userId).in("audit_run_id", runIds).in("kind", ["attack_reasoning", "attack_verification"])
+    : { data: [] };
+  const tasksByRun = new Map<string, RunTask[]>();
+  for (const t of (taskRows ?? []) as Array<Record<string, unknown>>) {
+    const key = String(t.audit_run_id);
+    tasksByRun.set(key, [...(tasksByRun.get(key) ?? []),
+      { kind: String(t.kind), status: String(t.status), expiresAt: String(t.expires_at), result: t.result }]);
+  }
+  const now = Date.now();
+
+  return rows.map((row) => ({
     id: String(row.id),
     fullName: String(row.full_name),
     status: String(row.status),
@@ -138,7 +155,8 @@ export async function getRuns(userId: string, limit = 20): Promise<DashboardRun[
     tablesFound: (row.tables_found as number) ?? null,
     filesRead: (row.files_read as number) ?? null,
     trace: Array.isArray(row.trace) ? (row.trace as TraceStep[]) : [],
-    coverage: Array.isArray(row.coverage) ? (row.coverage as CoverageNote[]) : [],
+    coverage: withReasoningOutcome(Array.isArray(row.coverage) ? (row.coverage as CoverageNote[]) : [],
+      tasksByRun.get(String(row.id)) ?? [], now),
     error: (row.error as string) ?? null,
     stack: (row.stack as StackReport | null) ?? null,
     domain: (row.domain as DomainModel | null) ?? null,
@@ -155,7 +173,23 @@ export const getRepositories = cache(async (userId: string): Promise<DashboardRe
     .eq("selected", true)
     .order("full_name");
 
-  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+  const rows = (data ?? []) as Array<Record<string, unknown>>;
+  // Item 0c: each run's attack reasoning note follows its own tasks (098).
+  // A failed read keeps the note the audit stored.
+  const runIds = rows.map((row) => String(row.id));
+  const { data: taskRows } = runIds.length
+    ? await admin.from("intelligence_tasks").select("audit_run_id, kind, status, expires_at, result")
+        .eq("user_id", userId).in("audit_run_id", runIds).in("kind", ["attack_reasoning", "attack_verification"])
+    : { data: [] };
+  const tasksByRun = new Map<string, RunTask[]>();
+  for (const t of (taskRows ?? []) as Array<Record<string, unknown>>) {
+    const key = String(t.audit_run_id);
+    tasksByRun.set(key, [...(tasksByRun.get(key) ?? []),
+      { kind: String(t.kind), status: String(t.status), expiresAt: String(t.expires_at), result: t.result }]);
+  }
+  const now = Date.now();
+
+  return rows.map((row) => ({
     id: String(row.id),
     fullName: String(row.full_name),
     lastAuditAt: (row.last_audit_at as string) ?? null,
@@ -177,7 +211,23 @@ export async function getRecentlyClosed(userId: string, days = 30): Promise<{ ti
     .order("archived_at", { ascending: false })
     .limit(10);
 
-  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+  const rows = (data ?? []) as Array<Record<string, unknown>>;
+  // Item 0c: each run's attack reasoning note follows its own tasks (098).
+  // A failed read keeps the note the audit stored.
+  const runIds = rows.map((row) => String(row.id));
+  const { data: taskRows } = runIds.length
+    ? await admin.from("intelligence_tasks").select("audit_run_id, kind, status, expires_at, result")
+        .eq("user_id", userId).in("audit_run_id", runIds).in("kind", ["attack_reasoning", "attack_verification"])
+    : { data: [] };
+  const tasksByRun = new Map<string, RunTask[]>();
+  for (const t of (taskRows ?? []) as Array<Record<string, unknown>>) {
+    const key = String(t.audit_run_id);
+    tasksByRun.set(key, [...(tasksByRun.get(key) ?? []),
+      { kind: String(t.kind), status: String(t.status), expiresAt: String(t.expires_at), result: t.result }]);
+  }
+  const now = Date.now();
+
+  return rows.map((row) => ({
     title: String(row.title),
     when: String(row.archived_at),
   }));
