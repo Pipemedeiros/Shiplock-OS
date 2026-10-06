@@ -76,7 +76,10 @@ function handlerBodies(sf: ts.SourceFile): ts.Block[] | null {
     } else if (ts.isVariableStatement(st) && exported(st)) {
       for (const d of st.declarationList.declarations) {
         if (!ts.isIdentifier(d.name) || !METHODS.has(d.name.text)) continue;
-        const init = d.initializer;
+        // `export const GET = withError("x", async (request) => { … })`: the
+        // handler is the wrapper call's last argument.
+        let init = d.initializer;
+        if (init && ts.isCallExpression(init)) init = init.arguments[init.arguments.length - 1];
         if (!init || !(ts.isArrowFunction(init) || ts.isFunctionExpression(init)) || !ts.isBlock(init.body)) return null;
         bodies.push(init.body);
       }
@@ -87,7 +90,14 @@ function handlerBodies(sf: ts.SourceFile): ts.Block[] | null {
 
 /** What a rejecting branch returns: a 401/403 response, or the helper's own answer. */
 function rejection(branch: ts.Statement, sf: ts.SourceFile): "rejects" | "own" | null {
-  const first = ts.isBlock(branch) ? branch.statements[0] : branch;
+  // Logging may come first (`log.error(…); return …401…`); anything that
+  // awaits or reads data before the return does not reject.
+  let first: ts.Statement | undefined = branch;
+  if (ts.isBlock(branch)) {
+    first = branch.statements.find((st) => !ts.isExpressionStatement(st));
+    const before = branch.statements.slice(0, first ? branch.statements.indexOf(first) : 0);
+    if (before.some((st) => /\bawait\b|\.from\s*\(/.test(st.getText(sf)))) return null;
+  }
   if (!first || !ts.isReturnStatement(first) || !first.expression) return null;
   const text = first.expression.getText(sf);
   if (REJECT_RE.test(text)) return "rejects";
@@ -145,23 +155,46 @@ export function helperGuard(file: string, entry: string, byPath: Files): HelperG
   const bodies = handlerBodies(sf);
   if (!bodies || bodies.length === 0) return null;
   const guards = bodies.map((b) => guardIn(b, sf, new Set(imports.keys())));
-  const first = guards[0];
-  if (!first || guards.some((g) => !g || g.name !== first.name)) return null;
-  const name = first.name, path = imports.get(name)!;
+  if (guards.some((g) => !g)) return null;
+  // Each handler may reject on its own helper; every one must be the same kind.
+  let found: HelperGuard | null = null;
+  for (const name of new Set(guards.map((g) => g!.name))) {
+    const kind = classify(name, imports.get(name)!, guards.some((g) => g!.name === name && g!.own), byPath);
+    if (!kind || (found && found.kind !== kind)) return null;
+    found ??= { kind, path: imports.get(name)! };
+  }
+  return found;
+}
+
+const BARE_SECRET_NAME_RE = /\b(?:CRON_SECRET|WEBHOOK_SECRET)\b/gi;
+
+/** What gate the helper `name` in `path` is, if it is one. */
+function classify(name: string, path: string, own: boolean, byPath: Files): HelperGuard["kind"] | null {
   const helper = byPath.get(path);
   const body = helper ? functionBody(helper.content, name) : null;
   if (!helper || body === null) return null;
   // The helper's answer is returned as the response, so the rejection is the
   // helper's own: it must answer 401 or 403 itself.
-  if (guards.some((g) => g!.own) && !REJECT_RE.test(body)) return null;
-  // One import away from the helper: the functions its body calls.
-  const reached = [body];
-  for (const [callee, calleePath] of importsOf(path, helper.content, byPath)) {
-    if (!new RegExp(`\\b${esc(callee)}\\s*\\(`).test(body)) continue;
-    const calleeBody = functionBody(byPath.get(calleePath)?.content ?? "", callee);
-    if (calleeBody) reached.push(calleeBody);
+  if (own && !REJECT_RE.test(body)) return null;
+  // One call away from the helper: functions it imports, and functions
+  // declared beside it in its own file.
+  const imported = importsOf(path, helper.content, byPath);
+  const callees: string[] = [];
+  for (const callee of new Set([...body.matchAll(/\b(\w+)\s*\(/g)].map((m) => m[1]))) {
+    if (callee === name) continue;
+    const source = imported.has(callee) ? byPath.get(imported.get(callee)!)?.content ?? "" : helper.content;
+    if (!imported.has(callee) && !new RegExp(`\\bfunction\\s+${callee}\\b|\\b(?:const|let)\\s+${callee}\\s*=`).test(source)) continue;
+    const calleeBody = functionBody(source, callee);
+    if (calleeBody) callees.push(calleeBody);
   }
-  if (AUTH_HEADER_RE.test(body) && HASHED_LOOKUP_RE.test(reached.join("\n"))) return { kind: "user", path };
-  if (MACHINE_RE.test(body)) return { kind: "machine", path };
+  const reached = [body, ...callees].join("\n");
+  if (AUTH_HEADER_RE.test(body) && HASHED_LOOKUP_RE.test(reached)) return "user";
+  if (MACHINE_RE.test(body)) return "machine";
+  // A callee's comparison is the gate only when the helper was handed the
+  // request itself (corpus-w's verifyPat(pat) signs a cache entry beside a
+  // GitHub token check), and only for a comparison, not a secret's name.
+  const params = new RegExp(`(?:function\\s+${name}|\\b${name}\\s*=\\s*(?:async\\s*)?(?:function\\s*)?)\\s*\\(([^)]*)\\)`).exec(helper.content)?.[1] ?? "";
+  const takesRequest = /^\s*(?:_?req|request)\b|^[^,]*:\s*(?:Next)?Request\b/.test(params);
+  if (takesRequest && callees.some((c) => MACHINE_RE.test(c.replace(BARE_SECRET_NAME_RE, " ")))) return "machine";
   return null;
 }

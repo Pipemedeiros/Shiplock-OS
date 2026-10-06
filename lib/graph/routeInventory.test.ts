@@ -384,6 +384,40 @@ describe("gate classification — user session vs machine secret vs open", () =>
     expect(routes[0].authenticated).toBe(false);
   });
 
+  // corpus-owner/inspector /api/sync/trigger: the route SENDS the cron secret to
+  // another endpoint. Naming a secret on the way out gates nothing coming in;
+  // credited, it would hide an open route behind a gate it never checks.
+  it("does not credit a secret the route only sends in an outbound request", () => {
+    const routes = collectRoutes(
+      files(["app/api/sync/route.ts", `export async function POST(request){ const body = await request.json(); await fetch(url, { headers: { Authorization: \`Bearer \${process.env.CRON_SECRET}\` } }); return admin.from("jobs").insert(body) }`])
+    );
+    expect(routes[0].machineGated).toBe(false);
+  });
+
+  it("still credits a cron secret checked against the request's query string", () => {
+    const routes = collectRoutes(
+      files(["app/api/cron/route.ts", `export async function GET(request){ const secret = process.env.CRON_SECRET; if (request.nextUrl.searchParams.get("key") !== secret) return new Response("no", { status: 401 }); return admin.from("jobs").select() }`])
+    );
+    expect(routes[0].machineGated).toBe(true);
+  });
+
+  // corpus-h internal routes: the headers arrive destructured from a route
+  // framework, and the comparison is against a template holding the secret.
+  it("credits a comparison with a template holding the cron secret", () => {
+    const routes = collectRoutes(
+      files(["app/api/internal/route.ts", `export const GET = handler({ async handler({ headers }) { if (headers.authorization[0] !== \`Bearer \${getEnvVariable("CRON_SECRET")}\`) throw new StatusError(401); return admin.from("jobs").select() } })`])
+    );
+    expect(routes[0].machineGated).toBe(true);
+  });
+
+  // corpus-owner/corpus-d house-keeping: Hono's bearerAuth checks the token.
+  it("credits Hono bearerAuth given the cron secret", () => {
+    const routes = collectRoutes(
+      files(["app/api/house/route.ts", `const app = new Hono(); app.use("*", (c, next) => bearerAuth({ token: process.env.CRON_SECRET })(c, next)); app.get("/x", async (c) => c.json(await admin.from("jobs").delete())); export const GET = handle(app);`])
+    );
+    expect(routes[0].machineGated).toBe(true);
+  });
+
   // A real user session alongside a secret is still a user session.
   it("keeps user auth when a STRONG identity signal is present too", () => {
     const routes = collectRoutes(

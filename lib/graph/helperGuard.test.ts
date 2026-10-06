@@ -154,4 +154,109 @@ export async function POST(request: Request) {
 }`, { "lib/workerAuth.ts": workerAuth, "lib/other.ts": `export function isAuthorizedWorker(request: Request) { return request.method === "POST"; }` });
     expect(r.machineGated).toBe(false);
   });
+
+  // corpus-owner/corpus-u lib/security/route-auth.ts: the comparison sits in
+  // a function declared next to the helper, not in the helper's own body.
+  const routeAuth = `import { timingSafeEqual } from "node:crypto";
+function bearer(request: Request) { return request.headers.get("authorization")?.slice(7) ?? ""; }
+function safeEqual(a: string, b: string) { const l = Buffer.from(a), r = Buffer.from(b); return l.length === r.length && timingSafeEqual(l, r); }
+export function isAutomationAuthorized(request: Request): boolean {
+  const secret = process.env.INDEXER_SECRET;
+  if (!secret) return false;
+  return safeEqual(bearer(request), secret);
+}`;
+  const automationRoute = `import { isAutomationAuthorized } from "@/lib/routeAuth";
+export async function GET(request: Request) {
+  if (!isAutomationAuthorized(request)) return Response.json({ error: "x" }, { status: 401 });
+  ${data}
+  return Response.json(data);
+}`;
+
+  it("credits a comparison made by a function declared beside the helper", () => {
+    expect(fact(automationRoute, { "lib/routeAuth.ts": routeAuth }).machineGated).toBe(true);
+  });
+
+  it("credits nothing when the function beside the helper compares nothing", () => {
+    const loose = routeAuth.replace("return l.length === r.length && timingSafeEqual(l, r);", "return a.length > 0 && b.length > 0;");
+    expect(fact(automationRoute, { "lib/routeAuth.ts": loose }).machineGated).toBe(false);
+  });
+
+  // corpus-owner/corpus-v follow-up-reminders: handlers wrapped in withError, and
+  // GET and POST each reject on their own secret helper.
+  const twoHelpers = workerAuth + "\n" + workerAuth.replace("isAuthorizedWorker", "isAuthorizedPost");
+  const wrapped = `import { isAuthorizedWorker, isAuthorizedPost } from "@/lib/workerAuth";
+export const GET = withError("x", async (request) => {
+  if (!isAuthorizedWorker(request)) return new Response("Unauthorized", { status: 401 });
+  ${data}
+  return Response.json(data);
+});
+export const POST = withError("x", async (request) => {
+  if (!isAuthorizedPost(request)) return new Response("Unauthorized", { status: 401 });
+  ${data}
+  return Response.json(data);
+});`;
+
+  it("credits handlers wrapped in a call, each rejecting on its own machine helper", () => {
+    expect(fact(wrapped, { "lib/workerAuth.ts": twoHelpers }).machineGated).toBe(true);
+  });
+
+  it("credits nothing when one wrapped handler opens without a guard", () => {
+    const open = wrapped.replace(`if (!isAuthorizedPost(request)) return new Response("Unauthorized", { status: 401 });`, "");
+    expect(fact(open, { "lib/workerAuth.ts": twoHelpers }).machineGated).toBe(false);
+  });
+
+  it("credits nothing when the second handler's helper compares no secret", () => {
+    const mixed = workerAuth + "\n" + `export function isAuthorizedPost(request: Request) { return request.method === "POST"; }`;
+    expect(fact(wrapped, { "lib/workerAuth.ts": mixed }).machineGated).toBe(false);
+  });
+
+  // corpus-w lib/github-auth.ts: verifyPat checks any GitHub user's token;
+  // the HMAC beside it only signs a cache entry. Not a machine gate.
+  it("credits nothing for a comparison beside a helper that is handed a value, not the request", () => {
+    const githubAuth = `import { createHmac, timingSafeEqual } from "crypto";
+function verifyCacheValue(v: string) { const [l, sig] = v.split("."); return timingSafeEqual(Buffer.from(sig), createHmac("sha256", k).update(l).digest()) ? l : null; }
+export const verifyPat = async (pat: string): Promise<string | null> => {
+  const cached = await redis.get(pat);
+  if (cached) return verifyCacheValue(cached);
+  const res = await fetch("https://api.github.com/user", { headers: { Authorization: \`token \${pat}\` } });
+  return res.ok ? (await res.json()).login : null;
+};`;
+    const route = `import { verifyPat } from "@/lib/githubAuth";
+export async function POST(req: Request) {
+  const login = await verifyPat(req.headers.get("x-gh-token") ?? "");
+  if (!login) return Response.json({ error: "x" }, { status: 401 });
+  ${data}
+  return Response.json(data);
+}`;
+    expect(fact(route, { "lib/githubAuth.ts": githubAuth }).machineGated).toBe(false);
+  });
+
+  // corpus-owner/inspector /api/cron/signal-detection, corpus-v: the rejecting
+  // branch logs before it returns.
+  it("credits a rejecting branch that logs before it returns", () => {
+    const r = fact(`import { isAuthorizedWorker } from "@/lib/workerAuth";
+export async function GET(request: Request) {
+  const startTime = Date.now();
+  if (!isAuthorizedWorker(request)) {
+    log.error("Unauthorized request");
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  ${data}
+  return Response.json(data);
+}`, { "lib/workerAuth.ts": workerAuth });
+    expect(r.machineGated).toBe(true);
+  });
+
+  it("credits nothing when the failure branch does work before returning", () => {
+    const r = fact(`import { isAuthorizedWorker } from "@/lib/workerAuth";
+export async function GET(request: Request) {
+  if (!isAuthorizedWorker(request)) {
+    await db.from("jobs").delete().neq("id", "");
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  ${data}
+  return Response.json(data);
+}`, { "lib/workerAuth.ts": workerAuth });
+    expect(r.machineGated).toBe(false);
+  });
 });

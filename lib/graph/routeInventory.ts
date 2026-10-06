@@ -352,6 +352,21 @@ const HEADER_READ_RE =
 const MACHINE_GATE_RE =
   /\b(CRON_SECRET|WEBHOOK_SECRET|constructEvent|timingSafeEqual|createHmac|verifyHmac|verifySignature|x-hub-signature|stripe-signature)\b|\.eq\s*\(\s*["']\w*token["']|\bverify[A-Za-z]*(?:Signature|Webhook)[A-Za-z]*\s*\(|\breceiver\s*\.\s*verify\s*\(|(?:!==|===|!=|==)\s*process\.env\.[A-Z0-9_]*(?:SECRET|TOKEN|API_KEY|KEY)\b/i;
 
+/**
+ * A bare shared-secret NAME gates only a route that reads something inbound
+ * to compare it with (headers, URL, query). A route that only sends
+ * CRON_SECRET to another endpoint (inspector /api/sync/trigger) is not gated.
+ */
+const BARE_SECRET_NAME_RE = /\b(?:CRON_SECRET|WEBHOOK_SECRET)\b/gi;
+// A comparison with a template holding the secret, or Hono's bearerAuth
+// given it, is the check itself wherever the headers came from.
+const SECRET_COMPARED_RE = /(?:!==|===|!=|==)\s*`[^`]*\b(?:CRON|WEBHOOK)_SECRET\b|\bbearerAuth\s*\(\s*\{\s*token\s*:/;
+const INBOUND_READ_RE = /\b(?:_?req|request|\w{1,24}Request)\s*\??\.\s*(?:headers|nextUrl|url|query|cookies)\b|\bheaders\s*\(\s*\)|\bsearchParams\b/i;
+function machineGateIn(src: string): boolean {
+  if (MACHINE_GATE_RE.test(src.replace(BARE_SECRET_NAME_RE, " "))) return true;
+  return MACHINE_GATE_RE.test(src) && (INBOUND_READ_RE.test(src) || SECRET_COMPARED_RE.test(src));
+}
+
 /** A wrapper that looked the caller up in a membership table. */
 const MEMBERSHIP_LOOKUP_RE = /\.from\s*\(\s*["'`]\w*(?:member|membership)\w*["'`]\s*\)|\b\w*[mM]embership\w*\s*\.\s*(?:findFirst|findUnique|findMany)\s*\(/;
 
@@ -1402,7 +1417,7 @@ export function analyzeRouteFile(
     }
     // A machine gate only counts from the ROUTE FILE. A helper that happens to
     // mention a secret name does not gate the endpoint that imports it.
-    if (isEntry && MACHINE_GATE_RE.test(src)) {
+    if (isEntry && machineGateIn(src)) {
       machineGated = true;
     } else if (!isEntry && MACHINE_GATE_RE.test(src)) {
       // The existing conservatism is kept exactly: a helper that MENTIONS a
