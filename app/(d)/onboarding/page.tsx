@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { LockMark } from "@/components/d/Brand";
 import { getSupabaseServer } from "@/lib/supabaseServer";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { mfaDecision } from "@/lib/mfa";
 import { OnboardingFlow } from "@/components/v3/OnboardingFlow";
 import { getInstallationToken, listRepos } from "@/lib/deep/github";
 
@@ -26,6 +27,11 @@ export default async function Onboarding() {
   const supabase = await getSupabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth?next=/onboarding");
+  // Two-step sign-in (lib/mfa.ts): this page lists private repositories, so a
+  // user with an authenticator enters the code first. getUser's factors are
+  // the auth server's answer; an unreadable level fails closed.
+  const { data: claimData, error: claimError } = await supabase.auth.getClaims();
+  if (mfaDecision(claimError ? undefined : claimData?.claims?.aal, user.factors ?? []) !== "ok") redirect("/auth/mfa?next=/onboarding");
 
   const admin = getSupabaseAdmin();
   const { data: profile } = await admin
