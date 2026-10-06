@@ -20,6 +20,7 @@ import { inferDomain } from "./domain";
 import { loadLiveFacts } from "./liveFacts";
 import { unassessedNote, summarizeUnassessed } from "./unassessed";
 import { approvedAgent, offerAuditReasoning, reasoningContext, type ApprovedAgent } from "@/lib/intelligence/reasoning";
+import { auditProgress } from "./auditProgress";
 
 /**
  * One audit of one repository, start to finish.
@@ -319,8 +320,17 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
   const admin = getSupabaseAdmin();
   const startedAt = Date.now();
   const trace: TraceStep[] = [];
+  // A durable run saves its trace after each step, fenced to this worker's
+  // token and to a run still marked running, so the dashboard and an agent
+  // polling the run watch it work (auditProgress.ts).
+  const progress = auditProgress(async (soFar) => {
+    if (!options.runId || !options.jobLease) return;
+    await admin.from("audit_runs").update({ trace: soFar }).eq("id", options.runId)
+      .eq("audit_execution_token", options.jobLease.token).eq("status", "running");
+  });
   const step = (label: string, note?: string, found?: boolean) => {
     trace.push({ time: clock(startedAt), label, ...(note ? { note } : {}), ...(found ? { found } : {}) });
+    progress.wrote(trace);
   };
   if (Boolean(options.runId) !== Boolean(options.jobLease)) throw new Error("Invalid durable audit context");
 
@@ -529,6 +539,7 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
     // customer action through the repair endpoints. Analysis permission is not
     // repair permission, even when a fix is mechanical.
 
+    await progress.flush();
     let completeWrite = admin
       .from("audit_runs")
       .update({
@@ -619,6 +630,7 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
     // Direct work is marked failed and kept. Durable work returns to queued so
     // the client does not mistake a retryable attempt for a terminal result;
     // the queue marks it failed only when attempts are exhausted/permanent.
+    await progress.flush();
     let failWrite = admin
       .from("audit_runs")
       .update(options.jobLease

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
-import { startAndWaitForAudit } from "./auditClient";
+import { startAndWaitForAudit, type AuditRunState } from "./auditClient";
 
 /**
  * Runs an audit now.
@@ -17,6 +17,7 @@ export function RunAuditButton({ repository, secondary = false }: { repository: 
   const router = useRouter();
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [run, setRun] = useState<AuditRunState | null>(null);
 
   return (
     <div style={{ textAlign: "right" }}>
@@ -26,19 +27,36 @@ export function RunAuditButton({ repository, secondary = false }: { repository: 
         onClick={async () => {
           setRunning(true);
           setError(null);
+          setRun(null);
           try {
-            await startAndWaitForAudit(repository);
+            await startAndWaitForAudit(repository, setRun);
             router.refresh();
           } catch (err) {
             setError(err instanceof Error ? err.message : "Something went wrong.");
           } finally {
             setRunning(false);
+            setRun(null);
           }
         }}
       >
         {running ? <><Loader2 size={14} className="v3-spin" /> Auditing…</> : "Run an audit"}
       </button>
+      {running ? <AuditProgressLine run={run} /> : null}
       {error ? <p role="alert" className="v3-small" style={{ color: "var(--crit)", marginTop: 6 }}>{error}</p> : null}
     </div>
+  );
+}
+
+/** The step a running audit is on, as one status message read aloud once
+ * per change. The trace is the audit's own record, saved as it runs. */
+export function AuditProgressLine({ run }: { run: AuditRunState | null }) {
+  if (!run) return null;
+  const last = run.trace[run.trace.length - 1];
+  const text = run.status === "queued" ? "Queued. Waiting for a worker to pick it up."
+    : last ? `Step ${run.trace.length}. ${last.label}` : "Starting the read-only checkout.";
+  return (
+    <p role="status" aria-atomic="true" className="v3-small" style={{ marginTop: 6, maxWidth: 320, marginLeft: "auto" }}>
+      {text}
+    </p>
   );
 }

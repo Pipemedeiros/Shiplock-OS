@@ -9,7 +9,7 @@ import { getHotRoutes, type HotRouteOffer } from "@/lib/traffic/hotRoutes";
 import { buildRouteMap } from "@/lib/routeMap";
 import { When } from "@/components/v3/When";
 import { Metric, Verdict } from "@/components/v3/Verdict";
-import { verdictOf } from "@/lib/verdict";
+import { auditState, verdictOf } from "@/lib/verdict";
 import { getRecentPullRequestReviews } from "@/lib/agent/pullRequestReviews";
 
 export const metadata = { title: "Overview" };
@@ -38,7 +38,9 @@ export default async function Overview() {
     );
   }
 
-  const latest = runs[0];
+  // The status reads the newest FINISHED audit; one in progress is shown as
+  // in progress, never as a clean run with nothing read yet.
+  const { current, finished: latest } = auditState(runs);
   // Q27: the map is built from the last audit's stored route facts; the
   // source snapshot is read only when an older run has none.
   const mapRepo = repos.find((r) => r.fullName === latest?.fullName) ?? repos[0];
@@ -68,7 +70,8 @@ export default async function Overview() {
       <div className="v3-page-hd">
         <div>
           <p className="v3-eyebrow">
-            {latest ? <>{latest.fullName} · Last audit <When at={latest.startedAt} /></> : repos[0].fullName}
+            {current ? <>{current.fullName} · Audit {current.status === "queued" ? "queued" : "running now"}</>
+              : latest ? <>{latest.fullName} · Last audit <When at={latest.startedAt} /></> : repos[0].fullName}
           </p>
           <h1>Overview</h1>
         </div>

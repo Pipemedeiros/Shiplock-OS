@@ -47,3 +47,13 @@ it("caps foreground waiting at ninety seconds rather than trapping onboarding", 
   await assertion;
   expect(fetchMock).toHaveBeenCalledTimes(91);
 });
+
+it("says a run still working at the cap is running, not queued", async () => {
+  vi.stubGlobal("fetch", vi.fn()
+    .mockResolvedValueOnce(new Response(JSON.stringify({runId:"22222222-2222-4222-8222-222222222222"}),{status:202}))
+    .mockImplementation(() => Promise.resolve(new Response(JSON.stringify({status:"running",trace:[{time:"1s",label:"412 files read"}],findings_count:0,entries_found:null}),{status:200}))));
+  const promise = startAndWaitForAudit("acme/app");
+  const assertion = expect(promise).rejects.toThrow("still running");
+  await vi.advanceTimersByTimeAsync(90_000);
+  await assertion;
+});

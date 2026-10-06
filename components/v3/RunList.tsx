@@ -27,10 +27,13 @@ export function RunList({ runs }: { runs: DashboardRun[] }) {
                 </b>
                 <span className="v3-file">{run.fullName}</span>
                 {run.status === "failed" ? <span className="v3-tag crit">stopped</span> : null}
+                {run.status === "queued" || run.status === "running" ? <span className="v3-tag">{run.status}</span> : null}
               </div>
               <p className="v3-small" style={{ marginTop: 3 }}>
                 {run.status === "failed"
                   ? run.error ?? "no reason recorded"
+                  : run.status === "queued" ? "Waiting for a worker to pick it up."
+                  : run.status === "running" ? (run.trace.length ? `Step ${run.trace.length}. ${run.trace[run.trace.length - 1].label}` : "Starting the read-only checkout.")
                   : `${run.filesRead ?? 0} files · ${run.entriesFound ?? 0} entries · ${run.tablesFound ?? 0} tables · ${run.findingsCount} ${run.findingsCount === 1 ? "finding" : "findings"}`}
               </p>
             </div>

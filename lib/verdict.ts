@@ -35,3 +35,10 @@ export function verdictOf(input: VerdictInput): Verdict {
   return { level: "clear", word: "No open issues",
     summary: input.unread > 0 ? `${n(input.unread, "area was", "areas were")} not checked.` : "In the code this audit read." };
 }
+
+/** The audit in progress, if the newest run is queued or running, and the
+ * newest finished run the status should read meanwhile. */
+export function auditState<R extends { status: string }>(runs: readonly R[]): { current: R | null; finished: R | null } {
+  const current = runs[0] && (runs[0].status === "queued" || runs[0].status === "running") ? runs[0] : null;
+  return { current, finished: runs.find((r) => r.status === "complete" || r.status === "failed") ?? null };
+}

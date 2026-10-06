@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { verdictOf } from "./verdict";
+import { auditState, verdictOf } from "./verdict";
 
 const f = (severity: "CRITICAL" | "WARNING" | "INFO", confidence: "proven" | "corroborated" | "inferred" = "corroborated") => ({ severity, confidence });
 const base = { audited: true, lastRunFailed: false, findings: [], unread: 0, blockedPrs: 0 };
@@ -36,5 +36,25 @@ describe("verdict", () => {
 
   it("keeps an earlier exposure visible even if the last run stopped", () => {
     expect(verdictOf({ ...base, lastRunFailed: true, findings: [f("CRITICAL")] })).toMatchObject({ level: "exposed" });
+  });
+});
+
+// Felipe 2026-10-06: an audit in progress is shown as in progress, and the
+// status keeps reading the last finished audit until the new one is done.
+describe("auditState", () => {
+  const run = (status: string, id: string) => ({ status, id });
+  it("keeps the last finished audit while a newer one runs", () => {
+    const s = auditState([run("running", "b"), run("complete", "a")]);
+    expect(s.current?.id).toBe("b");
+    expect(s.finished?.id).toBe("a");
+  });
+  it("treats a queued audit as in progress and a failed one as finished", () => {
+    const s = auditState([run("queued", "c"), run("failed", "b"), run("complete", "a")]);
+    expect(s.current?.id).toBe("c");
+    expect(s.finished?.id).toBe("b");
+  });
+  it("has nothing in progress when the newest run is done", () => {
+    expect(auditState([run("complete", "a")])).toEqual({ current: null, finished: run("complete", "a") });
+    expect(auditState([])).toEqual({ current: null, finished: null });
   });
 });
