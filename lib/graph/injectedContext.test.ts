@@ -77,3 +77,38 @@ describe("a workspace a membership wrapper established", () => {
     expect(fact(route, membershipWrapper).ownershipFiltered).toBe(false);
   });
 });
+
+// The same evidence when the handler calls the membership helper itself:
+// `const membership = await getWorkspaceMembership()`, then filters on
+// `membership.workspaceId` (inspector, 2026-10-06 dev labels).
+const membershipHelper = `export async function getWorkspaceMembership() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const { data } = await supabase.from("workspace_members").select("workspace_id").eq("user_id", user.id).single();
+  return data ? { workspaceId: data.workspace_id, userId: user.id } : null;
+}`;
+const callsHelper = `import { getWorkspaceMembership } from "@/lib/rls";
+export async function GET(request) {
+  const membership = await getWorkspaceMembership();
+  if (!membership) return NextResponse.json({ error: "x" }, { status: 401 });
+  const { data } = await supabase.from("accounts").select("*").eq("workspace_id", membership.workspaceId);
+  return NextResponse.json(data);
+}`;
+
+describe("a workspace a membership helper returned", () => {
+  it("scopes a filter on the membership the helper looked up for the caller", () => {
+    expect(fact(callsHelper, membershipHelper)).toMatchObject({ authenticated: true, ownershipFiltered: true });
+  });
+
+  it("does not scope when the helper reads no membership table", () => {
+    const header = membershipHelper.replace(`const { data } = await supabase.from("workspace_members").select("workspace_id").eq("user_id", user.id).single();`,
+      `const data = { workspace_id: headers().get("x-workspace") };`);
+    expect(fact(callsHelper, header).ownershipFiltered).toBe(false);
+  });
+
+  it("does not scope a filter on a request value beside the membership", () => {
+    const route = callsHelper.replace(`.eq("workspace_id", membership.workspaceId)`, `.eq("workspace_id", new URL(request.url).searchParams.get("w"))`);
+    expect(fact(route, membershipHelper).ownershipFiltered).toBe(false);
+  });
+
+});

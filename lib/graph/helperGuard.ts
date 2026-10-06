@@ -31,7 +31,7 @@ export type HelperGuard = { kind: "machine" | "user"; path: string };
 type Files = ReadonlyMap<string, { path: string; content: string }>;
 
 /** Named imports of a file, local name to resolved repository path. */
-function importsOf(file: string, content: string, byPath: Files): Map<string, string> {
+export function importsOf(file: string, content: string, byPath: Files): Map<string, string> {
   const out = new Map<string, string>();
   for (const m of content.matchAll(/import\s*(?:type\s+)?\{([^}]*)\}\s*from\s*["']([^"']+)["']/g)) {
     if (/^import\s*type\b/.test(m[0])) continue;

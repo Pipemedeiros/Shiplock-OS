@@ -1,6 +1,6 @@
 import type { RepoFile } from "@/lib/deep/githubScan";
 import { stripComments, resolveImport, stringSpans, stringLiteralRanges } from "@/lib/deep/clientExposure";
-import { helperGuard } from "./helperGuard";
+import { functionBody, helperGuard, importsOf } from "./helperGuard";
 import { blankDeclarations } from "./declarations";
 import { traceExecutedSources } from "./callPath";
 import { isWorkspacePackageImport } from "./tsconfigPaths";
@@ -645,8 +645,35 @@ function boundFrom(src: string, call: string): { names: string[]; holders: strin
 }
 
 /** Names and holders whose value came out of a verifier: server-established. */
-export function serverEstablishedIdentities(src: string): { names: string[]; holders: string[] } {
-  return boundFrom(src, VERIFIER_CALL);
+export function serverEstablishedIdentities(src: string, resolvers: string[] = []): { names: string[]; holders: string[] } {
+  const verified = boundFrom(src, VERIFIER_CALL);
+  if (resolvers.length === 0) return verified;
+  const more = boundFrom(src, `${RECEIVER}(?:${resolvers.map((r) => r.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\s*\\(`);
+  return { names: [...verified.names, ...more.names], holders: [...verified.holders, ...more.holders] };
+}
+
+/**
+ * Imported functions that look the CALLER up in a membership table: their
+ * body (or a function it calls, one import away) resolves a user session and
+ * reads a membership table. What they return is the caller's own membership,
+ * so its ids are server-established (class C, 2026-10-06).
+ */
+export function membershipResolvers(file: string, content: string, byPath: Map<string, RepoFile>): string[] {
+  const out: string[] = [];
+  for (const [name, path] of importsOf(file, content, byPath)) {
+    const helper = byPath.get(path);
+    const body = helper ? functionBody(helper.content, name) : null;
+    if (!helper || body === null) continue;
+    const reached = [body];
+    for (const [callee, calleePath] of importsOf(path, helper.content, byPath)) {
+      if (!new RegExp(`\\b${callee}\\s*\\(`).test(body)) continue;
+      const calleeBody = functionBody(byPath.get(calleePath)?.content ?? "", callee);
+      if (calleeBody) reached.push(calleeBody);
+    }
+    const text = reached.join("\n");
+    if (STRONG_USER_AUTH_RE.test(text) && MEMBERSHIP_LOOKUP_RE.test(text)) out.push(name);
+  }
+  return out;
 }
 
 /** Names and holders whose value came out of decoding or parsing request data: caller-supplied. */
@@ -724,7 +751,7 @@ export function requestSuppliedIdentities(src: string): string[] {
  * it bound -- which must still be neutralised everywhere they are USED -- can
  * only be recovered from the unblanked text.
  */
-export function withoutIdentityResolution(src: string, original: string = src): string {
+export function withoutIdentityResolution(src: string, original: string = src, resolvers: string[] = []): string {
   let out = src.replace(IDENTITY_RESOLUTION_RE, " ").replace(IDENTITY_GUARD_RE, " ");
 
   // Drop the request-reading statement itself. Neutralising the local name is
@@ -761,7 +788,7 @@ export function withoutIdentityResolution(src: string, original: string = src): 
 
   const decoded = callerDecodedIdentities(original);
   out = renameAll(out, decoded.names.filter((n) => !supplied.has(n)), decoded.holders, "attackerSupplied");
-  const server = serverEstablishedIdentities(original);
+  const server = serverEstablishedIdentities(original, resolvers);
   const tainted = new Set([...supplied, ...decoded.names, ...decoded.holders, ...requestHolders]);
   out = renameAll(
     out,
@@ -1254,6 +1281,8 @@ export function analyzeRouteFile(
     const w = traced.sources.find((s) => s.path === p);
     return w !== undefined && MEMBERSHIP_LOOKUP_RE.test(w.src);
   });
+  // Membership helpers the route itself calls (class C).
+  const resolvers = byPath ? membershipResolvers(file, stripComments(content), byPath) : [];
   const injectedIdentities = wrapperResolvesIdentity
     ? [...traced!.injected, ...(wrapperReadsMembership ? traced!.contextInjected : [])] : [];
 
@@ -1412,7 +1441,7 @@ export function analyzeRouteFile(
     // A data helper that genuinely scopes on the route's behalf still counts,
     // because it does not resolve identity itself.
     const ownershipCounts = isEntry || !resolvesIdentity;
-    let filterable = withoutIdentityResolution(src, original);
+    let filterable = withoutIdentityResolution(src, original, isEntry ? resolvers : []);
     if (isEntry && injectedIdentities.length > 0) {
       for (const name of injectedIdentities) {
         const esc = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
