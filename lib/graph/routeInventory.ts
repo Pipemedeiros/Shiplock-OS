@@ -1,6 +1,6 @@
 import type { RepoFile } from "@/lib/deep/githubScan";
 import { stripComments, resolveImport, stringSpans, stringLiteralRanges } from "@/lib/deep/clientExposure";
-import { functionBody, helperGuard, importsOf } from "./helperGuard";
+import { filteredParameters, functionBody, helperGuard, importsOf } from "./helperGuard";
 import { blankDeclarations } from "./declarations";
 import { traceExecutedSources } from "./callPath";
 import { isWorkspacePackageImport } from "./tsconfigPaths";
@@ -694,6 +694,22 @@ export function membershipResolvers(file: string, content: string, byPath: Map<s
     if (STRONG_USER_AUTH_RE.test(text) && MEMBERSHIP_LOOKUP_RE.test(text)) out.push(name);
   }
   return out;
+}
+
+/** Whether `filterable` hands the server-established marker to an imported
+ * function at a position that function's own query filters on. */
+function scopesThroughHelper(file: string, original: string, filterable: string, byPath: Map<string, RepoFile>): boolean {
+  const imports = importsOf(file, original, byPath);
+  for (const m of filterable.matchAll(/\b(\w+)\s*\(([^()]*)\)/g)) {
+    const path = imports.get(m[1]);
+    if (!path) continue;
+    const args = m[2].split(",").map((a) => a.trim());
+    const at = args.indexOf("serverEstablishedId");
+    if (at === -1) continue;
+    const helper = byPath.get(path);
+    if (helper && filteredParameters(helper.content, m[1]).has(at)) return true;
+  }
+  return false;
 }
 
 /** Names and holders whose value came out of decoding or parsing request data: caller-supplied. */
@@ -1472,6 +1488,13 @@ export function analyzeRouteFile(
         if (/(?:Id|_id)$|^id$/.test(name)) filterable = filterable.replace(new RegExp(`\\b${esc}\\b`, "g"), "serverEstablishedId");
       }
       filterable = propagateDerived(filterable);
+    }
+    // A trusted id handed to a data helper whose own query filters on that
+    // parameter (one hop, by position): computeSetupStatus(membership.workspaceId).
+    if (isEntry && byPath && !ownershipFiltered && filterable.includes("serverEstablishedId")
+        && scopesThroughHelper(file, original, filterable, byPath)) {
+      contributed = true;
+      ownershipFiltered = true;
     }
     // The column-side pattern is NOT quote-filtered: its match begins inside
     // the column name's own quotes (`.eq('user_id', ...)`), which is the shape

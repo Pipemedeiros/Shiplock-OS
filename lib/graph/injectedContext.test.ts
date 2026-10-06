@@ -141,3 +141,47 @@ export async function GET(request) {
     expect(fact(route, sameFile).ownershipFiltered).toBe(false);
   });
 });
+
+// corpus-owner/inspector setup-status, credential readers: the server-established
+// workspace id is handed to a data helper whose own query filters on that
+// parameter. One hop, matched by position.
+describe("a trusted id handed to a data helper that filters on it", () => {
+  const facts = (route: string, helper: string) => {
+    const files = { "lib/rls.ts": membershipHelper, "lib/status.ts": helper, "app/api/accounts/route.ts": route };
+    const byPath = new Map(Object.entries(files).map(([path, content]) => [path, { path, content }]));
+    return analyzeRouteFile("app/api/accounts/route.ts", route, byPath);
+  };
+  const route = `import { getWorkspaceMembership } from "@/lib/rls";
+import { computeStatus } from "@/lib/status";
+export async function GET(request) {
+  const membership = await getWorkspaceMembership();
+  if (!membership) return NextResponse.json({ error: "x" }, { status: 401 });
+  return NextResponse.json(await computeStatus(membership.workspaceId));
+}`;
+  const scoped = `export async function computeStatus(workspaceId: string) {
+  const { data } = await supabase.from("integration_configs").select("*").eq("workspace_id", workspaceId);
+  return data;
+}`;
+
+  it("scopes when the helper filters on the parameter it was handed", () => {
+    expect(facts(route, scoped)).toMatchObject({ authenticated: true, ownershipFiltered: true });
+  });
+
+  it("does not scope when the helper filters on something else", () => {
+    const other = scoped.replace(`.eq("workspace_id", workspaceId)`, `.eq("status", "active")`);
+    expect(facts(route, other).ownershipFiltered).toBe(false);
+  });
+
+  it("does not scope when the trusted id lands in a parameter the helper never filters on", () => {
+    const twoParams = `export async function computeStatus(name: string, workspaceId: string) {
+  const { data } = await supabase.from("integration_configs").select("*").eq("workspace_id", workspaceId);
+  return data;
+}`;
+    expect(facts(route, twoParams).ownershipFiltered).toBe(false);
+  });
+
+  it("does not scope a request value handed to the same helper", () => {
+    const fromRequest = route.replace("computeStatus(membership.workspaceId)", `computeStatus(new URL(request.url).searchParams.get("w"))`);
+    expect(facts(fromRequest, scoped).ownershipFiltered).toBe(false);
+  });
+});

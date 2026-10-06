@@ -198,3 +198,34 @@ function classify(name: string, path: string, own: boolean, byPath: Files): Help
   if (takesRequest && callees.some((c) => MACHINE_RE.test(c.replace(BARE_SECRET_NAME_RE, " ")))) return "machine";
   return null;
 }
+
+/**
+ * The positions of `name`'s parameters that its own body uses as a filter
+ * value: `.eq("workspace_id", p)`, `.match({ col: p })`, `where: { col: p }`
+ * or `where: { p }`. Used to credit a trusted id handed to a data helper
+ * (class C, inspector computeSetupStatus(workspaceId)).
+ */
+export function filteredParameters(content: string, name: string): Set<number> {
+  const sf = ts.createSourceFile("helper.ts", content, ts.ScriptTarget.Latest, true);
+  let fn: ts.SignatureDeclaration & { body?: ts.Node } | undefined;
+  const visit = (n: ts.Node) => {
+    if (fn) return;
+    if (ts.isFunctionDeclaration(n) && n.name?.text === name) fn = n;
+    else if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === name && n.initializer
+      && (ts.isArrowFunction(n.initializer) || ts.isFunctionExpression(n.initializer))) fn = n.initializer;
+    else ts.forEachChild(n, visit);
+  };
+  visit(sf);
+  const out = new Set<number>();
+  if (!fn?.body) return out;
+  const body = fn.body.getText(sf);
+  fn.parameters.forEach((p, i) => {
+    if (!ts.isIdentifier(p.name)) return;
+    const v = esc(p.name.text);
+    const filter = new RegExp(
+      `\\.(?:eq|match|filter)\\s*\\(\\s*["'\`]\\w+["'\`]\\s*,\\s*${v}\\s*\\)`
+      + `|\\bwhere\\s*:\\s*\\{[^}]*(?:\\b\\w+\\s*:\\s*${v}\\b|[{,]\\s*${v}\\s*[,}])`);
+    if (filter.test(body)) out.add(i);
+  });
+  return out;
+}
