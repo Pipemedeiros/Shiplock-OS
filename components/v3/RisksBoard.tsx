@@ -12,6 +12,7 @@ import { repairMessage, waitForRepair } from "@/lib/repairReceiptClient";
 import type { ProofOffer } from "@/lib/proving/proofStatus";
 import { ProofPanel } from "./ProofButton";
 import { AgentHandoff } from "./AgentHandoff";
+import { HitHard, type TrafficHit } from "./HitHard";
 
 /**
  * The list and the inspector, side by side.
@@ -28,7 +29,7 @@ const FIX_NOTE: Record<FixKind, string> = {
   manual: "This is a decision about your architecture, not a mechanical change. The call is yours.",
 };
 
-export function RisksBoard({ findings, proofs = {} }: { findings: DashboardFinding[]; proofs?: Record<string, ProofOffer> }) {
+export function RisksBoard({ findings, proofs = {} }: { findings: (DashboardFinding & { hitHard?: TrafficHit | null })[]; proofs?: Record<string, ProofOffer> }) {
   const [severity, setSeverity] = useState<Severity | "all">("all");
   const [confidence, setConfidence] = useState<Confidence | "all">("all");
   const [selectedId, setSelectedId] = useState<string>(findings[0]?.rowId ?? "");
@@ -95,6 +96,7 @@ export function RisksBoard({ findings, proofs = {} }: { findings: DashboardFindi
                   <Sev severity={f.severity} />
                   <Conf confidence={f.confidence} />
                   {f.fixPrUrl ? <span className="v3-tag ok">PR #{f.fixPrNumber}</span> : null}
+                  {f.hitHard ? <HitHard hit={f.hitHard} /> : null}
                 </div>
                 <h2>{f.title}</h2>
                 <p>{f.consequence}</p>

@@ -4,6 +4,8 @@ import { getOpenFindings, getRepositories, getRuns } from "@/lib/agent/dashboard
 import { Sev } from "@/components/v3/FindingParts";
 import { RunAuditButton } from "@/components/v3/RunAuditButton";
 import { LiveRefresh } from "@/components/v3/LiveRefresh";
+import { HitHard } from "@/components/v3/HitHard";
+import { withTraffic } from "@/lib/traffic/findingTraffic";
 import { RouteMap } from "@/components/v3/RouteMap";
 import { loadOverviewMap, mapCounts } from "@/lib/agent/overviewMap";
 import { When } from "@/components/v3/When";
@@ -40,7 +42,9 @@ export default async function Overview() {
   // The status reads the newest FINISHED audit; one in progress is shown as
   // in progress, never as a clean run with nothing read yet.
   const { current, finished: latest } = auditState(runs);
-  const { map, mapRepo } = await loadOverviewMap({ userId, runs, latest, repos, findings });
+  const { map, mapRepo, hot } = await loadOverviewMap({ userId, runs, latest, repos, findings });
+  // Severity first, then routes real traffic is hitting hard (cross-layer).
+  const ordered = withTraffic(findings, hot);
   const { routes: routeCount, exposed } = mapCounts(map);
   const blocked = reviews.filter((r) => r.verdict === "block").length;
   const unread = latest?.coverage.length ?? 0;
@@ -101,10 +105,10 @@ export default async function Overview() {
                 <tr><th>Severity</th><th>Issue</th><th className="hide-sm">Route</th><th className="hide-sm">Status</th></tr>
               </thead>
               <tbody>
-                {findings.slice(0, 6).map((f) => (
+                {ordered.slice(0, 6).map((f) => (
                   <tr key={f.rowId}>
                     <td><Sev severity={f.severity} /></td>
-                    <td><Link href="/dashboard/risks">{f.title}</Link></td>
+                    <td><Link href="/dashboard/risks">{f.title}</Link>{f.hitHard ? <> <HitHard hit={f.hitHard} /></> : null}</td>
                     <td className="hide-sm route">{f.entry ?? f.file ?? ""}</td>
                     <td className="hide-sm">
                       {f.fixPrUrl ? <a href={f.fixPrUrl} target="_blank" rel="noreferrer" className="v3-tag ok">PR #{f.fixPrNumber}</a>
