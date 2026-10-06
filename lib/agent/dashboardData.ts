@@ -173,23 +173,7 @@ export const getRepositories = cache(async (userId: string): Promise<DashboardRe
     .eq("selected", true)
     .order("full_name");
 
-  const rows = (data ?? []) as Array<Record<string, unknown>>;
-  // Item 0c: each run's attack reasoning note follows its own tasks (098).
-  // A failed read keeps the note the audit stored.
-  const runIds = rows.map((row) => String(row.id));
-  const { data: taskRows } = runIds.length
-    ? await admin.from("intelligence_tasks").select("audit_run_id, kind, status, expires_at, result")
-        .eq("user_id", userId).in("audit_run_id", runIds).in("kind", ["attack_reasoning", "attack_verification"])
-    : { data: [] };
-  const tasksByRun = new Map<string, RunTask[]>();
-  for (const t of (taskRows ?? []) as Array<Record<string, unknown>>) {
-    const key = String(t.audit_run_id);
-    tasksByRun.set(key, [...(tasksByRun.get(key) ?? []),
-      { kind: String(t.kind), status: String(t.status), expiresAt: String(t.expires_at), result: t.result }]);
-  }
-  const now = Date.now();
-
-  return rows.map((row) => ({
+  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
     id: String(row.id),
     fullName: String(row.full_name),
     lastAuditAt: (row.last_audit_at as string) ?? null,
@@ -211,23 +195,7 @@ export async function getRecentlyClosed(userId: string, days = 30): Promise<{ ti
     .order("archived_at", { ascending: false })
     .limit(10);
 
-  const rows = (data ?? []) as Array<Record<string, unknown>>;
-  // Item 0c: each run's attack reasoning note follows its own tasks (098).
-  // A failed read keeps the note the audit stored.
-  const runIds = rows.map((row) => String(row.id));
-  const { data: taskRows } = runIds.length
-    ? await admin.from("intelligence_tasks").select("audit_run_id, kind, status, expires_at, result")
-        .eq("user_id", userId).in("audit_run_id", runIds).in("kind", ["attack_reasoning", "attack_verification"])
-    : { data: [] };
-  const tasksByRun = new Map<string, RunTask[]>();
-  for (const t of (taskRows ?? []) as Array<Record<string, unknown>>) {
-    const key = String(t.audit_run_id);
-    tasksByRun.set(key, [...(tasksByRun.get(key) ?? []),
-      { kind: String(t.kind), status: String(t.status), expiresAt: String(t.expires_at), result: t.result }]);
-  }
-  const now = Date.now();
-
-  return rows.map((row) => ({
+  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
     title: String(row.title),
     when: String(row.archived_at),
   }));
