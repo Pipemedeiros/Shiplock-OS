@@ -37,6 +37,18 @@ suggestions, all built on the strict findings of each audit, presented so a
 founder sees at once whether they are exposed and an engineer can open the
 proof. Everything else serves that.
 
+The harness (Felipe, 2026-10-06): ShipLock is the harness that points the
+customer's intelligence at security. Its loop, in order: **read** the
+repository (every deterministic check), **attack** it through the
+customer's own agent (hypotheses, then quoted-line verification), **map**
+what reaches what, **fix** on a click (receipted PRs, or a handoff to the
+agent), then **watch** with traffic and live provider context. Each stage
+is shown as it happens and with its real state; pending is never done.
+External tools (Strix-style attack agents, scanners) are combined through
+the customer's side, never paid for by ShipLock and never pointed at
+production; their claims are admitted only after ShipLock re-reads the
+cited code.
+
 The thesis (Felipe, 2026-09-29): some risks are invisible in code alone. A
 route whose code looks safe, or whose hole is small, becomes a real incident
 when it is requested 2,000 times a minute, and a row policy or bucket that
@@ -387,7 +399,11 @@ consumer before claiming a capability. The proving ground and native-agent distr
 ### Security and quality invariants
 
 Use `lib/access.ts` as the central signed-in access gate; `BILLING_ENABLED=false`
-does not make anonymous source access okay. Supabase admin stays server-only;
+does not make anonymous source access okay. Two-step sign-in (`lib/mfa.ts`):
+a user with a verified authenticator reaches nothing below aal2 in the
+dashboard gate, `requireProUser`, or any bearer route; factors are read from
+the auth server, never the session cookie, and an unreadable answer fails
+closed. Supabase admin stays server-only;
 tokens are encrypted (`lib/crypto.ts`) or one-way hashed (`lib/apiTokens.ts`).
 Provider SQL is read-only (`lib/deep/supabaseMgmt.ts`, `postgresDirect.ts`),
 customer-supplied hosts pass `lib/security/ssrfGuard.ts`, and GitHub/Stripe
@@ -431,6 +447,10 @@ and its exact status live only in `docs/MASTER-PLAN-PROGRESS.md`.
   colour), four metrics (open issues, exposed routes, blocked pull requests,
   not checked), the 3D map, then an issues table. One view for everyone;
   detail and proof open on a click rather than filling the page with text.
+- The feel (Felipe, 2026-10-06): like Stripe, technical enough to be
+  credible and simple enough that a non-technical founder gets a sense of
+  progress. Show work as it happens (live audit steps, the read, attack,
+  map, fix, watch loop on Activity), never a bare spinner.
 - Product copy follows Stripe, Cloudflare and Supabase dashboards: short
   nouns for titles ("Issues", "Coverage"), plain labels ("View all", "Run
   an audit"), no conversational headings.
