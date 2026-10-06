@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { bearerMfaOk } from "@/lib/mfa";
 
 // Stripe billing portal — self-serve cancel/card-update. Auth mirrors
 // /api/checkout: bearer token verified server-side, and the Stripe customer
@@ -17,6 +18,7 @@ export async function POST(req: NextRequest) {
   if (!data.user) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
+  if (!bearerMfaOk(data.user, token)) return NextResponse.json({ error: "Enter the code from your authenticator app first." }, { status: 403 });
 
   const { data: profile } = await admin
     .from("user_profiles")

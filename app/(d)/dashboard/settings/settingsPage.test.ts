@@ -17,6 +17,11 @@ describe("settings account sections", () => {
     expect(readFileSync("app/(d)/privacy/page.tsx", "utf8")).toMatch(/support@shiplock\.dev/);
   });
 
+  it("offers two-step sign-in with an authenticator app", () => {
+    expect(page).toMatch(/<TwoStepCard \/>/);
+    expect(page).toMatch(/Two-step sign-in/);
+  });
+
   it("keeps dashes out of its copy", () => {
     const copy = page.replace(/\{\/\*[\s\S]*?\*\/\}|\/\/[^\n]*/g, "");
     expect(copy).not.toMatch(/[–—]/);

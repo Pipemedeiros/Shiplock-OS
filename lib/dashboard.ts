@@ -10,6 +10,7 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 import { getSupabaseServer } from "@/lib/supabaseServer";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { checkMfa } from "@/lib/mfa";
 
 export interface DashboardSession {
   userId: string;
@@ -37,6 +38,10 @@ export const requireDashboardSession = cache(async (): Promise<DashboardSession>
     redirect("/auth");
   }
   const user = { id: claims.sub, email: claims.email as string | undefined, app_metadata: claims.app_metadata as { provider?: string } | undefined };
+  // Two-step sign-in (lib/mfa.ts): a user with a verified authenticator must
+  // enter the code first. Factors come from the auth server; unreadable fails
+  // closed to the code step, never through.
+  if ((await checkMfa(user.id, claims.aal)) !== "ok") redirect("/auth/mfa");
 
   // RLS-scoped read — the "users can read own profile" policy restricts this to
   // the caller's own row regardless of which auth method they used.

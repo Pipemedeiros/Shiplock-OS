@@ -1,6 +1,7 @@
 import { getSupabaseServer } from "@/lib/supabaseServer";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { hasProductAccess } from "@/lib/access";
+import { mfaDecision } from "@/lib/mfa";
 
 // Server-side access gate for all deep-access routes. Identifies the caller
 // from the session cookie, then reads their profile AUTHORITATIVELY from the DB
@@ -17,6 +18,10 @@ export async function requireProUser(): Promise<ProContext | null> {
   const supabase = await getSupabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
+  // Two-step sign-in (lib/mfa.ts): getUser's factors are the auth server's
+  // own answer; aal comes from the verified token. Unreadable fails closed.
+  const { data: claimData, error: claimError } = await supabase.auth.getClaims();
+  if (mfaDecision(claimError ? undefined : claimData?.claims?.aal, user.factors ?? []) !== "ok") return null;
 
   const admin = getSupabaseAdmin();
   const { data: profile } = await admin

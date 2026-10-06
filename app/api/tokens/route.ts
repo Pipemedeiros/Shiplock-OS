@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { generateToken } from "@/lib/apiTokens";
 import { hasProductAccess } from "@/lib/access";
 import { quotaCode, quotaResponse } from "@/lib/quota";
+import { bearerMfaOk } from "@/lib/mfa";
 
 // Manage ShipLock PATs (for the MCP integration). Session-Bearer auth (the
 // dashboard), product-access gated. POST creates + returns the raw token ONCE; GET lists
@@ -16,6 +17,7 @@ async function requireProductUser(req: NextRequest): Promise<
   const admin = getSupabaseAdmin();
   const { data: auth } = await admin.auth.getUser(token);
   if (!auth.user) return { error: NextResponse.json({ error: "Authentication required." }, { status: 401 }) };
+  if (!bearerMfaOk(auth.user, token)) return { error: NextResponse.json({ error: "Enter the code from your authenticator app first." }, { status: 403 }) };
   const { data: profile } = await admin.from("user_profiles").select("is_paid").eq("id", auth.user.id).maybeSingle();
   if (!hasProductAccess(profile)) return { error: NextResponse.json({ error: "Product access unavailable." }, { status: 402 }) };
   return { userId: auth.user.id, admin };

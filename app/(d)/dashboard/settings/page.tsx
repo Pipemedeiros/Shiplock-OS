@@ -11,6 +11,7 @@ import { TrafficSites } from "@/components/d/TrafficSites";
 import { BILLING_ENABLED } from "@/lib/access";
 import { BillingActions } from "@/components/v3/BillingActions";
 import { SignOutButton } from "@/components/sign-out-button";
+import { TwoStepCard } from "@/components/v3/TwoStep";
 
 export const metadata = { title: "Settings" };
 
@@ -78,6 +79,12 @@ export default async function SettingsPage() {
               )}
             </div>
           </div>
+        </div>
+
+        {/* Two-step sign-in (lib/mfa.ts enforces it on every page and API). */}
+        <div className="v3-card">
+          <div className="v3-hd"><h2 className="v3-eyebrow">Two-step sign-in</h2></div>
+          <div className="v3-card-p"><TwoStepCard /></div>
         </div>
 
         {/* The customer's own AI funds deep scans and PR reasoning after the

@@ -10,6 +10,7 @@ import { encrypt } from "@/lib/crypto";
 import { newConnectionEpoch } from "@/lib/deep/providerRepositoryMap";
 import { extractFindings } from "@/lib/monitoring/findings";
 import { hasProductAccess } from "@/lib/access";
+import { bearerMfaOk } from "@/lib/mfa";
 
 export async function POST(req: NextRequest) {
   let body: unknown;
@@ -57,6 +58,7 @@ export async function POST(req: NextRequest) {
   if (!authData.user) {
     return NextResponse.json({ error: "Sign in and subscribe to run a scan." }, { status: 401 });
   }
+  if (!bearerMfaOk(authData.user, token)) return NextResponse.json({ error: "Enter the code from your authenticator app first." }, { status: 403 });
   const userId = authData.user.id;
 
   const { data: profile } = await admin

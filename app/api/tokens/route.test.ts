@@ -17,9 +17,10 @@ vi.mock("@/lib/supabase", () => ({
 }));
 
 const { POST } = await import("./route");
-const request = () => new NextRequest("https://shiplock.dev/api/tokens", {
+const jwt = (aal: string) => `h.${Buffer.from(JSON.stringify({ sub: "user-1", aal })).toString("base64url")}.s`;
+const request = (token = "session-token") => new NextRequest("https://shiplock.dev/api/tokens", {
   method: "POST",
-  headers: { authorization: "Bearer session-token", "content-type": "application/json" },
+  headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
   body: JSON.stringify({ name: "Codex" }),
 });
 
@@ -36,6 +37,17 @@ describe("MCP token issuance with billing parked", () => {
     expect(response.status).toBe(200);
     expect((await response.json()).token).toMatch(/^shiplock_pat_/);
     expect(insertToken).toHaveBeenCalledOnce();
+  });
+
+  // Two-step sign-in: an MCP token outlives the session, so issuing one to a
+  // user with an authenticator needs a session that passed the code.
+  it("refuses a token to a user with an authenticator whose session is still aal1", async () => {
+    getUser.mockResolvedValue({ data: { user: { id: "user-1", factors: [{ status: "verified" }] } } });
+    profile.mockResolvedValue({ data: { is_paid: false } });
+    const response = await POST(request(jwt("aal1")));
+    expect(response.status).toBe(403);
+    expect(insertToken).not.toHaveBeenCalled();
+    expect((await POST(request(jwt("aal2")))).status).toBe(200);
   });
 
   it("refuses an eleventh active token plainly and returns no token (3H-2)", async () => {

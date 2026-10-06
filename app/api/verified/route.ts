@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { checkBadgeInstalled } from "@/lib/verified/badgeCheck";
 import { hasProductAccess } from "@/lib/access";
+import { bearerMfaOk } from "@/lib/mfa";
 
 // Owner control for the public "ShipLock Verified" report. Bearer auth (mirrors
 // /api/portal). Actions: enable (mint token + turn on), disable (turn
@@ -17,6 +18,7 @@ export async function POST(req: NextRequest) {
   const admin = getSupabaseAdmin();
   const { data: auth } = await admin.auth.getUser(token);
   if (!auth.user) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  if (!bearerMfaOk(auth.user, token)) return NextResponse.json({ error: "Enter the code from your authenticator app first." }, { status: 403 });
 
   let action: Action;
   try {

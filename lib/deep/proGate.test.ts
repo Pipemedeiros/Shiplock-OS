@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const getUserMock = vi.fn();
+const getClaimsMock = vi.fn();
 const singleMock = vi.fn();
 
 vi.mock("@/lib/supabaseServer", () => ({
   getSupabaseServer: vi.fn(async () => ({
-    auth: { getUser: getUserMock },
+    auth: { getUser: getUserMock, getClaims: getClaimsMock },
   })),
 }));
 
@@ -28,6 +29,24 @@ describe("requireProUser", () => {
   beforeEach(() => {
     getUserMock.mockReset();
     singleMock.mockReset();
+    getClaimsMock.mockReset().mockResolvedValue({ data: { claims: { aal: "aal1" } }, error: null });
+  });
+
+  // Two-step sign-in (lib/mfa.ts): getUser's factor list is the auth
+  // server's own answer, and aal comes from the verified token.
+  it("refuses a user with a verified authenticator until the session reaches aal2", async () => {
+    getUserMock.mockResolvedValue({ data: { user: { id: "user-1", email: "a@b.com", factors: [{ status: "verified" }] } } });
+    singleMock.mockResolvedValue({ data: { is_paid: false } });
+    expect(await requireProUser()).toBeNull();
+    getClaimsMock.mockResolvedValue({ data: { claims: { aal: "aal2" } }, error: null });
+    expect(await requireProUser()).toEqual({ userId: "user-1", email: "a@b.com" });
+  });
+
+  it("refuses a user with an authenticator when the token's level cannot be read", async () => {
+    getUserMock.mockResolvedValue({ data: { user: { id: "user-1", email: "a@b.com", factors: [{ status: "verified" }] } } });
+    getClaimsMock.mockResolvedValue({ data: null, error: new Error("x") });
+    singleMock.mockResolvedValue({ data: { is_paid: false } });
+    expect(await requireProUser()).toBeNull();
   });
 
   it("returns null when there is no session", async () => {

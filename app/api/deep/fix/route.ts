@@ -5,6 +5,7 @@ import { requestRepairAction } from "@/lib/jobs/repairAction";
 import { resolveRepairTarget } from "@/lib/fixes/repairTarget";
 import { hasProductAccess } from "@/lib/access";
 import { quotaResponse } from "@/lib/quota";
+import { bearerMfaOk } from "@/lib/mfa";
 
 // The customer's click to open a reviewable fix PR for one finding. Admits a
 // receipted repair job (3F-C2d); the worker opens a new branch off the default
@@ -24,6 +25,7 @@ export async function POST(req: NextRequest) {
   const admin = getSupabaseAdmin();
   const { data: auth } = await admin.auth.getUser(token);
   if (!auth.user) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  if (!bearerMfaOk(auth.user, token)) return NextResponse.json({ error: "Enter the code from your authenticator app first." }, { status: 403 });
 
   const { data: profile } = await admin
     .from("user_profiles")
