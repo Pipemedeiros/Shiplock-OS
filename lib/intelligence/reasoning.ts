@@ -133,7 +133,6 @@ export async function offerAuditReasoning(input: {
   return z.uuid().parse(id);
 }
 
-const hash = z.string().regex(/^[a-f0-9]{64}$/);
 const identity = z.object({ taskId: z.uuid(), tenantId: z.uuid(), repositoryId: z.uuid(), commit: z.string().regex(/^[a-f0-9]{40}$/) }).strict();
 const host = z.enum(["codex", "claude-code", "chatgpt"]);
 const usage = z.object({ inputTokens: z.number().int().min(0).max(10_000_000), outputTokens: z.number().int().min(0).max(10_000_000) }).strict().nullable();

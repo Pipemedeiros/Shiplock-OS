@@ -1,5 +1,6 @@
 import type { RepoFile } from "@/lib/deep/githubScan";
 import { stripComments, resolveImport, stringSpans, stringLiteralRanges } from "@/lib/deep/clientExposure";
+import { helperGuard } from "./helperGuard";
 import { blankDeclarations } from "./declarations";
 import { traceExecutedSources } from "./callPath";
 import { isWorkspacePackageImport } from "./tsconfigPaths";
@@ -1421,6 +1422,18 @@ export function analyzeRouteFile(
       ownershipFiltered = true;
     }
     if (contributed && path !== file) via.add(path);
+  }
+
+  // A GATE ONE CALL AWAY (./helperGuard.ts). The route rejects with 401 or
+  // 403 on the answer of a helper it imports, and that helper compares a
+  // secret or resolves a hashed token: then the helper's gate is the route's.
+  // Asked only when nothing above credited a gate, so it can only move a route
+  // from unreadable to gated, never the reverse.
+  if (!authenticated && !machineGated && byPath) {
+    const guard = helperGuard(file, stripComments(content), byPath);
+    if (guard?.kind === "machine") machineGated = true;
+    if (guard?.kind === "user") authenticated = true;
+    if (guard) via.add(guard.path);
   }
 
   // Only a route we are about to call anonymous needs the question asked.
