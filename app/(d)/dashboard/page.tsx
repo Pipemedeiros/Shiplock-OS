@@ -3,10 +3,9 @@ import { requireDashboardSession } from "@/lib/dashboard";
 import { getOpenFindings, getRepositories, getRuns } from "@/lib/agent/dashboardData";
 import { Sev } from "@/components/v3/FindingParts";
 import { RunAuditButton } from "@/components/v3/RunAuditButton";
+import { LiveRefresh } from "@/components/v3/LiveRefresh";
 import { RouteMap } from "@/components/v3/RouteMap";
-import { loadRepositoryGraphSource } from "@/lib/graph/repositorySource";
-import { getHotRoutes, type HotRouteOffer } from "@/lib/traffic/hotRoutes";
-import { buildRouteMap } from "@/lib/routeMap";
+import { loadOverviewMap, mapCounts } from "@/lib/agent/overviewMap";
 import { When } from "@/components/v3/When";
 import { Metric, Verdict } from "@/components/v3/Verdict";
 import { auditState, verdictOf } from "@/lib/verdict";
@@ -41,26 +40,8 @@ export default async function Overview() {
   // The status reads the newest FINISHED audit; one in progress is shown as
   // in progress, never as a clean run with nothing read yet.
   const { current, finished: latest } = auditState(runs);
-  // Q27: the map is built from the last audit's stored route facts; the
-  // source snapshot is read only when an older run has none.
-  const mapRepo = repos.find((r) => r.fullName === latest?.fullName) ?? repos[0];
-  const auditRoutes = runs.find((r) => r.fullName === mapRepo.fullName && r.routeFacts)?.routeFacts ?? null;
-  const noHot: Record<string, HotRouteOffer[]> = {};
-  const [source, hot] = latest
-    ? await Promise.all([auditRoutes ? null : loadRepositoryGraphSource(userId, mapRepo.id), getHotRoutes(userId).catch(() => noHot)])
-    : [null, noHot];
-  const mapRoutes = auditRoutes ?? (source?.routes?.length ? source.routes : null);
-  const map = mapRoutes
-    ? buildRouteMap({
-        routes: mapRoutes,
-        tools: latest?.stack?.tools ?? [],
-        findings: findings.filter((f) => f.repositoryId === mapRepo.id),
-        hotFiles: (hot[mapRepo.id] ?? []).map((h) => h.file),
-      })
-    : null;
-
-  const routes = map?.nodes.filter((n) => n.kind === "route") ?? [];
-  const exposed = routes.filter((n) => n.exposure === "open" || n.exposure === "unscoped").length;
+  const { map, mapRepo } = await loadOverviewMap({ userId, runs, latest, repos, findings });
+  const { routes: routeCount, exposed } = mapCounts(map);
   const blocked = reviews.filter((r) => r.verdict === "block").length;
   const unread = latest?.coverage.length ?? 0;
   const verdict = verdictOf({ audited: Boolean(latest), lastRunFailed: latest?.status === "failed", findings, unread, blockedPrs: blocked });
@@ -79,6 +60,7 @@ export default async function Overview() {
       </div>
 
       <div className="v3-stack">
+        <LiveRefresh active={current !== null} />
         <Verdict
           verdict={verdict}
           action={findings.length > 0
@@ -88,7 +70,7 @@ export default async function Overview() {
 
         <div className="v3-metrics">
           <Metric label="Open issues" value={findings.length} href="/dashboard/risks" link="View issues" tone="crit" />
-          <Metric label="Exposed routes" value={exposed} href="#map" link={`of ${routes.length} routes`} tone="crit" />
+          <Metric label="Exposed routes" value={exposed} href="#map" link={`of ${routeCount} routes`} tone="crit" />
           <Metric label="Blocked pull requests" value={blocked} href="/dashboard/prs" link={`${reviews.length} checked`} tone="warn" />
           <Metric label="Not checked" value={unread} href="/dashboard/coverage" link="View coverage" tone="warn" />
         </div>

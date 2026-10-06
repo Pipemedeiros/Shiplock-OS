@@ -14,6 +14,7 @@ import { TrafficSources } from "@/components/v3/TrafficSources";
 import { getHotRoutes } from "@/lib/traffic/hotRoutes";
 import { When } from "@/components/v3/When";
 import { Fold } from "@/components/v3/Fold";
+import { auditState } from "@/lib/verdict";
 
 export const metadata = { title: "Coverage" };
 
@@ -27,11 +28,13 @@ export const metadata = { title: "Coverage" };
  */
 export default async function Coverage() {
   const { userId } = await requireDashboardSession();
-  const [runs, evidence, ai, providers, traffic, hotRoutes, repos] = await Promise.all([getRuns(userId, 1), getEvidenceCoverage(userId),
+  const [runs, evidence, ai, providers, traffic, hotRoutes, repos] = await Promise.all([getRuns(userId, 5), getEvidenceCoverage(userId),
     getAiActivity(userId), getProviderCoverage(userId), getTrafficSources(userId),
     // GitHub tree reads for rate-limit offers; any failure just offers nothing.
     getHotRoutes(userId).catch(() => ({})), getRepositories(userId)]);
-  const latest = runs[0];
+  // What the last FINISHED audit did not reach; one still running has read
+  // nothing yet and must not read as "nothing unread".
+  const latest = auditState(runs).finished;
   // G1: the same rules the PR check enforces and MCP serves.
   const repo = latest ? repos.find((r) => r.fullName === latest.fullName) : undefined;
   const source = repo ? await loadRepositoryGraphSource(userId, repo.id) : null;

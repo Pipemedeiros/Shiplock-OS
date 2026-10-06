@@ -2,12 +2,16 @@ import { requireDashboardSession } from "@/lib/dashboard";
 import { getRecentlyClosed, getRuns } from "@/lib/agent/dashboardData";
 import { RunList } from "@/components/v3/RunList";
 import { When } from "@/components/v3/When";
+import { SecurityLoop } from "@/components/v3/SecurityLoop";
+import { LiveRefresh } from "@/components/v3/LiveRefresh";
+import { loadSecurityLoopInput } from "@/lib/agent/securityLoopData";
+import { securityLoop } from "@/lib/securityLoop";
 
 export const metadata = { title: "Activity" };
 
 export default async function ActivityPage() {
   const { userId } = await requireDashboardSession();
-  const [runs, closed] = await Promise.all([getRuns(userId), getRecentlyClosed(userId)]);
+  const [runs, closed, loop] = await Promise.all([getRuns(userId), getRecentlyClosed(userId), loadSecurityLoopInput(userId)]);
 
   return (
     <>
@@ -18,6 +22,9 @@ export default async function ActivityPage() {
       </div>
 
       <div className="v3-stack">
+        <LiveRefresh active={loop.current !== null} />
+        <SecurityLoop stages={securityLoop(loop)} />
+
         <div className="v3-card">
           <div className="v3-hd">
             <h2 className="v3-eyebrow">Audits</h2>
