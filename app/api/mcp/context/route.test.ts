@@ -4,10 +4,11 @@ import { NextRequest } from "next/server";
 // Felipe (2026-09-30): the customer's own agent should have ShipLock's context
 // before it edits: stack, guardrails, open findings, and what was NOT read.
 // Read only, PAT authenticated, selected repositories only; no model call.
-const s = vi.hoisted(() => ({ auth: vi.fn(), repos: vi.fn(), runs: vi.fn(), findings: vi.fn(), source: vi.fn() }));
+const s = vi.hoisted(() => ({ auth: vi.fn(), repos: vi.fn(), runs: vi.fn(), findings: vi.fn(), source: vi.fn(), loop: vi.fn() }));
 vi.mock("@/lib/mcpAuth", () => ({ authMcp: s.auth }));
 vi.mock("@/lib/agent/dashboardData", () => ({ getRepositories: s.repos, getRuns: s.runs, getOpenFindings: s.findings }));
 vi.mock("@/lib/graph/repositorySource", () => ({ loadRepositoryGraphSource: s.source }));
+vi.mock("@/lib/agent/securityLoopData", () => ({ loadSecurityLoopInput: s.loop }));
 const { GET } = await import("./route");
 const get = (q = "") => GET(new NextRequest(`https://shiplock.dev/api/mcp/context${q}`));
 const route = { path: "/api/orders", file: "app/api/orders/route.ts", methods: ["GET"], tables: ["orders"], authenticated: true,
@@ -18,7 +19,7 @@ describe("GET /api/mcp/context", () => {
   beforeEach(() => {
     s.auth.mockReset().mockResolvedValue({ userId: "u" });
     s.repos.mockReset().mockResolvedValue([{ id: "r1", fullName: "acme/app", lastAuditAt: "2026-09-30T00:00:00Z" }]);
-    s.runs.mockReset().mockResolvedValue([{ fullName: "acme/app", startedAt: "2026-09-30T00:00:00Z", status: "completed",
+    s.runs.mockReset().mockResolvedValue([{ fullName: "acme/app", startedAt: "2026-09-30T00:00:00Z", status: "complete",
       stack: { tools: [{ id: "supabase", name: "Supabase", kind: "database" }] },
       coverage: [{ name: "12 files we did not read", why: "size", effect: "not checked" }] }]);
     s.findings.mockReset().mockResolvedValue([
@@ -26,6 +27,27 @@ describe("GET /api/mcp/context", () => {
         file: "app/api/orders/route.ts", consequence: "Any user reads every order.", confidence: "inferred" },
       { repositoryId: "other", title: "not this repo", severity: "CRITICAL", entry: null, file: null, consequence: "", confidence: "x" }]);
     s.source.mockReset().mockResolvedValue({ repositoryId: "r1", routes: [route] });
+    s.loop.mockReset().mockResolvedValue({ current: null, finished: null, agent: { available: true, paused: "not_connected", pending: 0, answered: 0 },
+      map: null, fix: { open: 0, withPr: 0 }, watch: { prChecks: 0, blockedPrs: 0, trafficSites: 0, hotRoutes: 0, providersRead: 0, providersConnected: 0 } });
+  });
+
+  // Felipe 2026-10-06: the agent sees the same loop and progress as the
+  // dashboard, and a running audit never reads as "nothing unread".
+  it("reads notRead from the last finished audit and reports one in progress", async () => {
+    s.runs.mockResolvedValue([
+      { fullName: "acme/app", startedAt: "2026-10-06T00:00:00Z", status: "running", stack: null, coverage: [], trace: [{ time: "2s", label: "412 files read" }] },
+      { fullName: "acme/app", startedAt: "2026-09-30T00:00:00Z", status: "complete", stack: { tools: [] },
+        coverage: [{ name: "12 files we did not read", why: "size", effect: "not checked" }], trace: [] }]);
+    const body = await (await get("?repository=acme/app")).json();
+    expect(body.notRead).toEqual(["12 files we did not read: not checked"]);
+    expect(body.lastAudit).toEqual({ at: "2026-09-30T00:00:00Z", status: "complete" });
+    expect(body.auditInProgress).toEqual({ status: "running", step: "412 files read" });
+  });
+
+  it("serves the security loop the dashboard shows, without links", async () => {
+    const body = await (await get("?repository=acme/app")).json();
+    expect(body.loop.map((x: { stage: string }) => x.stage)).toEqual(["Read", "Attack", "Map", "Fix", "Watch"]);
+    expect(body.loop[0]).toEqual({ stage: "Read", state: "off", headline: "Not audited", detail: expect.any(String) });
   });
 
   it("refuses without a token", async () => {

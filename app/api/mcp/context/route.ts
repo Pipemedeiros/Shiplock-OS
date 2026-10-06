@@ -3,6 +3,9 @@ import { authMcp } from "@/lib/mcpAuth";
 import { getOpenFindings, getRepositories, getRuns } from "@/lib/agent/dashboardData";
 import { loadRepositoryGraphSource } from "@/lib/graph/repositorySource";
 import { deriveGuardrails } from "@/lib/guardrails/guardrails";
+import { loadSecurityLoopInput } from "@/lib/agent/securityLoopData";
+import { securityLoop } from "@/lib/securityLoop";
+import { auditState } from "@/lib/verdict";
 
 // MCP `get_security_context` (Felipe 2026-09-30): what the customer's own
 // agent should know before it edits a selected repository, from ShipLock's
@@ -20,13 +23,18 @@ export async function GET(req: NextRequest) {
       : NextResponse.json({ error: "Name a repository.", repositories: repos.map((r) => r.fullName) }, { status: 400 });
   }
 
-  const [runs, findings, source] = await Promise.all([getRuns(ctx.userId, 20), getOpenFindings(ctx.userId),
-    loadRepositoryGraphSource(ctx.userId, repo.id)]);
-  const run = runs.find((r) => r.fullName === repo.fullName) ?? null;
+  const [runs, findings, source, loop] = await Promise.all([getRuns(ctx.userId, 20), getOpenFindings(ctx.userId),
+    loadRepositoryGraphSource(ctx.userId, repo.id), loadSecurityLoopInput(ctx.userId)]);
+  // The last FINISHED audit of this repository; one still running has read
+  // nothing yet and is reported as in progress, never as nothing unread.
+  const { current, finished: run } = auditState(runs.filter((r) => r.fullName === repo.fullName));
 
   return NextResponse.json({
     repository: repo.fullName,
     lastAudit: run ? { at: run.startedAt, status: run.status } : null,
+    auditInProgress: current ? { status: current.status, step: current.trace?.at(-1)?.label ?? null } : null,
+    // The same read, attack, map, fix, watch loop the dashboard shows (account wide).
+    loop: securityLoop(loop).map(({ title, state, headline, detail }) => ({ stage: title, state, headline, detail })),
     stack: (run?.stack?.tools ?? []).map((t) => ({ name: t.name, kind: t.kind })),
     guardrails: source.routes ? deriveGuardrails(source.routes, { repository: repo.fullName, commit: null }) : null,
     openFindings: findings.filter((f) => f.repositoryId === repo.id).slice(0, 50)
