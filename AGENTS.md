@@ -49,6 +49,21 @@ the customer's side, never paid for by ShipLock and never pointed at
 production; their claims are admitted only after ShipLock re-reads the
 cited code.
 
+Attack, not a passive scan (Felipe, 2026-10-07): ShipLock finds
+vulnerabilities by attacking the application safely, not by pattern
+matching alone, which misses too much and cries wolf. The customer's agent
+proposes concrete attacks (candidates), then each is tested and the
+customer watches it happen: the attempt, what was checked, and the
+result, live on Activity. Every confirmed finding carries its proof (the
+quoted lines that make it work, and where available a replay against a
+disposable replica with synthetic data). A candidate is not an issue: it
+becomes one when proof, a connected stack, or observed traffic confirms
+it. Only confirmed issues set the status (Exposed, At risk); signals from
+code patterns alone are shown as "To review", never as an issue
+(Felipe, 2026-10-07: prioritize accuracy). Attacks run in a sandbox
+(the customer's agent reading code, and disposable replicas); production
+is never attacked.
+
 The thesis (Felipe, 2026-09-29): some risks are invisible in code alone. A
 route whose code looks safe, or whose hole is small, becomes a real incident
 when it is requested 2,000 times a minute, and a row policy or bucket that
@@ -446,7 +461,9 @@ and its exact status live only in `docs/MASTER-PLAN-PROGRESS.md`.
   (Exposed, At risk, No open issues, Not audited; a glyph as well as a
   colour), four metrics (open issues, exposed routes, blocked pull requests,
   not checked), the map (an Obsidian-style graph, not 3D; Felipe
-  2026-10-06), then an issues table. One view for everyone;
+  2026-10-06; it shows only the routes that are wrong, red or yellow by
+  degree, and what they reach, never the whole application; Felipe
+  2026-10-07), then an issues table. One view for everyone;
   detail and proof open on a click rather than filling the page with text.
 - The feel (Felipe, 2026-10-06): like Stripe, technical enough to be
   credible and simple enough that a non-technical founder gets a sense of
@@ -458,11 +475,15 @@ and its exact status live only in `docs/MASTER-PLAN-PROGRESS.md`.
 - Learn from Aikido (one verdict, noise hidden, fix PRs), Strix (proof per
   finding), Wiz (a graph from code to data) and Snyk/Semgrep (reachability,
   PR checks), and make it simpler without making it shallower.
-- Planned (Felipe, 2026-09-29): a zoomable network map of the application's
-  routes and what they reach (tables, providers, hot routes), in the spirit of
-  an Obsidian graph: readable detail for engineers, an inviting picture for
-  founders. Built from the same route facts as the audit, never decorative
-  data.
+- The map (Felipe, 2026-09-29, 2026-10-07): a zoomable Obsidian-style
+  graph of the routes that are wrong and what they reach (tables,
+  providers, hot routes): red for a confirmed critical or an open way to
+  data, yellow for a weaker exposure. Readable detail for engineers, an
+  inviting picture for founders. Built from the same facts as the audit,
+  never decorative data.
+- Pull requests ShipLock opens are labeled "ShipLock", titled as ShipLock
+  changes, and run through the customer's own CI like any other PR; the
+  dashboard shows their checks. ShipLock never merges.
 
 ## Agent roles
 
