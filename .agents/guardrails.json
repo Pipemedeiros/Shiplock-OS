@@ -323,7 +323,7 @@
       },
       "check": "migration-loads",
       "sourcePins": {
-        "scripts/test-foundation-sql.mjs": "845f26c00ed0c04cb2d3d0a34f2149ac172823ff7b7e6ee77725e3b4d9281411"
+        "scripts/test-foundation-sql.mjs": "5994a375da3c62229ff106f38efcb7a2363a91f761f7e67ebcb17d2d36f607f0"
       }
     },
     {

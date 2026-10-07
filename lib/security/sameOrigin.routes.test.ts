@@ -15,7 +15,6 @@ const routes: [string, () => Promise<object>][] = [
   ["deep/postgres/repository", () => import("@/app/api/deep/postgres/repository/route")],
   ["deep/supabase/repository", () => import("@/app/api/deep/supabase/repository/route")],
   ["intelligence/connection", () => import("@/app/api/intelligence/connection/route")],
-  ["intelligence/credential", () => import("@/app/api/intelligence/credential/route")],
   ["intelligence/tasks/[id]/fix", () => import("@/app/api/intelligence/tasks/[id]/fix/route")],
   ["2fa/[...all]", () => import("@/app/api/2fa/[...all]/route")],
   ["repos", () => import("@/app/api/repos/route")],

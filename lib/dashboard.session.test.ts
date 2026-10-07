@@ -11,10 +11,15 @@ const single = vi.fn();
 vi.mock("@/lib/supabaseServer", () => ({
   getSupabaseServer: async () => ({
     auth: { getClaims, getUser },
-    from: () => ({ select: () => ({ eq: () => ({ single }) }) }),
+    from: userTokenRead,
   }),
 }));
-vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({}) }));
+// 101: the user's own token reads no table (an aal1 token of a user with an
+// authenticator must get nothing through PostgREST), so the profile read is
+// service-role, keyed on the verified token's subject.
+const userTokenRead = vi.fn();
+const adminFrom = vi.fn((_table: string) => ({ select: () => ({ eq: (_c: string, _v: string) => ({ single }) }) }));
+vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ from: adminFrom }) }));
 const checkMfa = vi.fn();
 vi.mock("@/lib/mfa", () => ({ checkMfa: (...args: unknown[]) => checkMfa(...args) }));
 const redirect = vi.fn((to: string) => { throw new Error(`redirect:${to}`); });
@@ -29,6 +34,8 @@ describe("requireDashboardSession", () => {
     const { requireDashboardSession } = await import("./dashboard");
     await expect(requireDashboardSession()).resolves.toEqual({ userId: "u1", email: "f@x.dev", provider: "github", isPaid: true });
     expect(getUser).not.toHaveBeenCalled();
+    expect(adminFrom).toHaveBeenCalledWith("user_profiles");
+    expect(userTokenRead).not.toHaveBeenCalled();
   });
 
   it("sends an unverified or expired token to sign in", async () => {

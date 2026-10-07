@@ -1398,6 +1398,21 @@ try {
       await db.exec("reset role");
     }
   });
+  // 100 (Felipe approved 2026-10-06): the retired model paths leave the
+  // schema: the customer API-key table and its claim, the funded first-scan
+  // credit, and service_role's default execute on the internal shaping helper.
+  await check("100 drops the retired model paths and keeps the shaping helper internal", async () => {
+    await db.exec("reset role");
+    await db.exec(await readFile(new URL("../supabase/migrations/100_retire_model_paths.sql", import.meta.url), "utf8"));
+    for (const name of ["public.intelligence_credentials", "public.first_scan_credits"]) {
+      assert.equal((await db.query("select to_regclass($1) as t", [name])).rows[0].t, null, `${name} is gone`);
+    }
+    for (const sig of ["public.claim_api_intelligence_task(uuid,uuid)", "public.claim_first_scan_credit(uuid,uuid,uuid,uuid)"]) {
+      assert.equal((await db.query("select to_regprocedure($1) as f", [sig])).rows[0].f, null, `${sig} is gone`);
+    }
+    assert.equal((await db.query("select has_function_privilege('service_role','public.shape_intelligence_task(uuid,text,uuid,uuid,jsonb)','execute') as ok")).rows[0].ok, false);
+    assert.ok((await db.query("select to_regprocedure('public.create_audit_reasoning_task(uuid,uuid,uuid,text,text,text,jsonb,jsonb,timestamptz,text)') as f")).rows[0].f, "audit reasoning still works through its definer");
+  });
   await check("client roles cannot commit provider results or read snapshots", async () => {
     await db.exec("reset role; set role authenticated");
     await assert.rejects(db.query("select public.persist_provider_monitor_result($1,$1,$1,'postgres-direct','x',null,'[]'::jsonb,false,'[]'::jsonb,'{}'::jsonb)",[legacy]));
@@ -1414,6 +1429,40 @@ try {
     await assert.rejects(db.query("select public.enqueue_proof_job($1,$1)",[u1]));
     await assert.rejects(db.query("select public.record_proof_run($1,$1,$1,'ran',null,1)",[u1]));
     await db.exec("reset role");
+  });
+  // 101: no table row is reachable with a user's own token. ShipLock reads
+  // every table through the service role, so an aal1 token of a user with an
+  // authenticator (two-step sign-in) gets nothing through PostgREST. The
+  // stand-ins below mirror production: Supabase's default grants, a column
+  // grant, and the legacy select-own policy.
+  await check("101 leaves client roles no table, column or sequence right, now or by default", async () => {
+    await db.exec(`reset role;
+      grant select on public.deep_findings to anon, authenticated;
+      grant select (id, is_paid) on public.user_profiles to authenticated;
+      create policy "users can read own profile" on public.user_profiles for select using (auth.uid() = id);
+      create sequence public.stand_in_seq; grant usage on sequence public.stand_in_seq to anon, authenticated;
+      alter default privileges in schema public grant select on tables to anon, authenticated;
+      alter default privileges in schema public grant usage on sequences to anon, authenticated;`);
+    await db.query("insert into public.deep_findings(user_id,source,finding_id,title,severity,consequence) values($1,'policy','f101','t','HIGH','c')", [u1]);
+    await db.exec(await readFile(new URL("../supabase/migrations/101_client_roles_read_nothing.sql", import.meta.url), "utf8"));
+    const client = "grantee in ('anon','authenticated')";
+    const rights = async () => (await db.query(`
+      select table_name n from information_schema.role_table_grants where table_schema='public' and ${client}
+      union all select table_name from information_schema.column_privileges where table_schema='public' and ${client}
+      union all select object_name from information_schema.usage_privileges where object_schema='public' and ${client}`)).rows;
+    assert.deepEqual(await rights(), []);
+    assert.deepEqual((await db.query("select policyname from pg_policies where schemaname='public' and policyname in ('deep_findings_select_own','users can read own profile','users can read own scan history')")).rows, []);
+    await db.exec("create table public.stand_in_new(id int); create sequence public.stand_in_new_seq; create function public.stand_in_fn() returns int language sql as 'select 1';");
+    assert.deepEqual(await rights(), [], "a new table or sequence starts closed");
+    for (const role of ["anon", "authenticated"]) {
+      assert.equal((await db.query("select has_function_privilege($1,'public.stand_in_fn()','execute') ok", [role])).rows[0].ok, false, `${role} cannot run a new function`);
+    }
+    await db.exec("reset role; set role authenticated");
+    await assert.rejects(db.query("select * from public.deep_findings"));
+    await assert.rejects(db.query("select id, is_paid from public.user_profiles"));
+    await db.exec("reset role");
+    assert.equal((await db.query("select count(*)::int n from public.deep_findings where finding_id='f101'")).rows[0].n, 1, "the service path still reads");
+    await db.exec("drop function public.stand_in_fn(); drop table public.stand_in_new; drop sequence public.stand_in_new_seq, public.stand_in_seq;");
   });
   console.log(`${checks} SQL checks passed. Single-connection PostgreSQL WASM; multi-session contention and hosted Supabase remain unverified.`);
 } finally { await db.close(); }

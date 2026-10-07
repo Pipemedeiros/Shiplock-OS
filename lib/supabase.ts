@@ -12,17 +12,3 @@ export function getSupabaseAdmin() {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }
-
-// Server-side user-scoped client — carries the user's JWT so auth.uid() resolves
-// in RPC functions (e.g. use_bonus_scan). Uses the anon key + bearer token header.
-export function getSupabaseUser(token: string) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) {
-    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY");
-  }
-  return createClient(url, key, {
-    global: { headers: { Authorization: `Bearer ${token}` } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}

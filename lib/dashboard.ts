@@ -43,9 +43,9 @@ export const requireDashboardSession = cache(async (): Promise<DashboardSession>
   // closed to the code step, never through.
   if ((await checkMfa(user.id, claims.aal)) !== "ok") redirect("/auth/mfa");
 
-  // RLS-scoped read — the "users can read own profile" policy restricts this to
-  // the caller's own row regardless of which auth method they used.
-  const { data: profile } = await supabase
+  // Service-role, keyed on the verified subject: since 101 the user's own token
+  // reads no table, so an aal1 token can never reach a row through PostgREST.
+  const { data: profile } = await getSupabaseAdmin()
     .from("user_profiles")
     .select("is_paid")
     .eq("id", user.id)
