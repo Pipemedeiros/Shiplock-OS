@@ -13,7 +13,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 
-const MANIFESTS = ["docs/CORPUS.json", "docs/CORPUS-2.json", "docs/CORPUS-3.json", "docs/CORPUS-4.json"];
+const MANIFESTS = ["docs/CORPUS.json", "docs/CORPUS-2.json", "docs/CORPUS-3.json", "docs/CORPUS-4.json", "docs/CORPUS-5.json", "docs/CORPUS-6.json"];
 const root = path.resolve(__dirname, "..");
 
 function stateOf(r) {

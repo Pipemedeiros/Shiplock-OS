@@ -62,6 +62,28 @@ function ctxGate(text: string): boolean {
 }
 const refuses = (text: string) => middlewareAuthenticates(text) || ctxGate(text);
 
+// CORPUS-5 agent path (2026-10-06): two sign-in checks we can see but not
+// follow, read as "no sign-in" and so titled real signed-in IDORs "Anyone can
+// call this". They make identity unreadable: never claimed present, never
+// absent. A middleware that loads a value from a no-argument auth helper and
+// throws UNAUTHORIZED when it is missing (corpus-aa: `const session = await
+// isAuthenticated(); if (!session) throw new TRPCError({ code: "UNAUTHORIZED" })`);
+// a lookup with arguments stays out (corpus-d's guard looks a user up by id).
+// And a resolver that calls a ctx method named must, require, ensure or assert
+// (corpus-ab: `ctx.auth.mustBeReallyUser()`).
+const AUTH_HELPER_LOAD = /(?:const|let)\s+(\w+)\s*=\s*(?:await\s+)?([A-Za-z_$][\w$]*)\(\s*\)/g;
+const AUTH_HELPER_NAME = /auth|session|user|sign|login/i;
+const CTX_ASSERTION = /\bctx(?:\??\.\w+)*\??\.((?:must|require|ensure|assert)\w*)\s*\(/;
+function unfollowedSignInHelper(middleware: string, body: string): string | null {
+  for (const [, name, callee] of middleware.matchAll(AUTH_HELPER_LOAD)) {
+    if (!AUTH_HELPER_NAME.test(callee)) continue;
+    const refusal = new RegExp(`if\\s*\\(\\s*!\\s*${name}\\b[^)]*\\)\\s*\\{?\\s*throw\\s+new\\s+TRPCError\\s*\\(\\s*\\{[^}]*["']UNAUTHORIZED["']`);
+    if (refusal.test(middleware)) return `a sign-in helper we could not follow (${callee}())`;
+  }
+  const assertion = CTX_ASSERTION.exec(body) ?? CTX_ASSERTION.exec(middleware);
+  return assertion ? `a sign-in helper we could not follow (${assertion[1]}())` : null;
+}
+
 type Parsed = { file: RepoFile; sf: ts.SourceFile };
 
 function chainOf(expr: ts.Expression): { root: ts.Expression; links: { name: string; args: readonly ts.Expression[] }[] } {
@@ -213,8 +235,9 @@ function fact(file: string, name: string, kind: TrpcProcedureFact["kind"], base:
   chain: { texts: string[]; gaps: string[]; via: Set<string> }, body: string): TrpcProcedureFact {
   const identity = chain.texts.join("\n");
   const authenticated = refuses(identity) || STRONG_USER_AUTH_RE.test(body) || refuses(body);
-  const identityReadable = authenticated || chain.gaps.length === 0;
-  const identityGap = identityReadable ? null : chain.gaps[0];
+  const helper = authenticated ? null : unfollowedSignInHelper(identity, body);
+  const identityReadable = authenticated || (chain.gaps.length === 0 && !helper);
+  const identityGap = identityReadable ? null : (chain.gaps[0] ?? helper);
   const tables = extractTables(body);
   // Identity values a where clause may narrow by: ctx itself, keys the
   // middleware injects into ctx, and names destructured from ctx.

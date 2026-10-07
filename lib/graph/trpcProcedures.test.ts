@@ -45,6 +45,40 @@ export const comments = createTRPCRouter({
     expect(fact).toMatchObject({ name: "add", authenticated: true, identityReadable: true, tables: ["comment"] });
   });
 
+  // CORPUS-5 agent path (2026-10-06): two sign-in checks read as "no sign-in",
+  // which titled real signed-in IDORs "Anyone can call this". Both are now a
+  // gate we could not follow: never claimed as present, never as absent.
+  it("reads a middleware that refuses when a no-argument auth helper returns nothing as a gate we could not follow (corpus-aa)", () => {
+    const [fact] = analyzeTrpcProcedures([f("trpc/init.ts", `import { initTRPC, TRPCError } from "@trpc/server";
+const t = initTRPC.create();
+export const createTRPCRouter = t.router;
+export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
+  const session = await isAuthenticated();
+  if (!session) {
+    throw new TRPCError({ code: "UNAUTHORIZED", message: "UNAUTHORIZED" });
+  }
+  return next({ ctx: { ...ctx, auth: session } });
+});`), f("modules/documents/procedures.ts", `import { createTRPCRouter, protectedProcedure } from "../../trpc/init";
+export const documents = createTRPCRouter({
+  getAllByFolderId: protectedProcedure.input(s).query(async ({ input }) => db.select().from(documents).where(eq(documents.folderId, input.folderId))),
+});`)]);
+    expect(fact).toMatchObject({ authenticated: false, identityReadable: false });
+    expect(fact.identityGap).toMatch(/isAuthenticated/);
+  });
+
+  it("reads a ctx method named must, require, ensure or assert in the resolver as a gate we could not follow (corpus-ab)", () => {
+    const [fact] = analyzeTrpcProcedures([f("server/trpc.ts", `export const t = initTRPC.context<Context>().create();`),
+      f("server/routers/userRouter.ts", `import { t } from "../trpc";
+export const userRouter = t.router({
+  delete: t.procedure.input(s).mutation(async ({ ctx, input }) => {
+    ctx.auth.mustBeReallyUser();
+    return ctx.prisma.user.delete({ where: { id: input.id } });
+  }),
+});`)]);
+    expect(fact).toMatchObject({ authenticated: false, identityReadable: false });
+    expect(fact.identityGap).toMatch(/mustBeReallyUser/);
+  });
+
   it("does not read a guard that lets a missing user through as authentication", () => {
     // corpus-d's mutationSessionGuard shape: the throw is for a deleted user, and
     // a caller with no user at all passes straight to next().
