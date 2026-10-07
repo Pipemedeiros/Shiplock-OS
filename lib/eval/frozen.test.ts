@@ -32,6 +32,15 @@ const cases: Case[] = [
     files: [{ path: "app/confirm/page.tsx", content: "fetch(`/api/ads/confirm?session_id=${encodeURIComponent(sessionId)}`);\nfetch(`/api/enrich?sessionId=${s}`);\n" }] },
   { name: "a localhost test script", real: false,
     files: [{ path: "cron-tester.ts", content: "await fetch(`http://localhost:3000/api${endpoint}?apiKey=${apiKey}`);\n" }] },
+  // CORPUS-5 false shapes, fixed 2026-10-06 (development; measured on CORPUS-6).
+  { name: "a provider token on a continuation line of a multi-line URL (corpus-aj)", real: false,
+    files: [{ path: "lib/threads.ts", content: "const r = await fetch(\n  `https://graph.threads.net/v1.0/me?fields=id,username` +\n  `&access_token=${token}`\n);\n" }] },
+  { name: "a public analytics id in next.config env (corpus-l)", real: false,
+    files: [{ path: "next.config.js", content: "module.exports = { env: { GA_ID: process.env.GA_ID } };\n" }] },
+  { name: "bracketed placeholders in a committed .env.production (triumph)", real: false,
+    files: [{ path: ".env.production", content: "SUPABASE_DB_URL=postgresql://postgres:[password]@aws-0-[region].pooler.supabase.com:6543/postgres\nSUPABASE_SERVICE_ROLE_KEY=your-service-role-key\n" }] },
+  { name: "a test env file named .env.tests (corpus-m)", real: false,
+    files: [{ path: "app/.env.tests", content: "NEXT_AUTH_SECRET=secret123secret\nAPI_KEY=testkey\n" }] },
   { name: "a committed env file holding only public values (Supabase anon)", real: false,
     files: [{ path: ".env", content: "NEXT_PUBLIC_SUPABASE_URL=https://abc.supabase.co\n" }] },
 ];

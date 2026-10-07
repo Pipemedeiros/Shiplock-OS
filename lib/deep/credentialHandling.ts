@@ -95,15 +95,23 @@ function hostOf(url: string): string | null {
 /** Each credential-named query parameter, judged by the call it sits in. */
 function queryCalls(content: string): QueryCall[] {
   const calls: QueryCall[] = [];
-  for (const line of content.split("\n")) {
+  const lines = content.split("\n");
+  lines.forEach((line, at) => {
     for (const match of line.matchAll(SENSITIVE_QUERY_ALL_RE)) {
       const before = line.slice(0, match.index);
+      // The URL as written from the start of its string literal. A
+      // continuation of a URL built across lines (`...?fields=id` +
+      // `&access_token=...`) is read from where it started, up to three lines
+      // back (CORPUS-5, corpus-aj's Graph adapters).
+      let url = before.slice(Math.max(before.lastIndexOf("`"), before.lastIndexOf('"'), before.lastIndexOf("'")) + 1);
+      if (/^\s*[`"']?$/.test(before)) {
+        const start = lines.slice(Math.max(0, at - 3), at).reverse().find((l) => /[`"'](https?:\/\/|\$\{|\/)/.test(l));
+        if (start) url = start.slice(start.search(/[`"'](https?:\/\/|\$\{|\/)/) + 1);
+      }
       if (/session_?id/i.test(match[1]) || COMMENT_OR_PLACEHOLDER_RE.test(line) || LOCAL_RE.test(line)) {
         calls.push({ severity: "INFO", host: null });
         continue;
       }
-      // The URL as written from the start of its string literal.
-      const url = before.slice(Math.max(before.lastIndexOf("`"), before.lastIndexOf('"'), before.lastIndexOf("'")) + 1);
       if (/^https?:\/\//.test(url)) { calls.push({ severity: "INFO", host: hostOf(url) }); continue; }
       const base = /^\$\{([^}]+)\}/.exec(url);
       if (base) {
@@ -119,7 +127,7 @@ function queryCalls(content: string): QueryCall[] {
       // this file does not resolve. Both stay the app's risk.
       calls.push({ severity: "WARNING", host: null });
     }
-  }
+  });
   return calls;
 }
 
