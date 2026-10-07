@@ -445,7 +445,8 @@ and its exact status live only in `docs/MASTER-PLAN-PROGRESS.md`.
 - Overview is a simple dashboard: one status a non-expert reads in a second
   (Exposed, At risk, No open issues, Not audited; a glyph as well as a
   colour), four metrics (open issues, exposed routes, blocked pull requests,
-  not checked), the 3D map, then an issues table. One view for everyone;
+  not checked), the map (an Obsidian-style graph, not 3D; Felipe
+  2026-10-06), then an issues table. One view for everyone;
   detail and proof open on a click rather than filling the page with text.
 - The feel (Felipe, 2026-10-06): like Stripe, technical enough to be
   credible and simple enough that a non-technical founder gets a sense of

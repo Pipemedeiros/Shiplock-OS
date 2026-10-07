@@ -1,0 +1,39 @@
+{
+ "experiment": "release-precision-thresholds",
+ "recordedAt": "2026-10-06",
+ "supersedes": "thresholds-release-2026-09.json (97% proposal of 2026-09-28)",
+ "recordedBefore": "any release benchmark of the harness (plan item H)",
+ "status": "Felipe's bar (2026-10-06, binding): 'we can only launch when 90%+ precision, after all it is a security product.' The lower-bound and sample-size operationalisation below is proposed by Claude; Felipe to confirm.",
+ "scope": "Everything that sets a founder's status (Exposed or At risk): deterministic findings and the customer agent's admitted findings, as rendered, on a held-out set frozen before the change being measured. INFO facts are reported, not gated.",
+ "definitions": {
+  "truePositive": "both blind labelers agree the statement as written is accurate AND the issue is real against the deployed app",
+  "falsePositive": "anything else, including partly accurate and contested (disagreement counts against us)",
+  "precision": "TP / (TP + FP), with a one-sided 95% Clopper-Pearson lower bound",
+  "zeroDenominator": "unavailable, never 100%"
+ },
+ "gates": {
+  "statusSetting": {
+   "observedPrecisionAtLeast": 0.9,
+   "lowerBound95AtLeast": 0.85,
+   "minimumLabeledFindings": 100,
+   "note": "With 100 findings, 5 false gives 95% observed and a lower bound of about 89.7%; 10 false gives 90% observed and about 83.6%, which fails the bound. Below 100 labeled findings the gate is 'not measurable', never a pass."
+  },
+  "statusCorrectness": {
+   "repositoriesWithCorrectStatusAtLeast": 0.9,
+   "note": "Exposed or At risk is right when at least one issue setting it is a true positive; No open issues is reported with what was unread."
+  },
+  "severity": {
+   "criticalSeverityFitsAtLeast": 0.9
+  }
+ },
+ "reportedNotGated": [
+  "recall on named known vulnerabilities (misses listed by name)",
+  "unread and partial coverage",
+  "run-to-run variance across two passes",
+  "INFO fact accuracy"
+ ],
+ "today": {
+  "deterministicLayerCorpus5": "8 of 18 status-setting findings real (44%, lower bound 24%), one labeler; not a gate result",
+  "agentPath": "never measured"
+ }
+}
