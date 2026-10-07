@@ -553,6 +553,119 @@ async function bench(shownFile, packFile, answerFiles) {
   console.log(`Gate: ${report.gate.result}${report.gate.reasons.length ? ` (${report.gate.reasons.join("; ")})` : ""}. Report: ${out}`);
 }
 
+// Plan item H, option B (Felipe 2026-10-06): the customer agent's path,
+// offline. agent-tasks writes each repository's reasoning brief (production's
+// own, lib/eval/agentPath.ts); the customer's agent (Claude Code here, on the
+// customer's subscription; never a ShipLock key) writes {"hypotheses": [...]}
+// beside it; agent-admit guards the answer and writes verification briefs with
+// the listed sources; the agent writes {"verdicts": [...]}; agent-shown admits
+// quoted proof and writes a shown.json that label-pack and bench read.
+function loadAgentModules() {
+  // lib/env parses at import; the harness never calls Supabase or GitHub.
+  const dummy = { NEXT_PUBLIC_SUPABASE_URL: "https://offline.supabase.co", NEXT_PUBLIC_SUPABASE_ANON_KEY: "offline", SUPABASE_SERVICE_ROLE_KEY: "offline",
+    RESEND_API_KEY: "offline", RESEND_FROM_EMAIL: "offline@example.com", NEXT_PUBLIC_APP_URL: "https://offline.example",
+    ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef", CRON_SECRET: "offline" };
+  for (const [k, v] of Object.entries(dummy)) if (!process.env[k]) process.env[k] = v;
+  return { ...loadProductModules(), ...require("../lib/intelligence/reasoning.ts"), ...require("../lib/eval/agentPath.ts") };
+}
+const readJson = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
+const numbered = (content) => content.split("\n").map((line, i) => `${String(i + 1).padStart(5)}  ${line}`).join("\n");
+
+async function agentContexts(product) {
+  const out = [];
+  for (const pin of manifest.repositories) {
+    if (await fileHash(archivePath(pin)) !== pin.archiveSha256) throw new Error(`${pin.id}: archive checksum mismatch`);
+    const { routes, stack, tables, domain, files, reasoned } = await analyzePin(product, pin);
+    const context = product.reasoningContext({ routes: reasoned, stack, tables, domain, files: [...files.keys()], liveFacts: [],
+      possessionGates: product.possessionGates(routes, files), oneIdAccess: product.oneIdAccess(routes, files), hasDatabase: false });
+    out.push({ pin, context, files });
+  }
+  return out;
+}
+
+async function agentTasks(outArg) {
+  blockNetwork();
+  const product = loadAgentModules();
+  const dir = outArg ? path.resolve(root, outArg) : path.join(root, "docs/evaluation/runs", `${manifest.experiment}-agent-${crypto.randomUUID()}`);
+  await fsp.mkdir(dir, { recursive: true });
+  let written = 0;
+  const skipped = [];
+  for (const { pin, context } of await agentContexts(product)) {
+    if (!context) { skipped.push(pin.id); continue; }
+    await fsp.writeFile(path.join(dir, `${pin.id}.reason.json`), JSON.stringify({ repo: pin.id, repository: pin.repository, commit: pin.commit,
+      answerFile: `${pin.id}.reason.answer.json`, answerShape: '{"hypotheses": [ ...objects as the brief asks... ]}',
+      brief: product.reasoningBrief(context) }, null, 2) + "\n", { flag: "wx" });
+    written++;
+  }
+  await fsp.writeFile(path.join(dir, "manifest.json"), JSON.stringify({ manifest: path.relative(root, manifestPath), head: execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim(),
+    reasoningTasks: written, skipped }, null, 2) + "\n");
+  console.log(`${written} reasoning tasks, ${skipped.length} repositories with nothing to ask. Directory: ${dir}`);
+}
+
+async function agentAdmit(dirArg) {
+  blockNetwork();
+  const product = loadAgentModules();
+  const dir = path.resolve(root, dirArg);
+  let tasks = 0, admitted = 0, rejected = 0, answered = 0;
+  for (const { pin, context, files } of await agentContexts(product)) {
+    const answerFile = path.join(dir, `${pin.id}.reason.answer.json`);
+    if (!context || !fs.existsSync(answerFile)) continue;
+    answered++;
+    const guard = product.guardAnswer(context, readJson(answerFile).hypotheses);
+    admitted += guard.admitted.length; rejected += guard.rejected.length;
+    const contentOf = (p) => { const f = files.get(p); return f === undefined ? null : (typeof f === "string" ? f : f.content); };
+    for (const t of product.verificationTasks(context, guard.admitted, contentOf)) {
+      const name = `${pin.id}.verify-${t.index}`;
+      await fsp.writeFile(path.join(dir, `${name}.json`), JSON.stringify({ repo: pin.id, answerFile: `${name}.answer.json`,
+        answerShape: '{"verdicts": [ ...objects as the brief asks, one per claim id... ]}', brief: t.brief,
+        sources: t.sources.map((s) => ({ path: s.path, numbered: numbered(s.content) })) }, null, 2) + "\n");
+      await fsp.writeFile(path.join(dir, `${name}.state.json`), JSON.stringify({ hypotheses: t.hypotheses, items: t.items,
+        sources: t.sources.map((s) => s.path) }, null, 2) + "\n");
+      tasks++;
+    }
+    await fsp.writeFile(path.join(dir, `${pin.id}.guard.json`), JSON.stringify({ admitted: guard.admitted.length, rejected: guard.rejected.length,
+      reasons: guard.rejected.map((r) => r.reason).slice(0, 40), unassessed: guard.unassessed.slice(0, 40) }, null, 2) + "\n");
+  }
+  console.log(`${answered} answers read; ${admitted} hypotheses admitted, ${rejected} rejected; ${tasks} verification tasks written.`);
+}
+
+async function agentShown(dirArg) {
+  blockNetwork();
+  const product = loadAgentModules();
+  const dir = path.resolve(root, dirArg);
+  const records = [];
+  const totals = { confirmed: 0, refuted: 0, unverified: 0, agentFindings: 0, unanswered: 0 };
+  for (const { pin, context, files } of await agentContexts(product)) {
+    const { archive, routes, stack } = await analyzePin(product, pin);
+    const deterministic = product.buildFindings({
+      admitted: [], deterministic: product.deterministicFindings(archive.files.map((f) => ({ path: f.path, content: f.content }))),
+      routes, stack, repositoryId: pin.id, hasDatabase: false, liveFacts: [],
+      possessionGates: product.possessionGates(routes, files), oneIdAccess: product.oneIdAccess(routes, files),
+    });
+    const agent = [];
+    for (const name of fs.readdirSync(dir).filter((n) => n.startsWith(`${pin.id}.verify-`) && n.endsWith(".state.json"))) {
+      const base = name.slice(0, -".state.json".length);
+      const answer = path.join(dir, `${base}.answer.json`);
+      if (!fs.existsSync(answer)) { totals.unanswered++; continue; }
+      const state = readJson(path.join(dir, name));
+      const sources = state.sources.map((p) => { const f = files.get(p); return { path: p, content: typeof f === "string" ? f : f.content }; });
+      const result = product.admitVerified(context, { hypotheses: state.hypotheses, items: state.items, sources }, readJson(answer).verdicts ?? [], pin.id);
+      totals.confirmed += result.confirmed; totals.refuted += result.refuted; totals.unverified += result.unverified;
+      agent.push(...result.findings);
+    }
+    totals.agentFindings += agent.length;
+    const seen = new Set();
+    const findings = [...agent, ...deterministic].filter((f) => (seen.has(f.id) ? false : (seen.add(f.id), true)));
+    records.push({ id: pin.id, repository: pin.repository, commit: pin.commit, routes: routes.length,
+      status: findings.some((f) => f.severity === "CRITICAL") ? "exposed" : findings.some((f) => f.severity === "WARNING") ? "at_risk" : "no_open_issues",
+      findings: findings.map((f) => ({ id: f.id, severity: f.severity, attackClass: f.attackClass, title: f.title, consequence: f.consequence,
+        file: f.file, entry: f.entry, source: agent.includes(f) ? "agent" : "deterministic" })) });
+  }
+  await fsp.writeFile(path.join(dir, "shown.json"), JSON.stringify({ manifest: path.relative(root, manifestPath), path: "agent", totals, records }, null, 2) + "\n");
+  console.log(`Agent path: ${totals.confirmed} confirmed, ${totals.refuted} refuted, ${totals.unverified} unverified, ${totals.unanswered} unanswered; `
+    + `${totals.agentFindings} agent findings. ${path.join(dir, "shown.json")}`);
+}
+
 async function main() {
   validateManifest();
   if (process.argv[2] === "acquire") {
@@ -563,6 +676,12 @@ async function main() {
     }
   } else if (process.argv[2] === "shown") {
     await shown();
+  } else if (process.argv[2] === "agent-tasks") {
+    await agentTasks(process.argv[3]);
+  } else if (process.argv[2] === "agent-admit" && process.argv[3]) {
+    await agentAdmit(process.argv[3]);
+  } else if (process.argv[2] === "agent-shown" && process.argv[3]) {
+    await agentShown(process.argv[3]);
   } else if (process.argv[2] === "label-pack" && process.argv[3] && process.argv[4]) {
     const records = JSON.parse(fs.readFileSync(path.resolve(root, process.argv[3]), "utf8")).records;
     await fsp.writeFile(path.resolve(root, process.argv[4]), JSON.stringify({ shown: process.argv[3], packets: labelPack(records) }, null, 2) + "\n", { flag: "wx" });
@@ -580,7 +699,7 @@ async function main() {
   } else if (process.argv[2] === "render" && process.argv[3]) {
     await render(process.argv[3]);
   } else {
-    throw new Error("Usage: node scripts/corpus.cjs acquire|evaluate|shown|label-pack <shown.json> <pack.json>|bench <shown.json> <pack.json> <answers.json>...|holdout <labels.json>|render <paid run dir>|paid --confirm-paid --max-usd <usd> --price <model=in,out>... [--model claude-sonnet-5] [--only <id>]");
+    throw new Error("Usage: node scripts/corpus.cjs acquire|evaluate|shown|agent-tasks [dir]|agent-admit <dir>|agent-shown <dir>|label-pack <shown.json> <pack.json>|bench <shown.json> <pack.json> <answers.json>...|holdout <labels.json>|render <paid run dir>|paid --confirm-paid --max-usd <usd> --price <model=in,out>... [--model claude-sonnet-5] [--only <id>]");
   }
 }
 
