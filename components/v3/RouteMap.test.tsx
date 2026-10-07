@@ -10,7 +10,7 @@ const map = buildRouteMap({
     { path: "/api/me", file: "app/api/me/route.ts", tables: ["invoices"], authenticated: true, ownershipFiltered: true, machineGated: false },
   ],
   tools: [{ id: "supabase", name: "Supabase", kind: "database" }, { id: "stripe", name: "Stripe", kind: "payments" }],
-  findings: [{ entry: "/api/invoices", severity: "CRITICAL", title: "Signed-in callers are not limited to their own rows" }],
+  findings: [{ entry: "/api/invoices", severity: "CRITICAL", title: "Signed-in callers are not limited to their own rows", confirmed: true }],
   hotFiles: [],
 });
 
@@ -19,14 +19,20 @@ const map = buildRouteMap({
 // by shape as well as colour, and the same facts are readable as a list.
 describe("RouteMap, the Obsidian-style graph", () => {
   const html = renderToStaticMarkup(<RouteMap map={map} />);
-  const visible = map.nodes.filter((n) => n.kind !== "helper");
+  // A4: only routes that are wrong (red or yellow) and what their requests reach.
+  const reach = new Set(map.nodes.filter((n) => n.kind === "route" && n.level).map((n) => n.id));
+  for (let changed = true; changed;) {
+    changed = false;
+    for (const e of map.edges) if (reach.has(e.from) && !reach.has(e.to) && e.kind !== "shared") { reach.add(e.to); changed = true; }
+  }
+  const visible = map.nodes.filter((n) => reach.has(n.id));
 
   it("draws every visible node as a focusable, labelled button and opens on the worst finding", () => {
     expect(html.match(/<g[^>]*class="v3-map-node[^"]*"[^>]*role="button"/g)?.length
       ?? html.match(/<g[^>]*role="button"[^>]*class="v3-map-node/g)?.length).toBe(visible.length);
-    expect(html).toContain('aria-label="route /api/invoices, Signed in, not limited to own rows, open critical finding"');
+    expect(html).toContain('aria-label="route /api/invoices, Signed in, not limited to own rows, confirmed issue"');
     expect(html).toMatch(/tabindex="0"/i);
-    expect(html).toContain("Open critical finding");
+    expect(html).toContain("Confirmed issue");
     expect(html).toContain('href="/dashboard/risks"');
   });
 
@@ -42,8 +48,9 @@ describe("RouteMap, the Obsidian-style graph", () => {
     expect(html).toContain("Security check");
   });
 
-  it("names providers without a collector as coming soon, and has no dashes in its copy", () => {
-    expect(html).toContain("Stripe · coming soon");
+  it("keeps services nothing wrong reaches off the map (Stack lists every provider), and has no dashes in its copy", () => {
+    expect(html).not.toContain("Stripe");
+    expect(html).toContain("Supabase");
     expect(html.replace(/<[^>]+>/g, " ").replace(/−/g, "")).not.toMatch(/[–—]/);
   });
 
@@ -56,7 +63,7 @@ describe("RouteMap, the Obsidian-style graph", () => {
   it("offers a list view of the same facts", () => {
     expect(html).toMatch(/<button[^>]*aria-pressed="false"[^>]*>List<\/button>/);
     const list = renderToStaticMarkup(<MapList map={map} visible={new Set(visible.map((n) => n.id))} selected="" onSelect={() => {}} />);
-    expect(list).toContain("No sign in");
+    expect(list).toContain("Candidate or open way to data");
     expect(list).toMatch(/<button[^>]*>\/api\/public<\/button>/);
     expect(list).toContain("reaches posts");
   });
@@ -69,5 +76,22 @@ describe("RouteMap, the Obsidian-style graph", () => {
     // The sign-in check is shared with a scoped route; only that route goes on to the scope check.
     const me = map.nodes.find((n) => n.id === "route:/api/me")!;
     expect(simulationPath(map, me.id, simulateRequest(me.fact!, "signed_in"))).toEqual(["route:/api/me", "control:session", "control:scope", "table:invoices"]);
+  });
+
+  // A4 (Felipe 2026-10-07): the map shows only what is wrong, red or yellow.
+  it("leaves safe routes off the map and colours the rest by degree", () => {
+    expect(html).not.toContain("route /api/me");
+    expect(html).toMatch(/class="v3-map-node k-route[^"]*"[^>]*aria-label="route \/api\/invoices[^"]*confirmed issue"/);
+    expect(html).toMatch(/aria-label="route \/api\/public[^"]*candidate"/);
+    expect(html).not.toContain("Only exposed paths");
+    expect(html).toContain("Confirmed issue");
+  });
+
+  it("says plainly when no route is wrong, without calling the app safe", () => {
+    const quiet = buildRouteMap({ routes: [{ path: "/api/me", file: "app/api/me/route.ts", tables: ["invoices"], authenticated: true, ownershipFiltered: true, machineGated: false }],
+      tools: [], findings: [], hotFiles: [] });
+    const out = renderToStaticMarkup(<RouteMap map={quiet} />);
+    expect(out).toContain("No route with an issue or an open way to data in this audit");
+    expect(out).not.toMatch(/secure|safe/i);
   });
 });

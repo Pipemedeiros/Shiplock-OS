@@ -49,10 +49,9 @@ const OUTCOME: Record<Simulation["outcome"], { label: string; tone: string }> = 
   reaches: { label: "Reaches data it should not", tone: "#ff9d85" },
   unknown: { label: "Unknown: a check we could not read", tone: "#e8d3a0" },
 };
-const RISKY: Exposure[] = ["open", "unscoped", "unknown"];
-const GROUP_ORDER: Exposure[] = ["open", "unknown", "unscoped", "scoped", "secret", "none"];
-const GROUP: Record<Exposure, string> = { open: "No sign in", unknown: "Could not read", unscoped: "Not limited to own rows",
-  scoped: "Own rows only", secret: "Secret required", none: "No data" };
+// A4 (Felipe 2026-10-07): the map shows only what is wrong, red or yellow.
+const LEVEL = { red: { color: OPEN, label: "Confirmed issue", aria: "confirmed issue" },
+  yellow: { color: UNSCOPED, label: "Candidate or open way to data", aria: "candidate" } } as const;
 
 /**
  * The nodes a simulated request passes, in order, along the map's own edges:
@@ -90,10 +89,8 @@ function describe(node: MapNode): { status: string; tone: string; action?: { hre
   if (node.kind === "table") return { status: "Table", tone: QUIET };
   if (node.kind === "control") return { status: "Security check read in your code", tone: QUIET };
   if (node.kind === "helper") return { status: "Shared code", tone: QUIET };
-  if (node.finding) {
-    return { status: node.finding === "CRITICAL" ? "Open critical finding" : "Open finding", tone: node.finding === "CRITICAL" ? "#ff9d85" : UNSCOPED,
-      action: { href: "/dashboard/risks", label: "Review the finding" } };
-  }
+  if (node.level === "red") return { status: "Confirmed issue", tone: "#ff9d85", action: { href: "/dashboard/risks", label: "Review the issue" } };
+  if (node.finding) return { status: "Candidate to review", tone: UNSCOPED, action: { href: "/dashboard/risks", label: "Review the candidate" } };
   if (node.hot) return { status: "Heavy traffic observed", tone: HOT, action: { href: "/dashboard/risks", label: "See the rate limit offer" } };
   const e = EXPOSURE[node.exposure ?? "none"];
   return { status: e.label, tone: e.color === DIM ? "#9fb0c4" : e.color };
@@ -101,7 +98,7 @@ function describe(node: MapNode): { status: string; tone: string; action?: { hre
 
 const ariaLabel = (n: MapNode) =>
   `${n.kind === "helper" ? "shared code" : n.kind === "control" ? "security check" : n.kind} ${n.label}`
-  + `${n.exposure ? `, ${EXPOSURE[n.exposure].label}` : ""}${n.finding ? `, open ${n.finding.toLowerCase()} finding` : ""}`;
+  + `${n.exposure ? `, ${EXPOSURE[n.exposure].label}` : ""}${n.level ? `, ${LEVEL[n.level].aria}` : ""}`;
 const labelText = (n: MapNode) => `${n.label}${n.kind === "provider" && n.connection === "coming_soon" ? " · coming soon" : ""}`;
 
 /** One node's mark: circle (route), rounded square (table), diamond (check), ring (service), dot (shared code). */
@@ -113,21 +110,19 @@ function Mark({ n, r }: { n: MapNode; r: number }) {
       strokeDasharray={n.connection === "available" ? undefined : "3 3"} vectorEffect="non-scaling-stroke" />;
   }
   if (n.kind === "helper") return <circle r={r} fill="#6f84a6" />;
-  const exposure = n.exposure ?? "none";
+  // A route is red (confirmed) or yellow (candidate, open exposure); a
+  // confirmed one also wears a ring, so degree is never colour alone.
+  const color = n.level ? LEVEL[n.level].color : QUIET;
   return (
     <>
-      {n.finding ? <circle r={r + 5} fill="none" stroke={EXPOSURE[exposure].color} strokeOpacity={0.4} strokeWidth={1.2} vectorEffect="non-scaling-stroke" /> : null}
+      {n.level === "red" ? <circle r={r + 5} fill="none" stroke={color} strokeOpacity={0.5} strokeWidth={1.4} vectorEffect="non-scaling-stroke" /> : null}
       {n.hot ? <circle r={r + 8} fill="none" stroke={HOT} strokeDasharray="2 3" strokeWidth={1} vectorEffect="non-scaling-stroke" /> : null}
-      {exposure === "unknown"
-        ? <circle r={r} fill="#0f1b2d" stroke={UNKNOWN} strokeWidth={1.6} strokeDasharray="2 2" vectorEffect="non-scaling-stroke" />
-        : exposure === "secret"
-          ? <circle r={r} fill="#0f1b2d" stroke={QUIET} strokeWidth={1.6} vectorEffect="non-scaling-stroke" />
-          : <circle r={r} fill={EXPOSURE[exposure].color} />}
+      <circle r={r} fill={color} />
     </>
   );
 }
 
-/** The same facts as text: routes by exposure, worst first, with what each reaches. */
+/** The same facts as text: wrong routes by degree, red first, with what each reaches. */
 export function MapList({ map, visible, selected, onSelect }: {
   map: RouteMapData; visible: Set<string>; selected: string; onSelect: (id: string) => void;
 }) {
@@ -147,19 +142,19 @@ export function MapList({ map, visible, selected, onSelect }: {
   const routes = map.nodes.filter((n) => n.kind === "route" && visible.has(n.id));
   return (
     <div className="v3-graph-list">
-      {GROUP_ORDER.map((g) => {
-        const rows = routes.filter((n) => (n.exposure ?? "none") === g);
+      {(["red", "yellow"] as const).map((g) => {
+        const rows = routes.filter((n) => n.level === g);
         if (rows.length === 0) return null;
         return (
           <section key={g}>
-            <h3><i style={{ background: EXPOSURE[g].color }} />{GROUP[g]} <b>{rows.length}</b></h3>
+            <h3><i style={{ background: LEVEL[g].color }} />{LEVEL[g].label} <b>{rows.length}</b></h3>
             <ul>
               {rows.map((n) => {
                 const t = reaches(n.id);
                 return (
                   <li key={n.id}>
                     <button type="button" aria-pressed={n.id === selected} onClick={() => onSelect(n.id)}>{n.label}</button>
-                    <span>{t.length ? `reaches ${t.join(", ")}` : "reaches no table"}{n.finding ? ` · open ${n.finding.toLowerCase()} finding` : ""}</span>
+                    <span>{t.length ? `reaches ${t.join(", ")}` : "reaches no table"}{n.exposure ? ` · ${EXPOSURE[n.exposure].label}` : ""}</span>
                   </li>
                 );
               })}
@@ -181,12 +176,9 @@ export function RouteMap({ map }: { map: RouteMapData }) {
   const [dragging, setDragging] = useState(false);
   const [focus, setFocus] = useState<string | null>(null);
   const [showShared, setShowShared] = useState(false);
-  const [riskyOnly, setRiskyOnly] = useState(false);
   const [list, setList] = useState(false);
   const [selected, setSelected] = useState<string>(() =>
-    (map.nodes.find((n) => n.finding === "CRITICAL") ?? map.nodes.find((n) => n.finding) ?? map.nodes.find((n) => n.exposure === "open")
-      ?? map.nodes.find((n) => n.exposure === "unscoped") ?? map.nodes.find((n) => n.id === "control:session")
-      ?? map.nodes.find((n) => n.kind === "route") ?? map.nodes[0])?.id ?? "");
+    (map.nodes.find((n) => n.level === "red") ?? map.nodes.find((n) => n.level === "yellow"))?.id ?? "");
   const [attacker, setAttacker] = useState<Attacker>("anonymous");
   const [sim, setSim] = useState<{ routeId: string; result: Simulation; path: string[]; progress: number } | null>(null);
 
@@ -248,26 +240,18 @@ export function RouteMap({ map }: { map: RouteMapData }) {
     return () => cancelAnimationFrame(frame);
   }, [simKey]);
 
-  // What is shown: shared code only when asked; "only exposed paths" keeps
-  // exposed routes and everything their data reaches.
+  // What is shown (A4): only the routes that are wrong, and everything their
+  // requests reach; shared code they run only when asked.
   const visible = useMemo(() => {
-    const keep = new Set<string>();
-    const risky = new Set(map.nodes.filter((n) => n.kind === "route" && RISKY.includes(n.exposure ?? "none")).map((n) => n.id));
-    for (const n of map.nodes) {
-      if (n.kind === "helper" && !showShared) continue;
-      if (riskyOnly && n.kind === "route" && !risky.has(n.id)) continue;
-      keep.add(n.id);
+    const wrong = map.nodes.filter((n) => n.kind === "route" && n.level).map((n) => n.id);
+    const keep = new Set<string>(wrong);
+    for (let changed = true; changed;) {
+      changed = false;
+      for (const e of map.edges) if (keep.has(e.from) && !keep.has(e.to) && e.kind !== "shared") { keep.add(e.to); changed = true; }
     }
-    if (riskyOnly) {
-      const reach = new Set<string>(risky);
-      for (let changed = true; changed;) {
-        changed = false;
-        for (const e of map.edges) if (reach.has(e.from) && !reach.has(e.to) && e.kind !== "shared") { reach.add(e.to); changed = true; }
-      }
-      for (const id of [...keep]) if (!reach.has(id) && !id.startsWith("helper:")) keep.delete(id);
-    }
+    if (showShared) for (const e of map.edges) if (e.kind === "shared" && wrong.includes(e.from)) keep.add(e.to);
     return keep;
-  }, [map, showShared, riskyOnly]);
+  }, [map, showShared]);
 
   // The lit neighbourhood: the hovered or focused node and everything one edge away.
   const lit = useMemo(() => {
@@ -285,9 +269,7 @@ export function RouteMap({ map }: { map: RouteMapData }) {
   const done = sim !== null && sim.progress >= hops;
   const stepsShown = sim ? (done ? sim.result.steps.length : Math.min(sim.result.steps.length - 1, reachedIndex + 1)) : 0;
   const drifting = motionOk && !paused && !focus && !sim && !dragging;
-  const counts = map.nodes.filter((n) => n.kind === "route").reduce<Record<string, number>>((acc, n) => {
-    const k = n.exposure ?? "none"; acc[k] = (acc[k] ?? 0) + 1; return acc;
-  }, {});
+  const levels = { red: map.nodes.filter((n) => n.level === "red").length, yellow: map.nodes.filter((n) => n.level === "yellow").length };
 
   function select(id: string) { setSelected(id); setSim(null); }
   function run() {
@@ -319,11 +301,21 @@ export function RouteMap({ map }: { map: RouteMapData }) {
 
   function nudge(dx: number, dy: number) { setView((v) => ({ ...v, x: v.x + dx, y: v.y + dy })); }
 
+  if (levels.red + levels.yellow === 0) {
+    return (
+      <div className="v3-map v3-map-quiet">
+        <div className="v3-card-p" style={{ color: "#eef2f7" }}>
+          <p>No route with an issue or an open way to data in this audit.</p>
+          <p className="v3-map-note" style={{ marginTop: 6 }}>Routes we could not read are listed on <Link href="/dashboard/coverage" style={{ color: "#eef2f7", textDecoration: "underline" }}>Coverage</Link>.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="v3-map">
       <div className="v3-map-stage">
         <div className="v3-map-toolbar" role="group" aria-label="Map view">
-          <button type="button" aria-pressed={riskyOnly} onClick={() => setRiskyOnly((v) => !v)}>Only exposed paths</button>
           <button type="button" aria-pressed={showShared} onClick={() => setShowShared((v) => !v)}>Shared code</button>
           <button type="button" aria-pressed={list} onClick={() => setList((v) => !v)}>List</button>
         </div>
@@ -337,7 +329,7 @@ export function RouteMap({ map }: { map: RouteMapData }) {
             preserveAspectRatio="xMidYMid meet"
             style={{ height: stage.height }}
             role="group"
-            aria-label={`Map of ${counts.open ?? 0} open, ${counts.unscoped ?? 0} unscoped and ${(counts.scoped ?? 0) + (counts.secret ?? 0)} guarded routes. Use the List view for the same facts as text.`}
+            aria-label={`Map of ${levels.red} routes with a confirmed issue and ${levels.yellow} candidates or open ways to data. Use the List view for the same facts as text.`}
             onPointerDown={(e) => {
               if ((e.target as Element).closest(".v3-map-node")) return;
               drag.current = { x: e.clientX, y: e.clientY, view, moved: false };
@@ -460,10 +452,10 @@ export function RouteMap({ map }: { map: RouteMapData }) {
           </>
         ) : <p className="v3-map-detail">Select a node.</p>}
         <ul className="v3-map-legend">
-          {(["open", "unscoped", "unknown", "scoped", "secret", "none"] as Exposure[]).filter((k) => counts[k]).map((k) => (
+          {(["red", "yellow"] as const).filter((k) => levels[k]).map((k) => (
             <li key={k}>
-              <svg width="12" height="12" viewBox="-6 -6 12 12" aria-hidden="true"><Mark n={{ id: k, kind: "route", label: "", detail: "", exposure: k }} r={4.5} /></svg>
-              {EXPOSURE[k].label} <span className="v3-map-count">{counts[k]}</span>
+              <svg width="12" height="12" viewBox="-6 -6 12 12" aria-hidden="true"><Mark n={{ id: k, kind: "route", label: "", detail: "", level: k }} r={4} /></svg>
+              {LEVEL[k].label} <span className="v3-map-count">{levels[k]}</span>
             </li>
           ))}
           <li><svg width="12" height="12" viewBox="-6 -6 12 12" aria-hidden="true"><Mark n={{ id: "c", kind: "control", label: "", detail: "" }} r={5} /></svg>Security check</li>

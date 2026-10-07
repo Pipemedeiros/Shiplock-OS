@@ -15,7 +15,8 @@ export type MapRoute = {
   identityReadable?: boolean; ownershipReadable?: boolean; machineGateReadable?: boolean;
 };
 export type MapTool = { id: string; name: string; kind: StackKind };
-export type MapFinding = { entry: string | null; severity: "CRITICAL" | "WARNING" | "INFO"; title: string };
+/** confirmed: a proven issue (lib/agent/confirmed.ts); otherwise a candidate. */
+export type MapFinding = { entry: string | null; severity: "CRITICAL" | "WARNING" | "INFO"; title: string; confirmed?: boolean };
 
 export type Exposure = "open" | "unscoped" | "scoped" | "secret" | "unknown" | "none";
 export type Risk = "open" | "unknown" | "unscoped" | "guarded";
@@ -43,6 +44,13 @@ export type MapNode = {
   /** Route nodes carry their facts so the map can simulate a request. */
   fact?: MapRoute;
   exposure?: Exposure;
+  /**
+   * What is wrong with a route (A4, Felipe 2026-10-07: the map shows only the
+   * routes that are wrong, red or yellow by degree). red: a confirmed issue.
+   * yellow: a candidate, or an open or unscoped exposure, nothing confirmed.
+   * Absent: nothing wrong was read, or the route could not be read.
+   */
+  level?: "red" | "yellow";
 };
 export type RouteMap = { nodes: MapNode[]; edges: MapEdge[]; truncated: boolean };
 
@@ -86,6 +94,7 @@ const rank = { CRITICAL: 0, WARNING: 1, INFO: 2 } as const;
 
 export function buildRouteMap(input: { routes: MapRoute[]; tools: MapTool[]; findings: MapFinding[]; hotFiles: string[] }): RouteMap {
   const hot = new Set(input.hotFiles);
+  const confirmedEntries = new Set(input.findings.filter((f) => f.confirmed && f.entry && f.severity !== "INFO").map((f) => f.entry!));
   const worst = new Map<string, MapFinding>();
   for (const f of input.findings) {
     if (!f.entry) continue;
@@ -109,7 +118,10 @@ export function buildRouteMap(input: { routes: MapRoute[]; tools: MapTool[]; fin
       r.authenticated ? "Requires a signed-in caller." : "No sign-in check read.",
       r.tables.length ? (r.ownershipFiltered ? "Scoped to the caller's rows." : "Not scoped to the caller's rows.") : "Reaches no table we read.",
     ].join(" ");
-    nodes.push({ id: `route:${r.path}`, kind: "route", label: r.path, file: r.file, fact: r, exposure: exposureOf(r),
+    const exposure = exposureOf(r);
+    const level = confirmedEntries.has(r.path) ? "red" as const
+      : (finding && finding.severity !== "INFO") || exposure === "open" || exposure === "unscoped" ? "yellow" as const : undefined;
+    nodes.push({ id: `route:${r.path}`, kind: "route", label: r.path, file: r.file, fact: r, exposure, ...(level ? { level } : {}),
       detail: finding ? `${finding.title}. ${controls}` : controls,
       ...(finding ? { finding: finding.severity } : {}), ...(hot.has(r.file) ? { hot: true } : {}) });
   });

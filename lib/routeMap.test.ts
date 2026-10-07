@@ -135,3 +135,26 @@ it("hides a label that would cover a forced one", async () => {
   const { placeLabels } = await import("./routeMap");
   expect([...placeLabels([{ id: "x", x: 0, y: 0, w: 50, h: 14, priority: 9 }, { id: "f", x: 5, y: 0, w: 50, h: 14, priority: 0, force: true }])]).toEqual(["f"]);
 });
+
+// A4 (Felipe 2026-10-07): the map shows only the routes that are wrong, red or
+// yellow by degree. Red: a confirmed issue. Yellow: a candidate, or an open or
+// unscoped exposure, with nothing confirmed. Safe and unreadable routes carry
+// no level and leave the map.
+describe("route levels", () => {
+  const level = (map: RouteMap, path: string) => map.nodes.find((n) => n.id === `route:${path}`)?.level ?? null;
+  it("marks red, yellow or nothing from findings and exposure", () => {
+    const map = buildRouteMap({ ...input, routes: [
+      route("/confirmed", ["orders"], { ownershipFiltered: false }),
+      route("/candidate", ["orders"]),
+      route("/open", ["orders"], { authenticated: false, ownershipFiltered: false }),
+      route("/unscoped", ["orders"], { ownershipFiltered: false }),
+      route("/safe", ["orders"]),
+      route("/unread", ["orders"], { authenticated: false, identityReadable: false }),
+    ], findings: [
+      { entry: "/confirmed", severity: "WARNING", title: "t", confirmed: true },
+      { entry: "/candidate", severity: "CRITICAL", title: "t", confirmed: false },
+    ] });
+    expect(["/confirmed", "/candidate", "/open", "/unscoped", "/safe", "/unread"].map((p) => level(map, p)))
+      .toEqual(["red", "yellow", "yellow", "yellow", null, null]);
+  });
+});

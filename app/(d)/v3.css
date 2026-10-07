@@ -505,6 +505,7 @@
 
 /* ── Q27 route map (components/v3/RouteMap.tsx) ─────────────────────────── */
 .v3-map { display: grid; grid-template-columns: minmax(0, 1fr) 260px; background: var(--navy); border-radius: var(--r); overflow: hidden; }
+.v3-map.v3-map-quiet { display: block; }
 .v3-map-stage { position: relative; overflow: hidden; }
 /* The graph (Felipe 2026-10-06: like Obsidian, not 3D). */
 .v3-graph { display: block; width: 100%; max-width: 100%; cursor: grab; touch-action: none; }
