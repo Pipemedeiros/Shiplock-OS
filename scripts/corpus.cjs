@@ -103,6 +103,7 @@ function loadProductModules() {
     ...require("../lib/agent/evaluation.ts"),
     ...require("../lib/agent/deterministicFindings.ts"),
     ...require("../lib/agent/findings.ts"),
+    ...require("../lib/eval/benchmark.ts"),
     // The harness's own model calls; the product makes none (Felipe, 2026-10-01).
     ...require("./corpusModel.ts"),
   };
@@ -492,13 +493,64 @@ async function shown() {
     });
     records.push({ id: pin.id, repository: pin.repository, commit: pin.commit, routes: routes.length, truncated: archive.truncated,
       status: findings.some((f) => f.severity === "CRITICAL") ? "exposed" : findings.some((f) => f.severity === "WARNING") ? "at_risk" : "no_open_issues",
-      findings: findings.map((f) => ({ id: f.id, severity: f.severity, attackClass: f.attackClass, title: f.title, file: f.file, entry: f.entry })) });
+      findings: findings.map((f) => ({ id: f.id, severity: f.severity, attackClass: f.attackClass, title: f.title, consequence: f.consequence, file: f.file, entry: f.entry })) });
   }
   const out = path.join(root, "docs/evaluation/runs", `${manifest.experiment}-shown-${crypto.randomUUID()}`);
   await fsp.mkdir(out, { recursive: true });
   await fsp.writeFile(path.join(out, "shown.json"), JSON.stringify({ manifest: path.relative(root, manifestPath), modules: product.loaded, records }, null, 2) + "\n", { flag: "wx" });
   const count = (s) => records.reduce((n, r) => n + r.findings.filter((f) => f.severity === s).length, 0);
   console.log(`${records.length} repositories; ${count("CRITICAL")} critical, ${count("WARNING")} warning, ${count("INFO")} info; exposed ${records.filter((r) => r.status === "exposed").length}, at risk ${records.filter((r) => r.status === "at_risk").length}. Artifact: ${out}`);
+}
+
+// Plan item H (Felipe 2026-10-06: launch only at 90%+ precision). A label pack
+// is what two blind labelers read: every finding that sets a status, its
+// statement, repository, commit and file, never the product's severity or
+// class, in a fixed order shuffled by an opaque key.
+function labelPack(records) {
+  const pack = [];
+  for (const r of records) {
+    for (const f of r.findings) {
+      if (f.severity === "INFO") continue;
+      pack.push({ key: sha(`${r.id}\u0000${f.id}`).slice(0, 12), repo: r.id, id: f.id, repository: r.repository, commit: r.commit,
+        file: f.file ?? null, statement: f.consequence ? `${f.title}. ${f.consequence}` : f.title });
+    }
+  }
+  return pack.sort((a, b) => a.key.localeCompare(b.key));
+}
+
+/** Each labeler's answers, keyed by packet, merged into labels. */
+function mergeAnswers(pack, answerSets) {
+  const byKey = new Map(pack.map((p) => [p.key, { repo: p.repo, id: p.id, labelers: [] }]));
+  const unknownKeys = [];
+  for (const answers of answerSets) {
+    for (const a of answers) {
+      const label = byKey.get(a.key);
+      if (!label) { unknownKeys.push(a.key); continue; }
+      label.labelers.push({ accurate: a.accurate, real: a.real });
+    }
+  }
+  return { labels: [...byKey.values()], unknownKeys };
+}
+
+async function bench(shownFile, packFile, answerFiles) {
+  const shownDoc = JSON.parse(fs.readFileSync(path.resolve(root, shownFile), "utf8"));
+  const pack = JSON.parse(fs.readFileSync(path.resolve(root, packFile), "utf8"));
+  const answers = answerFiles.map((file) => JSON.parse(fs.readFileSync(path.resolve(root, file), "utf8")).answers);
+  const { labels, unknownKeys } = mergeAnswers(pack.packets, answers);
+  const thresholds = JSON.parse(fs.readFileSync(path.join(root, "docs/evaluation/thresholds-release-2026-10.json"), "utf8"));
+  const g = thresholds.gates;
+  const gate = { observedPrecisionAtLeast: g.statusSetting.observedPrecisionAtLeast, lowerBound95AtLeast: g.statusSetting.lowerBound95AtLeast,
+    minimumLabeledFindings: g.statusSetting.minimumLabeledFindings, repositoriesWithCorrectStatusAtLeast: g.statusCorrectness.repositoriesWithCorrectStatusAtLeast };
+  const product = loadProductModules();
+  const findings = shownDoc.records.flatMap((r) => r.findings.map((f) => ({ repo: r.id, id: f.id, severity: f.severity, attackClass: f.attackClass })));
+  const report = product.scoreBenchmark(findings, labels, gate);
+  const out = path.join(path.dirname(path.resolve(root, shownFile)), `bench-${crypto.randomUUID()}.json`);
+  await fsp.writeFile(out, JSON.stringify({ shown: shownFile, pack: packFile, answers: answerFiles, thresholds: "docs/evaluation/thresholds-release-2026-10.json",
+    unknownKeys, report }, null, 2) + "\n", { flag: "wx" });
+  const s = report.statusSetting;
+  console.log(`Status-setting findings: ${s.n}; labeled ${s.labeled}; true ${s.tp}; precision ${s.precision === null ? "unavailable" : (s.precision * 100).toFixed(1) + "%"}` +
+    `${s.lower95 === null ? "" : `, lower bound ${(s.lower95 * 100).toFixed(1)}%`}; provisional (every available labeler said yes) ${s.provisionalTp}. Status right on ${report.statusCorrect.correct} of ${report.statusCorrect.judged} repositories.`);
+  console.log(`Gate: ${report.gate.result}${report.gate.reasons.length ? ` (${report.gate.reasons.join("; ")})` : ""}. Report: ${out}`);
 }
 
 async function main() {
@@ -511,6 +563,12 @@ async function main() {
     }
   } else if (process.argv[2] === "shown") {
     await shown();
+  } else if (process.argv[2] === "label-pack" && process.argv[3] && process.argv[4]) {
+    const records = JSON.parse(fs.readFileSync(path.resolve(root, process.argv[3]), "utf8")).records;
+    await fsp.writeFile(path.resolve(root, process.argv[4]), JSON.stringify({ shown: process.argv[3], packets: labelPack(records) }, null, 2) + "\n", { flag: "wx" });
+    console.log(`${labelPack(records).length} packets written to ${process.argv[4]}`);
+  } else if (process.argv[2] === "bench" && process.argv[5]) {
+    await bench(process.argv[3], process.argv[4], process.argv.slice(5));
   } else if (process.argv[2] === "evaluate") {
     await evaluate();
   } else if (process.argv[2] === "holdout" && process.argv[3]) {
@@ -522,9 +580,9 @@ async function main() {
   } else if (process.argv[2] === "render" && process.argv[3]) {
     await render(process.argv[3]);
   } else {
-    throw new Error("Usage: node scripts/corpus.cjs acquire|evaluate|shown|holdout <labels.json>|render <paid run dir>|paid --confirm-paid --max-usd <usd> --price <model=in,out>... [--model claude-sonnet-5] [--only <id>]");
+    throw new Error("Usage: node scripts/corpus.cjs acquire|evaluate|shown|label-pack <shown.json> <pack.json>|bench <shown.json> <pack.json> <answers.json>...|holdout <labels.json>|render <paid run dir>|paid --confirm-paid --max-usd <usd> --price <model=in,out>... [--model claude-sonnet-5] [--only <id>]");
   }
 }
 
-module.exports = { paidPlan, loadProductModules, analyzePin, manifest };
+module.exports = { paidPlan, loadProductModules, analyzePin, manifest, labelPack, mergeAnswers };
 if (require.main === module) main().catch((error) => { console.error(process.env.CORPUS_DEBUG ? error.stack : error.message); process.exitCode = 1; });

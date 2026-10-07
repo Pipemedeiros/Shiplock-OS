@@ -1,0 +1,63 @@
+import { describe, expect, it } from "vitest";
+import { deterministicFindings } from "@/lib/agent/deterministicFindings";
+import { scoreBenchmark, type BenchFinding, type BenchLabel } from "./benchmark";
+
+// Plan item H: a frozen, labeled fixture set in the normal test run, so a
+// precision regression in what a founder sees fails the build. Each case is a
+// shape read by hand in the 2026-10-06 census or on CORPUS-5 (values are
+// synthetic). Only shapes fixed today are here; the known open false shapes
+// are listed in docs/evaluation/labels-corpus5-deterministic-2026-10-06.json
+// and join this set when fixed.
+type Case = { name: string; real: boolean; files: { path: string; content: string }[] };
+const LIVE_DB = ["postgresql://app:", "Zq8vLm2Rt5Xw", "@ep-gentle-scene-pooler.us-east-2.aws.neon.tech/neondb"].join("");
+
+const cases: Case[] = [
+  // Real: each must set the status.
+  { name: "hosted database URL with a password in a committed .env.save (corpus-f)", real: true,
+    files: [{ path: ".env.save", content: `DATABASE_URL=${LIVE_DB}\n` }] },
+  { name: "a secret mapped into next.config env (corpus-i)", real: true,
+    files: [{ path: "next.config.js", content: "module.exports = { env: { NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET } };\n" }] },
+  { name: "a sign-in code from Math.random (corpus-j)", real: true,
+    files: [{ path: "lib/auth.ts", content: "export const otp = Math.floor(100000 + Math.random() * 900000);\n" }] },
+  { name: "browser code sends an API key to the app's own endpoint in the query (corpus-k)", real: true,
+    files: [{ path: "src/components/Panel.tsx", content: "await fetch(`/api/indexing/bing?siteUrl=${u}&apiKey=${encodeURIComponent(key)}`);\n" }] },
+  // False: none may set the status.
+  { name: "a generator template's SQLite path (corpus-ae)", real: false,
+    files: [{ path: "packages/generator/templates/app/.env.local", content: 'DATABASE_URL="file:./db/db.db"\n' }] },
+  { name: "a public client id and URL in next.config env (corpus-i)", real: false,
+    files: [{ path: "next.config.js", content: "module.exports = { env: { GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID, NEXTAUTH_URL: process.env.NEXTAUTH_URL } };\n" }] },
+  { name: "a provider that requires the token in the query (Meta Graph)", real: false,
+    files: [{ path: "utils/fb.ts", content: "await fetch(`https://graph.facebook.com/${v}/${id}/events?access_token=${accessToken}`);\n" }] },
+  { name: "Stripe's checkout session_id and a job sessionId", real: false,
+    files: [{ path: "app/confirm/page.tsx", content: "fetch(`/api/ads/confirm?session_id=${encodeURIComponent(sessionId)}`);\nfetch(`/api/enrich?sessionId=${s}`);\n" }] },
+  { name: "a localhost test script", real: false,
+    files: [{ path: "cron-tester.ts", content: "await fetch(`http://localhost:3000/api${endpoint}?apiKey=${apiKey}`);\n" }] },
+  { name: "a committed env file holding only public values (Supabase anon)", real: false,
+    files: [{ path: ".env", content: "NEXT_PUBLIC_SUPABASE_URL=https://abc.supabase.co\n" }] },
+];
+
+describe("frozen precision fixtures (plan item H)", () => {
+  const findings: BenchFinding[] = [];
+  const labels: BenchLabel[] = [];
+  for (const c of cases) {
+    for (const f of deterministicFindings(c.files)) {
+      findings.push({ repo: c.name, id: f.id, severity: f.severity as BenchFinding["severity"], attackClass: "deterministic" });
+      const verdict = c.real ? { accurate: "yes", real: "yes" } as const : { accurate: "no", real: "no" } as const;
+      labels.push({ repo: c.name, id: f.id, labelers: [verdict, verdict] });
+    }
+  }
+  const report = scoreBenchmark(findings, labels, { observedPrecisionAtLeast: 0.9, lowerBound95AtLeast: 0, minimumLabeledFindings: 0, repositoriesWithCorrectStatusAtLeast: 0.9 });
+
+  it.each(cases.filter((c) => c.real))("still sets the status: $name", (c) => {
+    expect(report.repositories.find((r) => r.repo === c.name)?.status).not.toBe("no_open_issues");
+  });
+
+  it.each(cases.filter((c) => !c.real))("no longer sets the status: $name", (c) => {
+    expect(report.repositories.find((r) => r.repo === c.name)?.status ?? "no_open_issues").toBe("no_open_issues");
+  });
+
+  it("is at 100% precision and status correctness on the frozen set", () => {
+    expect(report.statusSetting.precision).toBe(1);
+    expect(report.statusCorrect.share).toBe(1);
+  });
+});
