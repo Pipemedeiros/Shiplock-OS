@@ -452,7 +452,7 @@
     "excluded": [],
     "pinnedAt": "default-branch head on 2026-10-06"
   },
-  "labelProvenance": "none yet",
+  "labelProvenance": "docs/evaluation/labels-corpus6-deterministic-2026-10-06.json (labeler A, 2026-10-06)",
   "loader": {
     "files": 4000,
     "fileBytes": 400000,
