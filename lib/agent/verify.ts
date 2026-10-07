@@ -216,16 +216,20 @@ export function parseVerdicts(text: string): RawVerdict[] | null {
  * as findings. Verdict ids are the proposals' indexes.
  */
 export function applyVerdicts<H extends { consequence: string }>(admitted: H[], verdicts: Verdict[]):
-  { kept: (H & { provenStatement?: true })[]; refuted: number; unverified: number } {
+  { kept: (H & { provenStatement?: true; proof?: Citation[] })[]; refuted: number; unverified: number } {
   const byId = new Map(verdicts.map((verdict) => [verdict.id, verdict]));
-  const kept: (H & { provenStatement?: true })[] = [];
+  const kept: (H & { provenStatement?: true; proof?: Citation[] })[] = [];
   let refuted = 0;
   let unverified = 0;
   admitted.forEach((proposal, index) => {
     const verdict = byId.get(String(index));
     // A statement the verifier proved with quoted lines is marked, so the
     // route-fact template in buildFindings does not replace it (CORPUS-5).
-    if (verdict?.verdict === "confirmed") kept.push(verdict.statement.trim() ? { ...proposal, consequence: verdict.statement.trim(), provenStatement: true } : proposal);
+    // The checked citations travel with it as proof (A2, Felipe 2026-10-07).
+    if (verdict?.verdict === "confirmed") {
+      const proof = verdict.citations.length ? { proof: verdict.citations } : {};
+      kept.push(verdict.statement.trim() ? { ...proposal, consequence: verdict.statement.trim(), provenStatement: true, ...proof } : { ...proposal, ...proof });
+    }
     else if (verdict?.verdict === "refuted") refuted += 1;
     else unverified += 1;
   });

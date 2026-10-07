@@ -21,7 +21,7 @@ const finding: DashboardFinding = {
   repository: "acme/app", repositoryId: null,
   detectedAt: "2026-08-28T00:00:00Z",
   fixPrUrl: null,
-  fixPrNumber: null,
+  fixPrNumber: null, confirmed: true,
 };
 
 describe("fixBranchName", () => {

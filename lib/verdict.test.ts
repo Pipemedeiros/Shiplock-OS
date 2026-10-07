@@ -29,6 +29,13 @@ describe("verdict", () => {
     expect(verdictOf(base).summary).toBe("In the code this audit read.");
   });
 
+  // A1 (Felipe 2026-10-07): only confirmed issues set the status; the rest
+  // is named as candidates to review, never counted as an issue.
+  it("names what is left to review without calling it an issue", () => {
+    expect(verdictOf({ ...base, toReview: 4 })).toEqual({ level: "clear", word: "No open issues", summary: "4 candidates to review." });
+    expect(verdictOf({ ...base, toReview: 1, unread: 2 }).summary).toBe("1 candidate to review. 2 areas were not checked.");
+  });
+
   it("is unknown before the first audit or when the last one stopped", () => {
     expect(verdictOf({ ...base, audited: false })).toEqual({ level: "unknown", word: "Not audited", summary: "Run an audit to see your status." });
     expect(verdictOf({ ...base, lastRunFailed: true })).toEqual({ level: "unknown", word: "Unknown", summary: "The last audit did not finish." });

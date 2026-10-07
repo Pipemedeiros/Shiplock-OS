@@ -48,7 +48,11 @@ export default async function Overview() {
   const { routes: routeCount, exposed } = mapCounts(map);
   const blocked = reviews.filter((r) => r.verdict === "block").length;
   const unread = latest?.coverage.length ?? 0;
-  const verdict = verdictOf({ audited: Boolean(latest), lastRunFailed: latest?.status === "failed", findings, unread, blockedPrs: blocked });
+  // Only confirmed issues set the status (A1, Felipe 2026-10-07: prioritize
+  // accuracy); candidates are named as "to review", never counted as issues.
+  const issues = findings.filter((f) => f.confirmed);
+  const toReview = findings.filter((f) => !f.confirmed).length;
+  const verdict = verdictOf({ audited: Boolean(latest), lastRunFailed: latest?.status === "failed", findings: issues, unread, blockedPrs: blocked, toReview });
 
   return (
     <>
@@ -68,12 +72,12 @@ export default async function Overview() {
         <Verdict
           verdict={verdict}
           action={findings.length > 0
-            ? <Link href="/dashboard/risks" className="v3-btn v3-btn-sm v3-primary">View issues</Link>
+            ? <Link href="/dashboard/risks" className="v3-btn v3-btn-sm v3-primary">{issues.length > 0 ? "View issues" : "Review candidates"}</Link>
             : unread > 0 ? <Link href="/dashboard/coverage" className="v3-btn v3-btn-sm v3-ondark">View coverage</Link> : null}
         />
 
         <div className="v3-metrics">
-          <Metric label="Open issues" value={findings.length} href="/dashboard/risks" link="View issues" tone="crit" />
+          <Metric label="Open issues" value={issues.length} href="/dashboard/risks" link={toReview > 0 ? `${toReview} to review` : "View issues"} tone="crit" />
           <Metric label="Exposed routes" value={exposed} href="#map" link={`of ${routeCount} routes`} tone="crit" />
           <Metric label="Blocked pull requests" value={blocked} href="/dashboard/prs" link={`${reviews.length} checked`} tone="warn" />
           <Metric label="Not checked" value={unread} href="/dashboard/coverage" link="View coverage" tone="warn" />
@@ -98,7 +102,7 @@ export default async function Overview() {
             {findings.length > 0 ? <Link href="/dashboard/risks" className="v3-small">View all</Link> : null}
           </div>
           {findings.length === 0 ? (
-            <p className="v3-card-p v3-small">{latest ? "No open issues in the code this audit read." : "No audits yet."}</p>
+            <p className="v3-card-p v3-small">{latest ? "No open issues or candidates in the code this audit read." : "No audits yet."}</p>
           ) : (
             <table className="v3-issues">
               <thead>
@@ -112,7 +116,7 @@ export default async function Overview() {
                     <td className="hide-sm route">{f.entry ?? f.file ?? ""}</td>
                     <td className="hide-sm">
                       {f.fixPrUrl ? <a href={f.fixPrUrl} target="_blank" rel="noreferrer" className="v3-tag ok">PR #{f.fixPrNumber}</a>
-                        : <span className="v3-tag">Open</span>}
+                        : <span className="v3-tag">{f.confirmed ? "Confirmed" : "To review"}</span>}
                     </td>
                   </tr>
                 ))}

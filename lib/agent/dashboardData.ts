@@ -1,3 +1,4 @@
+import { isConfirmed } from "./confirmed";
 import { cache } from "react";
 import { parseRouteFacts, type MapRoute } from "@/lib/routeMap";
 import { getSupabaseAdmin } from "@/lib/supabase";
@@ -35,6 +36,8 @@ export interface DashboardFinding {
   detectedAt: string;
   fixPrUrl: string | null;
   fixPrNumber: number | null;
+  /** A confirmed issue sets the status; anything else is a candidate to review (lib/agent/confirmed.ts). */
+  confirmed: boolean;
 }
 
 export interface DashboardRun {
@@ -114,7 +117,9 @@ export const getOpenFindings = cache(async (userId: string): Promise<DashboardFi
         fixPrNumber: (row.fix_pr_number as number) ?? null,
       };
     })
-    .sort((a, b) => severityRank(a.severity) - severityRank(b.severity));
+    .map((f) => ({ ...f, confirmed: isConfirmed(f) }))
+    // Confirmed issues first, then candidates, each by severity.
+    .sort((a, b) => Number(b.confirmed) - Number(a.confirmed) || severityRank(a.severity) - severityRank(b.severity));
 });
 
 export async function getRuns(userId: string, limit = 20): Promise<DashboardRun[]> {

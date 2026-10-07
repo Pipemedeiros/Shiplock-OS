@@ -38,8 +38,9 @@ export async function GET(req: NextRequest) {
     stack: (run?.stack?.tools ?? []).map((t) => ({ name: t.name, kind: t.kind })),
     guardrails: source.routes ? deriveGuardrails(source.routes, { repository: repo.fullName, commit: null }) : null,
     openFindings: findings.filter((f) => f.repositoryId === repo.id).slice(0, 50)
-      .map((f) => ({ title: f.title, severity: f.severity, route: f.entry, file: f.file, consequence: f.consequence })),
+      // confirmed: an issue proven by the agent, a replica or a live fact; false is a candidate to review (A1).
+      .map((f) => ({ title: f.title, severity: f.severity, route: f.entry, file: f.file, consequence: f.consequence, confirmed: f.confirmed === true })),
     notRead: (run?.coverage ?? []).map((c) => `${c.name}: ${c.effect}`),
-    howToUse: "Keep every guardrail when you edit. Fix open findings only with the change they describe. Anything under notRead, and any route without a rule, is not known to be safe. ShipLock's pull request check re-checks your change.",
+    howToUse: "Keep every guardrail when you edit. Fix open findings only with the change they describe; a finding with confirmed false is a candidate to verify, not a proven issue. Anything under notRead, and any route without a rule, is not known to be safe. ShipLock's pull request check re-checks your change.",
   });
 }

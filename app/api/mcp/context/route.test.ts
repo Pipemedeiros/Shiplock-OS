@@ -61,7 +61,7 @@ describe("GET /api/mcp/context", () => {
     expect(body.stack).toEqual([{ name: "Supabase", kind: "database" }]);
     expect(body.guardrails.rules.map((r: { kind: string }) => r.kind)).toEqual(["requires_signed_in_caller"]);
     expect(body.openFindings).toEqual([{ title: "Signed-in callers are not limited to their own rows", severity: "WARNING",
-      route: "/api/orders", file: "app/api/orders/route.ts", consequence: "Any user reads every order." }]);
+      route: "/api/orders", file: "app/api/orders/route.ts", consequence: "Any user reads every order.", confirmed: false }]);
     expect(body.notRead).toEqual(["12 files we did not read: not checked"]);
     expect(body.howToUse).toMatch(/not known to be safe/);
   });

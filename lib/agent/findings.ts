@@ -190,7 +190,9 @@ function routeClaims(route: RouteFact | undefined, stack: StackReport): Claim[] 
 
 export interface BuildFindingsInput {
   /** provenStatement: the consequence is a verifier's statement proven with quoted lines. */
-  admitted: (Hypothesis & { attackClass: AttackClass; provenStatement?: true })[];
+  admitted: (Hypothesis & { attackClass: AttackClass; provenStatement?: true;
+    /** Quoted lines a verifier gave and checkVerdicts re-read in the file. */
+    proof?: { role: string; path: string; line: number; quote: string }[] })[];
   deterministic: GithubFinding[];
   routes: RouteFact[];
   stack: StackReport;
@@ -260,6 +262,9 @@ export function buildFindings(input: BuildFindingsInput): AgentFinding[] {
       ...routeClaims(route, input.stack),
       ...liveClaims,
       { claim: h.consequence, origin: "agent", verified: false },
+      // Proof (A2): each quote was found on its cited line, so it is verified.
+      ...(h.proof ?? []).slice(0, 8).map((c): Claim => ({
+        claim: `Proof, ${c.role}: ${c.path}:${c.line} ${c.quote.trim()}`, origin: "agent", verified: true })),
     ];
 
     // An unscoped query through the CALLER'S OWN session may still be stopped

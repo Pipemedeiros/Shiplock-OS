@@ -74,4 +74,20 @@ describe("the agent path, offline", () => {
     expect(finding.consequence).toBe(statement);
     expect(finding.title).not.toBe("Anyone can call this without signing in");
   });
+
+  // A2 (Felipe 2026-10-07: "they should see some kind of proof"): the quoted
+  // lines the verifier gave, checked against the file, travel with the
+  // finding as verified claims, so the issue shows its proof.
+  it("carries the verifier's checked quotes as the finding's proof", () => {
+    const admitted = guardAnswer(ctx, [hypothesis]).admitted;
+    const [v] = verificationTasks(ctx, admitted, () => source);
+    const citations = [{ role: "reach", path: handler, line: 1, quote: "export async function GET() {" },
+      { role: "data", path: handler, line: 2, quote: "db.from(\"orders\").select(\"*\")" }];
+    const [finding] = admitVerified(ctx, v, [{ id: "0", verdict: "confirmed", severity: "high", statement: "Anyone can read every order.", reason: "", citations }], "repo").findings;
+    const proof = finding.claims.filter((c) => c.origin === "agent" && c.verified);
+    expect(proof.map((c) => c.claim)).toEqual([
+      `Proof, reach: ${handler}:1 export async function GET() {`,
+      `Proof, data: ${handler}:2 db.from("orders").select("*")`,
+    ]);
+  });
 });

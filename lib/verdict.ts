@@ -13,6 +13,8 @@ export interface VerdictInput {
   unread: number;
   /** Recent pull requests ShipLock's check blocked. */
   blockedPrs: number;
+  /** Candidates that are not confirmed issues (A1): named, never counted as issues. */
+  toReview?: number;
 }
 
 export interface Verdict { level: VerdictLevel; word: string; summary: string }
@@ -32,8 +34,10 @@ export function verdictOf(input: VerdictInput): Verdict {
   }
   if (!input.audited) return { level: "unknown", word: "Not audited", summary: "Run an audit to see your status." };
   if (input.lastRunFailed) return { level: "unknown", word: "Unknown", summary: "The last audit did not finish." };
+  const review = input.toReview ? `${n(input.toReview, "candidate", "candidates")} to review.` : "";
+  const unread = input.unread > 0 ? `${n(input.unread, "area was", "areas were")} not checked.` : "";
   return { level: "clear", word: "No open issues",
-    summary: input.unread > 0 ? `${n(input.unread, "area was", "areas were")} not checked.` : "In the code this audit read." };
+    summary: [review, unread].filter(Boolean).join(" ") || "In the code this audit read." };
 }
 
 /** The audit in progress, if the newest run is queued or running, and the

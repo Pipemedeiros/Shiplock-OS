@@ -95,6 +95,7 @@ export function RisksBoard({ findings, proofs = {} }: { findings: (DashboardFind
                 <div className="v3-row">
                   <Sev severity={f.severity} />
                   <Conf confidence={f.confidence} />
+                  {f.confirmed ? null : <span className="v3-tag">To review</span>}
                   {f.fixPrUrl ? <span className="v3-tag ok">PR #{f.fixPrNumber}</span> : null}
                   {f.hitHard ? <HitHard hit={f.hitHard} /> : null}
                 </div>
@@ -126,6 +127,7 @@ function Inspector({ finding, proof }: { finding: DashboardFinding; proof: Proof
         <div className="v3-row">
           <Sev severity={finding.severity} />
           <Conf confidence={finding.confidence} />
+          {finding.confirmed ? null : <span className="v3-tag">To review</span>}
         </div>
         <h2 className="v3-serif" style={{ fontSize: 21, margin: "12px 0 8px" }}>{finding.title}</h2>
         <p className="v3-sub" style={{ fontSize: 14 }}>{finding.consequence}</p>
