@@ -330,13 +330,20 @@ export async function putFile(
   });
 }
 
+export const SHIPLOCK_PR_LABEL = "ShipLock";
+
 export async function openPullRequest(
   token: string, fullName: string, head: string, base: string, title: string, body: string
 ): Promise<string> {
   const pr = (await ghWrite(token, `/repos/${fullName}/pulls`, "POST", { title, head, base, body })) as {
-    html_url?: string;
+    html_url?: string; number?: number;
   };
   if (!pr.html_url) throw new Error("GitHub PR missing html_url");
+  // A5 (Felipe 2026-10-07): label it "ShipLock" so it reads as ShipLock's in the
+  // customer's PR list and CI. Best effort: a refused label never fails the PR.
+  if (typeof pr.number === "number") {
+    await ghWrite(token, `/repos/${fullName}/issues/${pr.number}/labels`, "POST", { labels: [SHIPLOCK_PR_LABEL] }).catch(() => undefined);
+  }
   return pr.html_url;
 }
 

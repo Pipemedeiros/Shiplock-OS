@@ -67,3 +67,25 @@ describe("capturePreview reads on the branch it pretended to create", () => {
     expect(urls.some((u) => u.includes(`ref=${"a".repeat(40)}`))).toBe(true);
   });
 });
+
+// A5 (Felipe 2026-10-07): ShipLock PRs are labeled "ShipLock", so they read as
+// ShipLock's in the customer's PR list and CI. Best effort: the label never
+// fails the PR, and preview mode stops before it (the PR write never happens).
+describe("ShipLock label", () => {
+  it("labels the PR it opens", async () => {
+    const fetchMock = vi.fn(async (url: string) => new Response(JSON.stringify(String(url).endsWith("/pulls")
+      ? { html_url: "https://github.com/acme/app/pull/7", number: 7 } : [{ name: "ShipLock" }]), { status: 201 }));
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await openPullRequest("tok", "acme/app", "h", "main", "t", "b")).toBe("https://github.com/acme/app/pull/7");
+    const [url, init] = fetchMock.mock.calls[1] as unknown as [string, RequestInit];
+    expect(url).toMatch(/\/repos\/acme\/app\/issues\/7\/labels$/);
+    expect(JSON.parse(String(init.body))).toEqual({ labels: ["ShipLock"] });
+  });
+  it("still returns the PR when labeling is refused", async () => {
+    const fetchMock = vi.fn(async (url: string) => String(url).endsWith("/pulls")
+      ? new Response(JSON.stringify({ html_url: "https://github.com/acme/app/pull/8", number: 8 }), { status: 201 })
+      : new Response("{}", { status: 403 }));
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await openPullRequest("tok", "acme/app", "h", "main", "t", "b")).toBe("https://github.com/acme/app/pull/8");
+  });
+});
