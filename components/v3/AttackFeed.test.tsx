@@ -29,3 +29,21 @@ describe("AttackFeedCard", () => {
       .toContain("Nothing it might have found is counted");
   });
 });
+
+// A3 on the Overview: one line, the attack's real state, a link to watch it.
+describe("AttackSummary", () => {
+  it("counts the attack's outcomes in one line and links to Activity", async () => {
+    const { AttackSummary } = await import("./AttackFeed");
+    const html = renderToStaticMarkup(<AttackSummary feed={{ phase: "checking", proposed: 4, steps: [
+      { entry: "/a", title: "a", state: "confirmed" }, { entry: "/b", title: "b", state: "refuted" },
+      { entry: "/c", title: "c", state: "checking" }, { entry: "/d", title: "d", state: "checking" },
+    ] }} />);
+    expect(html.replace(/<[^>]+>/g, "")).toContain("Your agent proposed 4 attacks: 1 confirmed, 1 refuted, 2 being checked.");
+    expect(html).toContain('href="/dashboard/activity"');
+  });
+  it("names waiting and no answer plainly, and shows nothing when no attack was offered", async () => {
+    const { AttackSummary } = await import("./AttackFeed");
+    expect(renderToStaticMarkup(<AttackSummary feed={{ phase: "waiting_for_agent", proposed: 0, steps: [] }} />)).toContain("Waiting for your agent");
+    expect(renderToStaticMarkup(<AttackSummary feed={{ phase: "not_offered", proposed: 0, steps: [] }} />)).toBe("");
+  });
+});

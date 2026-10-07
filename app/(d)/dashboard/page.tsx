@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { requireDashboardSession } from "@/lib/dashboard";
-import { getOpenFindings, getRepositories, getRuns } from "@/lib/agent/dashboardData";
+import { getAttackTasks, getOpenFindings, getRepositories, getRuns } from "@/lib/agent/dashboardData";
+import { attackFeed } from "@/lib/agent/attackFeed";
+import { AttackSummary } from "@/components/v3/AttackFeed";
 import { Sev } from "@/components/v3/FindingParts";
 import { RunAuditButton } from "@/components/v3/RunAuditButton";
 import { LiveRefresh } from "@/components/v3/LiveRefresh";
@@ -22,12 +24,15 @@ export const metadata = { title: "Overview" };
  */
 export default async function Overview() {
   const { userId } = await requireDashboardSession();
-  const [findings, runs, repos, reviews] = await Promise.all([
+  const [findings, runs, repos, reviews, attackTasks] = await Promise.all([
     getOpenFindings(userId),
     getRuns(userId, 5),
     getRepositories(userId),
     getRecentPullRequestReviews(userId).catch(() => []),
+    getAttackTasks(userId).catch(() => null),
   ]);
+  // A3: the attack's real state in one line; unreadable shows nothing.
+  const attack = attackTasks ? attackFeed(attackTasks) : null;
 
   if (repos.length === 0) {
     return (
@@ -68,13 +73,15 @@ export default async function Overview() {
       </div>
 
       <div className="v3-stack">
-        <LiveRefresh active={current !== null} />
+        <LiveRefresh active={current !== null || attack?.phase === "waiting_for_agent" || attack?.phase === "checking"} />
         <Verdict
           verdict={verdict}
           action={findings.length > 0
             ? <Link href="/dashboard/risks" className="v3-btn v3-btn-sm v3-primary">{issues.length > 0 ? "View issues" : "Review candidates"}</Link>
             : unread > 0 ? <Link href="/dashboard/coverage" className="v3-btn v3-btn-sm v3-ondark">View coverage</Link> : null}
         />
+
+        {attack ? <AttackSummary feed={attack} /> : null}
 
         <div className="v3-metrics">
           <Metric label="Open issues" value={issues.length} href="/dashboard/risks" link={toReview > 0 ? `${toReview} to review` : "View issues"} tone="crit" />

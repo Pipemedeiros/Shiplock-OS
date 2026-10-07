@@ -60,3 +60,22 @@ export function AttackFeedCard({ feed }: { feed: AttackFeed }) {
     </div>
   );
 }
+
+/** The attack in one line for the Overview (A3), linking to Activity to watch it. */
+export function AttackSummary({ feed }: { feed: AttackFeed }) {
+  if (feed.phase === "not_offered") return null;
+  const count = (state: AttackStepState) => feed.steps.filter((s) => s.state === state).length;
+  const parts = ([["confirmed", "confirmed"], ["refuted", "refuted"], ["checking", "being checked"], ["could_not_tell", "could not tell"]] as const)
+    .map(([state, word]) => [count(state), word] as const).filter(([n]) => n > 0).map(([n, word]) => `${n} ${word}`);
+  const text = feed.phase === "waiting_for_agent" ? "Waiting for your agent to pick up the attack."
+    : feed.phase === "agent_unavailable" ? "Your agent did not answer the last attack; nothing it might have found is counted."
+      : feed.proposed === 0 ? "Your agent read the code and proposed no attack."
+        : `Your agent proposed ${feed.proposed} ${feed.proposed === 1 ? "attack" : "attacks"}: ${parts.join(", ")}.`;
+  return (
+    <p className="v3-small" style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+      {feed.phase === "checking" || feed.phase === "waiting_for_agent" ? <span className="v3-dot run" aria-hidden="true" /> : null}
+      <span style={{ color: "var(--ink)" }}>{text}</span>
+      <Link href="/dashboard/activity">Watch the attack</Link>
+    </p>
+  );
+}
