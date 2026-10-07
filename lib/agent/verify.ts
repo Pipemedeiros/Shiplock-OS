@@ -216,14 +216,16 @@ export function parseVerdicts(text: string): RawVerdict[] | null {
  * as findings. Verdict ids are the proposals' indexes.
  */
 export function applyVerdicts<H extends { consequence: string }>(admitted: H[], verdicts: Verdict[]):
-  { kept: H[]; refuted: number; unverified: number } {
+  { kept: (H & { provenStatement?: true })[]; refuted: number; unverified: number } {
   const byId = new Map(verdicts.map((verdict) => [verdict.id, verdict]));
-  const kept: H[] = [];
+  const kept: (H & { provenStatement?: true })[] = [];
   let refuted = 0;
   let unverified = 0;
   admitted.forEach((proposal, index) => {
     const verdict = byId.get(String(index));
-    if (verdict?.verdict === "confirmed") kept.push(verdict.statement.trim() ? { ...proposal, consequence: verdict.statement.trim() } : proposal);
+    // A statement the verifier proved with quoted lines is marked, so the
+    // route-fact template in buildFindings does not replace it (CORPUS-5).
+    if (verdict?.verdict === "confirmed") kept.push(verdict.statement.trim() ? { ...proposal, consequence: verdict.statement.trim(), provenStatement: true } : proposal);
     else if (verdict?.verdict === "refuted") refuted += 1;
     else unverified += 1;
   });

@@ -84,7 +84,8 @@ describe("applying verdicts to admitted proposals", () => {
 
   it("keeps only confirmed proposals, in the verifier's plain wording, and counts the rest", () => {
     const out = applyVerdicts(admitted, [verdict("0", "confirmed", "Anyone can read every team's invoices."), verdict("1", "refuted"), verdict("2", "unverified")]);
-    expect(out.kept).toEqual([{ ...admitted[0], consequence: "Anyone can read every team's invoices." }]);
+    // Marked, so buildFindings keeps the proven sentence (CORPUS-5 agent path).
+    expect(out.kept).toEqual([{ ...admitted[0], consequence: "Anyone can read every team's invoices.", provenStatement: true }]);
     expect(out.refuted).toBe(1);
     expect(out.unverified).toBe(1);
   });

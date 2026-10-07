@@ -57,4 +57,21 @@ describe("the agent path, offline", () => {
     expect(misquoted.findings).toEqual([]);
     expect(admitVerified(ctx, v, [{ ...confirmed, verdict: "refuted" }], "repo")).toMatchObject({ confirmed: 0, refuted: 1, findings: [] });
   });
+
+  // CORPUS-5 agent path (2026-10-06): both blind labelers agreed 19 of 24
+  // verified authorization findings were real, but only 2 were worded
+  // accurately: the route-fact template ("Anyone can call this without
+  // signing in") replaced the verifier's statement on routes whose sign-in
+  // check the route facts missed. A statement proven with quoted lines stands.
+  it("keeps the verifier's proven statement instead of the route-fact template", () => {
+    const authz = { ...hypothesis, attackClass: "missing_authorization", title: "Any signed-in user can delete any order" };
+    const admitted = guardAnswer(ctx, [authz]).admitted;
+    const [v] = verificationTasks(ctx, admitted, () => source);
+    const statement = "Any signed-in user can delete any customer's order by its id.";
+    const citations = [{ role: "reach", path: handler, line: 1, quote: "export async function GET() {" },
+      { role: "data", path: handler, line: 2, quote: "db.from(\"orders\").select(\"*\")" }];
+    const [finding] = admitVerified(ctx, v, [{ id: "0", verdict: "confirmed", severity: "high", statement, reason: "no owner filter", citations }], "repo").findings;
+    expect(finding.consequence).toBe(statement);
+    expect(finding.title).not.toBe("Anyone can call this without signing in");
+  });
 });

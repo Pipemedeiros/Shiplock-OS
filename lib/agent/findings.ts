@@ -189,7 +189,8 @@ function routeClaims(route: RouteFact | undefined, stack: StackReport): Claim[] 
 }
 
 export interface BuildFindingsInput {
-  admitted: (Hypothesis & { attackClass: AttackClass })[];
+  /** provenStatement: the consequence is a verifier's statement proven with quoted lines. */
+  admitted: (Hypothesis & { attackClass: AttackClass; provenStatement?: true })[];
   deterministic: GithubFinding[];
   routes: RouteFact[];
   stack: StackReport;
@@ -341,14 +342,20 @@ export function buildFindings(input: BuildFindingsInput): AgentFinding[] {
     // model's story for missing_authorization ("across workspaces") is a
     // mechanism we never read. Say what we read instead; the model's sentence
     // stays in the claims, unverified (Q16).
-    const readAsAnonymous = h.attackClass === "missing_authorization" && route !== undefined
+    // A statement proven with quoted lines stands: on CORPUS-5's agent path both
+    // blind labelers agreed 19 of 24 verified authorization findings were real,
+    // and 17 of them read wrong because route facts that missed a sign-in
+    // helper (tRPC protectedProcedure, ctx.auth checks) replaced the
+    // verifier's accurate sentence with "Anyone can call this".
+    const proven = h.provenStatement === true;
+    const readAsAnonymous = !proven && h.attackClass === "missing_authorization" && route !== undefined
       && route.identityReadable && !route.authenticated && !route.machineGated;
     const tables = route ? route.tables : [];
     const tableWords = tables.length > 1 ? `${tables.slice(0, -1).join(", ")} and ${tables[tables.length - 1]}` : tables.join("");
     // Q26: the same on a route read as signed in whose query we read as not
     // narrowed to the caller. CORPUS-3's model titles described these
     // signed-in IDORs as anonymous; only what we read is stated.
-    const readAsSignedInUnscoped = h.attackClass === "missing_authorization" && route !== undefined
+    const readAsSignedInUnscoped = !proven && h.attackClass === "missing_authorization" && route !== undefined
       && route.identityReadable && route.authenticated && !route.machineGated
       && route.ownershipReadable && !route.ownershipFiltered;
     findings.push({
