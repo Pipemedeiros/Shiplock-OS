@@ -1,0 +1,315 @@
+{
+  "version": 1,
+  "experiment": "corpus-5-deterministic-2026-10-06",
+  "prediction": "Recorded before evaluation (2026-10-06): held-out set for the deterministic layer (plan item 4); no prediction of detection quality.",
+  "scope": "What the audit shows with no agent (node scripts/corpus.cjs shown): deterministic findings and the status they set. No model precision or recall claim.",
+  "selection": {
+    "rule": "Fixed in the ledger before searching (80dfb0f): CORPUS-4 rule unchanged except stars 10..19 and pushed:>=2025-10-06; every CORPUS to CORPUS-4 repository excluded; ranked by stars then name; first 40 kept.",
+    "searched": 186,
+    "checked": 48,
+    "selected": 40,
+    "pinned": 40,
+    "dropped": [
+      {
+        "repository": "zeus-12/fmhy",
+        "next": true,
+        "db": false,
+        "server": true
+      },
+      {
+        "repository": "Its-Satyajit/nextjs-drizzle-mysql-tailwind",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "Himkush1414/manik-portfolio",
+        "next": false,
+        "db": false,
+        "server": false
+      },
+      {
+        "repository": "hoangsonww/The-Pokedex-Database",
+        "next": true,
+        "db": false,
+        "server": false
+      },
+      {
+        "repository": "aurorascharff/next16-event-hub",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "CNVioletTech/image2-ai",
+        "next": false,
+        "db": false,
+        "server": true
+      },
+      {
+        "repository": "hoangsonww/Boxed-Inventory-App",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "MrSaikatS/nextjs-starter-fullstack-node",
+        "next": true,
+        "db": true,
+        "server": false
+      }
+    ],
+    "excluded": [],
+    "pinnedAt": "default-branch head on 2026-10-06"
+  },
+  "labelProvenance": "docs/evaluation/labels-corpus5-deterministic-2026-10-06.json (one labeler, 2026-10-06)",
+  "loader": {
+    "files": 4000,
+    "fileBytes": 400000,
+    "sourceBytes": 25165824,
+    "inflatedBytes": 125829120
+  },
+  "repositories": [
+    {
+      "id": "c5-bun-turbo-starter",
+      "repository": "bunworks/bun-turbo-starter",
+      "commit": "6a6190b8e631b1f8f200e2358b79bb750e2cc808",
+      "archiveSha256": "838274ad2ec02443770fd9b781d09cbf0a0b24aaaf34e6c4cc062e3e264fcbe8"
+    },
+    {
+      "id": "c5-neocode",
+      "repository": "devdezzies/neocode",
+      "commit": "75c841fbb64f0c161ffeababed461c6aa618cb07",
+      "archiveSha256": "c1d54f90613fcb258531a1f3b78dfb67691577b5291f4bc9bfb93a2df3a4b50a"
+    },
+    {
+      "id": "c5-gifthub",
+      "repository": "E3-GiftHub/GiftHub",
+      "commit": "4434a20f133fd80f1b9bf5387cfc11bedae03f87",
+      "archiveSha256": "3e4f6a0b7c40deaf0cc2a193b65eeacc7f0275fb0067698c181a5aadbf3438d0"
+    },
+    {
+      "id": "c5-g7-chat",
+      "repository": "Gr1shma/g7-chat",
+      "commit": "635e707567e2186fe07e29bdd9ffe38391e67d06",
+      "archiveSha256": "0794303810bc6a1f67c4ab60362cff76f2fdf7547ef2c817498b9eedb91ee7e5"
+    },
+    {
+      "id": "c5-firebase-jwt-next-prisma-trpc",
+      "repository": "nicholashamilton/firebase-jwt-next-prisma-trpc",
+      "commit": "098f48cb771aeaa1cdccb8c7a78802f8a37fb1af",
+      "archiveSha256": "b1004c61ecb0bf85a2e5d10fbe81b17737a784e905c60c0c3bcb1ac98589982b"
+    },
+    {
+      "id": "c5-docsflow",
+      "repository": "nicuk/docsflow",
+      "commit": "3e6fd7136b36f30fe6ef70ff4a2ebf3b3de4343a",
+      "archiveSha256": "4070ede892c273c2a7b0863909c298e815264ec9bc8dfbd6b246e1b27d803dc9"
+    },
+    {
+      "id": "c5-clira",
+      "repository": "Rushik-B/Clira",
+      "commit": "e0a23372c2a1d1b9eaf562b92030dc88526dd379",
+      "archiveSha256": "92b6b1bc9496b5ef38b7d057b17f245270d9a95e8aa3a71edd9759e99372e16a"
+    },
+    {
+      "id": "c5-next-cloudflare-turbo",
+      "repository": "cording12/next-cloudflare-turbo",
+      "commit": "65f2671f45a4cbbd3990ff6c5d613581c61d0cb0",
+      "archiveSha256": "5dbb423b865650a0989bceab2fb5c76884c6e59d865ed1ce8c070ff45c9347d9"
+    },
+    {
+      "id": "c5-lane4-hq",
+      "repository": "JamesSingleton/lane4-hq",
+      "commit": "cc3c20e6509e424f052489a26a3b10037caa2c80",
+      "archiveSha256": "2816b45489259fb519c8afaafe1a99a560f9ff5ca9258a2792d5f8a37ce07cd7"
+    },
+    {
+      "id": "c5-triumph-synergy-digital-financial-ecosystem",
+      "repository": "jdrains110-beep/Triumph-Synergy-Digital-Financial-Ecosystem",
+      "commit": "bf1a4296981d5835ab21f370e542492a5bda54fe",
+      "archiveSha256": "7f9a7bc70ed9c26c7daa4bb4d572b762205e4e9e9a5ed7613cba85af06b83605"
+    },
+    {
+      "id": "c5-tygodnik-sejmowy",
+      "repository": "miskibin/tygodnik-sejmowy",
+      "commit": "61cbb78f6f111b827f17ca676b3bf4f0fd05dc43",
+      "archiveSha256": "f584b39419f1871a6b1a9bf698086fb5f8c2caa929c50b0519375d220b869bcf"
+    },
+    {
+      "id": "c5-teerank",
+      "repository": "needs/teerank",
+      "commit": "774c41585b43e14e926be8a6dc078c7e6432bced",
+      "archiveSha256": "3f9447d1b7abc86bf35138229d909dae505d049e68a97c157547aa3991016f57"
+    },
+    {
+      "id": "c5-corpus-aa",
+      "repository": "r2hu1/corpus-aa",
+      "commit": "8df867a2511e5b33ed388b5a065367317c18f2a1",
+      "archiveSha256": "6570fb2ceeb86a4b67b5233523a9281ed90f0a06ef9059747ed9466d5c58291b"
+    },
+    {
+      "id": "c5-corpus-l",
+      "repository": "ryan-parag/corpus-l",
+      "commit": "b1effc6b5878bb9fff28832df04a77faa97ebd65",
+      "archiveSha256": "73776a6ba3801d71784ddce97d6d76f6590d6403935c00118867bea34ca8126d"
+    },
+    {
+      "id": "c5-cyberbattleground",
+      "repository": "SomSatwik/CyberBattleground",
+      "commit": "7a773b44cbd60846a097d7264ee9a001e68b26c9",
+      "archiveSha256": "fef5583000023ff7e2d7c6e4d77c1ae0c7fa967f5748e9107c5b430ff9a579fd"
+    },
+    {
+      "id": "c5-corpus-ab",
+      "repository": "arisris/corpus-ab",
+      "commit": "66c225a5df05dd37deac3140be28e2a21e936c48",
+      "archiveSha256": "c7d7ab152f1001f6440c99ef1c9f670b52ef76830d83640934b1bd213c3d61b3"
+    },
+    {
+      "id": "c5-wagewatchers",
+      "repository": "Berthje/wagewatchers",
+      "commit": "259e6a8dfb40303c32eb21cf58cd8726622f4255",
+      "archiveSha256": "ad9209a614acc9c2aac4a2b9f9f37512382b74773fae93cede142dffafc2124b"
+    },
+    {
+      "id": "c5-keluhkesah",
+      "repository": "ifalfahri/keluhkesah",
+      "commit": "1376e8ced166f54035f0653e5db2d6efcce5b071",
+      "archiveSha256": "ea2ad43a3a09ffe08c90e9bb7832409922dfbadc480f521708712b1937fffe08"
+    },
+    {
+      "id": "c5-magio",
+      "repository": "Magi-Labs/Magio",
+      "commit": "adb77f29721ed25bce40f5854b42b81eac4c0cf4",
+      "archiveSha256": "384e8b16c03dc8a3296de23af36691f7d6fe7903b6286d1d238c3d162586f023"
+    },
+    {
+      "id": "c5-sketchidraw",
+      "repository": "markandedev/sketchidraw",
+      "commit": "e41b7aea535161bb001128b938efe0cf309667eb",
+      "archiveSha256": "ba843edfd63afdd7e7cacea6aa69672bdab483523de55f98f45f46329de10be6"
+    },
+    {
+      "id": "c5-nextjs-supabase-blog",
+      "repository": "marksantiago290/Nextjs-Supabase-Blog",
+      "commit": "21b91d90c2dcf246ec756af29bc957dd7a79fd5f",
+      "archiveSha256": "4766463c1475f0a584e6fe5270dd4bdf267971beb04e556b5db9219677e58099"
+    },
+    {
+      "id": "c5-urban-wheels",
+      "repository": "rajput-hemant/urban-wheels",
+      "commit": "d7b5e4182dabc853988187a7fcc43bdb0783f880",
+      "archiveSha256": "821ae18b3829d8128415861245ac925fca6e4012f95820c2697d0e75816cab1b"
+    },
+    {
+      "id": "c5-guestbook",
+      "repository": "SameerJadav/guestbook",
+      "commit": "e60d5c47070821b4e628b7c8afc17d074205f66c",
+      "archiveSha256": "d39bb475ff0274319cc7caaccf135102f73a668996e9523d0a74216edadbec88"
+    },
+    {
+      "id": "c5-sotto",
+      "repository": "affromero/Sotto",
+      "commit": "98bc101269e13e266372387b6d46f460894ed6ef",
+      "archiveSha256": "1d9f89ded569d75c718cc3df44cfce8e1a7271ab022b58568096a7940006cbc8"
+    },
+    {
+      "id": "c5-nextjs-b2b-quote-builder",
+      "repository": "ansonstone6/nextjs-b2b-quote-builder",
+      "commit": "9bee9f299ff2b5680eadac094c0fdf71202750bd",
+      "archiveSha256": "0d2c3ec479276f8cc4456ed176e407df6b5ff4a0f640fd643e3367408a645199"
+    },
+    {
+      "id": "c5-next-supabase-stripe",
+      "repository": "Codeye-Alpha/Next-Supabase-Stripe",
+      "commit": "2e975fd5cdfc9e9c1603079f590685c3ec635a10",
+      "archiveSha256": "23d7622300b6d29be11ba6c43fc21e0956f582e638b972804402ba176460c566"
+    },
+    {
+      "id": "c5-lms-saas-project",
+      "repository": "codingwithriha/LMS-Saas-Project",
+      "commit": "79044a453818a7b9a71202a59569cbf9ab3f7763",
+      "archiveSha256": "f2927bc3e714f1ed424fc2f6cd0dfea443511d72772e6fa9ae496abde1e59eac"
+    },
+    {
+      "id": "c5-starterkit",
+      "repository": "devsForFun/starterkit",
+      "commit": "652cad9d95bea3998ca6549e72c221713b008a3b",
+      "archiveSha256": "2480c15d01fd1703210d5f9c5ca5e3389e2827cfdff9d9d8b8e6374acea19f57"
+    },
+    {
+      "id": "c5-devbio",
+      "repository": "devtofunmi/devbio",
+      "commit": "2ddeaba5559a23b36da0f4b53cc97a90182cb4c8",
+      "archiveSha256": "ff01db8e40283b612a9251858506e4c4e2c0a483feb08a90773350e42cb909c7"
+    },
+    {
+      "id": "c5-neural-nexus",
+      "repository": "Drago-03/Neural-Nexus",
+      "commit": "6b2a3b7703851ebe45019944f46f0f88dfdb55ca",
+      "archiveSha256": "d56555f25db7a8732000b88f476df950082542325081f96f99305b55a1d3db82"
+    },
+    {
+      "id": "c5-corpus-m",
+      "repository": "dsaltares/corpus-m",
+      "commit": "a07ed44d46da9ff26b9535b9a01ac91483b34686",
+      "archiveSha256": "32b6a925a88b394f67767ab96795cfad6b3288190fd2f5e407ebfe809b941c41"
+    },
+    {
+      "id": "c5-corpus-r16",
+      "repository": "ifauzeee/corpus-r16",
+      "commit": "78fa86b05b5f478ec32ccdee204e8c299ae246cd",
+      "archiveSha256": "1d0d680a6284603ddcce2d7e2f40719216a0e895c664111448a5f7101424916d"
+    },
+    {
+      "id": "c5-myprs",
+      "repository": "kishanhitk/MyPRs",
+      "commit": "f3ef07ab5cd7105383d5fc530294b8b3b63be16e",
+      "archiveSha256": "5bf4d25ea14d2343a14118eac1b1f7509b16c4caa4b145935bf99e9ab414de52"
+    },
+    {
+      "id": "c5-nextjs-template",
+      "repository": "MicrowebPG/nextjs-template",
+      "commit": "2c58a984ff6d2b9558c90be71fd2e8f27d0c8420",
+      "archiveSha256": "2422988a55e0ed4863df2e3bdb11c01ba8428ea18f3435a34b6c29982aeabc11"
+    },
+    {
+      "id": "c5-litera-ai-web",
+      "repository": "MuhammadLutfiMuzakiiVY/Litera-AI-Web",
+      "commit": "cb2e63046eee35426d3f80ba451f6864c028f17c",
+      "archiveSha256": "fdb10c1aed16a788a1ab2c5e5969e9390bc9c3f5ed8b19835488bd0edb9236ca"
+    },
+    {
+      "id": "c5-open-isms",
+      "repository": "NISD2/open-isms",
+      "commit": "4595142ee16a68fac5fef72275e94e6df4f3c682",
+      "archiveSha256": "a035b4ed75102a248cf12cd574a92df57ec541bd2f47b39f798c5e543d6c073d"
+    },
+    {
+      "id": "c5-corpus-aj",
+      "repository": "corpus-aj/corpus-aj",
+      "commit": "49277b74381443357629dd083c154a61c724b5d0",
+      "archiveSha256": "a0c0682e8272f7868aeea8429f08f0dab2ba131480aa240ded20cd0ffc6b593a"
+    },
+    {
+      "id": "c5-anongpt",
+      "repository": "ronitrajfr/anonGPT",
+      "commit": "f27fae79b475500d1d9085028c28c66135465a4b",
+      "archiveSha256": "b5c2c1a6c3513776e4309376f256e510db0c6d4f231a19922d4a59d3cd6d1ab6"
+    },
+    {
+      "id": "c5-crashed-nu",
+      "repository": "superhooman/crashed.nu",
+      "commit": "d593012e0e30a0a427b98b0bfe6b22e4740e96de",
+      "archiveSha256": "d1dac9c0fbe6467c23c5c872d6df77d7cde70165ee5b51d95935ea5dafce567f"
+    },
+    {
+      "id": "c5-reclit",
+      "repository": "theharoonali/Reclit",
+      "commit": "1912f22acbda7c481308bcd886e1abbb80b4c157",
+      "archiveSha256": "0a2139efa25af7adc309b71440e0850a2290d04b08eff42436c5c211bc877cdf"
+    }
+  ],
+  "labels": []
+}
