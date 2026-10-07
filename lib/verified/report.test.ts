@@ -147,3 +147,18 @@ describe("nothing that could overstate, and nothing an attacker can use", () => 
     expect(buildVerifiedReport(data()).disclaimer).toMatch(/not a (security )?certification|no automated/i);
   });
 });
+
+// A1 (Felipe 2026-10-07): the public report counts confirmed issues only, the
+// same rule as the dashboard status, so it never overstates a candidate.
+describe("open counts on the public report", () => {
+  it("counts confirmed issues only", async () => {
+    const { confirmedCounts } = await import("./report");
+    const row = (severity: string, claims: unknown[], attack_class = "missing_authorization") => ({ severity, confidence: "inferred", attack_class, claims });
+    expect(confirmedCounts([
+      row("CRITICAL", [{ claim: "x", origin: "routes", verified: true }]),
+      row("CRITICAL", [{ claim: "Proof, data: a.ts:1 q", origin: "agent", verified: true }]),
+      row("WARNING", [{ claim: "Proof, reach: b.ts:2 q", origin: "agent", verified: true }]),
+      row("CRITICAL", [], "committed_secret"),
+    ])).toEqual({ openCritical: 2, openTotal: 3 });
+  });
+});

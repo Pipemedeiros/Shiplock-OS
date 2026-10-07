@@ -1,3 +1,6 @@
+import { isConfirmed } from "@/lib/agent/confirmed";
+import type { Claim, Confidence } from "@/lib/agent/findings";
+import type { Severity } from "@/lib/types";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { UnassessedSummary } from "@/lib/agent/unassessed";
 
@@ -187,6 +190,14 @@ export function buildVerifiedReport(d: VerifiedReportData): VerifiedReport {
  * so a disabled report and a nonexistent one are indistinguishable and the
  * token space cannot be enumerated.
  */
+/** Open counts as the dashboard status counts them: confirmed issues only (A1). */
+export function confirmedCounts(rows: { severity: unknown; confidence: unknown; attack_class: unknown; claims: unknown }[]):
+  { openCritical: number; openTotal: number } {
+  const confirmed = rows.filter((r) => isConfirmed({ severity: r.severity as Severity, confidence: (r.confidence as Confidence) ?? "inferred",
+    attackClass: String(r.attack_class ?? ""), claims: Array.isArray(r.claims) ? (r.claims as Claim[]) : [] }));
+  return { openCritical: confirmed.filter((r) => r.severity === "CRITICAL").length, openTotal: confirmed.length };
+}
+
 export async function getVerifiedReport(token: string): Promise<VerifiedReport | null> {
   if (!token) return null;
   const admin = getSupabaseAdmin();
@@ -200,7 +211,7 @@ export async function getVerifiedReport(token: string): Promise<VerifiedReport |
   if (!profile || !profile.verified_report_enabled) return null;
   const userId = profile.id as string;
 
-  const [runRes, criticalRes, openRes] = await Promise.all([
+  const [runRes, openRes] = await Promise.all([
     admin
       .from("audit_runs")
       .select("full_name, commit_sha, finished_at, trigger, files_read, entries_found, tables_found, unassessed")
@@ -211,16 +222,12 @@ export async function getVerifiedReport(token: string): Promise<VerifiedReport |
       .maybeSingle(),
     admin
       .from("deep_findings")
-      .select("id", { count: "exact", head: true })
+      .select("severity, confidence, attack_class, claims")
       .eq("user_id", userId)
-      .eq("severity", "CRITICAL")
-      .is("archived_at", null),
-    admin
-      .from("deep_findings")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .is("archived_at", null),
+      .is("archived_at", null)
+      .limit(2000),
   ]);
+  const counts = confirmedCounts((openRes.data ?? []) as { severity: unknown; confidence: unknown; attack_class: unknown; claims: unknown }[]);
 
   const row = runRes.data as Record<string, unknown> | null;
 
@@ -238,8 +245,8 @@ export async function getVerifiedReport(token: string): Promise<VerifiedReport |
           unassessed: (row.unassessed as UnassessedSummary | null) ?? null,
         }
       : null,
-    openCritical: criticalRes.count ?? 0,
-    openTotal: openRes.count ?? 0,
+    openCritical: counts.openCritical,
+    openTotal: counts.openTotal,
     hasDatabase: Boolean(profile.supabase_project_ref || profile.postgres_display),
     nowMs: Date.now(),
   });
