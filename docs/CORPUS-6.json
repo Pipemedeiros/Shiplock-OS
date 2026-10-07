@@ -1,0 +1,1899 @@
+{
+  "version": 1,
+  "experiment": "corpus-6-deterministic-2026-10-06",
+  "prediction": "Recorded before evaluation (2026-10-06): held-out set for the deterministic layer (plan items 4 and H); no prediction of detection quality.",
+  "scope": "What the audit shows with no agent (node scripts/corpus.cjs shown): deterministic findings and the status they set. No model precision or recall claim.",
+  "selection": {
+    "rule": "Fixed in the ledger before searching (13cc8e2): CORPUS-5 rule unchanged except stars 5..9; every CORPUS to CORPUS-5 repository excluded; ranked by stars then name; up to 250 kept.",
+    "searched": 312,
+    "checked": 312,
+    "selected": 239,
+    "pinned": 239,
+    "dropped": [
+      {
+        "repository": "izumicancode/alltime",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "khossdev/faktiir",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "lukesthl/fritz-ui",
+        "next": true,
+        "db": false,
+        "server": true
+      },
+      {
+        "repository": "MahdiJDS/real-estate-platform",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "marcasanova/webapp-nfc",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "venkateshraju04/ai-trend-scout",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "chenelias/eliaschen.dev",
+        "next": true,
+        "db": false,
+        "server": true
+      },
+      {
+        "repository": "chubbicorn245/impacttreasury-giggybank",
+        "next": true,
+        "db": false,
+        "server": true
+      },
+      {
+        "repository": "codedbyelif/els-ecommerce-git",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "kangjun-lee/ideaslab",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "SHIVAM-KUMAR-59/quelm",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "demid-v/scrobblecore",
+        "next": true,
+        "db": false,
+        "server": true
+      },
+      {
+        "repository": "dscnitrourkela/project-xangoes",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "iquabius/olimat",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "Kacper-Ksiazek/portfolio",
+        "next": true,
+        "db": false,
+        "server": true
+      },
+      {
+        "repository": "mbeps/drumroll-music",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "spider-rs/spider-example-archiver",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "thangtran3112/next-marketplace",
+        "next": true,
+        "db": false,
+        "server": true
+      },
+      {
+        "repository": "Trinhvhao/human-resource-management",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "0-don/menu-meister",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "alexurrc18/InsideUGAL",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "amiwrpremium/eye-on-chess",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "aniket1251/outly",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "arunrajiah/coworker",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "azukashi/az.micin.life",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "informatyzacja/strona-organizacji-studenckich",
+        "next": true,
+        "db": false,
+        "server": true
+      },
+      {
+        "repository": "Jamessdevops/Ruleset",
+        "next": true,
+        "db": false,
+        "server": false
+      },
+      {
+        "repository": "jjszj667/nailong-couple",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "msichterman/msich",
+        "next": false,
+        "db": true,
+        "server": true
+      },
+      {
+        "repository": "navneet-nitin/AI-Resume-Scorer-and-Improvement-Advisor",
+        "next": true,
+        "db": false,
+        "server": false
+      },
+      {
+        "repository": "onebrainaimemory/onebrain",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "puneet426/Nudge",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "RicardoGEsteves/Insightful",
+        "next": true,
+        "db": false,
+        "server": false
+      },
+      {
+        "repository": "Rishabh1925/OceanEYE-TaxaFormer",
+        "next": true,
+        "db": false,
+        "server": false
+      },
+      {
+        "repository": "Schryzon/3Dex",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "sreekarnv/burger-house",
+        "next": true,
+        "db": false,
+        "server": true
+      },
+      {
+        "repository": "toxicbishop/Student-Stock-Market-Analysis",
+        "next": false,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "workforce0/workforce0",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "yerdaulet-damir/crackthecv",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "aashish254/LifeFlow-DBMS",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "AbdullahNaseemAbbasi/nexora",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "AIUngated/crypto-liquidity-terminal",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "Akpali9/dataverse-report-system",
+        "next": true,
+        "db": false,
+        "server": true
+      },
+      {
+        "repository": "Ambixion-Corp/thrivo-frontend",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "aurorascharff/next14-remix-contacts-rebuild",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "aymanemehdi/Multi-Tenant-E-Commerce-Platform-Next.js-Stripe-Payload",
+        "next": true,
+        "db": false,
+        "server": true
+      },
+      {
+        "repository": "bimadevs/pilihku-E-Voting",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "BuildsHappy/openbase",
+        "next": true,
+        "db": false,
+        "server": false
+      },
+      {
+        "repository": "cedric-v/OwnPulse",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "cedrickdev/NeoCraft-Agency-Landing",
+        "next": true,
+        "db": false,
+        "server": true
+      },
+      {
+        "repository": "dev-cj/icodeit",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "goklab/guardvibe",
+        "next": false,
+        "db": false,
+        "server": false
+      },
+      {
+        "repository": "goktugozdem2/hermes-cockpit",
+        "next": true,
+        "db": false,
+        "server": false
+      },
+      {
+        "repository": "KalashThakare/CodeHealth-AI",
+        "next": true,
+        "db": false,
+        "server": false
+      },
+      {
+        "repository": "kardasch404/GamingZone",
+        "next": true,
+        "db": false,
+        "server": true
+      },
+      {
+        "repository": "KekoFigueroa-dev/matrix-themed-sprint-planner",
+        "next": false,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "KrocPDF/KrocPDF",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "mikeamarkey/conbini-this-week",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "mrgmnn/turbo-starter",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "Nebutra/Nebutra-Sailor",
+        "next": true,
+        "db": false,
+        "server": true
+      },
+      {
+        "repository": "neopromic/saturn",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "NicoBocq/prisma-searchparams-mapper",
+        "next": false,
+        "db": false,
+        "server": false
+      },
+      {
+        "repository": "nisargrbhatt/monorepo-template",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "PriyanshuBh/AuthApplication",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "PriyanshuBh/scripture",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "rajatkulkarni95/rk-minimal",
+        "next": true,
+        "db": false,
+        "server": false
+      },
+      {
+        "repository": "ribato22/BillKu",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "sidhyaashu/learning-assistant",
+        "next": true,
+        "db": false,
+        "server": false
+      },
+      {
+        "repository": "smartcraze/100xdev-webcohort",
+        "next": true,
+        "db": false,
+        "server": false
+      },
+      {
+        "repository": "smouj/captcha-shield",
+        "next": true,
+        "db": false,
+        "server": true
+      },
+      {
+        "repository": "uoftweb/website",
+        "next": true,
+        "db": false,
+        "server": false
+      },
+      {
+        "repository": "vinothvino42/inventory-app",
+        "next": true,
+        "db": true,
+        "server": false
+      },
+      {
+        "repository": "yyq1025/X-clone",
+        "next": true,
+        "db": true,
+        "server": false
+      }
+    ],
+    "excluded": [],
+    "pinnedAt": "default-branch head on 2026-10-06"
+  },
+  "labelProvenance": "none yet",
+  "loader": {
+    "files": 4000,
+    "fileBytes": 400000,
+    "sourceBytes": 25165824,
+    "inflatedBytes": 125829120
+  },
+  "repositories": [
+    {
+      "id": "c6-next-elysia-prisma",
+      "repository": "0-don/next-elysia-prisma",
+      "commit": "1c4c2605f953a167b3242ca384e5734e6f027467",
+      "archiveSha256": "8ab7d8f03c8d193433305c06b85a4a193009b9efe5c8c2ece0f2888a9224f8d2"
+    },
+    {
+      "id": "c6-zachurl",
+      "repository": "19akshansh/zachurl",
+      "commit": "47901243e77bd75e90cd15a41afa12880ae8b706",
+      "archiveSha256": "2b3b2dc1eef87a96f3e5448d80d6a08c60a4122cf482e31e98ee72089438f17b"
+    },
+    {
+      "id": "c6-praxl-oss",
+      "repository": "AdamBartkiewicz/praxl-oss",
+      "commit": "7c0b59bcd8d99c5b92818fd93978de9cc2025d3b",
+      "archiveSha256": "6e7085b02f3f3b3f53af89aecdec2000eea6179a7d38b51af19fb4a7f87246dd"
+    },
+    {
+      "id": "c6-alifit-tracker",
+      "repository": "aliivaezii/alifit-tracker",
+      "commit": "0a63ed5c4f416e2115f168c7c3ebc693fbf96ace",
+      "archiveSha256": "e33e64793f6f10d309f3580e106a4d9399a9276a9a1cf374ef8270cacae45bdc"
+    },
+    {
+      "id": "c6-easy-poll",
+      "repository": "AnmolSaini16/easy-poll",
+      "commit": "b89d03c07c54ca83d29f322589e341be373bde89",
+      "archiveSha256": "652a3cca1f0365d541ad70180b0ad4799fbfbd609f5994412854b2a1d1ef7566"
+    },
+    {
+      "id": "c6-oidc",
+      "repository": "atharvdange618/OIDC",
+      "commit": "1f0bea0ce3cdd7f37c99dfccc2a20d8ecfb9d850",
+      "archiveSha256": "adc04e99d48e7b32582ca999744687284f5fa9ad0dd5fad2d51d2dea0115aeeb"
+    },
+    {
+      "id": "c6-airlume",
+      "repository": "educlopez/airlume",
+      "commit": "cccfc51616a71a3fad31b886f281ecbff5967259",
+      "archiveSha256": "13e1c2be50612b4a5337835c49374de4ff5cdd503a1fef26e93e4b4ceede5106"
+    },
+    {
+      "id": "c6-leadsniper",
+      "repository": "hatimhtm/LeadSniper",
+      "commit": "20dbe5ea3ba46ee1b13c862b16e1e00bc199d165",
+      "archiveSha256": "80ae5dddde4bae1eb568df3f690625f20ad442ba41745296a5d0977a8cbe93e4"
+    },
+    {
+      "id": "c6-free-planning-poker",
+      "repository": "jkrumm/free-planning-poker",
+      "commit": "dddf5c47e1fa23c21d67fe3316dd427546a16c34",
+      "archiveSha256": "f0c0e96214e61e076da946c7ba241ea32fb35cd9b77158b96f129aa06213112b"
+    },
+    {
+      "id": "c6-mainline",
+      "repository": "kleinebossie/Mainline",
+      "commit": "79776273490790e7b27a6574e21eb880db0d370a",
+      "archiveSha256": "1b16116f325106b6e655e60966529de259c585391c0c2aa837915edc1438831d"
+    },
+    {
+      "id": "c6-frontend",
+      "repository": "kuluruvineeth/frontend",
+      "commit": "890f3af27f225926271966b968ffbef17d5914bb",
+      "archiveSha256": "31614c083d9d286151da33d7135d7b90c47b3989dc9263b2e60d942fe9b12391"
+    },
+    {
+      "id": "c6-tgdog",
+      "repository": "lifefloating/tgDog",
+      "commit": "5eab8952237d2a9561247e91961ca10c14ad10d1",
+      "archiveSha256": "be6a6c95d60ab9d4f66c3fd6746fc92c9cd3003bec44a4985d893d2ab97ebfe8"
+    },
+    {
+      "id": "c6-mergecrew",
+      "repository": "mergecrew/mergecrew",
+      "commit": "7d1e58f1e513cd47997c44b969fd921aae2ef00d",
+      "archiveSha256": "02a8b2a9b168a23c7655a9de1816bfc3ed6d7776fb3c4e77beaf9a09b56a174c"
+    },
+    {
+      "id": "c6-ea",
+      "repository": "Mo7ammedd/ea",
+      "commit": "919ba7b073a4a17e9db371b940b8246fbc6b2cdf",
+      "archiveSha256": "2192e64bd3bc0932f0d416afbe8499d48bdae5eb9c49588a5cb0a14a0f7e1bbe"
+    },
+    {
+      "id": "c6-namespace",
+      "repository": "ndungtse/namespace",
+      "commit": "fad7d84dbf0b1163e81dd8b4957540287e1f94aa",
+      "archiveSha256": "373217342aa298784804062e108977baa65676994a4e50df51248fdfde281cdd"
+    },
+    {
+      "id": "c6-creembase",
+      "repository": "pacekit/creembase",
+      "commit": "5d19c6c503af12282119da3731fe3c01f09df80c",
+      "archiveSha256": "72173b9ce05bd85a98d3f7dd98fd1a9741f1b808200ef01c333a3357bdb4c009"
+    },
+    {
+      "id": "c6-airbnb-ai-booking-platform",
+      "repository": "Rainiver/airbnb-ai-booking-platform",
+      "commit": "9e2a96863c252e8077540e70a74717b92a4d98ff",
+      "archiveSha256": "8333d4adbbdafe1f2b80133be432831b12ab983599e7b9dd47b248781ae14260"
+    },
+    {
+      "id": "c6-aksarify",
+      "repository": "rizkraf/aksarify",
+      "commit": "a2ddd83660e7dce78155e30d595fe92e10484cb3",
+      "archiveSha256": "5a215840c71011d6c1fc813210438450ebd080ef9e4b1de0aacc5e58b5680190"
+    },
+    {
+      "id": "c6-dsa-round-robin",
+      "repository": "sahitya-chandra/DSA-Round-Robin",
+      "commit": "1a1657433c9d3f7ecc3f1c5fde15818fe8a5d785",
+      "archiveSha256": "c2b1dfeccb2132c05b07fa3bd261101676a0682db72b2c0d2b25e90463ac19c1"
+    },
+    {
+      "id": "c6-learnhub",
+      "repository": "sanidhyy/learnhub",
+      "commit": "12abf7718fa93d13eef7cbc900be920502835eb3",
+      "archiveSha256": "0342da69664591bd0299c2f5e7e484fd078041b9f2172f02bb47ceabb57f6e0e"
+    },
+    {
+      "id": "c6-meet-ai",
+      "repository": "sanidhyy/meet-ai",
+      "commit": "f822f1231a470ed6683da9fea368156dd51e55de",
+      "archiveSha256": "d95c2689142950d52c240468388aec656db24b7abe2a4a8f9959429c6a3dc2e9"
+    },
+    {
+      "id": "c6-yt-clone",
+      "repository": "sanidhyy/yt-clone",
+      "commit": "3a5a759e9b22275c8164b371dd3f961d300dd35c",
+      "archiveSha256": "6c3c4cba626f3d57a4cb79e351b0176bcac28ce34d57746ae5c0f790a3483744"
+    },
+    {
+      "id": "c6-nextjs-supabase-saas-platform",
+      "repository": "sidekick0361/nextjs-supabase-saas-platform",
+      "commit": "3325e89681f346bde3cbb3f48f33eb1ac0b02459",
+      "archiveSha256": "91688a9babfbfd967bb1e88e27dcd681349efe6ae4e590cbec6d2ab33e031c35"
+    },
+    {
+      "id": "c6-slopdar",
+      "repository": "Slopdar/slopdar",
+      "commit": "05b6356a504e422616218adfe961e6c30746a8e0",
+      "archiveSha256": "8215e2af2535086cda4b5a99b5d2b51f10d6a60e73bfb853b848a41b90e0edbd"
+    },
+    {
+      "id": "c6-brainwave",
+      "repository": "todo-labs/brainwave",
+      "commit": "e967f4673bed62c271eec48f3b67a2a28c3a7b33",
+      "archiveSha256": "5f962db6035397ff06aeb79afc7d58e777b7ef36b4f4aed1655f5b3add26c8ab"
+    },
+    {
+      "id": "c6-synapse",
+      "repository": "vedantlavale/Synapse",
+      "commit": "044997da1d844d0b3be11cba1021c6552595c560",
+      "archiveSha256": "d17f416461c93c9d860b36992716cadcd088c6c3da16c9f1d130f56865f7b718"
+    },
+    {
+      "id": "c6-threadforge",
+      "repository": "zyadhajaji/threadforge",
+      "commit": "adbaa4ba88098a4e7a5b6ad80f361b18d1f60530",
+      "archiveSha256": "2aab3b58a281ce0f54c6b04dbe999ecf46d2f8e17f9eda54d2a344480b22dcd2"
+    },
+    {
+      "id": "c6-molt-social",
+      "repository": "aleibovici/molt-social",
+      "commit": "cfe12f1350e4ab4eca45d1aed5cddd31b91a274b",
+      "archiveSha256": "8868344ab828d9a0ca1311e0190cd2f2c7da38c0cbeb1536f9bbf48944163a4d"
+    },
+    {
+      "id": "c6-acti",
+      "repository": "AlexisAnzieu/Acti",
+      "commit": "8fecc9ba7b2aa20cb158f1d17002a8937f967e03",
+      "archiveSha256": "ad603e99f87c4a142faf7a8ffec515447bd4aac56318e8eaac5b1adc5004915b"
+    },
+    {
+      "id": "c6-pdfninja",
+      "repository": "anand-mukul/PDFNinja",
+      "commit": "d83bd78476e1094060ff63c3000cc224e40cb3f0",
+      "archiveSha256": "12906dded50113f27d91627034645f482ed974cd652d7c154f79444f8f28d408"
+    },
+    {
+      "id": "c6-monli",
+      "repository": "awahids/monli",
+      "commit": "f76fe96d60497205bb84d68205636e643f5f2dff",
+      "archiveSha256": "d75509e302cae467373a60c648a488060374365b0295fe6209e952101a39b4cb"
+    },
+    {
+      "id": "c6-delegatorai",
+      "repository": "aymanshalaby55/DelegatorAI",
+      "commit": "70dbb67ba7e65c48e74237006b774b0dd797afad",
+      "archiveSha256": "44bc450afa8f80c5b604c4784c29f5d3db8f612d17a1c48cd3714d4b642b9385"
+    },
+    {
+      "id": "c6-buzrr",
+      "repository": "buzrr/buzrr",
+      "commit": "7a4dece6d2ce21ee41b873e481da994cec61225d",
+      "archiveSha256": "552f42be0a3cfaad32a8a173bb07eb11e13701b9796a74d459f74798720e4cef"
+    },
+    {
+      "id": "c6-wizard-game-react",
+      "repository": "decker-dev/wizard-game-react",
+      "commit": "a1722ad06d67e03f31a6d84b3884e0d50e95eeb2",
+      "archiveSha256": "ce673e7b2282823fc8eee9a57669b75f2adb61b3369a454c05c5e2e9ae61f2c5"
+    },
+    {
+      "id": "c6-abductr",
+      "repository": "DevRabb/ABDUCTR",
+      "commit": "6bcc4a60410222911aca3ca260efcd4db0dac227",
+      "archiveSha256": "e73031d2f88c33d497edc472edf49f6509173cf72ff7001089c135b39e57b6f0"
+    },
+    {
+      "id": "c6-nodea",
+      "repository": "Elliott-Crosby/Nodea",
+      "commit": "c0d0cf0fab7fccb9c312940a3fc92c3a45fd11a0",
+      "archiveSha256": "0d8764ad39b56159fb0618547de93b4d72bd2ca9156ab0c009b03ea4379ea85d"
+    },
+    {
+      "id": "c6-falconerp-xyz",
+      "repository": "falconsoft3d/falconerp.xyz",
+      "commit": "e05c4ada7a5bedd374d56598bc1f3bc02bba1597",
+      "archiveSha256": "008fb6d1726a31888d89555e70aa01334b36d97eefc30d7738c1b4d93feab386"
+    },
+    {
+      "id": "c6-grep-chat",
+      "repository": "gokulkrishh/grep.chat",
+      "commit": "56e6e4c7d59e16e1f0d33749accaed1556e9d113",
+      "archiveSha256": "56733c53cb5fa8525eb0062dc5e67380e03bddf589ee363e39a940735ffb1659"
+    },
+    {
+      "id": "c6-omoide",
+      "repository": "hayato-shino05/Omoide",
+      "commit": "a2183367651b1d75d7787399cc46457c83feb854",
+      "archiveSha256": "7e578a05ecdac29b1bdcd9ba2a1c5412edca895b65913e657d33cca80a8dce2f"
+    },
+    {
+      "id": "c6-balancefy",
+      "repository": "ivanrods/balancefy",
+      "commit": "9e856358de52f741c795768a34da8c3dfe6d4f33",
+      "archiveSha256": "8a4997c0ce57405703044f7f303909965e88d49b9241a331a6fb04b5b72b3a43"
+    },
+    {
+      "id": "c6-corpus-s",
+      "repository": "jamnxdev/corpus-s",
+      "commit": "eacf6f89cf7e81601e3d88a7b36cb27bd98506f5",
+      "archiveSha256": "922050fe100bf36e0b9d86835558c10a3f56f059bc0b16c5178eebc365aa6b58"
+    },
+    {
+      "id": "c6-mana-hub",
+      "repository": "jesse-media/mana-hub",
+      "commit": "167b2e0ec55bfd8e493023bff90e715bd41773f4",
+      "archiveSha256": "bbb61272cac1a6d47b15d44eb64ce408cccb3ec906531fc5418e137d6c52a0e9"
+    },
+    {
+      "id": "c6-bananacanvas-ai",
+      "repository": "jonbrown66/bananacanvas-ai",
+      "commit": "07e3cc622570824ecd86789b67349f1b745a88f4",
+      "archiveSha256": "3a8de8e467ca853182ee1bfe0874bacf6188019dcf496563aa782a2111887c28"
+    },
+    {
+      "id": "c6-khaata",
+      "repository": "kakshilshah/khaata",
+      "commit": "9b077214e6f8c52b372ea4fe2ee970e96eb0f09b",
+      "archiveSha256": "60b4089892f1631138ac81e1693991c4acd67ee110f0103d8217a6ad4da72d42"
+    },
+    {
+      "id": "c6-chat-app",
+      "repository": "krotrn/Chat_App",
+      "commit": "a4bd260d6c1584863a09acaed2a2c9fd705df53d",
+      "archiveSha256": "470b8087cdaf9aca6f3bbabf8b2c84671a522cce75d00c4227c4f11f409310a2"
+    },
+    {
+      "id": "c6-socialens",
+      "repository": "maazajaz/socialens",
+      "commit": "0dce30cde93d9a778f85e79e80b87d3fa742ea2f",
+      "archiveSha256": "e89bfa606fa7924312dd2419675be54e3caa7e748e6af4564bc7dc8d9bd68621"
+    },
+    {
+      "id": "c6-maddyblog",
+      "repository": "Maddyrampant/maddyBlog",
+      "commit": "d2db141dabc55d527c51714109e7ae780410694a",
+      "archiveSha256": "22a053d4091e40011da0db81a6e6c4149d3c61acf2ca1fccba186dfa6f771780"
+    },
+    {
+      "id": "c6-orion-kit",
+      "repository": "Mumma6/orion-kit",
+      "commit": "33372bc7077ebce0ae0666d07bd7cc56ee905b99",
+      "archiveSha256": "5570311869001e6295e357e93a5d32f2a5fbfb915f09b1f610d6622ccd9da2f2"
+    },
+    {
+      "id": "c6-ultimate-nextjs-starter",
+      "repository": "namdao2000/ultimate-nextjs-starter",
+      "commit": "fb75a20eb4a3c09e831978ae16fb6d43b745e5be",
+      "archiveSha256": "bd41dd5718b4cc9884038c1e324d238071eea0a8ef996ec04eb828c61b932433"
+    },
+    {
+      "id": "c6-proxed",
+      "repository": "nech-ai/proxed",
+      "commit": "a2d4a315bc2351add58f87275f8c31805c6e1d61",
+      "archiveSha256": "d53d4e9c2af7d44eef5365dea8abbff0ce347d3dee8767578511331f9431a713"
+    },
+    {
+      "id": "c6-hub-agentes-ia",
+      "repository": "nomicsadmin/hub-agentes-ia",
+      "commit": "592f4aa7be4f0046b84bfa9ca80e72596e703362",
+      "archiveSha256": "6eade2610113f33c94137419d7f55ceecec06edc5c32e42985bb15b4d0fba934"
+    },
+    {
+      "id": "c6-avatarbook",
+      "repository": "noritaka88ta/avatarbook",
+      "commit": "72de5e5be929913d511e69b1d935e83037758325",
+      "archiveSha256": "e1310df3740e6db627c9bc46c9811b8abf1941c62ef72361893c8f94ddbb5115"
+    },
+    {
+      "id": "c6-reporadar",
+      "repository": "Panther114/RepoRadar",
+      "commit": "2e967b05ed0683df96aa6d59e63ec0197aef6c52",
+      "archiveSha256": "ce96cb84e74c714db273cd7a55dcfbcf5948010f54316c2ad64361d56ee8ddb0"
+    },
+    {
+      "id": "c6-bytebox",
+      "repository": "pinkpixel-dev/ByteBox",
+      "commit": "84b64804add6660a3a710c31a2e5c8013c5b057d",
+      "archiveSha256": "c7747d2cd575fbd4824d3791598a56da5c5d1ba53baeacec47cbaca735308811"
+    },
+    {
+      "id": "c6-orsive",
+      "repository": "pranava-mohan/orsive",
+      "commit": "433cf44b69359352c3db038b4264bced02dcb7ae",
+      "archiveSha256": "c45354866dfbaca732a86a2421a4a80aea703b03e9d812005cec72851a5d4862"
+    },
+    {
+      "id": "c6-cadence",
+      "repository": "pstepanovum/Cadence",
+      "commit": "9d94329239892032a343a1d3e64b60b08419d867",
+      "archiveSha256": "a42ec510e1ff7baed1ff956b234f15302e156c9d9d4a6086f9e89f46d28c55c5"
+    },
+    {
+      "id": "c6-portfolio",
+      "repository": "reblox01/Portfolio",
+      "commit": "3e9f5f51e5847f5042c786ac465da1b4071e2472",
+      "archiveSha256": "68e192bb643ae2f3f72aa11637a03cfc2512fbdb71e226fd2b51b6f4219d8be6"
+    },
+    {
+      "id": "c6-corpus-r21-corpus-al",
+      "repository": "regiomag/corpus-r21-corpus-al",
+      "commit": "bde2424bcdc4ba0957f962d148daac9287a7050f",
+      "archiveSha256": "136afbfaf76efc44bdd85e1daaf0d107ff4a8bbb90e01c86cff10c8c277caa90"
+    },
+    {
+      "id": "c6-bothive",
+      "repository": "rishabh3562/BotHive",
+      "commit": "579df0ba82371cdd8e2612cebef9af3b15c73f86",
+      "archiveSha256": "e7b01932d15a7bf1f72911eccce1dbd01f44ca437dd6b28844b917e530a8a8f8"
+    },
+    {
+      "id": "c6-drawly",
+      "repository": "sarthakitaliya/Drawly",
+      "commit": "4ca6960e6b1c003e570a65c84f2fed2094bd62ef",
+      "archiveSha256": "0cb0c349213b73e97810fbe4f198002893a3f4fc1a6738e06639135b152994fb"
+    },
+    {
+      "id": "c6-savvio",
+      "repository": "sarthakitaliya/Savvio",
+      "commit": "95919c90e9b22d4f17b000447eb1a400dddc6948",
+      "archiveSha256": "773b06d90e350094651335e56f74006caab63b3652e285b1f905724e25d8bc17"
+    },
+    {
+      "id": "c6-ai-email-threat-research",
+      "repository": "scottalt/ai-email-threat-research",
+      "commit": "9f21c45fae21376139b7562cfb84d46c1e39c2a2",
+      "archiveSha256": "ce9fe507c076f2c5a0222bcbec645db4c4a05d20cb81c8f10d8563e89e09b549"
+    },
+    {
+      "id": "c6-shubhdeepchhabra-in",
+      "repository": "Shubhdeep12/shubhdeepchhabra.in",
+      "commit": "87cd2e2504552a8b5d4b88e4e74eb61832b0c55c",
+      "archiveSha256": "1cd4c3fa8c57631d4c2426acef168ff95bf4f88d40d209c32088044035bad0d9"
+    },
+    {
+      "id": "c6-solvoke-synap",
+      "repository": "Solvoke/Solvoke-Synap",
+      "commit": "11ab407bf3b06a381033169a7fd4fd3389ff47d7",
+      "archiveSha256": "d226d12ab8949622b664afb95b79faa6356ddaed8a43e038139728cdb541287d"
+    },
+    {
+      "id": "c6-fonts-archive",
+      "repository": "taedonn/fonts-archive",
+      "commit": "45d2b9c0833ae279fb9bd95b2f7ac139b273fa76",
+      "archiveSha256": "b62b6cb58bad8badc59b876b82ae93261fd07e446084b729c8e0ef0663aa9425"
+    },
+    {
+      "id": "c6-alpineclubbookingsnz",
+      "repository": "thatskiff33/AlpineClubBookingsNZ",
+      "commit": "44fc742bbc7cc6f86a55c039780429b6c28c7bd0",
+      "archiveSha256": "44d89ba7bd5641efc0bf9c90327989079c315d2be7e1c4f4e2ecfdf61b638eea"
+    },
+    {
+      "id": "c6-nafs",
+      "repository": "Usman-T/nafs",
+      "commit": "486194b88f9f8ceb39df9662d0f0be07e372b618",
+      "archiveSha256": "bee8f1ff40037d96e0da671a1422b229f90dab1511be676e618554313b83e6cf"
+    },
+    {
+      "id": "c6-vibe-stack",
+      "repository": "vibestackdev/vibe-stack",
+      "commit": "c900822a877b5e90b0692a47be19d20e649bdbf5",
+      "archiveSha256": "0fdf13f8a7709b8a2104ebac89bef1b787abe69a20c983578a95c81a0f86ac6f"
+    },
+    {
+      "id": "c6-tutorial-site",
+      "repository": "vow132/tutorial-site",
+      "commit": "8222fc74c0b369ebe7db33fe2185c722aa9d6ce6",
+      "archiveSha256": "33d4323fd95129c07a36d5604245d735467b80155a3c290dbb18770528f32e0d"
+    },
+    {
+      "id": "c6-whop-saas-starter",
+      "repository": "whopio/whop-saas-starter",
+      "commit": "406acc4b9188815eb494a5a86302fa21c7834f1b",
+      "archiveSha256": "1955aaeb507abd63002df13d381e602e16d9c0a8698758911e6551d48273315a"
+    },
+    {
+      "id": "c6-wonderkit",
+      "repository": "zimkk/wonderkit",
+      "commit": "8378c798b3b0d9e3174ef3a4cf26851d7975bedb",
+      "archiveSha256": "a65dfcfe4aebbb0ffe7e1c511dc4d59bb35c3f79bb2271e14966156140665b57"
+    },
+    {
+      "id": "c6-corpus-q",
+      "repository": "actus7/corpus-q",
+      "commit": "00a67b318853874fb3dddc01572cbb7312ac514f",
+      "archiveSha256": "b63cdfccb07bf48c91c7ff619b58ab8725938be486f687f17f5aa56c96e672e5"
+    },
+    {
+      "id": "c6-artificial-unintelligence",
+      "repository": "agrattan0820/artificial-unintelligence",
+      "commit": "e6b09c1469cf923257afee65331a0707d1213f20",
+      "archiveSha256": "f21d8c704de9e9914f866c520bf69737f16567362f3ed5008e7215e343a7b818"
+    },
+    {
+      "id": "c6-ai-companion",
+      "repository": "Akash4510/ai-companion",
+      "commit": "f2751bb7fe1c830a3f1c50144a52925164e21f3f",
+      "archiveSha256": "762f2b82b7c38d30b3151ca0c711f063a0657553efd3a2398127c0abda18861a"
+    },
+    {
+      "id": "c6-proofchains",
+      "repository": "alainpaluku/proofchains",
+      "commit": "a30f631009a97f4890769372cb16d9f006a4d0e2",
+      "archiveSha256": "d28fd1b37bcc76f6d7a391b7f07468400b1586c87a38c55e7e90481dfdc20cb6"
+    },
+    {
+      "id": "c6-signalscope",
+      "repository": "aleibovici/signalscope",
+      "commit": "a5e272560ea26054de2f2d0e7e854c7f6bab875d",
+      "archiveSha256": "923e8367ef738922eef8a1948f4f2f7762300f0afa9b48cad69a1e90fa2ede21"
+    },
+    {
+      "id": "c6-vibe-code-editor",
+      "repository": "Ankurrr27/Vibe_Code_Editor",
+      "commit": "66b259a3418f90ad281625ea0e8669cad53574ac",
+      "archiveSha256": "ba9b7cc4e7f8d0253fb5db18841728ba94f033a8441136326d190debf2d7cc71"
+    },
+    {
+      "id": "c6-ai-saas-boilerplate",
+      "repository": "aozoragh/ai-saas-boilerplate",
+      "commit": "3948842e12686f180cbc3bc7e209b590b4a3d313",
+      "archiveSha256": "ab8c31cb92eefc21fb4cd2af50a35476a7e7343e3d618b17b8f654d9bfb8575b"
+    },
+    {
+      "id": "c6-relayer",
+      "repository": "awHamer/relayer",
+      "commit": "34054e2475003d39a9cba32595ea795d4734f836",
+      "archiveSha256": "7eb2f6be4b46797737a151de1191b2398a5e4ff0f04f279e720c338638534e61"
+    },
+    {
+      "id": "c6-nextjs-expo-saas-starter",
+      "repository": "brainbytes-dev/nextjs-expo-saas-starter",
+      "commit": "d20c0660b1e571b9ffaa200aecb8a8ee75a98202",
+      "archiveSha256": "4e6be055a565e76288287add52aa2168e8bb809dd5357b000e5508159560a3d8"
+    },
+    {
+      "id": "c6-signal-forge",
+      "repository": "CaSh007s/signal-forge",
+      "commit": "038859379a4b3d7c3945197a05199e394b0c3fa7",
+      "archiveSha256": "8b35a2557b743fa46825914207ca52123b6b768d783bac3fcc677337ac4e44b6"
+    },
+    {
+      "id": "c6-clerk-nextjs-trpc-prisma",
+      "repository": "clerk/clerk-nextjs-trpc-prisma",
+      "commit": "2ae2a7125561c78459b96ad55300cadd2e6fdfe0",
+      "archiveSha256": "6e4e7ad38111b8ebdd50f7a0f218c489cf640e8281edaa18e9a76f9fcddc13a1"
+    },
+    {
+      "id": "c6-course-finder",
+      "repository": "filipbagen/course-finder",
+      "commit": "596f180ab01257dba0f31b22477dc083a1b4ab33",
+      "archiveSha256": "ec6a76fa3344c4a21f6f66ef98cd682417ecaa487474cb521663ffdfff38ec69"
+    },
+    {
+      "id": "c6-minipad",
+      "repository": "gashiartim/minipad",
+      "commit": "9c92956f8b30ec753fae9d88b36167506f767441",
+      "archiveSha256": "380e0f443f0b1aa7c87f3852cbf957173c11ea0f65b7281bc32f516ae700cdd2"
+    },
+    {
+      "id": "c6-shopsafe",
+      "repository": "Haiderkhan64/ShopSafe",
+      "commit": "19bc5cf37c0ce7bc7607eca1295afafce50e7082",
+      "archiveSha256": "fc85cc2abfe3c3ebc24e6fe31e8080c342f3158b0841cfdba4c4d4068e04e4fe"
+    },
+    {
+      "id": "c6-env-garden",
+      "repository": "harsh-govind/env-garden",
+      "commit": "d50c6e3373ddf99cd992a3350976ccf74485ac45",
+      "archiveSha256": "6dc830c3321c9baa2ad08bd2242e8fc4890bdedf2ee9ac5090fc5de1874a0bd7"
+    },
+    {
+      "id": "c6-webdrop",
+      "repository": "jomzxc/WebDrop",
+      "commit": "ee9cec36cc6b2b91ff4b574176d95212bae64b09",
+      "archiveSha256": "076ff043cc0fa435c066a74ac0393004d29db33f5dbbc5583948cba7622f1c70"
+    },
+    {
+      "id": "c6-jobhunt",
+      "repository": "kaitranntt/jobhunt",
+      "commit": "7501bbb10d484283b17b80cf27c4d8494d62fa7f",
+      "archiveSha256": "ce42e265ad7374d77de15dd49dee9fe99ff4ae241ede7a70b1db4651ee6179db"
+    },
+    {
+      "id": "c6-cloudflare-next-boilerplate",
+      "repository": "lilpacy/cloudflare-next-boilerplate",
+      "commit": "0c41c2a9f094ef4c569a4c9c8261abd7498e650d",
+      "archiveSha256": "5afeb4ab07b9ebaeb08c0125f04b6f3429c3329ba76c1b27eee4a7aafdc1f76e"
+    },
+    {
+      "id": "c6-permit-forge",
+      "repository": "MakazhanAlpamys/Permit-Forge",
+      "commit": "6374b70a500584c9a34507a221f3942d6707d2cc",
+      "archiveSha256": "b25098e1c619cf526aced80b730273d3c2d07c0e2c711e94de5d1447a9d9282f"
+    },
+    {
+      "id": "c6-maskbox",
+      "repository": "maskbox/maskbox",
+      "commit": "6ddd67e39b85c5a7d996049354d5fee1aa936aa4",
+      "archiveSha256": "37210c8f08ab986359289086bac8595f3cd757f084602c340c0da97aa9af25ee"
+    },
+    {
+      "id": "c6-reway",
+      "repository": "mohamedgshoaib/reway",
+      "commit": "f9d208ad0012a1d7b2557b622044d269ad25ed41",
+      "archiveSha256": "4331fa17eca355ec93d96d93f2a21a5891e44c9e9dcd3dcf8cdaaa588a41217a"
+    },
+    {
+      "id": "c6-opus-nx",
+      "repository": "omerakben/opus-nx",
+      "commit": "4773451e967192fe81d36bd6b3d464e13cf81ff9",
+      "archiveSha256": "20874beb96f88faefcd5bc2d9ffff9dabe65ba0e364f8506eb033a79eb1b9fae"
+    },
+    {
+      "id": "c6-lantern",
+      "repository": "owl-factory/lantern",
+      "commit": "41b80cfbb8ef889fcd93e1f12e1b9e2fe8767b00",
+      "archiveSha256": "cdf0fcd8883ba22ec13f23f34d40b45caa76c7403aba5bb715f5663b98c587ef"
+    },
+    {
+      "id": "c6-invest-igator",
+      "repository": "PanagiotisKaraliolios/invest-igator",
+      "commit": "830a7a7b5ea70e7dc4b145c5802f9393d8fd9cd4",
+      "archiveSha256": "f5a47d1d3b5f401cfb5af89364f97787c8e2fc144366ae356422fd5ddf08e43b"
+    },
+    {
+      "id": "c6-cybernixnexus",
+      "repository": "PhoenixTechClub-NSEC/cybernixNexus",
+      "commit": "90c5bf9ecb588548d1110c31a8283f8a40fd1888",
+      "archiveSha256": "6ad43c6b731d32598082c814646a78791e523522a0818b600419a7d10aeff756"
+    },
+    {
+      "id": "c6-autonomous-ehs-management",
+      "repository": "SafetyMP/Autonomous-EHS-Management",
+      "commit": "16dd9abb5ac887dc879e5f2773da5f6e0d465b95",
+      "archiveSha256": "20791fc2dee0570032a046ead45f604583ce5e5bb4e608c12b535a74e269a903"
+    },
+    {
+      "id": "c6-flowforge",
+      "repository": "Shriii19/FlowForge",
+      "commit": "8f189ad3af2ca8da11013c26562fd861390f62f5",
+      "archiveSha256": "4332cb7ebf9ee7561e59fe9b3ec5d86ae8b94663d197b8629f6760bd3fccd0cc"
+    },
+    {
+      "id": "c6-basebuddy",
+      "repository": "stack127labs/basebuddy",
+      "commit": "58195568263638afe378d2f7c5f25b6d07778cf7",
+      "archiveSha256": "3f25049d2c2ab1b545858979f349a29023fcfe037ab1625c15beb0d57147041d"
+    },
+    {
+      "id": "c6-fasal-pramaan",
+      "repository": "StellarieX/Fasal-Pramaan",
+      "commit": "764a19b0bd8472bd9d7150b559025c5aaf7d779c",
+      "archiveSha256": "223568904421497f6ef544711bb41cad4dbbc6d6609732f4c382247f98493ed0"
+    },
+    {
+      "id": "c6-ai-companion-builder",
+      "repository": "sujal12344/AI-Companion-Builder",
+      "commit": "9b9c6747c7f8e1ce1bfd86e03cf9174a41cf7240",
+      "archiveSha256": "a4b593c2694ac6fe26f1b07e372cbf6f46ca4ee15a5ce243fb9def0d1f50a4f2"
+    },
+    {
+      "id": "c6-daily-expenses-tracker",
+      "repository": "Usmansagemode/daily-expenses-tracker",
+      "commit": "1af82239fb3164fe489f188f735d0d5f377ab6bd",
+      "archiveSha256": "c202c18454be2caf7cdaeccfc57645379234b6a2d568e3698a43708084ccc061"
+    },
+    {
+      "id": "c6-spotify-status",
+      "repository": "vuthanhtrung2010/spotify-status",
+      "commit": "20b6b582d505959e3048d139efda7b2db9b83e36",
+      "archiveSha256": "dac9f51cd8d9776d65de1b715634d640c59c35c2c167acb1a81741d191f3f190"
+    },
+    {
+      "id": "c6-football-ai-h5",
+      "repository": "wangsalin/football-ai-h5",
+      "commit": "085a4a50194d6698b23f8c1930170e011c6d8042",
+      "archiveSha256": "99af7b0bbbe4043cc6106321cac0420cdf65a16dde2adfa45f3c7c8ce459120d"
+    },
+    {
+      "id": "c6-collectify",
+      "repository": "xretic/collectify",
+      "commit": "f13d2cedbe5a28d1b42e403be7e27c687a312ad6",
+      "archiveSha256": "f321fe86c6807460d75075f664cde9f1d63122528960a6dc5a49f1e28546a485"
+    },
+    {
+      "id": "c6-firefly",
+      "repository": "YangchenYe323/firefly",
+      "commit": "4f60a090a1cbbcc4c1fb3428515cb0437e678aee",
+      "archiveSha256": "84325876fffec512e55404ac26c86706d045651fe64aa492da30e4eae4ff91be"
+    },
+    {
+      "id": "c6-portal",
+      "repository": "acmutsa/Portal",
+      "commit": "5e300c0f44232a13110712eb9b7dfbe2994f9fde",
+      "archiveSha256": "87dc1a8591012eda484bdf263a92a6f677d466352b158e178cc6805769a78130"
+    },
+    {
+      "id": "c6-create-stack",
+      "repository": "alfredmouelle/create-stack",
+      "commit": "3ac1f55fb6b68e85554e3550bed9e784ce487e2a",
+      "archiveSha256": "e856b41be1e0d900372160fe42259f9e27c4b52c6e80dfddbde588cb841c7af3"
+    },
+    {
+      "id": "c6-cogni",
+      "repository": "arshawnarbabi/Cogni",
+      "commit": "05db75eb4daf4a761c4bc9bf4a2fcbe1cf21b77d",
+      "archiveSha256": "2b05e3a5cba360b6460846746f746fc871cba8a52a4a41d2558bae03cd7de0c1"
+    },
+    {
+      "id": "c6-werewolf",
+      "repository": "azurespheredev/Werewolf",
+      "commit": "4d3fe77e120dfc115bc16b2e1a617e5ac7e6b988",
+      "archiveSha256": "21fa623b1439ce1b19e0df2c08d9c4211e5689803ab3056d7a315b8ca8bf4599"
+    },
+    {
+      "id": "c6-corpus-r4",
+      "repository": "braedonsaunders/corpus-r4",
+      "commit": "e1c6a023af9e81c16875bebb5ee75498c5b56153",
+      "archiveSha256": "c2791823e3ca73461c5e2d5b762bed322d6f6915bd5df3a235ffb426face9524"
+    },
+    {
+      "id": "c6-social-forge",
+      "repository": "Codehagen/social-forge",
+      "commit": "2f9f5d59e66119fb3750dfbf6a911b9f5e1a878f",
+      "archiveSha256": "dc2e71b022efad9db19213767c894ae6d2ecc1947bb1a0bac4ebba7a8dc0a576"
+    },
+    {
+      "id": "c6-maildesk",
+      "repository": "Danny7d/MailDesk",
+      "commit": "23f8bfe3ce5e0ba0ae092bc51c1ea9ce5c52a8c3",
+      "archiveSha256": "7af8e666c265edf0c3a18cbe766379dfa60ae1f015c7c90faa3583d381719ebe"
+    },
+    {
+      "id": "c6-resume-gpt",
+      "repository": "deepakmodidev/resume-gpt",
+      "commit": "95fd3ce022a45cf92279d0663887dad40bf6d92a",
+      "archiveSha256": "697e3e191f1f14dd7f4580095649a84102da93f116c22392c0e6600c4ed632e0"
+    },
+    {
+      "id": "c6-store-ease",
+      "repository": "DeepBlue-dot/store-ease",
+      "commit": "5706c76bc9acb1c36d962c829697cedaef6bdf8f",
+      "archiveSha256": "5e7fdc43a41d1ebc6ec7772ba57b2df86e3c63b3c0baab812f88bbc756d50e84"
+    },
+    {
+      "id": "c6-next-nest-auth-js-starterkit",
+      "repository": "deveripon/next-nest-auth-js-starterkit",
+      "commit": "c31322aa5839edd2fb9d876925efc9f7d4084a6b",
+      "archiveSha256": "0047445141c4929d9266939db88a00761cc092411b12e6fda4f9285dac27e5b2"
+    },
+    {
+      "id": "c6-corpus-r12",
+      "repository": "Dexter0013/corpus-r12",
+      "commit": "8157319abea9f0c2fe81e4f9d5691571a4a8f762",
+      "archiveSha256": "e7445bb628a911f6d5ebe9d8f2885286a8f7c11573cd6d63786e21a7ec24fec1"
+    },
+    {
+      "id": "c6-nextjs-ai-photo-editor",
+      "repository": "eraydmrcoglu/nextjs-ai-photo-editor",
+      "commit": "9a2cc357e4e67cef681a32feca1ec9b8112f516e",
+      "archiveSha256": "24adefb09528ac9855fbf5a0f07d5107a9867c20493824ceb5680780d248bac2"
+    },
+    {
+      "id": "c6-fusionclaw",
+      "repository": "Fusion-Data-Company/FusionClaw",
+      "commit": "164ebec938f353a158c614ba6cc460792382c60e",
+      "archiveSha256": "d5fd18a637f077f702db6bb3460a5f1f1b21f2c743a047109fd0d0562d7e696a"
+    },
+    {
+      "id": "c6-caratflow",
+      "repository": "Globussoft-Technologies/caratflow",
+      "commit": "267398979ae3d93848cd4698f738ed9e6cd98a0b",
+      "archiveSha256": "7b7518fd40831c5a73bde1fb96b22ef77b0026d468ca70cf604b963759ee5b9b"
+    },
+    {
+      "id": "c6-gleba",
+      "repository": "GMS64260/gleba",
+      "commit": "4d074c8ec89fc5133776773edd5a99205ca2cb64",
+      "archiveSha256": "c6ba1202d541d071d19c4661a36e8f6952a779339b10d12328ebb2c2f39a3b50"
+    },
+    {
+      "id": "c6-koao",
+      "repository": "hoblay/koao",
+      "commit": "b00315b6ce8c2d307e4460fb664de6d010c86ac9",
+      "archiveSha256": "4ebed53d2004dcd19164e075d0e7fc164483a588c938934481f7d7d2ea41f4ff"
+    },
+    {
+      "id": "c6-gamelog",
+      "repository": "horlesq/gamelog",
+      "commit": "4e5f9c22168324748aa79ae91a7fe6a4d1945f61",
+      "archiveSha256": "d3b76de558836d877747034a7fe974db8b375076ba1c4f67c66440738616d176"
+    },
+    {
+      "id": "c6-staaash",
+      "repository": "itsmeares/staaash",
+      "commit": "417b416afce959d97bb242c775bc455fe75218df",
+      "archiveSha256": "252abb9838815be8256d14b368a8747577f07fcd71df7ed1742c42063969b29d"
+    },
+    {
+      "id": "c6-agenthelm",
+      "repository": "jayasukuv11-beep/agenthelm",
+      "commit": "f74506c699dd845b58b9992721af211008d54fe8",
+      "archiveSha256": "95a3f0b16863962b662b16a568c88187739a64f65a4920ec4e6f35b01a7f0f26"
+    },
+    {
+      "id": "c6-codevibe",
+      "repository": "kaifcoder/codevibe",
+      "commit": "5fc7933b1742fb531406fafc2fc406e4836e0c63",
+      "archiveSha256": "6fc94da92c8d0d6851fda1a8ab3c740a5d5860e56041b30123a9de7b5cf76bee"
+    },
+    {
+      "id": "c6-univault",
+      "repository": "kautilyadevaraj/univault",
+      "commit": "0566bd1c8587f104c9604ef0c09c14a43a163526",
+      "archiveSha256": "164748607bd5cde1d3a3a2e765897ba199fff160c5e0b41090d4de8d8485d2fd"
+    },
+    {
+      "id": "c6-product-listing-ai",
+      "repository": "KemiZHANG/product-listing-ai",
+      "commit": "72e54e21afdcddd098f8e8c6b963ba95905cafa8",
+      "archiveSha256": "a3600f730de6585b9996585a51cd9d69efdaadfa1a56a65eb1275c60deef21c3"
+    },
+    {
+      "id": "c6-kharko-dozor-dashboard",
+      "repository": "kolia-zamnius/kharko-dozor-dashboard",
+      "commit": "c81ab78e01ead9ef444c111f3f0e6f8df3f39ee7",
+      "archiveSha256": "56e89243400cb1a023ccce4b3273b363b0d3d1d339b9f5e5d7866e8d553ec7fa"
+    },
+    {
+      "id": "c6-quranic-linguistics-observatory",
+      "repository": "lAvArt/Quranic-Linguistics-Observatory",
+      "commit": "f2e12a5e1ab0e2604afe024d9f8ec2e32849a7ae",
+      "archiveSha256": "249d018e59c63f00b8aa643f808fdb53d42a2106140c983c51342be290a9e87a"
+    },
+    {
+      "id": "c6-cairn",
+      "repository": "ldhbenecia/cairn",
+      "commit": "b68654120151995308ca3402f522500c137ae01f",
+      "archiveSha256": "eb5bd5e40b3887fa9ec5d8d68f5d18c7fc236fd0c92e24a4d73801b954dd8c10"
+    },
+    {
+      "id": "c6-my-profile-portofolio",
+      "repository": "LindungiLw/my-profile-portofolio",
+      "commit": "2c31aaf70155b22f1691a874ca8b460cb3ff1665",
+      "archiveSha256": "bf9996d62d2a73c9025f7c9ee887c25d54b297f73a829eb690388fecb05427b5"
+    },
+    {
+      "id": "c6-corpus-n",
+      "repository": "lroy-stack/corpus-n",
+      "commit": "20e97bdd4f31ab83a754524d556a9b43a7aa13f0",
+      "archiveSha256": "2439e783e9e469f21e70c69bb74919d95d7cec00850ce72cf296813fbdb213d5"
+    },
+    {
+      "id": "c6-nextjs-supabase-creem-boilerplate",
+      "repository": "malakhov-dmitrii/nextjs-supabase-creem-boilerplate",
+      "commit": "08c88eace61a8a252a8af78213ef025b15ef2f13",
+      "archiveSha256": "ab262a174c32943ed4a23e7445800e4a8bc6eb59f355bf6b422a4fd217cd0e5f"
+    },
+    {
+      "id": "c6-zerodraft-so",
+      "repository": "marsalanjaved1/zerodraft.so",
+      "commit": "eacbf9819f36ae21ef56521779ec09d40258d1c8",
+      "archiveSha256": "09e1b2167ca66729967f4fd94b429bd068e49477c3baea45a5bfa8db95880b8c"
+    },
+    {
+      "id": "c6-wiki-sefaresh-redesign",
+      "repository": "MersadHabibi/wiki-sefaresh-redesign",
+      "commit": "fa0850a96585294228e3bcb497b4cd2752147d12",
+      "archiveSha256": "77153ba7d74b5b389c7436a43803c70ba0f6dc078bb449e534d156e699228926"
+    },
+    {
+      "id": "c6-cybernet-awareness",
+      "repository": "MoeJaafar/cybernet-awareness",
+      "commit": "46ae01e471f19096d04ebd3f05ddd03ab4ad5b06",
+      "archiveSha256": "87611ebc1a5cdd685aacac68e0f71dacff2ad78dddca6c2c6b35f5ab070bfb70"
+    },
+    {
+      "id": "c6-cortex",
+      "repository": "MrAHMED14/cortex",
+      "commit": "840c73f407fe6191f5d8822c4717e80b5194a486",
+      "archiveSha256": "b0543687c6a1475f46fac3528d51c69ecbf935e3b3c2f4f1c80054b88e4bc2f1"
+    },
+    {
+      "id": "c6-linkden",
+      "repository": "MrDemonWolf/linkden",
+      "commit": "b42e643f87cb3c1de09b9c2c82d8ba8670f7a726",
+      "archiveSha256": "3015fdaa09b3a7c2c40b8ad0990066a976a33a9e7f69ba34d8ec20c343fef6dc"
+    },
+    {
+      "id": "c6-wrong-question-notebook",
+      "repository": "mrmagic2020/Wrong-Question-Notebook",
+      "commit": "de8cb6e0fa7013e4716f2f5baae182582c97b7f6",
+      "archiveSha256": "7cc113046ca1a0900390182075600df44205ad66e63bd419be084a31b161a6af"
+    },
+    {
+      "id": "c6-ibkr-auto-proto",
+      "repository": "NG-sama/IBKR_auto_proto",
+      "commit": "a855dcc5a4eec61450a1ff683aa8bc82600d1a7c",
+      "archiveSha256": "0375b3f16fd053c116b81745bf3aa9c496284f7e38551ac52faaa2f83be54742"
+    },
+    {
+      "id": "c6-project-issue-tracker",
+      "repository": "omunite215/Project_Issue-Tracker",
+      "commit": "79dc30ff45a9a817c37c46511b2ddae41f93bd25",
+      "archiveSha256": "02cf5c8d1c15e13aef7654653b14e22ff61244ecb53a1fdf527b2efc87a1ff4e"
+    },
+    {
+      "id": "c6-cookbooklm",
+      "repository": "outofmemry/cookbookLM",
+      "commit": "84c8dacfc170630174e258915cec03de64ce0ac0",
+      "archiveSha256": "fbcbab6d9480d590aa651880168b26d798d98054d22a3e19a6e6552154dfe126"
+    },
+    {
+      "id": "c6-agency-automation-tools",
+      "repository": "prankush-tech/Agency-Automation-Tools",
+      "commit": "a82e16af5144d5871d64f7e049c4dee324578bc4",
+      "archiveSha256": "05997bf5f75602318411056b09725547724209672afc15c629146aed59fe8332"
+    },
+    {
+      "id": "c6-youtube-v2",
+      "repository": "Prem759-0/youtube-v2",
+      "commit": "93c2d5ba40495734c942055048e99c2059b1a2f1",
+      "archiveSha256": "61f91367a7b666c286922a6b348697e24957dac1bdc778fb0d0d99c20452cc9b"
+    },
+    {
+      "id": "c6-aiforge",
+      "repository": "psypherai/AIForge",
+      "commit": "d7434c2c86326c82b94578f253ff211a146e84a3",
+      "archiveSha256": "da7f8c449c0ab9867acdc6f05f81e24f4ce1ecf0b64cde90b3150cd61e5a0083"
+    },
+    {
+      "id": "c6-gitscout",
+      "repository": "REALEncryptal/GitScout",
+      "commit": "fe1182a4a267114bca1f844f8a0e5284f40b7e68",
+      "archiveSha256": "260cbe3a716c4b13cd7e120a7f256e7ba8338b58cd2c5416c3e4dd8df6c2ce1c"
+    },
+    {
+      "id": "c6-regreso",
+      "repository": "regresado/regreso",
+      "commit": "1f76cb79c8f1d45426aa4c89ce4f798ce2099526",
+      "archiveSha256": "a891fd5e37b42d244237bbdbb298cdf95e85d0ce5d48cbbe6e4b20c2e90b988d"
+    },
+    {
+      "id": "c6-bidrealm",
+      "repository": "rushikeshg25/BidRealm",
+      "commit": "989c3b97ad22fe9d8b65b7f49be2b3de7986625d",
+      "archiveSha256": "51d9911d3ae512badb20b3ef2ebfd5dedcdc8653d713c5b08a1c57a8cd24e11a"
+    },
+    {
+      "id": "c6-mizzo",
+      "repository": "s4shibam/mizzo",
+      "commit": "0a1c40fe8f4472a67a0b4425afeabf9d3879d258",
+      "archiveSha256": "5c4584e3bed6c54d62ae74c743de239ef76eab5c68150ee3944952883959706e"
+    },
+    {
+      "id": "c6-devfolio",
+      "repository": "Saif-Arshad/devfolio",
+      "commit": "1b8b8b9fe041a397819279e6786f4cbe50b2981d",
+      "archiveSha256": "de8c9efecb497990ac1d132bb2d5afaa64449007ac48f7a8beda1527390f118b"
+    },
+    {
+      "id": "c6-corpus-am-in",
+      "repository": "corpus-am/corpus-am",
+      "commit": "7dcfde4bfc2734ffef3c45c52c9e8d57b59fea7d",
+      "archiveSha256": "ab5ab7c7b8005e5a1342fe6a5b3a67694f16631c76eb31dddf6ff5f6db203d82"
+    },
+    {
+      "id": "c6-nktc-app",
+      "repository": "Sh0ckWaveZero/nktc-app",
+      "commit": "591df2d8f49d32f92cf4427b8f45d21bfa5a0488",
+      "archiveSha256": "fe39d3e8fa76295d9474ca8981c7320f10ffbc8302be959ef890eca240c3fe6f"
+    },
+    {
+      "id": "c6-ai-shipcheck",
+      "repository": "sinceaihq/ai-shipcheck",
+      "commit": "daab48cbe22e49c631d76733827fdea30da32028",
+      "archiveSha256": "7667eb68df7a1ae8d06e7f9ef7c81d1052a1761a48caeef1109265ab25d1113a"
+    },
+    {
+      "id": "c6-main",
+      "repository": "skku-amang/main",
+      "commit": "991cf2586accfe4ab961960c29370690dd1d8b65",
+      "archiveSha256": "e3bb2e67678dc4cffb74f0ae0bf7184133c50ac63dcd7b59c80610c66aac9bfd"
+    },
+    {
+      "id": "c6-sigrank-app",
+      "repository": "SunrisesIllNeverSee/sigrank-app",
+      "commit": "fe0a92b85221754370ff5774c0292aba3d778f5c",
+      "archiveSha256": "25c857e482bdb1f74fe157ebf564f3e0dcf5e5749fe2078bae1d18a5f2603eab"
+    },
+    {
+      "id": "c6-saasential",
+      "repository": "theus846/SaaSential",
+      "commit": "7530ce2e2cd00ce59f3e3e00196c126e24d146c0",
+      "archiveSha256": "3f06fa74f9d85703124d7ba489c8b245f06fdd7b3155681f085ec642df894d14"
+    },
+    {
+      "id": "c6-trustlend-stellar",
+      "repository": "thisisouvik/trustlend-stellar",
+      "commit": "c700570b6cd35779fc5feea30a047fe6cb43a609",
+      "archiveSha256": "969972760579d24dac6e815fe8bf49891083b4b7f4cc23133dceeb2e3a440719"
+    },
+    {
+      "id": "c6-webring",
+      "repository": "uoft-webring/webring",
+      "commit": "c0d6fe93a2ab50df7cb7d4d3928a66445ddbd113",
+      "archiveSha256": "c1be9aead487698a9e874ddac29521ebfc353908fc07fe4b7c871676401cc94e"
+    },
+    {
+      "id": "c6-classifyai",
+      "repository": "vaibhav537/ClassifyAI",
+      "commit": "d5ad162d0b6a23e5e0dcbcb61e409c9085f33550",
+      "archiveSha256": "53ccfc7dedb68820c67c4ad43b8f93f5e34890f3b3606c471cffd08df76e5d66"
+    },
+    {
+      "id": "c6-website",
+      "repository": "wbtechofficial/website",
+      "commit": "8e05291b759522b7e21c036c63d2e67fe6f8678e",
+      "archiveSha256": "97689df018f043f3de709ef58090ee7c05cef2232ffd918e0793a4c47a667a07"
+    },
+    {
+      "id": "c6-next-starter",
+      "repository": "WilliamElesbao/next-starter",
+      "commit": "3e1db233c8163397810fb4bf6bf31a48563881bc",
+      "archiveSha256": "061f93d50f2143cf888f4a983fc5b3f36a5fd5b79903311b5b8cafc7d4efde35"
+    },
+    {
+      "id": "c6-portfolio-xmliszt",
+      "repository": "xmliszt/portfolio",
+      "commit": "8006b84578369b957f0ed2d965f8a04212965940",
+      "archiveSha256": "1161979de851cf31897749a3b900d6c89b4a55c5fdb6522a6085a60d68da1b77"
+    },
+    {
+      "id": "c6-xynhub-com",
+      "repository": "XynDev/xynhub.com",
+      "commit": "c99b3b49a0287f2c8ce96aa219422307494b339d",
+      "archiveSha256": "60e9c208092f07c182c066747dd191d2fc7796c9f0b113279752f6ba4790f272"
+    },
+    {
+      "id": "c6-next-auth-prisma-mongo-template",
+      "repository": "yuiseki/next-auth-prisma-mongo-template",
+      "commit": "90a53f25392909df71ed9e96b7ed1cb59ed44c1c",
+      "archiveSha256": "d78f3abb3471f25883018d0a3bebe1fae0d44a04a2ca56661fb533d37b82f02f"
+    },
+    {
+      "id": "c6-mindsea",
+      "repository": "a6iyyu/mindsea",
+      "commit": "2ae3f824c1dce1ae164a22ac7a29dd2899595ea3",
+      "archiveSha256": "1a2f85afe85255fc292d3e5b2cb71548a9e0f81e923561b2a17ff53562b2d8c3"
+    },
+    {
+      "id": "c6-secret-santa",
+      "repository": "Admin368/secret_santa",
+      "commit": "b200ffdc971768a89138c7b4fd2f7002325c8ec7",
+      "archiveSha256": "611dc721a5edcfdce407b057cd63551e3c7186b1c19197e76936d1d3da88f05f"
+    },
+    {
+      "id": "c6-tasko",
+      "repository": "ahmadk953/tasko",
+      "commit": "c09840230cce63d244158e4fc621148c86482b33",
+      "archiveSha256": "dded4e81ae33fe504ec443f86c86623166219ea99f844852eef27a0e042fa22a"
+    },
+    {
+      "id": "c6-corpus-p",
+      "repository": "alex-jb/corpus-p",
+      "commit": "3e3c6a08daed77787c5b008038e594958edaa954",
+      "archiveSha256": "945484d8e139a27d287f4621f910d52bfa3662aea7da663e0155e6d8b931874e"
+    },
+    {
+      "id": "c6-alirezasafaeisystems",
+      "repository": "alirezasafaei-dev/alirezasafaeisystems",
+      "commit": "d4324c5114bf9c69c0e8d6236b376c48f7d1ea85",
+      "archiveSha256": "6c062cb441d4ef28d922ff8a227251cc23ef93028ad9536993124bcb9a03bbab"
+    },
+    {
+      "id": "c6-auditsystems",
+      "repository": "alirezasafaei-dev/auditsystems",
+      "commit": "6942e83c7ec8da412fc235bc42fa898e23d83775",
+      "archiveSha256": "36cfbd0b935d8b362d29aaa32b91295f4f55d5516012dc5b3ae927c510470e11"
+    },
+    {
+      "id": "c6-spa",
+      "repository": "amps-kt/spa",
+      "commit": "604eb6565a90e9523cc1ab8855872011c5a93dad",
+      "archiveSha256": "3f6ae8091911209219ab8795bca068ef0283d39659c39d4ce84571fbec94f89f"
+    },
+    {
+      "id": "c6-reqon",
+      "repository": "anupam-kumar-krishnan/reqon",
+      "commit": "6a8ce2867ccf9a4536696068e54e94fc1572bf8f",
+      "archiveSha256": "999ec7d09e67dc8b0f42884bd75613d74b254316e093f824503de7eaf69fc1d4"
+    },
+    {
+      "id": "c6-intelliq-v2",
+      "repository": "ARC-Solutions/IntelliQ-V2",
+      "commit": "9b57371f39dfa6287efc79ac815acf2e1225bd97",
+      "archiveSha256": "4078a171d741678dd5c488eca670c17bf80c401896a4703e79b9e36af4a9b16b"
+    },
+    {
+      "id": "c6-vtop2-0",
+      "repository": "ArshVermaGit/VTOP2.0",
+      "commit": "c0734cf710af6295847b439f193e07053d528d0b",
+      "archiveSha256": "35075682f224d58647486a65dce4ad102cf92ec6f400f144a80995b7b40f826f"
+    },
+    {
+      "id": "c6-butcedostum",
+      "repository": "barissurkit/butcedostum",
+      "commit": "43d3a5f7b205a0865de429c5121766d4e6faca62",
+      "archiveSha256": "c9e99fe017c18ba5ba6bdc7fd37e86458380d225aaa55153abb7fa6aeb43d8de"
+    },
+    {
+      "id": "c6-job-apply-tracker",
+      "repository": "berkinduz/job-apply-tracker",
+      "commit": "f4c9bc5e98600d48ea8c40e3d16a5888c450eadb",
+      "archiveSha256": "882344c1d4a6fd055e2a772a9539d6606dc65fca8a872a8eefe83ed0f8037ec9"
+    },
+    {
+      "id": "c6-portfolio-collins-",
+      "repository": "Collins-Ruto/portfolio",
+      "commit": "48f679eb25f1e11828e689487b244ad002bb8a73",
+      "archiveSha256": "776fbcd95fefa471b2b180a856791b896facc46ef589778241c0555c188aad81"
+    },
+    {
+      "id": "c6-hestia",
+      "repository": "craigcossairt/hestia",
+      "commit": "a3288d93d94dbbd3c18222147f472cd5dd07098a",
+      "archiveSha256": "083e5e83aa881e487ccd67b9c0c7a7d6bf39018d293dd88b7a686935eb0484f4"
+    },
+    {
+      "id": "c6-vigilix-platform",
+      "repository": "darkknightidris/vigilix-platform",
+      "commit": "c902afdb6c2c8812821498b08f3273457b6dc2f1",
+      "archiveSha256": "cfc4b0f9cd84de78353b0296a1f60a229360a47134bfa745a4e35ae08a5f4c49"
+    },
+    {
+      "id": "c6-prompthub",
+      "repository": "devsaifmohamed/prompthub",
+      "commit": "133a80fb10ffcc8f2871a6c62a6c3c6ddc5a70e0",
+      "archiveSha256": "88e906cd2cf4adc58686f406fc05ea5b0b7a0caff7c09233243b1e5f7962e4e5"
+    },
+    {
+      "id": "c6-openrouter-studio",
+      "repository": "doomL/OpenRouter-Studio",
+      "commit": "bbb9f75a1823f0d90a21d2ff99a780ecf6a8c7c3",
+      "archiveSha256": "b2ec919df78cb6ea16a608cb2183549bd90c33add4e0fd219835b1208df008dd"
+    },
+    {
+      "id": "c6-dotstell",
+      "repository": "dotstell/dotstell",
+      "commit": "fe8ed7b43aad50044c2d85cbabb54f835bc85e79",
+      "archiveSha256": "d5d7346b7b5a6ecb25994eedfd1488090d0d8e199ce38a5e44040421fd2213fe"
+    },
+    {
+      "id": "c6-prj-voca-ai",
+      "repository": "euvhmac/prj-voca-ai",
+      "commit": "1e5e98ef2dc5f911612e328d8886346e944808a0",
+      "archiveSha256": "35491e90bc695ff76487aa56ed7ddb78b5c257d8754335fd464aa4c61d3449a0"
+    },
+    {
+      "id": "c6-nextjs-better-auth-template",
+      "repository": "ezeparziale/nextjs-better-auth-template",
+      "commit": "0b8cf8ab26ecd1b5f61a441293edb668723b5c69",
+      "archiveSha256": "f801bf39e1bf3f241734514c2467d632f4febb6f6a1522aaffa024e08118fb03"
+    },
+    {
+      "id": "c6-skevv",
+      "repository": "flozma/skevv",
+      "commit": "7a6c59262766631cf69abc2ba4204346ad41f991",
+      "archiveSha256": "40ef39f0ac886a1fc66dd112c2b8e28fbb4a5166c560678d24cec84e9f21cc95"
+    },
+    {
+      "id": "c6-skyblog",
+      "repository": "Flysky12138/skyblog",
+      "commit": "a07c545d071887688bad34a12ecc3956e61be91a",
+      "archiveSha256": "75782964258fb428d799e1e688bee47331c6425803eab7d712f80a81ebad1184"
+    },
+    {
+      "id": "c6-forge-starter",
+      "repository": "forge-ui/forge-starter",
+      "commit": "384ac92ada2594b304882ab410d9cdf2df78f8de",
+      "archiveSha256": "ed2ab03e73b640accf9ae92a765b887b7c0c5b26a3bf89b0911fc5fd68dd923b"
+    },
+    {
+      "id": "c6-spfn",
+      "repository": "fxylabs/spfn",
+      "commit": "4e981187c973a46e935034ce1b92e0e7992842e7",
+      "archiveSha256": "5564c94f94d53914a4a88b6d04ee83232baaea63e8ddf25155af57e64d886051"
+    },
+    {
+      "id": "c6-cronoclick",
+      "repository": "gabriel-dp/CronoClick",
+      "commit": "b321179fb7c245bb97016ad5eebfc7a17a36df3d",
+      "archiveSha256": "bc44a99499db2dd1e043d9d26e61be774aeeb9f54deb88346ec88307473d288b"
+    },
+    {
+      "id": "c6-studymate-ai",
+      "repository": "Gooniez3/studymate-ai",
+      "commit": "b30c02584d9db441e941aa7ad46ec6526d108283",
+      "archiveSha256": "a9f990af05f07aacf34b589953b50a5f08a059b7ab8c75a7ad56cb35244909b7"
+    },
+    {
+      "id": "c6-sinew",
+      "repository": "greatnessinabox/sinew",
+      "commit": "031c1745fae7b6944f88204735c4fe9d86131ead",
+      "archiveSha256": "2c29f345423b61b47880493b9cf26f2db73c2bddebf0f820abb8fc4c436aa467"
+    },
+    {
+      "id": "c6-ose",
+      "repository": "hacksynth/ose",
+      "commit": "85da04cfb013d6dd7822959db8639cdc534e494e",
+      "archiveSha256": "5a94b57152be15a186060c1c461997602ca2e1f166d472a9ac984212781e01e0"
+    },
+    {
+      "id": "c6-next-growers",
+      "repository": "henningsieh/next-growers",
+      "commit": "4909834d8e8693fc42743d5a2c18fc4ee20b5e97",
+      "archiveSha256": "fcac7d3e865387750e22ed1b161fba21c5d5083dcece7f50cf4f10ab1d8e9e42"
+    },
+    {
+      "id": "c6-socialsphere",
+      "repository": "himanshu8443/SocialSphere",
+      "commit": "007f3d8cb6f433833d144cd194b676aa6d17e3f9",
+      "archiveSha256": "849d2181426f461d078bb8555c4dde85842a39887d874340646497b06457d6ad"
+    },
+    {
+      "id": "c6-agentic-scheduling",
+      "repository": "hunterZh37/agentic-scheduling",
+      "commit": "5fb4377313404966d38057d94c2aa828cb96b1d6",
+      "archiveSha256": "d496083b74bb2528abb2644095c2491a4b38937cb0b6f308f6404ae02b0a845d"
+    },
+    {
+      "id": "c6-mytaillog",
+      "repository": "iiamit/MyTailLog",
+      "commit": "74b8b4f1428956a1f3186b39c586331e51ee1496",
+      "archiveSha256": "5cae97ae3643b5665fc9dae7805a82bcbf887970de291aec3e2b5fd8eb137584"
+    },
+    {
+      "id": "c6-nextjs-prisma-postgres-crud",
+      "repository": "IkboljonMe/nextjs-prisma-postgres-crud",
+      "commit": "dce0d8c169b3b5177012679e585497942b4a3160",
+      "archiveSha256": "77877657282c7a824eed0a2c218f03c536e7c03a35d51c53f51e5067ea842e2d"
+    },
+    {
+      "id": "c6-nextjs-fullstack-template",
+      "repository": "iker592/nextjs-fullstack-template",
+      "commit": "42469281823ab655b3257069807f7a01934e82b5",
+      "archiveSha256": "31f89e33440b3160db09edbf489fbfac4fc792f708e5425219268a99cca92034"
+    },
+    {
+      "id": "c6-machinexis",
+      "repository": "Itachi7011/Machinexis",
+      "commit": "751f449383d14e8009745cc48d47dc1b36643c04",
+      "archiveSha256": "f6daf53bb0836a34836cd75996ea54a2b6b037fd0f7d5f1f9dc48bffea649616"
+    },
+    {
+      "id": "c6-post-it",
+      "repository": "itsdrvgo/post-it",
+      "commit": "c84e3ae08f00c8a825058351e99ae5ab0a661030",
+      "archiveSha256": "9e0e8f037457e8b6c62a777a420dee8308a8b9ec16d96d9d0b05686d2daccf48"
+    },
+    {
+      "id": "c6-ecommerce-clothingstore",
+      "repository": "jefersonbraine/Ecommerce-clothingStore",
+      "commit": "0f8c861860a4c90d1faffb31672a0b494ea75a31",
+      "archiveSha256": "3f324b4f68b1d40d18933a993021b79f6740acbc8a25ea9fc2da58a3ca23d4a7"
+    },
+    {
+      "id": "c6-pawnection",
+      "repository": "jinjaay/Pawnection",
+      "commit": "d60a676c3675e79c0ae9a0b2dc9f852a3cb3f1ea",
+      "archiveSha256": "92e073efe809a378d6073f435343627471a990bbc505c1d2058881c54fd9330a"
+    },
+    {
+      "id": "c6-planglade",
+      "repository": "kalelooz/planglade",
+      "commit": "8922869484f22b56f2f36843961739b87281a2f2",
+      "archiveSha256": "1a5d3a4027ab6268efca613b91876bf9690ae40470214f3e7a021274442a14ea"
+    },
+    {
+      "id": "c6-corpus-ak-carbon-tracker",
+      "repository": "LakshayD02/corpus-ak-Carbon-Tracker",
+      "commit": "a60d98a3a02a6da3e549333239e3b65c9e992484",
+      "archiveSha256": "dbd77c813daaf5929ec7161a2591de985aa5f30fa4f99214501fe526acb2ba17"
+    },
+    {
+      "id": "c6-create-lx2-app",
+      "repository": "lx2dev/create-lx2-app",
+      "commit": "f7b590aaa282cddcc094e51520b64e79274ebc48",
+      "archiveSha256": "031f46ea49d7731bc963b39eec263e4972bb5febfddb019170037d3ab30ec09a"
+    },
+    {
+      "id": "c6-dontpanic",
+      "repository": "marmottajr/dontpanic",
+      "commit": "e2451e61563bfd44da6dab848bdd5288b5fda658",
+      "archiveSha256": "426b0cf0ba1d8131283955fb771d87fdd81f578fd9b00d0565ce02e437a1b332"
+    },
+    {
+      "id": "c6-scibithub",
+      "repository": "MAY55A/SciBitHub",
+      "commit": "1d5059ce3d6244878028287e9560c19ceb68ff71",
+      "archiveSha256": "d9bcff6d52c59545643c7d7586a221eeb64838813c9282806763ac535a033fc6"
+    },
+    {
+      "id": "c6-create-nextjs-stack",
+      "repository": "mburakaltiparmak/create-nextjs-stack",
+      "commit": "666593e33947ffd63423a3e9ee281b96d5d9120b",
+      "archiveSha256": "bb20aa3cc26563ffb19d359ad04a0c063c8388219aa3b7c8f01808c2cfce494d"
+    },
+    {
+      "id": "c6-scraper",
+      "repository": "myminethealmighty/scraper",
+      "commit": "9b6dfa2aba05d6df0a70a9b14a86f9eab3dc5676",
+      "archiveSha256": "d93c3ef1ef8a2f045291819659bd573154ec9460620576f4542aeafef7e8cf47"
+    },
+    {
+      "id": "c6-mysagra",
+      "repository": "MySagra/mysagra",
+      "commit": "12c40cab9130829580c7477b711279afba970b64",
+      "archiveSha256": "df69f2224eb00f5f7c8b4069aac30f617549cfbd0dc0de55fa5704fbb47cb879"
+    },
+    {
+      "id": "c6-nexpress",
+      "repository": "nexpress-cms/nexpress",
+      "commit": "d9ca66bef52bb4acfa7e3d1967e4fb15b7591e95",
+      "archiveSha256": "ed4015ff4522aef35c378b54b4a53b36b197e9395573af849c3115cdc6cb212c"
+    },
+    {
+      "id": "c6-nitrokit-nextjs",
+      "repository": "nitrokit/nitrokit-nextjs",
+      "commit": "dd2c2508fe8131ae4a1c379905904380a88c955f",
+      "archiveSha256": "58f45265f50ba25a6b064e9b5de5bd5e2a6df6a3baf55b6322ca0b5930bbe50f"
+    },
+    {
+      "id": "c6-devannounce",
+      "repository": "oguzhan18/DevAnnounce",
+      "commit": "02d07101f7b1cf179f4a4ab5a53ab5cae3ee8645",
+      "archiveSha256": "c9a394b3c5a2e4be9f0f6e7ad78106eb7f8a1909ae624f5832c3102e1a933987"
+    },
+    {
+      "id": "c6-peels",
+      "repository": "peels-org/peels",
+      "commit": "a1b7f38c928164de549aae445339f3e85c232c70",
+      "archiveSha256": "febc2fea911f60f4c28c12eec422ff1a35f44d8e7626a24c599b2e1aa6453949"
+    },
+    {
+      "id": "c6-open-hotel-pms",
+      "repository": "peeraseepat-cell/open-hotel-pms",
+      "commit": "4759f6fa6344d2c9f60ee3c98445906fc21f8c82",
+      "archiveSha256": "fb408a53072ee3a32fe2e8cf92b8cd3be445601721e4f3f4092fc265e8a8e389"
+    },
+    {
+      "id": "c6-kashflow",
+      "repository": "PriyanshuBh/kashflow",
+      "commit": "b9d9f2c3a1b3558aaad9aee285b9db189a8c8095",
+      "archiveSha256": "60b6ffde6f617fbfcbe8e27e045ce872a047578e8f9ac575e9f3453f5d6bbf64"
+    },
+    {
+      "id": "c6-pranata",
+      "repository": "putraaxzy/pranata",
+      "commit": "e5bc0a984a03be779a54853086af6e0dbd6bab63",
+      "archiveSha256": "21cf3b696957d314bdafedf439635aa62d2647d901eea7b30835568f4a1b299d"
+    },
+    {
+      "id": "c6-admin-dashboard",
+      "repository": "rotaractgalgotias/admin-dashboard",
+      "commit": "8f0aefeb826c6149be7b4da8e3a3ae364481752b",
+      "archiveSha256": "996269a21345e594e1e8421c8061931d29678251fe79adee9ff233252e7fed23"
+    },
+    {
+      "id": "c6-saas-boiler",
+      "repository": "saasyachtclub/saas-boiler",
+      "commit": "1f9268286a225507e46075c8adae5fb4b9a8da69",
+      "archiveSha256": "07a1b115c87fe94863e726a36c7d60f17595997b0bf0272d6e9df79651836f8f"
+    },
+    {
+      "id": "c6-movie-ticket-booking-studio-entertainment",
+      "repository": "Sahilverse/Movie-Ticket-Booking-Studio-Entertainment",
+      "commit": "02e2b39c10ccebe33176ea78236b192328651f09",
+      "archiveSha256": "16207050f5c993bc14d8833eeab50e80016762e0eaa3f64442c7efa57db29847"
+    },
+    {
+      "id": "c6-scarpar",
+      "repository": "sahol3/scarpar",
+      "commit": "ff9aba64ce24aacabfc89a147a11f1c0a66a18f6",
+      "archiveSha256": "69a71a57165e4e7d333cdf5117ef85e02c6757767734eb2de29fcc09a254ca0b"
+    },
+    {
+      "id": "c6-decisionos",
+      "repository": "shafaypro/DecisionOS",
+      "commit": "edfe17163279c9b65977e0e01149496af0de9d75",
+      "archiveSha256": "0a51c55dcd8671c20b56230db4f1e2ddefc708a5dcccf0842140a80e948fd059"
+    },
+    {
+      "id": "c6-grab-pic",
+      "repository": "Shahir-47/grab-pic",
+      "commit": "38c5bd61dc76a634ee147bc03d38eb87445af59d",
+      "archiveSha256": "f64555c29be3818754c009a0bc1e30051f7dc998cf1a58f07f7ab30cbfcbf2d7"
+    },
+    {
+      "id": "c6-blaze",
+      "repository": "shanksxz/blaze",
+      "commit": "97060dd2d9f498c14522522814e35d9882b4cfbf",
+      "archiveSha256": "d9d316b71e43506f64f97c5c9a87a14980a07ff321f44ca5ad782e68770ab733"
+    },
+    {
+      "id": "c6-site-iq",
+      "repository": "SimonPP123/site-iq",
+      "commit": "470391b423cf5a34321935d21a2ee490413a7b1c",
+      "archiveSha256": "b3b4f0ff0a5a4fec9274c5ad491fb2f07aee134f3486430b41a3eaf6a0ffaf6c"
+    },
+    {
+      "id": "c6-lightcrm",
+      "repository": "Sina-Majd/LightCRM",
+      "commit": "9415f19e3312603e1a3956b11f58744813488f50",
+      "archiveSha256": "57c1ea7ee959fff835ebbf352dda439d1d86359cc91f5e0b2b0116d5757bc67d"
+    },
+    {
+      "id": "c6-pacman",
+      "repository": "SMani0547/PacMan",
+      "commit": "ee19382ddf5030bdcdacee68164f0c489fae0cf0",
+      "archiveSha256": "2c29b39f496ed2cd487c979f0404a178691ad9d8757bda90d49a90eee72484f8"
+    },
+    {
+      "id": "c6-migotos",
+      "repository": "sommeeeer/migotos",
+      "commit": "f00e821fac0e6ffd9d96a6a9ba277e2bb03ad3af",
+      "archiveSha256": "589db129208fcf1ec0d7336bb41b76906426cc0e5b2637dcc1dbba20c0461917"
+    },
+    {
+      "id": "c6-subcanvas",
+      "repository": "subcanvas/subcanvas",
+      "commit": "ff61d70be9c6ed46f6703ff433524b935ba4d974",
+      "archiveSha256": "fdac02efdfda5f65457b4fcfa3b7e2bea6d9e0d0248ab3e42cc8dde12225cf36"
+    },
+    {
+      "id": "c6-reviselyt",
+      "repository": "tanushree-coder-girl/reviselyt",
+      "commit": "80c88df6e471a14ff5356f757536a9c9a4ab4629",
+      "archiveSha256": "be80e27eb26e0e2e546f73112218a2b2f542218b3e95f16d7cd8579fc579e3f2"
+    },
+    {
+      "id": "c6-vzla-sismo-feed",
+      "repository": "Techeasy-Latam/vzla-sismo-feed",
+      "commit": "5521ff640fa9df67e35217ea2ad3ce88e28b15fb",
+      "archiveSha256": "c3222d9ac82f20c0af9ff8975762cc9e0ca974dba60aa616aa6fb466b6bf2cea"
+    },
+    {
+      "id": "c6-html2u",
+      "repository": "tommyboy326/html2u",
+      "commit": "0302e8a9c51864995b776482f8db54729838d572",
+      "archiveSha256": "70c8000c7771786c1584a66bd84e27d588bd373bbf5174859cec1bd5f376cddb"
+    },
+    {
+      "id": "c6-thrive",
+      "repository": "UmarYaksambi/Thrive",
+      "commit": "bd037dd9223c2e151052e596f93edc439f38b21f",
+      "archiveSha256": "1afdb3f0fa21cd49ad46baebe6df48e8be82f02f0144b15698807eb80ca3435c"
+    },
+    {
+      "id": "c6-email-campaign-automation-saas",
+      "repository": "upstackpilot0710/email-campaign-automation-saas",
+      "commit": "ed89bf95ef1ad36cf96467f71e688ef94dc6cedf",
+      "archiveSha256": "bce556eaf6e69d4e49a97cfb84f0625b08ebaa441ed6c4f0faf8530e46085984"
+    },
+    {
+      "id": "c6-vivo",
+      "repository": "Wealthometer/Vivo",
+      "commit": "45b7ae93f675b0fac0573105096be45beff30602",
+      "archiveSha256": "ab1878f74ee414cd80c7a4b01f7edb955a0de8cc1f05ef9b7134ad47a9aa7a51"
+    },
+    {
+      "id": "c6-tbib-tn",
+      "repository": "xkhaliil/Tbib.tn",
+      "commit": "ce902c9352c442516b8de14e677a5b6db9dd60d9",
+      "archiveSha256": "44d74989d5f16cc2d57bad4a254907e128141d64d0098b855adb1c971fb7f027"
+    },
+    {
+      "id": "c6-applymate-jobcopilot",
+      "repository": "YuanshuoDu/applymate-jobcopilot",
+      "commit": "52c12b161231e96577ec567d93939e36e61b4a3d",
+      "archiveSha256": "52d033c2ee914bc3c49e0521dac80a46c0c4a2be42ab129ce7c30d87853b92db"
+    },
+    {
+      "id": "c6-zonito-com",
+      "repository": "zonito/zonito.com",
+      "commit": "71a19804dbf2b9b7b1dd866c8a847ac39d53f8b0",
+      "archiveSha256": "a0de61ee987a32f1eb719625322c82ca058f8425719159f69ebc1032fe094894"
+    }
+  ],
+  "labels": []
+}
