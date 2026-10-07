@@ -326,8 +326,10 @@ describe("committed env severity follows the stated rule", () => {
     expect(sev(".env.local", "UTILS_SECRET=test-utils-secret\n")).toBe("INFO");
   });
 
-  it("a real-looking value in a TEST env file is reported one step quieter", () => {
-    expect(sev(".env.test", "SECRET_KEY=F0E5AD933D7F6FD8F4DBB3E038C501C052DC0593C686D21ACB30AE205D2F634B\n")).toBe("WARNING");
+  // CORPUS-6 (2026-10-06): a value we cannot judge is a fact, not an issue;
+  // about 80 such committed env files were read and none held a live one.
+  it("a real-looking value in a TEST env file is stated as a fact", () => {
+    expect(sev(".env.test", "SECRET_KEY=F0E5AD933D7F6FD8F4DBB3E038C501C052DC0593C686D21ACB30AE205D2F634B\n")).toBe("INFO");
   });
 
   // The trade, and the direction that must not change: still reported.
@@ -393,10 +395,10 @@ describe("a committed env file is CRITICAL only with a live credential", () => {
     const f = find("packages/generator/templates/app/.env.local", "# This env file should NOT be checked into source control\nDATABASE_URL=\"file:./db/db.db\"\n");
     expect(f?.severity).toBe("INFO");
   });
-  it("local emulator defaults are a warning to check, not a critical (corpus-h)", () => {
+  it("local emulator defaults are a fact that says we could not tell, not a critical (corpus-h)", () => {
     const dev = "NEXT_PUBLIC_API_URL=http://localhost:8102\nEXAMPLE_SERVER_SECRET=Kq7Lm2Xz8Rt4Bn6Vc1Wd5Fh3Jp9Yt6Ue0Io4Pa8Sd2Fg\nEXAMPLE_SVIX_API_KEY=Wd5Fh3Jp9Yt6Ue0Io4Pa8Sd2FgKq7Lm2\n";
-    expect(sev("apps/backend/.env.development", dev)).toBe("WARNING");
-    expect(sev("apps/backend/.env", dev)).toBe("WARNING");
+    expect(sev("apps/backend/.env.development", dev)).toBe("INFO");
+    expect(sev("apps/backend/.env", dev)).toBe("INFO");
     expect(find("apps/backend/.env", dev)?.consequence).toMatch(/could not tell whether/);
   });
   it("a live credential under a test path is a warning that says so, not a placeholder note", () => {

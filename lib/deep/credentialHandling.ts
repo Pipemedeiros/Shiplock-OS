@@ -57,6 +57,7 @@ function pathSeverity(path: string, base: GithubFinding["severity"]): GithubFind
 // or a React list key stays silent.
 const INSECURE_RANDOM_RE =
   /\b(token|secret|otp|nonce|apikey|api_?key|session_?id|reset_?token|password|salt)\w*\s*[:=][^;\n]*Math\.random\s*\(/i;
+const INSECURE_RANDOM_ALL_RE = new RegExp(INSECURE_RANDOM_RE.source, "gi");
 
 // ── A credential carried in a URL query string ─────────────────────────────
 // Two signals, so prose and ordinary query strings stay silent: a SENSITIVE
@@ -83,7 +84,7 @@ const URLISH_RE = /(https?:\/\/|fetch\s*\(|redirect\s*\(|\.href\s*=|new URL\(|["
 const SENSITIVE_QUERY_ALL_RE = new RegExp(SENSITIVE_QUERY_RE.source, "gi");
 const OWN_BASE_RE = /(NEXTAUTH_URL|APP_URL|BASE_URL|SITE_URL|PUBLIC_URL|ORIGIN|revalidate)/i;
 const LOCAL_RE = /localhost|127\.0\.0\.1|0\.0\.0\.0/;
-const COMMENT_OR_PLACEHOLDER_RE = /^\s*(\/\/|\*|\/\*)|placeholder=|=x{3,}|=\.\.\./i;
+const COMMENT_OR_PLACEHOLDER_RE = /^\s*(\/\/|\*|\/\*|#)|placeholder=|=x{3,}|=\.\.\.|=your[-_]|=<[a-z_-]+>/i;
 
 type QueryCall = { severity: "WARNING" | "INFO"; host: string | null };
 
@@ -120,7 +121,10 @@ function queryCalls(content: string): QueryCall[] {
         const name = /^[A-Za-z_$][\w$]*$/.test(expr) ? expr : null;
         const declared = name ? new RegExp(`\\b(?:const|let|var)\\s+${name.replace(/\$/g, "\\$")}\\s*=\\s*["'\`](https?:\\/\\/[^"'\`]+)`).exec(content) : null;
         const host = declared ? hostOf(declared[1]) : null;
-        calls.push(host && !LOCAL_RE.test(host) ? { severity: "INFO", host } : { severity: "WARNING", host: null });
+        // A base this file does not resolve (a config property, a request
+        // field) was an outside service on every one read (census, CORPUS-5,
+        // CORPUS-6); the app's own bases are relative or named above.
+        calls.push({ severity: "INFO", host: host && !LOCAL_RE.test(host) ? host : null });
         continue;
       }
       // A relative path is this app's own endpoint; anything else is a base
@@ -137,11 +141,17 @@ export function scanCredentialHandling(files: RepoFile[]): GithubFinding[] {
   for (const file of files) {
     if (!CODE_RE.test(file.path)) continue;
 
-    if (INSECURE_RANDOM_RE.test(file.content)) {
+    const random = file.content.match(INSECURE_RANDOM_ALL_RE) ?? [];
+    if (random.length > 0) {
+      // A session id names a conversation or a cart as often as a login, and
+      // a plural "tokens" is a count of model tokens (CORPUS-6: none of six
+      // was a credential). Those are stated as facts; a code, secret or reset
+      // token stays a warning.
+      const guards = random.some((m) => !/^(session_?id|tokens)\b/i.test(m));
       out.push(
         f(
           `github:insecure_random:${file.path}`,
-          pathSeverity(file.path, "WARNING"),
+          pathSeverity(file.path, guards ? "WARNING" : "INFO"),
           `Security token generated with Math.random() in ${file.path}`,
           `${file.path} builds a token, secret or one-time code from Math.random(). That generator is not cryptographically secure and its output is predictable from a handful of previous values, so an attacker can guess valid ones rather than brute-forcing them. Use crypto.randomUUID(), crypto.getRandomValues(), or randomBytes from node:crypto.`
         )

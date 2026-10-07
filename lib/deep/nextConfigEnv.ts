@@ -8,7 +8,7 @@ const PUBLIC_ENV = /^NEXT_PUBLIC_/;
 // a secret was real. A credential word wins over a public-looking suffix, and
 // any name we cannot place stays a warning.
 const CREDENTIAL_NAME = /SECRET|TOKEN|PASSWORD|PASSWD|PRIVATE|CREDENTIAL/i;
-const PUBLIC_BY_DESIGN_NAME = /(_CLIENT_ID|_URL|_HOST|_DOMAIN|PUBLISHABLE_KEY|_SITE_KEY|_APP_ID|(^|_)GA_ID|_MEASUREMENT_ID|_TRACKING_ID|_PIXEL_ID|_GTM_ID)$/i;
+const PUBLIC_BY_DESIGN_NAME = /(_CLIENT_ID|_URL|_HOST|_DOMAIN|PUBLISHABLE_KEY|_SITE_KEY|_APP_ID|(^|_)GA_ID|_MEASUREMENT_ID|_TRACKING_ID|_PIXEL_ID|_GTM_ID|_ANON_KEY)$/i;
 const CREDENTIAL_VALUES: { id: string; label: string; re: RegExp }[] = [
   { id: "private_key", label: "a PEM private key", re: /-----BEGIN (?:RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY-----/ },
   { id: "supabase_service_key", label: "a Supabase service-role key", re: /\bsb_secret_[A-Za-z0-9_-]{10,}/ },

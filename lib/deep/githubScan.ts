@@ -263,11 +263,14 @@ const DEPLOYED_ENV_NAME_RE = /(^|\/)\.env(\.(production|prod|staging|stage|live|
 const LOCAL_HOST_RE = /localhost|127\.0\.0\.1|0\.0\.0\.0|host\.docker\.internal/i;
 
 /** Whether a committed env file holds a value shaped like a live credential. */
+/** A template's host: db.your-project.supabase.co, [region], <host>, example. */
+const PLACEHOLDER_HOST_RE = /@[^\s"'/]*(your[-_]|\[|<|example|xxx|changeme)/i;
+
 export function envFileHasLiveCredential(path: string, content: string): boolean {
   const values = envSecretValues(content);
   // An inline-credential URL that survived the harmless-host filter points
-  // at a real host.
-  if (values.some((v) => ENV_URL_WITH_CREDENTIALS.test(v))) return true;
+  // at a real host, unless the host is a template's placeholder (CORPUS-6).
+  if (values.some((v) => ENV_URL_WITH_CREDENTIALS.test(v) && !PLACEHOLDER_HOST_RE.test(v))) return true;
   if (values.some((v) => VENDOR_SECRET_RE.test(v))) return true;
   return values.length > 0 && DEPLOYED_ENV_NAME_RE.test(path) && !LOCAL_HOST_RE.test(content);
 }
@@ -403,7 +406,10 @@ export function scanSecrets(files: RepoFile[]): GithubFinding[] {
       const quietPath = isTestPath(file.path) || isScaffoldPath(file.path) || /\.env\.(test|spec|ci)$/i.test(file.path);
       const hasSecret = envFileHasSecret(file.content);
       const live = hasSecret && envFileHasLiveCredential(file.path, file.content);
-      const severity = live && !quietPath ? "CRITICAL" : hasSecret ? "WARNING" : "INFO";
+      // A value we cannot judge is a fact, not an issue: across the census,
+      // CORPUS-5 and CORPUS-6 about 80 such files were read and none held a
+      // live credential (local, CI, Docker and demo defaults, templates).
+      const severity = live ? (quietPath ? "WARNING" : "CRITICAL") : "INFO";
       if (!seen.has(id)) {
         seen.add(id);
         findings.push({

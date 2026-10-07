@@ -269,8 +269,10 @@ describe("a credential in a URL query string: whose risk it is", () => {
     expect(sev("lib/revalidate.ts", "await fetch(`${process.env.NEXTAUTH_URL}/api/revalidate?secret=${token}&id=1`);")).toEqual(["WARNING"]);
     expect(sev("src/components/Panel.tsx", "await fetch(`/api/indexing/bing?siteUrl=${u}&apiKey=${encodeURIComponent(key)}`);")).toEqual(["WARNING"]);
   });
-  it("a base the file does not resolve stays a warning", () => {
-    expect(sev("lib/license.ts", "const res = await fetch(`${oauthLicenseUrl}?access_token=${accessToken}`);")).toEqual(["WARNING"]);
+  // CORPUS-6 (2026-10-06): every unresolved base read in the census, CORPUS-5
+  // and CORPUS-6 was an outside service, so it is a fact, never silent.
+  it("a base the file does not resolve is a fact", () => {
+    expect(sev("lib/license.ts", "const res = await fetch(`${oauthLicenseUrl}?access_token=${accessToken}`);")).toEqual(["INFO"]);
   });
   it("a call to a named outside provider is a fact (Meta Graph, Bing)", () => {
     expect(sev("utils/fb.ts", "const url = `https://graph.facebook.com/${v}/${id}/events?access_token=${accessToken}`;\nawait fetch(url);")).toEqual(["INFO"]);
