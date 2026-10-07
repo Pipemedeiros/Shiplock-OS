@@ -31,4 +31,13 @@ describe("dashboard reads", () => {
     const open = await data.getOpenFindings("u1");
     expect(open.map((f) => [f.id, f.confirmed])).toEqual([["proven-warning", true], ["candidate-critical", false]]);
   });
+
+  // A3: the attack feed reads the agent's tasks for the newest audit with any.
+  it("loads the newest audit's attack tasks", async () => {
+    tables.length = 0;
+    rows = [{ id: "r", kind: "attack_reasoning", status: "pending", expires_at: null, result: null, context: {}, audit_run_id: "run1" }];
+    const tasks = await data.getAttackTasks("u1");
+    expect(tables).toContain("intelligence_tasks");
+    expect(tasks.map((t) => t.kind)).toContain("attack_reasoning");
+  });
 });

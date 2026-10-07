@@ -1,3 +1,4 @@
+import type { AttackTask } from "./attackFeed";
 import { isConfirmed } from "./confirmed";
 import { cache } from "react";
 import { parseRouteFacts, type MapRoute } from "@/lib/routeMap";
@@ -121,6 +122,23 @@ export const getOpenFindings = cache(async (userId: string): Promise<DashboardFi
     // Confirmed issues first, then candidates, each by severity.
     .sort((a, b) => Number(b.confirmed) - Number(a.confirmed) || severityRank(a.severity) - severityRank(b.severity));
 });
+
+/**
+ * The customer agent's attack tasks for the newest audit that has any (A3):
+ * its reasoning task and the verification tasks under it. Service role, scoped
+ * to the user, bounded.
+ */
+export async function getAttackTasks(userId: string): Promise<AttackTask[]> {
+  const admin = getSupabaseAdmin();
+  const { data: newest } = await admin.from("intelligence_tasks").select("audit_run_id")
+    .eq("user_id", userId).eq("kind", "attack_reasoning").not("audit_run_id", "is", null)
+    .order("created_at", { ascending: false }).limit(1);
+  const runId = (newest as Array<{ audit_run_id?: string }> | null)?.[0]?.audit_run_id;
+  if (!runId) return [];
+  const { data } = await admin.from("intelligence_tasks").select("id, kind, status, expires_at, result, context")
+    .eq("user_id", userId).eq("audit_run_id", runId).in("kind", ["attack_reasoning", "attack_verification"]).limit(50);
+  return ((data ?? []) as AttackTask[]);
+}
 
 export async function getRuns(userId: string, limit = 20): Promise<DashboardRun[]> {
   const admin = getSupabaseAdmin();

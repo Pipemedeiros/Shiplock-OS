@@ -1,5 +1,7 @@
 import { requireDashboardSession } from "@/lib/dashboard";
-import { getRecentlyClosed, getRuns } from "@/lib/agent/dashboardData";
+import { getAttackTasks, getRecentlyClosed, getRuns } from "@/lib/agent/dashboardData";
+import { attackFeed } from "@/lib/agent/attackFeed";
+import { AttackFeedCard } from "@/components/v3/AttackFeed";
 import { RunList } from "@/components/v3/RunList";
 import { When } from "@/components/v3/When";
 import { SecurityLoop } from "@/components/v3/SecurityLoop";
@@ -11,7 +13,11 @@ export const metadata = { title: "Activity" };
 
 export default async function ActivityPage() {
   const { userId } = await requireDashboardSession();
-  const [runs, closed, loop] = await Promise.all([getRuns(userId), getRecentlyClosed(userId), loadSecurityLoopInput(userId)]);
+  const [runs, closed, loop, attackTasks] = await Promise.all([getRuns(userId), getRecentlyClosed(userId), loadSecurityLoopInput(userId),
+    getAttackTasks(userId).catch(() => null)]);
+  // A3: the attack as it happens, from the agent's real task states. An
+  // unreadable read shows nothing rather than a state we did not read.
+  const feed = attackTasks ? attackFeed(attackTasks) : null;
 
   return (
     <>
@@ -22,8 +28,9 @@ export default async function ActivityPage() {
       </div>
 
       <div className="v3-stack">
-        <LiveRefresh active={loop.current !== null} />
+        <LiveRefresh active={loop.current !== null || feed?.phase === "waiting_for_agent" || feed?.phase === "checking"} />
         <SecurityLoop stages={securityLoop(loop)} />
+        {feed ? <AttackFeedCard feed={feed} /> : null}
 
         <div className="v3-card">
           <div className="v3-hd">
