@@ -4,6 +4,11 @@ import { hasParseablePrivateKey, type GithubFinding, type RepoFile } from "./git
 
 const CONFIG_PATH = /(^|\/)next\.config\.(?:js|mjs|ts)$/i;
 const PUBLIC_ENV = /^NEXT_PUBLIC_/;
+// Census 2026-10-06: a client id or a URL in the env block was a false warning;
+// a secret was real. A credential word wins over a public-looking suffix, and
+// any name we cannot place stays a warning.
+const CREDENTIAL_NAME = /SECRET|TOKEN|PASSWORD|PASSWD|PRIVATE|CREDENTIAL/i;
+const PUBLIC_BY_DESIGN_NAME = /(_CLIENT_ID|_URL|_HOST|_DOMAIN|PUBLISHABLE_KEY|_SITE_KEY|_APP_ID)$/i;
 const CREDENTIAL_VALUES: { id: string; label: string; re: RegExp }[] = [
   { id: "private_key", label: "a PEM private key", re: /-----BEGIN (?:RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY-----/ },
   { id: "supabase_service_key", label: "a Supabase service-role key", re: /\bsb_secret_[A-Za-z0-9_-]{10,}/ },
@@ -137,9 +142,10 @@ export function scanNextConfigEnv(files: RepoFile[]): GithubFinding[] {
       const value = unwrap(initializer);
       const sourceName = processEnvName(value);
       if (sourceName && !PUBLIC_ENV.test(sourceName)) {
+        const publicByDesign = !CREDENTIAL_NAME.test(sourceName) && PUBLIC_BY_DESIGN_NAME.test(sourceName);
         findings.push({
           id: `github:next_config_env:${target}:${file.path}`,
-          severity: "WARNING",
+          severity: publicByDesign ? "INFO" : "WARNING",
           title: `${file.path} makes ${sourceName} available for client builds`,
           consequence: `${file.path} maps process.env.${sourceName} into the Next.js env block as ${target}. Next.js replaces env-block entries at build time, so the configured value can appear in the JavaScript bundle served to every visitor. Review whether this value is intended to be public. If it is private, remove it from the env block and read it only in server code.`,
           packageName: null, version: null, vulnId: null, cveId: null,

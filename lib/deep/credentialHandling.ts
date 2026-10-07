@@ -73,6 +73,56 @@ const SENSITIVE_QUERY_RE =
   /[?&](access_?token|auth_?token|api_?key|apikey|password|passwd|secret|session_?id)=(?!\{[A-Z0-9_]+\})/i;
 const URLISH_RE = /(https?:\/\/|fetch\s*\(|redirect\s*\(|\.href\s*=|new URL\(|["'`]\/)/;
 
+// Census 2026-10-06 (docs/evaluation/shown-without-agent-2026-10-06.json): most
+// URL-query hits were calls to outside providers that require the token in the
+// query (Meta Graph, WeChat, Bing), session or job ids, local addresses and
+// placeholder text. Each call is judged where it is made. A credential in the
+// query of a call to the app's own endpoints, or to a base this file does not
+// resolve, is the app's risk (WARNING); everything else is stated as a fact
+// (INFO). Nothing that fired before goes silent.
+const SENSITIVE_QUERY_ALL_RE = new RegExp(SENSITIVE_QUERY_RE.source, "gi");
+const OWN_BASE_RE = /(NEXTAUTH_URL|APP_URL|BASE_URL|SITE_URL|PUBLIC_URL|ORIGIN|revalidate)/i;
+const LOCAL_RE = /localhost|127\.0\.0\.1|0\.0\.0\.0/;
+const COMMENT_OR_PLACEHOLDER_RE = /^\s*(\/\/|\*|\/\*)|placeholder=|=x{3,}|=\.\.\./i;
+
+type QueryCall = { severity: "WARNING" | "INFO"; host: string | null };
+
+function hostOf(url: string): string | null {
+  const m = /^https?:\/\/([^/\s"'`$?:]+)/.exec(url);
+  return m ? m[1] : null;
+}
+
+/** Each credential-named query parameter, judged by the call it sits in. */
+function queryCalls(content: string): QueryCall[] {
+  const calls: QueryCall[] = [];
+  for (const line of content.split("\n")) {
+    for (const match of line.matchAll(SENSITIVE_QUERY_ALL_RE)) {
+      const before = line.slice(0, match.index);
+      if (/session_?id/i.test(match[1]) || COMMENT_OR_PLACEHOLDER_RE.test(line) || LOCAL_RE.test(line)) {
+        calls.push({ severity: "INFO", host: null });
+        continue;
+      }
+      // The URL as written from the start of its string literal.
+      const url = before.slice(Math.max(before.lastIndexOf("`"), before.lastIndexOf('"'), before.lastIndexOf("'")) + 1);
+      if (/^https?:\/\//.test(url)) { calls.push({ severity: "INFO", host: hostOf(url) }); continue; }
+      const base = /^\$\{([^}]+)\}/.exec(url);
+      if (base) {
+        const expr = base[1].trim();
+        if (OWN_BASE_RE.test(expr)) { calls.push({ severity: "WARNING", host: null }); continue; }
+        const name = /^[A-Za-z_$][\w$]*$/.test(expr) ? expr : null;
+        const declared = name ? new RegExp(`\\b(?:const|let|var)\\s+${name.replace(/\$/g, "\\$")}\\s*=\\s*["'\`](https?:\\/\\/[^"'\`]+)`).exec(content) : null;
+        const host = declared ? hostOf(declared[1]) : null;
+        calls.push(host && !LOCAL_RE.test(host) ? { severity: "INFO", host } : { severity: "WARNING", host: null });
+        continue;
+      }
+      // A relative path is this app's own endpoint; anything else is a base
+      // this file does not resolve. Both stay the app's risk.
+      calls.push({ severity: "WARNING", host: null });
+    }
+  }
+  return calls;
+}
+
 export function scanCredentialHandling(files: RepoFile[]): GithubFinding[] {
   const out: GithubFinding[] = [];
 
@@ -90,13 +140,18 @@ export function scanCredentialHandling(files: RepoFile[]): GithubFinding[] {
       );
     }
 
-    if (SENSITIVE_QUERY_RE.test(file.content) && URLISH_RE.test(file.content)) {
+    const calls = SENSITIVE_QUERY_RE.test(file.content) && URLISH_RE.test(file.content) ? queryCalls(file.content) : [];
+    if (calls.length > 0) {
+      const own = calls.some((c) => c.severity === "WARNING");
+      const host = calls.find((c) => c.host)?.host ?? null;
       out.push(
         f(
           `github:secret_in_url:${file.path}`,
-          pathSeverity(file.path, "WARNING"),
+          pathSeverity(file.path, own ? "WARNING" : "INFO"),
           `Sensitive value passed in a URL query string in ${file.path}`,
-          `${file.path} puts a token, password or secret in a URL query string. Query strings are written to server and proxy access logs, kept in browser history, and sent onward in the Referer header when the page links out. The value is exposed to everything on that path even when the request itself is over HTTPS. Send it in a request header or body instead.`
+          own
+            ? `${file.path} puts a token, password or secret in a URL query string. Query strings are written to server and proxy access logs, kept in browser history, and sent onward in the Referer header when the page links out. The value is exposed to everything on that path even when the request itself is over HTTPS. Send it in a request header or body instead.`
+            : `${file.path} carries a token-named value in a URL query string only in calls to ${host ?? "an outside service, a local address, or as a session id"}, not to this app's own endpoints. Some providers require the token there; it lands in their logs rather than yours. Prefer a header where the provider accepts one.`
         )
       );
     }

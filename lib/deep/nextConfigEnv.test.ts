@@ -104,3 +104,25 @@ describe("next.config env entries", () => {
   });
 
 });
+
+// Census 2026-10-06 (docs/evaluation/shown-without-agent-2026-10-06.json):
+// corpus-i's GOOGLE_CLIENT_ID and NEXTAUTH_URL warnings were false; its
+// GOOGLE_CLIENT_SECRET and NEXTAUTH_SECRET were real. A public-by-design name
+// is stated as a fact; a credential name, or any name we cannot place, stays
+// a warning.
+describe("public-by-design names in the env block", () => {
+  const config = (names: string[]) => ({
+    path: "frontend/next.config.js",
+    content: `module.exports = { env: { ${names.map((n) => `${n}: process.env.${n}`).join(", ")} } };`,
+  });
+  const bySource = (names: string[]) => Object.fromEntries(
+    scanNextConfigEnv([config(names)]).map((f) => [f.title.split(" makes ")[1].split(" ")[0], f.severity]),
+  );
+
+  it("states client ids and URLs as facts and keeps secrets as warnings", () => {
+    expect(bySource(["GOOGLE_CLIENT_ID", "NEXTAUTH_URL", "GOOGLE_CLIENT_SECRET", "NEXTAUTH_SECRET", "STRIPE_PUBLISHABLE_KEY", "FEATURE_FLAG"])).toEqual({
+      GOOGLE_CLIENT_ID: "INFO", NEXTAUTH_URL: "INFO", GOOGLE_CLIENT_SECRET: "WARNING", NEXTAUTH_SECRET: "WARNING",
+      STRIPE_PUBLISHABLE_KEY: "INFO", FEATURE_FLAG: "WARNING",
+    });
+  });
+});

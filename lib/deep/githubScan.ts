@@ -177,7 +177,7 @@ const ENV_FILLED_VALUE = /^["']?(?!\s*$)(?!your[-_])(?!<)(?!\.\.\.)(?!xxx)[^\s"'
  * strength of `postgresql://postgres@localhost:5432/db`.
  */
 const HARMLESS_ENV_VALUE =
-  /^["']?(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis|amqp|http|https):\/\/[^\s"']*(?:localhost|127\.0\.0\.1|0\.0\.0\.0|@db[:\/]|@postgres[:\/]|@mysql[:\/]|host\.docker\.internal)/i;
+  /^["']?file:|^["']?(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis|amqp|http|https):\/\/[^\s"']*(?:localhost|127\.0\.0\.1|0\.0\.0\.0|@db[:\/]|@postgres[:\/]|@mysql[:\/]|host\.docker\.internal)/i;
 
 /**
  * Keys whose NAME says they carry a credential.
@@ -205,13 +205,16 @@ const PUBLISHABLE_KEY_VALUE = /^["']?(?:pk_(?:test|live)_|sb_publishable_|whsec_
  * A value that restates its own key in shouty snake case -- SOME_CLOUDFLARE_TOKEN,
  * CHANGE_ME_PLEASE. Nobody's real credential is spelled this way.
  */
-const ENV_PLACEHOLDER_VALUE = /^["']?[A-Z][A-Z0-9_]{5,}["']?$/;
+// At least one underscore: an uppercase hex key (F0E5AD93...) is a value.
+const ENV_PLACEHOLDER_VALUE = /^["']?(?=[A-Z0-9_]{6,}["']?$)[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+["']?$/;
 /** A URL with `user:pass@` in it. That is a credential, wherever it points. */
 const ENV_URL_WITH_CREDENTIALS = /^["']?[a-z+]+:\/\/[^\s"'@/]*:[^\s"'@/]+@/i;
 /** A plain URL carrying no inline credentials is an endpoint, not a secret. */
 const ENV_URL_VALUE = /^["']?https?:\/\/(?![^\s"'@]*:[^\s"'@]*@)[^\s"']*["']?$/i;
 
-export function envFileHasSecret(content: string): boolean {
+/** The values of a committed env file that read as filled-in secrets. */
+function envSecretValues(content: string): string[] {
+  const values: string[] = [];
   for (const line of content.split("\n")) {
     const match = /^\s*([A-Za-z0-9_]+)\s*=\s*(.*)$/.exec(line);
     if (!match) continue;
@@ -225,7 +228,7 @@ export function envFileHasSecret(content: string): boolean {
     // and `looksSynthetic` reads that as a placeholder -- which would have
     // dropped `postgresql://admin:Hunter2Hunter2@db.prod.example.com`, a real
     // production connection string. Caught by the pre-existing test.
-    if (ENV_URL_WITH_CREDENTIALS.test(value)) return true;
+    if (ENV_URL_WITH_CREDENTIALS.test(value)) { values.push(value); continue; }
     // A password HASH is not a password. bcrypt, argon2, scrypt and pbkdf2
     // digests are what a codebase is supposed to store, and corpus-ag's committed
     // dev env carries one.
@@ -237,9 +240,36 @@ export function envFileHasSecret(content: string): boolean {
     // A shouty-snake placeholder restating its key, and a bare URL with no
     // credentials in it, are not secrets either.
     if (ENV_PLACEHOLDER_VALUE.test(value) || ENV_URL_VALUE.test(value)) continue;
-    if (ENV_FILLED_VALUE.test(value)) return true;
+    if (ENV_FILLED_VALUE.test(value)) values.push(value);
   }
-  return false;
+  return values;
+}
+
+export function envFileHasSecret(content: string): boolean {
+  return envSecretValues(content).length > 0;
+}
+
+// Census 2026-10-06 (docs/evaluation/shown-without-agent-2026-10-06.json): 8
+// of 9 committed-env criticals held no live credential: a generator
+// template's SQLite path and local emulator defaults. CRITICAL now needs a
+// value shaped like a live credential. A filled value we cannot judge stays a
+// WARNING that says so: the trade is a missed escalation, never a missed
+// finding.
+/** Vendor formats that are a credential wherever they appear. */
+const VENDOR_SECRET_RE =
+  /\bsb_secret_[A-Za-z0-9_-]{10,}|\b[sr]k_live_[A-Za-z0-9]{16,}|\bsk-ant-[A-Za-z0-9_-]{20,}|\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}|\bAKIA[0-9A-Z]{16}\b|\bgh[pousr]_[A-Za-z0-9]{30,}|\bgithub_pat_[A-Za-z0-9_]{30,}|\bxox[abprs]-[A-Za-z0-9-]{10,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/;
+/** Files named for a deployed environment rather than local development. */
+const DEPLOYED_ENV_NAME_RE = /(^|\/)\.env(\.(production|prod|staging|stage|live|save|bak|backup|old|orig|copy))?$/i;
+const LOCAL_HOST_RE = /localhost|127\.0\.0\.1|0\.0\.0\.0|host\.docker\.internal/i;
+
+/** Whether a committed env file holds a value shaped like a live credential. */
+export function envFileHasLiveCredential(path: string, content: string): boolean {
+  const values = envSecretValues(content);
+  // An inline-credential URL that survived the harmless-host filter points
+  // at a real host.
+  if (values.some((v) => ENV_URL_WITH_CREDENTIALS.test(v))) return true;
+  if (values.some((v) => VENDOR_SECRET_RE.test(v))) return true;
+  return values.length > 0 && DEPLOYED_ENV_NAME_RE.test(path) && !LOCAL_HOST_RE.test(content);
 }
 
 // ── Fixtures are not leaks ─────────────────────────────────────────────────
@@ -371,16 +401,22 @@ export function scanSecrets(files: RepoFile[]): GithubFinding[] {
       // missed finding, and it is the same trade the secret scanner already
       // makes for fixtures.
       const quietPath = isTestPath(file.path) || isScaffoldPath(file.path) || /\.env\.(test|spec|ci)$/i.test(file.path);
-      const hasRealValue = envFileHasSecret(file.content) && !quietPath;
+      const hasSecret = envFileHasSecret(file.content);
+      const live = hasSecret && envFileHasLiveCredential(file.path, file.content);
+      const severity = live && !quietPath ? "CRITICAL" : hasSecret ? "WARNING" : "INFO";
       if (!seen.has(id)) {
         seen.add(id);
         findings.push({
           id,
-          severity: hasRealValue ? "CRITICAL" : "WARNING",
+          severity,
           title: `Environment file committed to the repo (${file.path})`,
-          consequence: hasRealValue
-            ? `${file.path} is committed to source control and contains values. Anyone with repository access, and anyone at all if it ever goes public, can read them. Remove the file, add it to .gitignore, and rotate every value in it.`
-            : `${file.path} is committed to source control. Its values are either placeholders or public by design, such as a NEXT_PUBLIC_ variable or a Supabase anon key, so nothing private is exposed here. Add it to .gitignore before something real is pasted into it.`,
+          consequence: severity === "CRITICAL"
+            ? `${file.path} is committed to source control and holds a value shaped like a live credential. Anyone with repository access, and anyone at all if it ever goes public, can read it. Remove the file, add it to .gitignore, and rotate every value in it.`
+            : live
+              ? `${file.path} sits under a test or example path but holds a value shaped like a live credential. If it is real, anyone with repository access can read it. Rotate it and keep test values synthetic.`
+              : hasSecret
+                ? `${file.path} is committed to source control and holds values under credential names. We could not tell whether they are live: they read like local or development defaults. If any is real, rotate it and add the file to .gitignore.`
+                : `${file.path} is committed to source control. Its values are either placeholders or public by design, such as a NEXT_PUBLIC_ variable or a Supabase anon key, so nothing private is exposed here. Add it to .gitignore before something real is pasted into it.`,
           packageName: null, version: null, vulnId: null, cveId: null,
         });
       }

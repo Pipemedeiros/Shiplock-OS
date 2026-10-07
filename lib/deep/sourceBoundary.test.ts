@@ -255,3 +255,42 @@ describe("restored 2026-09-07 — the file decides its own claim", () => {
     expect(sev([file], /secret_in_url/)).toEqual([]);
   });
 });
+
+// Census 2026-10-06 (docs/evaluation/shown-without-agent-2026-10-06.json): of 52
+// URL-query warnings, most were calls to outside providers that require the
+// token in the query (Meta Graph, WeChat, Bing), job ids named sessionId, and
+// Stripe's session_id. The app's own risk is a credential in the query of a
+// call to its own endpoints; the rest is stated as a fact (INFO), never dropped.
+describe("a credential in a URL query string: whose risk it is", () => {
+  const sev = (path: string, content: string) =>
+    scan([{ path, content }]).filter((x) => /secret_in_url/.test(x.id)).map((x) => x.severity);
+
+  it("calls to the app's own endpoints stay a warning (corpus-b, corpus-k)", () => {
+    expect(sev("lib/revalidate.ts", "await fetch(`${process.env.NEXTAUTH_URL}/api/revalidate?secret=${token}&id=1`);")).toEqual(["WARNING"]);
+    expect(sev("src/components/Panel.tsx", "await fetch(`/api/indexing/bing?siteUrl=${u}&apiKey=${encodeURIComponent(key)}`);")).toEqual(["WARNING"]);
+  });
+  it("a base the file does not resolve stays a warning", () => {
+    expect(sev("lib/license.ts", "const res = await fetch(`${oauthLicenseUrl}?access_token=${accessToken}`);")).toEqual(["WARNING"]);
+  });
+  it("a call to a named outside provider is a fact (Meta Graph, Bing)", () => {
+    expect(sev("utils/fb.ts", "const url = `https://graph.facebook.com/${v}/${id}/events?access_token=${accessToken}`;\nawait fetch(url);")).toEqual(["INFO"]);
+    expect(sev("lib/ig.ts", "const GRAPH = \"https://graph.instagram.com/v21.0\";\nawait fetch(`${GRAPH}/${path}?access_token=${encodeURIComponent(token)}`);")).toEqual(["INFO"]);
+  });
+  it("a session id in a URL is a fact, not a credential (Stripe checkout, job ids)", () => {
+    expect(sev("app/confirm/page.tsx", "fetch(`/api/ads/confirm?session_id=${encodeURIComponent(sessionId)}`)")).toEqual(["INFO"]);
+    expect(sev("app/x/Drawer.tsx", "await fetch(`/api/crm/contacts/enrich?sessionId=${sessionId}`, { method: \"DELETE\" });")).toEqual(["INFO"]);
+  });
+  it("localhost, a comment and placeholder text are facts", () => {
+    expect(sev("cron-tester.ts", "const res = await fetch(`http://localhost:3000/api${endpoint}?apiKey=${apiKey}`);")).toEqual(["INFO"]);
+    expect(sev("lib/cron-auth.ts", "// Vercel Cron can pass the secret as ?secret= when headers can't be set.\nexport const ok = fetch(\"/api/x\");")).toEqual(["INFO"]);
+    expect(sev("app/Card.tsx", "<input placeholder=\"https://oapi.dingtalk.com/robot/send?access_token=xxxx\" />")).toEqual(["INFO"]);
+  });
+  it("the strongest call in a file decides, and the wording says whose risk", () => {
+    const both = "await fetch(`https://graph.facebook.com/me?access_token=${t}`);\nawait fetch(`/api/own?apiKey=${k}`);";
+    const [finding] = scan([{ path: "lib/both.ts", content: both }]).filter((x) => /secret_in_url/.test(x.id));
+    expect(finding.severity).toBe("WARNING");
+    const [fact] = scan([{ path: "utils/fb.ts", content: "fetch(`https://graph.facebook.com/me?access_token=${t}`);" }]).filter((x) => /secret_in_url/.test(x.id));
+    expect(fact.consequence).toMatch(/graph\.facebook\.com/);
+    expect(fact.consequence).not.toMatch(/[–—]| - /);
+  });
+});

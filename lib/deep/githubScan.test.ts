@@ -19,11 +19,13 @@ describe("scanSecrets", () => {
     expect(f[0].severity).toBe("CRITICAL");
   });
 
-  it("flags a committed .env holding nothing real as a warning, not an emergency", () => {
+  it("states a committed .env holding nothing real as a fact, not an issue", () => {
     // Severity has to keep meaning something. A committed env file with no
-    // filled-in value is a habit worth breaking, not a leak.
+    // filled-in value is a habit worth breaking, not a leak; the census of
+    // 2026-10-06 found 71 such warnings and none real, so it no longer sets
+    // the status.
     const f = scanSecrets([{ path: "apps/web/.env.production", content: "X=1" }]);
-    expect(f[0].severity).toBe("WARNING");
+    expect(f[0].severity).toBe("INFO");
   });
 
   it("does not call a project name a credential", () => {
@@ -35,14 +37,14 @@ describe("scanSecrets", () => {
         content: "CHECKLY_EMAIL_ADDRESS=contact@example.com\nCHECKLY_PROJECT_NAME=SaaS Boilerplate\nCHECKLY_LOGICAL_ID=saas-boilerplate",
       },
     ]);
-    expect(f[0].severity).toBe("WARNING");
+    expect(f[0].severity).toBe("INFO");
   });
 
   it("does not call a localhost database url a credential", () => {
     const f = scanSecrets([
       { path: ".env", content: "DATABASE_URL=postgresql://postgres@localhost:5432/app" },
     ]);
-    expect(f[0].severity).toBe("WARNING");
+    expect(f[0].severity).toBe("INFO");
   });
 
   it("still calls a filled-in credential key what it is", () => {
@@ -68,7 +70,7 @@ describe("scanSecrets", () => {
         content: 'EXPO_PUBLIC_SUPABASE_URL=https://abc.supabase.co\nEXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9',
       },
     ]);
-    expect(f[0].severity).toBe("WARNING");
+    expect(f[0].severity).toBe("INFO");
   });
 
   it("flags a parseable PEM private key and a supabase service key", () => {
@@ -313,15 +315,15 @@ describe("committed env severity follows the stated rule", () => {
     scanSecrets([{ path, content }]).find((f) => f.id.startsWith("github:committed_env"))?.severity;
 
   it("a placeholder that restates its key is not a secret (nocodb)", () => {
-    expect(sev("docker-compose/.env", "CF_DNS_API_TOKEN=SOME_CLOUDFLARE_TOKEN\n")).toBe("WARNING");
+    expect(sev("docker-compose/.env", "CF_DNS_API_TOKEN=SOME_CLOUDFLARE_TOKEN\n")).toBe("INFO");
   });
 
   it("a plain URL is not a secret even under an AUTH-ish key (corpus-ag)", () => {
-    expect(sev("apps/api/.env.development", "CLIENT_SUCCESS_AUTH_REDIRECT=https://dev.web.corpus-ag.co/auth/login\n")).toBe("WARNING");
+    expect(sev("apps/api/.env.development", "CLIENT_SUCCESS_AUTH_REDIRECT=https://dev.web.corpus-ag.co/auth/login\n")).toBe("INFO");
   });
 
   it("a synthetic value is not a secret (outline UTILS_SECRET)", () => {
-    expect(sev(".env.local", "UTILS_SECRET=test-utils-secret\n")).toBe("WARNING");
+    expect(sev(".env.local", "UTILS_SECRET=test-utils-secret\n")).toBe("INFO");
   });
 
   it("a real-looking value in a TEST env file is reported one step quieter", () => {
@@ -345,7 +347,7 @@ describe("values that cannot be a usable credential", () => {
     scanSecrets([{ path, content }]).find((f) => f.id.startsWith("github:committed_env"))?.severity;
 
   it("a bcrypt hash is a hash, not a credential (corpus-ag)", () => {
-    expect(sev(".env.development", "SOCKET_IO_ADMIN_PASSWORD_HASH=$2b$10$heqvAkYMez.Va6Et2uXInOnkCT6/uQj1brkrbyG3LpopDklcq7ZOS\n")).toBe("WARNING");
+    expect(sev(".env.development", "SOCKET_IO_ADMIN_PASSWORD_HASH=$2b$10$heqvAkYMez.Va6Et2uXInOnkCT6/uQj1brkrbyG3LpopDklcq7ZOS\n")).toBe("INFO");
   });
 
   it("a PEM with a body too short to be a key is a placeholder (outline)", () => {
@@ -359,5 +361,55 @@ describe("values that cannot be a usable credential", () => {
     const body = "MIIEpAIBAAKCAQEA" + "QWxpY2VCb2JDaGFybGll".repeat(12);
     expect(looksSynthetic(`-----BEGIN RSA PRIVATE KEY-----\\n${body}\\n-----END RSA PRIVATE KEY-----`,
       `KEY="-----BEGIN RSA PRIVATE KEY-----\\n${body}\\n-----END RSA PRIVATE KEY-----"`)).toBe(false);
+  });
+});
+
+// Census 2026-10-06 (docs/evaluation/shown-without-agent-2026-10-06.json): 8 of
+// 9 committed-env criticals held no live credential (generator templates, local
+// emulator defaults). CRITICAL needs a value shaped like a live credential;
+// a value we cannot judge stays a WARNING, never silent.
+describe("a committed env file is CRITICAL only with a live credential", () => {
+  const find = (path: string, content: string) =>
+    scanSecrets([{ path, content }]).find((f) => f.id.startsWith("github:committed_env"));
+  const sev = (path: string, content: string) => find(path, content)?.severity;
+
+  it("an inline-credential URL to a hosted database is CRITICAL (corpus-f .env.save)", () => {
+    expect(sev(".env.save", "DATABASE_URL=postgresql://app:Zq8vLm2Rt5Xw@ep-gentle-scene-pooler.us-east-2.aws.neon.tech/neondb\n")).toBe("CRITICAL");
+  });
+  it("a vendor secret shape is CRITICAL in a local env file too", () => {
+    expect(sev(".env.local", "SUPABASE_SERVICE_ROLE_KEY=sb_secret_9f3Kq7Lm2Xz8Rt4Bn6Vc1Wd5\n")).toBe("CRITICAL");
+    expect(sev(".env.development", "STRIPE_SECRET_KEY=sk_live_51H8xQ2eZvKYlo2C9mMxTr7bN3pQwErTyUiOpAsDfGh\n")).toBe("CRITICAL");
+  });
+  // Found by this census: the shouty-placeholder test (CHANGE_ME_PLEASE) also
+  // matched an uppercase hex key, so a real one was dropped as a placeholder.
+  it("an uppercase hex key is a value, not a placeholder", () => {
+    expect(sev(".env.production", "SECRET_KEY=F0E5AD933D7F6FD8F4DBB3E038C501C052DC0593C686D21ACB30AE205D2F634B\n")).toBe("CRITICAL");
+    expect(sev("docker-compose/.env", "CF_DNS_API_TOKEN=SOME_CLOUDFLARE_TOKEN\n")).toBe("INFO");
+  });
+  it("a filled secret in a deployed-environment file with no local host is CRITICAL", () => {
+    expect(sev(".env.production", "JWT_SECRET=Kq7Lm2Xz8Rt4Bn6Vc1Wd5Fh3Jp9\n")).toBe("CRITICAL");
+  });
+  it("a local SQLite path in a generator template is a fact (corpus-ae)", () => {
+    const f = find("packages/generator/templates/app/.env.local", "# This env file should NOT be checked into source control\nDATABASE_URL=\"file:./db/db.db\"\n");
+    expect(f?.severity).toBe("INFO");
+  });
+  it("local emulator defaults are a warning to check, not a critical (corpus-h)", () => {
+    const dev = "NEXT_PUBLIC_API_URL=http://localhost:8102\nEXAMPLE_SERVER_SECRET=Kq7Lm2Xz8Rt4Bn6Vc1Wd5Fh3Jp9Yt6Ue0Io4Pa8Sd2Fg\nEXAMPLE_SVIX_API_KEY=Wd5Fh3Jp9Yt6Ue0Io4Pa8Sd2FgKq7Lm2\n";
+    expect(sev("apps/backend/.env.development", dev)).toBe("WARNING");
+    expect(sev("apps/backend/.env", dev)).toBe("WARNING");
+    expect(find("apps/backend/.env", dev)?.consequence).toMatch(/could not tell whether/);
+  });
+  it("a live credential under a test path is a warning that says so, not a placeholder note", () => {
+    const f = find("examples/app/.env", "DATABASE_URL=postgresql://app:Zq8vLm2Rt5Xw@db.prod.example-host.com/app\n");
+    expect(f?.severity).toBe("WARNING");
+    expect(f?.consequence).not.toMatch(/placeholders or public by design/);
+  });
+  it("the fact wording says nothing private is exposed and no dashes", () => {
+    const f = find(".env", "NEXT_PUBLIC_SUPABASE_URL=https://abc.supabase.co\n");
+    expect(f?.severity).toBe("INFO");
+    expect(f?.consequence).toMatch(/nothing private is exposed/);
+    for (const x of [f, find(".env", "EXAMPLE_SERVER_SECRET=Kq7Lm2Xz8Rt4Bn6Vc1Wd5Fh3Jp9\nAPI=http://localhost:1\n")]) {
+      expect(x?.consequence).not.toMatch(/[\u2013\u2014]| - /);
+    }
   });
 });
