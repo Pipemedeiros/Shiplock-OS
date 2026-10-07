@@ -104,6 +104,7 @@ function loadProductModules() {
     ...require("../lib/agent/deterministicFindings.ts"),
     ...require("../lib/agent/findings.ts"),
     ...require("../lib/eval/benchmark.ts"),
+    ...require("../lib/agent/confirmed.ts"),
     // The harness's own model calls; the product makes none (Felipe, 2026-10-01).
     ...require("./corpusModel.ts"),
   };
@@ -511,6 +512,8 @@ function labelPack(records) {
   for (const r of records) {
     for (const f of r.findings) {
       if (f.severity === "INFO") continue;
+      // A1: the gate measures what sets the status, confirmed issues only.
+      if (f.confirmed === false) continue;
       pack.push({ key: sha(`${r.id}\u0000${f.id}`).slice(0, 12), repo: r.id, id: f.id, repository: r.repository, commit: r.commit,
         file: f.file ?? null, statement: f.consequence ? `${f.title}. ${f.consequence}` : f.title });
     }
@@ -542,7 +545,8 @@ async function bench(shownFile, packFile, answerFiles) {
   const gate = { observedPrecisionAtLeast: g.statusSetting.observedPrecisionAtLeast, lowerBound95AtLeast: g.statusSetting.lowerBound95AtLeast,
     minimumLabeledFindings: g.statusSetting.minimumLabeledFindings, repositoriesWithCorrectStatusAtLeast: g.statusCorrectness.repositoriesWithCorrectStatusAtLeast };
   const product = loadProductModules();
-  const findings = shownDoc.records.flatMap((r) => r.findings.map((f) => ({ repo: r.id, id: f.id, severity: f.severity, attackClass: f.attackClass })));
+  const findings = shownDoc.records.flatMap((r) => r.findings.filter((f) => f.confirmed !== false)
+    .map((f) => ({ repo: r.id, id: f.id, severity: f.severity, attackClass: f.attackClass })));
   const report = product.scoreBenchmark(findings, labels, gate);
   const out = path.join(path.dirname(path.resolve(root, shownFile)), `bench-${crypto.randomUUID()}.json`);
   await fsp.writeFile(out, JSON.stringify({ shown: shownFile, pack: packFile, answers: answerFiles, thresholds: "docs/evaluation/thresholds-release-2026-10.json",
@@ -659,7 +663,7 @@ async function agentShown(dirArg) {
     records.push({ id: pin.id, repository: pin.repository, commit: pin.commit, routes: routes.length,
       status: findings.some((f) => f.severity === "CRITICAL") ? "exposed" : findings.some((f) => f.severity === "WARNING") ? "at_risk" : "no_open_issues",
       findings: findings.map((f) => ({ id: f.id, severity: f.severity, attackClass: f.attackClass, title: f.title, consequence: f.consequence,
-        file: f.file, entry: f.entry, source: agent.includes(f) ? "agent" : "deterministic" })) });
+        file: f.file, entry: f.entry, source: agent.includes(f) ? "agent" : "deterministic", confirmed: product.isConfirmed(f) })) });
   }
   await fsp.writeFile(path.join(dir, "shown.json"), JSON.stringify({ manifest: path.relative(root, manifestPath), path: "agent", totals, records }, null, 2) + "\n");
   console.log(`Agent path: ${totals.confirmed} confirmed, ${totals.refuted} refuted, ${totals.unverified} unverified, ${totals.unanswered} unanswered; `

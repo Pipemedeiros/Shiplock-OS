@@ -39,4 +39,10 @@ describe("label pack", () => {
     expect(merged.labels.find((l) => l.id === b.id)!.labelers).toHaveLength(1);
     expect(merged.unknownKeys).toEqual(["zzzzzzzzzzzz"]);
   });
+  // A1 (Felipe 2026-10-07): only confirmed issues set the status, so the gate
+  // measures those; a finding recorded as a candidate is not packed.
+  it("packs only confirmed findings when the run records it", () => {
+    const withFlag = [{ ...records[0], findings: records[0].findings.map((f, i) => ({ ...f, confirmed: i === 0 })) }];
+    expect(labelPack(withFlag as never).map((p) => p.id)).toEqual(["github:x:1"]);
+  });
 });
