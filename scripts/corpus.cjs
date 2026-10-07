@@ -101,6 +101,8 @@ function loadProductModules() {
     ...require("../lib/agent/possessionGate.ts"),
     ...require("../lib/agent/unassessed.ts"),
     ...require("../lib/agent/evaluation.ts"),
+    ...require("../lib/agent/deterministicFindings.ts"),
+    ...require("../lib/agent/findings.ts"),
     // The harness's own model calls; the product makes none (Felipe, 2026-10-01).
     ...require("./corpusModel.ts"),
   };
@@ -470,6 +472,35 @@ async function render(runDir) {
   console.log(`${statements.length} statements; re-guarded ${reguard.admittedNow} of ${reguard.admittedAtRun}. Artifacts: ${out}`);
 }
 
+// Plan item 4 (2026-10-06): what the audit shows a founder when no agent has
+// answered. The production assembly, offline: deterministic checks plus
+// buildFindings with nothing admitted. No model, network blocked.
+async function shown() {
+  blockNetwork();
+  for (const pin of manifest.repositories) {
+    if (!fs.existsSync(archivePath(pin))) throw new Error(`${pin.id}: archive missing; run npm run corpus:acquire`);
+    if (await fileHash(archivePath(pin)) !== pin.archiveSha256) throw new Error(`${pin.id}: archive checksum mismatch`);
+  }
+  const product = loadProductModules();
+  const records = [];
+  for (const pin of manifest.repositories) {
+    const { archive, routes, stack, files } = await analyzePin(product, pin);
+    const findings = product.buildFindings({
+      admitted: [], deterministic: product.deterministicFindings(archive.files.map((f) => ({ path: f.path, content: f.content }))),
+      routes, stack, repositoryId: pin.id, hasDatabase: false, liveFacts: [],
+      possessionGates: product.possessionGates(routes, files), oneIdAccess: product.oneIdAccess(routes, files),
+    });
+    records.push({ id: pin.id, repository: pin.repository, commit: pin.commit, routes: routes.length, truncated: archive.truncated,
+      status: findings.some((f) => f.severity === "CRITICAL") ? "exposed" : findings.some((f) => f.severity === "WARNING") ? "at_risk" : "no_open_issues",
+      findings: findings.map((f) => ({ id: f.id, severity: f.severity, attackClass: f.attackClass, title: f.title, file: f.file, entry: f.entry })) });
+  }
+  const out = path.join(root, "docs/evaluation/runs", `${manifest.experiment}-shown-${crypto.randomUUID()}`);
+  await fsp.mkdir(out, { recursive: true });
+  await fsp.writeFile(path.join(out, "shown.json"), JSON.stringify({ manifest: path.relative(root, manifestPath), modules: product.loaded, records }, null, 2) + "\n", { flag: "wx" });
+  const count = (s) => records.reduce((n, r) => n + r.findings.filter((f) => f.severity === s).length, 0);
+  console.log(`${records.length} repositories; ${count("CRITICAL")} critical, ${count("WARNING")} warning, ${count("INFO")} info; exposed ${records.filter((r) => r.status === "exposed").length}, at risk ${records.filter((r) => r.status === "at_risk").length}. Artifact: ${out}`);
+}
+
 async function main() {
   validateManifest();
   if (process.argv[2] === "acquire") {
@@ -478,6 +509,8 @@ async function main() {
     for (let index = 0; index < manifest.repositories.length; index += 2) {
       await Promise.all(manifest.repositories.slice(index, index + 2).map(acquire));
     }
+  } else if (process.argv[2] === "shown") {
+    await shown();
   } else if (process.argv[2] === "evaluate") {
     await evaluate();
   } else if (process.argv[2] === "holdout" && process.argv[3]) {
@@ -489,7 +522,7 @@ async function main() {
   } else if (process.argv[2] === "render" && process.argv[3]) {
     await render(process.argv[3]);
   } else {
-    throw new Error("Usage: node scripts/corpus.cjs acquire|evaluate|holdout <labels.json>|render <paid run dir>|paid --confirm-paid --max-usd <usd> --price <model=in,out>... [--model claude-sonnet-5] [--only <id>]");
+    throw new Error("Usage: node scripts/corpus.cjs acquire|evaluate|shown|holdout <labels.json>|render <paid run dir>|paid --confirm-paid --max-usd <usd> --price <model=in,out>... [--model claude-sonnet-5] [--only <id>]");
   }
 }
 

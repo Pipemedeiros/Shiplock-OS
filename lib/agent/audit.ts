@@ -1,11 +1,7 @@
-import { scanPublicCredentialValues } from "@/lib/deep/clientExposure";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { getInstallationToken } from "@/lib/deep/github";
 import { getHeadCommit } from "@/lib/deep/headCommit";
 import { fetchRepoArchive, type ArchiveFile } from "@/lib/deep/repoArchive";
-import { scanSecrets } from "@/lib/deep/githubScan";
-import { scanCredentialHandling } from "@/lib/deep/credentialHandling";
-import { scanNextConfigEnv } from "@/lib/deep/nextConfigEnv";
 import type { RouteFact } from "@/lib/graph/routeInventory";
 import { riskyRoutesOmitted, routesOmitted } from "./attack";
 import { crossTenantNotes, renderCrossTenantNote } from "./crossTenantNotes";
@@ -13,6 +9,7 @@ import { countUnanalyzedSurfaces } from "@/lib/graph/unanalyzedSurfaces";
 import { applicationEntries } from "@/lib/graph/applicationEntries";
 import { detectStack, routeAnalysisSupport, type StackReport } from "./stack";
 import { buildFindings, type AgentFinding } from "./findings";
+import { deterministicFindings } from "./deterministicFindings";
 import { compactRouteFacts } from "@/lib/routeMap";
 import { oneIdAccess, possessionGates } from "./possessionGate";
 import { extractTables, extractColumns } from "./schema";
@@ -406,12 +403,7 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
     // fail open, and their findings are the ones the agent's hypotheses are
     // judged against.
     const repoFiles = archive.files.map((f) => ({ path: f.path, content: f.content }));
-    const deterministic = [
-      ...scanSecrets(repoFiles),
-      ...scanNextConfigEnv(repoFiles),
-      ...scanPublicCredentialValues(repoFiles),
-      ...scanCredentialHandling(repoFiles),
-    ];
+    const deterministic = deterministicFindings(repoFiles);
     if (deterministic.length > 0) {
       step(`${deterministic.length} committed credential or configuration-exposure issue${deterministic.length === 1 ? "" : "s"}`, undefined, true);
     } else {
