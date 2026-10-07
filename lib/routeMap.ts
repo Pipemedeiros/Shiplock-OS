@@ -2,12 +2,11 @@ import { z } from "zod";
 import type { StackKind } from "@/lib/agent/stack";
 
 /**
- * The dashboard's 3D route map (Q27, Felipe 2026-09-29: an Obsidian-like
- * graph after the scan). Pure: the audit's own facts in, nodes and edges out.
- * A node exists only where a fact does (a route the audit read, a table it
- * saw a route reach, a provider inferred from code); an edge is an observed
- * read, never a guess. Layout is deterministic so two visits look the same:
- * routes above, tables in the middle, providers below, each on a spiral.
+ * The dashboard's route map (Q27; Felipe 2026-10-06: an Obsidian-style
+ * graph, not 3D). Pure: the audit's own facts in, nodes and edges out. A node
+ * exists only where a fact does (a route the audit read, a table it saw a
+ * route reach, a provider inferred from code); an edge is an observed read,
+ * never a guess. Placement is the view's job (lib/graphLayout.ts).
  */
 export type MapRoute = {
   path: string; file: string; tables: string[]; authenticated: boolean; ownershipFiltered: boolean; machineGated: boolean;
@@ -36,7 +35,6 @@ export type MapNode = {
   id: string;
   kind: "route" | "table" | "provider" | "helper" | "control";
   label: string;
-  p: [number, number, number];
   detail: string;
   file?: string;
   finding?: MapFinding["severity"];
@@ -46,9 +44,7 @@ export type MapNode = {
   fact?: MapRoute;
   exposure?: Exposure;
 };
-export type MapLane = { label: string; p: [number, number, number] };
-export type MapGroup = { exposure: Exposure; count: number; p: [number, number, number] };
-export type RouteMap = { nodes: MapNode[]; edges: MapEdge[]; truncated: boolean; lanes: MapLane[]; groups: MapGroup[] };
+export type RouteMap = { nodes: MapNode[]; edges: MapEdge[]; truncated: boolean };
 
 const CONTROLS = {
   session: { label: "Sign-in check", detail: (n: number) => `A sign-in check read on ${n} route${n === 1 ? "" : "s"}.` },
@@ -113,17 +109,17 @@ export function buildRouteMap(input: { routes: MapRoute[]; tools: MapTool[]; fin
       r.authenticated ? "Requires a signed-in caller." : "No sign-in check read.",
       r.tables.length ? (r.ownershipFiltered ? "Scoped to the caller's rows." : "Not scoped to the caller's rows.") : "Reaches no table we read.",
     ].join(" ");
-    nodes.push({ id: `route:${r.path}`, kind: "route", label: r.path, p: [0, 0, 0], file: r.file, fact: r, exposure: exposureOf(r),
+    nodes.push({ id: `route:${r.path}`, kind: "route", label: r.path, file: r.file, fact: r, exposure: exposureOf(r),
       detail: finding ? `${finding.title}. ${controls}` : controls,
       ...(finding ? { finding: finding.severity } : {}), ...(hot.has(r.file) ? { hot: true } : {}) });
   });
   tables.forEach((t) => {
     const readers = routes.filter((r) => r.tables.includes(t)).length;
-    nodes.push({ id: `table:${t}`, kind: "table", label: t, p: [0, 0, 0], detail: `Reached by ${readers} route${readers === 1 ? "" : "s"}.` });
+    nodes.push({ id: `table:${t}`, kind: "table", label: t, detail: `Reached by ${readers} route${readers === 1 ? "" : "s"}.` });
   });
   providers.forEach((t) => {
     const connection = LIVE.has(t.id) ? "available" : "coming_soon";
-    nodes.push({ id: `provider:${t.id}`, kind: "provider", label: t.name, p: [0, 0, 0], connection,
+    nodes.push({ id: `provider:${t.id}`, kind: "provider", label: t.name, connection,
       detail: connection === "available" ? "Inferred from your code. A read-only live connection is available." : "Inferred from your code. Live connection coming soon." });
   });
 
@@ -134,7 +130,7 @@ export function buildRouteMap(input: { routes: MapRoute[]; tools: MapTool[]; fin
   const helpers = [...usage].filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, MAX_HELPERS);
   const helperSet = new Set(helpers.map(([f]) => f));
   helpers.forEach(([f, n]) => {
-    nodes.push({ id: `helper:${f}`, kind: "helper", label: f, p: [0, 0, 0], file: f,
+    nodes.push({ id: `helper:${f}`, kind: "helper", label: f, file: f,
       detail: `Shared code executed by ${n} routes. A change here changes all of them.` });
   });
 
@@ -165,80 +161,12 @@ export function buildRouteMap(input: { routes: MapRoute[]; tools: MapTool[]; fin
   }
   (Object.keys(CONTROLS) as (keyof typeof CONTROLS)[]).forEach((key) => {
     if (controlUse[key] === 0) return;
-    nodes.push({ id: `control:${key}`, kind: "control", label: CONTROLS[key].label, p: [0, 0, 0], detail: CONTROLS[key].detail(controlUse[key]) });
+    nodes.push({ id: `control:${key}`, kind: "control", label: CONTROLS[key].label, detail: CONTROLS[key].detail(controlUse[key]) });
   });
   if (database) for (const t of tables) add({ from: `table:${t}`, to: `provider:${database.id}`, kind: "store" });
   const edges = [...edgeMap.values()];
-  const { lanes, groups } = layoutLanes(nodes, edges, database?.id);
-  return { nodes, edges, lanes, groups, truncated: input.routes.length > routes.length || tableSet.size < new Set(routes.flatMap((r) => r.tables)).size };
+  return { nodes, edges, truncated: input.routes.length > routes.length || tableSet.size < new Set(routes.flatMap((r) => r.tables)).size };
 }
-
-const LANES = [
-  { kind: "route", label: "Ways in", x: -340 },
-  { kind: "helper", label: "Shared code", x: -150 },
-  { kind: "control", label: "Checks", x: -40 },
-  { kind: "table", label: "Your data", x: 100 },
-  { kind: "provider", label: "Services", x: 260 },
-] as const;
-const EXPOSURE_ORDER: Exposure[] = ["open", "unknown", "unscoped", "scoped", "secret", "none"];
-const LANE_HEIGHT = 420;
-const ROWS_MAX = 16;
-
-/**
- * Organized lanes, read left to right: ways in, shared code, checks, your
- * data, services (Felipe 2026-10-01: organized, concise, easy to read). Routes
- * are grouped by exposure, worst first; tables by the worst flow reaching
- * them. A long lane folds into columns stacked in depth, so a large app reads
- * as a slab instead of a hairball. Deterministic: no randomness, no physics.
- */
-function layoutLanes(nodes: MapNode[], edges: MapEdge[], databaseId?: string): { lanes: MapLane[]; groups: MapGroup[] } {
-  const worstIn = new Map<string, number>();
-  for (const e of edges) if (e.kind === "flow") worstIn.set(e.to, Math.min(worstIn.get(e.to) ?? 9, RISK_RANK[e.risk ?? "guarded"]));
-  const readers = new Map<string, number>();
-  for (const e of edges) if (e.kind === "flow" || e.kind === "shared") readers.set(e.to, (readers.get(e.to) ?? 0) + 1);
-  const sev = (n: MapNode) => (n.finding ? rank[n.finding] : 3);
-  const order: Record<MapNode["kind"], (a: MapNode, b: MapNode) => number> = {
-    route: (a, b) => EXPOSURE_ORDER.indexOf(a.exposure ?? "none") - EXPOSURE_ORDER.indexOf(b.exposure ?? "none") || sev(a) - sev(b) || a.label.localeCompare(b.label),
-    helper: (a, b) => (readers.get(b.id) ?? 0) - (readers.get(a.id) ?? 0) || a.label.localeCompare(b.label),
-    control: (a, b) => ["control:session", "control:scope", "control:secret"].indexOf(a.id) - ["control:session", "control:scope", "control:secret"].indexOf(b.id),
-    table: (a, b) => (worstIn.get(a.id) ?? 9) - (worstIn.get(b.id) ?? 9) || (readers.get(b.id) ?? 0) - (readers.get(a.id) ?? 0) || a.label.localeCompare(b.label),
-    provider: (a, b) => Number(b.id === `provider:${databaseId}`) - Number(a.id === `provider:${databaseId}`) || a.label.localeCompare(b.label),
-  };
-  const lanes: MapLane[] = [];
-  const groups: MapGroup[] = [];
-  for (const lane of LANES) {
-    const items = nodes.filter((n) => n.kind === lane.kind).sort(order[lane.kind]);
-    if (items.length === 0) continue;
-    if (lane.kind === "route") {
-      // Each exposure group is its own block, worst first, filled in short
-      // rows: a glance shows how many ways in sit in each group.
-      const bands = EXPOSURE_ORDER.map((exposure) => items.filter((n) => n.exposure === exposure)).filter((b) => b.length > 0);
-      const perRow = Math.min(8, Math.max(3, Math.ceil(Math.sqrt(items.length / bands.length) * 1.4)));
-      const rowGap = 17, bandGap = 30;
-      const height = bands.reduce((h, b) => h + Math.ceil(b.length / perRow) * rowGap, 0) + (bands.length - 1) * bandGap;
-      let y = -height / 2;
-      for (const band of bands) {
-        groups.push({ exposure: band[0].exposure ?? "none", count: band.length, p: [lane.x - 8, Math.round(y - 15), 0] });
-        band.forEach((n, i) => { n.p = [Math.round(lane.x + (i % perRow) * 17), Math.round(y + Math.floor(i / perRow) * rowGap), 0]; });
-        y += Math.ceil(band.length / perRow) * rowGap + bandGap;
-      }
-      lanes.push({ label: lane.label, p: [lane.x + ((perRow - 1) * 17) / 2, Math.round(-height / 2 - 38), 0] });
-      continue;
-    }
-    const columns = Math.max(1, Math.ceil(items.length / ROWS_MAX));
-    const rows = Math.ceil(items.length / columns);
-    const gap = lane.kind === "control" ? 90 : Math.min(30, LANE_HEIGHT / Math.max(1, rows));
-    const top = -((rows - 1) * gap) / 2;
-    items.forEach((n, i) => {
-      const col = Math.floor(i / rows), row = i % rows;
-      // A long lane folds into columns stepped back in depth: a stacked slab.
-      n.p = [Math.round(lane.x + col * 16), Math.round(top + row * gap), Math.round(-col * 46 + (columns - 1) * 23)];
-    });
-    lanes.push({ label: lane.label, p: [lane.x, Math.round(top - 34), 0] });
-  }
-  return { lanes, groups };
-}
-
 
 export type Attacker = "anonymous" | "signed_in";
 export type Simulation = { outcome: "stopped" | "scoped" | "reaches" | "unknown"; reached: string[]; steps: string[] };

@@ -505,15 +505,33 @@
 
 /* ── Q27 route map (components/v3/RouteMap.tsx) ─────────────────────────── */
 .v3-map { display: grid; grid-template-columns: minmax(0, 1fr) 260px; background: var(--navy); border-radius: var(--r); overflow: hidden; }
-.v3-map-stage { position: relative; overflow: hidden; cursor: grab; touch-action: none; }
-.v3-map-stage:active { cursor: grabbing; }
-.v3-map-edges { position: absolute; inset: 0; pointer-events: none; }
-.v3-map-node { position: absolute; padding: 0; cursor: pointer; }
-.v3-map-node.on { box-shadow: 0 0 0 4px rgba(255,255,255,.18); }
-.v3-map-node:focus-visible { outline: 2px solid var(--bronze-l); outline-offset: 3px; }
-.v3-map-label { position: absolute; white-space: nowrap; pointer-events: none; color: #c3cfdd;
-  font-family: var(--dx-font-geist-mono), monospace; }
-.v3-map-controls { position: absolute; right: 12px; bottom: 12px; display: flex; gap: 6px; }
+.v3-map-stage { position: relative; overflow: hidden; }
+/* The graph (Felipe 2026-10-06: like Obsidian, not 3D). */
+.v3-graph { display: block; width: 100%; max-width: 100%; cursor: grab; touch-action: none; }
+.v3-graph:active { cursor: grabbing; }
+.v3-map-node { cursor: pointer; transition: opacity 160ms ease-out; }
+.v3-map-node:focus { outline: none; }
+.v3-map-node:focus-visible > circle:first-child { stroke: var(--bronze-l); stroke-width: 2px; vector-effect: non-scaling-stroke; }
+.v3-graph-label { fill: #c3cfdd; font-family: var(--dx-font-geist), system-ui, sans-serif; pointer-events: none; paint-order: stroke;
+  stroke: #0f1b2d; stroke-width: 3px; stroke-linejoin: round; }
+.v3-graph-label.mono { font-family: var(--dx-font-geist-mono), monospace; }
+.v3-map-node.on .v3-graph-label, .v3-map-node.lit .v3-graph-label { fill: #eef2f7; }
+.v3-graph-drift { animation: v3-drift 14s ease-in-out infinite; transform-origin: center; }
+@keyframes v3-drift { 0%, 100% { transform: translate(0, 0) rotate(0deg); } 50% { transform: translate(3px, -4px) rotate(0.6deg); } }
+@media (prefers-reduced-motion: reduce) { .v3-graph-drift { animation: none; } .v3-map-node { transition: none; } }
+.v3-graph-list { padding: 56px 20px 20px; display: grid; gap: 18px; max-height: 540px; overflow-y: auto; color: #c7d2df; }
+.v3-graph-list h3 { display: flex; align-items: center; gap: 8px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--muted-navy); margin: 0 0 8px; font-weight: 500; }
+.v3-graph-list h3 i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.v3-graph-list h3 b { color: #eef2f7; font-weight: 500; font-variant-numeric: tabular-nums; }
+.v3-graph-list ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.v3-graph-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; min-height: 36px; }
+.v3-graph-list button { min-height: 32px; padding: 0 8px; margin-left: -8px; border: 0; border-radius: var(--r); background: transparent;
+  color: #eef2f7; font: 13px var(--dx-font-geist-mono), monospace; cursor: pointer; text-align: left; overflow-wrap: anywhere; }
+.v3-graph-list button:hover, .v3-graph-list button[aria-pressed="true"] { background: rgba(255,255,255,.06); }
+.v3-graph-list span { font-size: 12.5px; color: var(--muted-navy); }
+.v3-map-controls { position: absolute; right: 12px; bottom: 12px; left: 12px; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; pointer-events: none; }
+.v3-map-controls button { pointer-events: auto; }
 .v3-map-controls button { min-width: 36px; min-height: 32px; border: 1px solid var(--line-navy); background: rgba(15,27,45,.8);
   color: #eef2f7; border-radius: var(--r); font-size: 13px; cursor: pointer; padding: 0 10px; }
 .v3-map-side { border-left: 1px solid var(--line-navy); padding: 20px; display: flex; flex-direction: column; gap: 8px; color: #eef2f7; }
@@ -524,7 +542,7 @@
 .v3-map-legend li { display: flex; align-items: center; gap: 8px; }
 .v3-map-legend i { width: 10px; height: 10px; display: inline-block; }
 @media (max-width: 760px) {
-  .v3-map { grid-template-columns: 1fr; }
+  .v3-map { grid-template-columns: minmax(0, 1fr); }
   .v3-map-side { border-left: 0; border-top: 1px solid var(--line-navy); }
 }
 
@@ -539,7 +557,6 @@
 .v3-legal th, .v3-legal td { text-align: left; padding: 10px 10px 10px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
 .v3-legal td:first-child { font-weight: 500; white-space: nowrap; }
 .v3-legal td:last-child { color: var(--muted); }
-.v3-map-node.lit { box-shadow: 0 0 0 4px rgba(232,211,160,.35); }
 .v3-map-sim { margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--line-navy); display: flex; flex-direction: column; gap: 8px; }
 .v3-map-sim-hd { font-size: 13px; color: #eef2f7; font-weight: 500; }
 .v3-map-seg { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -558,7 +575,6 @@
 .v3-nav-pending.on { opacity: 1; animation: v3-pulse 1s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .v3-skel, .v3-nav-pending.on { animation: none; } }
 /* Security map v2 (2026-10-01): depth backdrop, animated risky flows, view toolbar. */
-.v3-map-stage { background: radial-gradient(ellipse at 50% 40%, #1a2b45 0%, var(--navy) 62%, #0a1322 100%); }
 .v3-flow { animation: v3-flow 1.6s linear infinite; }
 .v3-flow.fast { animation-duration: 0.9s; }
 @keyframes v3-flow { to { stroke-dashoffset: -24; } }
@@ -567,19 +583,9 @@
   background: rgba(15,27,45,.75); color: var(--muted-navy); font-size: 12px; cursor: pointer; }
 .v3-map-toolbar button[aria-pressed="true"] { color: #eef2f7; border-color: var(--bronze-l); }
 .v3-map-count { margin-left: auto; color: #c3cfdd; font-variant-numeric: tabular-nums; }
-.v3-map-node.finding { outline: 2px solid #ff9d85; outline-offset: 2px; }
-.v3-map-node.k-control { outline: 1px solid rgba(232,211,160,.6); outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { .v3-flow { animation: none; } }
 .v3-map-side { max-height: 540px; overflow-y: auto; }
 @media (max-width: 760px) { .v3-map-side { max-height: none; } }
-
-/* Lanes (2026-10-01): headers and exposure groups on the organized map. */
-.v3-map-lane { position: absolute; transform: translate(-50%, -100%); pointer-events: none; white-space: nowrap;
-  font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted-navy); }
-.v3-map-group { position: absolute; display: inline-flex; align-items: center; gap: 6px; pointer-events: none; white-space: nowrap;
-  font-size: 11.5px; color: #c3cfdd; }
-.v3-map-group i { width: 7px; height: 7px; border-radius: 50%; }
-.v3-map-group b { font-weight: 500; color: #eef2f7; font-variant-numeric: tabular-nums; }
 
 /* ── Overview (2026-10-01, simplified): status, metrics, map, issues ───── */
 .v3-verdict { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 18px;
