@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <LegalPage title="Terms of service" updated="2026-09-30" other={{ href: "/privacy", label: "Privacy" }}>
+    <LegalPage title="Terms of service" updated="2026-10-07" other={{ href: "/privacy", label: "Privacy" }}>
       <section>
         <h2>Plans and pricing</h2>
         <p>
@@ -40,7 +40,16 @@ export default function TermsPage() {
         <h2>What ShipLock does, and does not do</h2>
         <ul>
           <li>It reads code, configuration and metadata. It never reads the rows in your tables.</li>
-          <li>It can prepare a pull request for you to review. It opens one only when you click, and ShipLock never merges or deploys.</li>
+          <li>
+            It attacks your application safely to find vulnerabilities: your own AI proposes attacks and must prove each
+            one with quoted lines from your code, and any replay runs on a disposable copy with made up data. ShipLock
+            never sends attack traffic to your production application, or to anyone else&apos;s.
+          </li>
+          <li>
+            A candidate is not a confirmed issue. Only an issue backed by proof, a connected service or observed traffic
+            sets your status; the rest is shown to review.
+          </li>
+          <li>It can prepare a pull request for you to review. It opens one only when you click, the change runs through your own CI like any other, and ShipLock never merges or deploys.</li>
           <li>It never changes your provider settings or blocks your traffic. A rate limit or firewall rule reaches your stack only through a pull request you approve.</li>
           <li>AI reasoning runs on your own AI, under your provider&apos;s terms and your account&apos;s limits.</li>
         </ul>

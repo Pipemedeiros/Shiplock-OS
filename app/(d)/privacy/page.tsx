@@ -22,7 +22,7 @@ const PROCESSORS: [string, string][] = [
 
 export default function PrivacyPage() {
   return (
-    <LegalPage title="Privacy policy" updated="2026-10-05" other={{ href: "/terms", label: "Terms" }}>
+    <LegalPage title="Privacy policy" updated="2026-10-07" other={{ href: "/terms", label: "Terms" }}>
       <section>
         <h2>What we read</h2>
         <p>
@@ -56,6 +56,17 @@ export default function PrivacyPage() {
         <p>
           <b>Proofs.</b> When you authorize a test, it runs on a disposable copy of your schema filled with made up
           data, never on your production database.
+        </p>
+      </section>
+
+      <section>
+        <h2>How ShipLock attacks your application</h2>
+        <p>
+          ShipLock looks for vulnerabilities by attacking your application safely. Your own AI agent proposes concrete
+          attacks against the code at a specific commit, and must prove each one with quoted lines from the files it
+          was given. ShipLock re-reads every quoted line before it accepts the claim, and keeps the quoted lines as the
+          proof you see on the issue. Replays of an attack run only on a disposable copy of your schema with made up
+          data. No attack is ever sent to your production application or your users.
         </p>
       </section>
 

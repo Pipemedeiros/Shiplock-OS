@@ -29,7 +29,7 @@ describe("privacy policy", () => {
   });
   it("is in the v3 frame, dated, links terms, and has no dashes", () => {
     expect(html).toContain('class="v3');
-    expect(t).toContain("Last updated 2026-10-05");
+    expect(t).toContain("Last updated 2026-10-07");
     expect(html).toContain('href="/terms"');
     expect(t).not.toMatch(/[–—]/);
   });
@@ -44,8 +44,20 @@ describe("terms of service", () => {
   });
   it("is in the v3 frame, dated, links privacy, and has no dashes", () => {
     expect(html).toContain('class="v3');
-    expect(t).toContain("Last updated 2026-09-30");
+    expect(t).toContain("Last updated 2026-10-07");
     expect(html).toContain('href="/privacy"');
     expect(t).not.toMatch(/[–—]/);
+  });
+  // A6 (Felipe 2026-10-07): say what the attack does and never does.
+  it("says ShipLock attacks safely, never production, and what a candidate is", () => {
+    for (const fact of ["attacks your application", "never sends attack traffic to your production",
+      "A candidate is not a confirmed issue", "through your own CI"]) expect(t, fact).toContain(fact);
+  });
+});
+
+describe("privacy policy on the attack", () => {
+  const t = text(renderToStaticMarkup(<Privacy />));
+  it("says what the attack reads and keeps", () => {
+    for (const fact of ["How ShipLock attacks your application", "quoted lines", "made up data"]) expect(t, fact).toContain(fact);
   });
 });
