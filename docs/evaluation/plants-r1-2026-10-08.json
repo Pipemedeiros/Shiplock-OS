@@ -1,0 +1,408 @@
+{
+ "version": 1,
+ "experiment": "plants-r1-2026-10-08",
+ "prediction": "Recorded 2026-10-08 before any agent run on these plants: no prediction of recall.",
+ "scope": "Recall of the whole harness (deterministic facts and the customer agent path) on holes planted in development corpora. Ground truth is the plant: one control removed, reviewed by Claude in its code before any run.",
+ "selection": {
+  "rule": "node scripts/corpus.cjs plant over docs/CORPUS.json, CORPUS-2, CORPUS-3, CORPUS-4, CORPUS-5 (at most one per repository, lib/eval/plant.ts), then kept only where the removal certainly opens a hole: the query runs without row policies (Prisma, Drizzle or a service-role client) and returns or changes another user's data.",
+  "generated": 37,
+  "kept": 12,
+  "head": "f863ccf5c0557c6cd15d987d355a24cd762156b5",
+  "rejected": [
+   {
+    "id": "c2-workout-cool--plant",
+    "reason": "control remains: the server action it calls checks the session"
+   },
+   {
+    "id": "c2-git-city--plant",
+    "reason": "toggle logic changes, no other user's data reached"
+   },
+   {
+    "id": "c2-deskcommcrm--plant",
+    "reason": "user-session client; row policies decide what anonymous reads"
+   },
+   {
+    "id": "c2-priceai--plant",
+    "reason": "client kind unknown; row policies may still scope it"
+   },
+   {
+    "id": "c2-wacrm--plant",
+    "reason": "user-session client; row policies decide"
+   },
+   {
+    "id": "c2-open-scouts--plant",
+    "reason": "user-session client; row policies decide"
+   },
+   {
+    "id": "c2-duolingo-clone--plant",
+    "reason": "GET of course content learners already see"
+   },
+   {
+    "id": "c2-corpus-u--plant",
+    "reason": "user-session client, single-row read"
+   },
+   {
+    "id": "c2-pasal--plant",
+    "reason": "user-session client; anonymous update governed by row policies"
+   },
+   {
+    "id": "c3-go-daily--plant",
+    "reason": "device count changes; nothing returned or written for others"
+   },
+   {
+    "id": "c3-full-stack--plant",
+    "reason": "client kind unknown; row policies may scope it"
+   },
+   {
+    "id": "c3-liftcut-tracker--plant",
+    "reason": "user-session client; row policies decide"
+   },
+   {
+    "id": "c3-draftdeckai--plant",
+    "reason": "anon key with the caller's token; row policies decide"
+   },
+   {
+    "id": "c3-codeautopsy--plant",
+    "reason": "user-session client; row policies decide"
+   },
+   {
+    "id": "c4-stackbase--plant",
+    "reason": "returns only a boolean about some account"
+   },
+   {
+    "id": "c4-inspector--plant",
+    "reason": "user-session client for the non-agent path; row policies decide"
+   },
+   {
+    "id": "c4-instagram-comment-to-dm--plant",
+    "reason": "needs a signed OAuth state for the victim workspace"
+   },
+   {
+    "id": "c4-lms-front--plant",
+    "reason": "user-session client; row policies decide"
+   },
+   {
+    "id": "c4-piggyback--plant",
+    "reason": "user-session client; row policies decide"
+   },
+   {
+    "id": "c4-corpus-k--plant",
+    "reason": "removes a guest share-token branch; effect unclear"
+   },
+   {
+    "id": "c5-g7-chat--plant",
+    "reason": "only a timestamp update loses its owner filter"
+   },
+   {
+    "id": "c5-clira--plant",
+    "reason": "leaks only which Google scopes some account granted"
+   },
+   {
+    "id": "c5-neural-nexus--plant",
+    "reason": "user-session client, single-row read"
+   },
+   {
+    "id": "corpus-a--plant",
+    "reason": "compound unique key without userId throws; a crash, not a hole"
+   },
+   {
+    "id": "corpus-c--plant",
+    "reason": "redirect only; no data behind it"
+   }
+  ]
+ },
+ "repositories": [
+  {
+   "id": "c2-devhunt--plant",
+   "repository": "MarsX-dev/devhunt",
+   "commit": "f35e34659f6be87634ec5a4e1575e7d0b18a1240",
+   "archiveSha256": "44820492dadb2386802301625d647d4097615bcfaf0cadb1b0ab7a26f73bb0d3",
+   "archiveId": "c2-devhunt",
+   "plant": {
+    "file": "app/api/ads/mine/route.ts",
+    "entry": "/api/ads/mine",
+    "operator": "remove_owner_scope",
+    "attackClasses": [
+     "missing_authorization"
+    ],
+    "start": 916,
+    "removed": "\n    .eq('user_id', user.id)",
+    "factsAfter": {
+     "authenticated": true,
+     "ownershipFiltered": true,
+     "identityReadable": true,
+     "ownershipReadable": true
+    },
+    "review": "service-role client; the caller's ad list becomes every user's ads and Stripe ids"
+   }
+  },
+  {
+   "id": "c2-corpus-r20--plant",
+   "repository": "mrifqidaffaaditya/corpus-r20",
+   "commit": "c7dd01a04339e4363b549beb3a41fe02cf131acb",
+   "archiveSha256": "42bc615ee66d9f6838dc036033dbdd0ee31dc7fcf1d06ad4d1a78ce49ca2eb82",
+   "archiveId": "c2-corpus-r20",
+   "plant": {
+    "file": "src/app/api/media/route.ts",
+    "entry": "/api/media",
+    "operator": "remove_owner_scope",
+    "attackClasses": [
+     "missing_authorization"
+    ],
+    "start": 1768,
+    "removed": "userId: user.id",
+    "factsAfter": {
+     "authenticated": true,
+     "ownershipFiltered": true,
+     "identityReadable": true,
+     "ownershipReadable": true
+    },
+    "review": "Prisma; any signed-in user lists every user's sessions and their media files"
+   }
+  },
+  {
+   "id": "c2-corpus-r2--plant",
+   "repository": "Priyanshu-byte-coder/corpus-r2",
+   "commit": "a20e51d437a220db4e626a072a9716b67381eca9",
+   "archiveSha256": "b7089a09358bc81d3e9d7636b291c0aaab80918e6170186f6b59592cc6536fc9",
+   "archiveId": "c2-corpus-r2",
+   "plant": {
+    "file": "src/app/api/ai-insights/route.ts",
+    "entry": "/api/ai-insights",
+    "operator": "remove_owner_scope",
+    "attackClasses": [
+     "missing_authorization"
+    ],
+    "start": 3595,
+    "removed": "\n    .eq(\"user_id\", userId)",
+    "factsAfter": {
+     "authenticated": true,
+     "ownershipFiltered": true,
+     "identityReadable": true,
+     "ownershipReadable": true
+    },
+    "review": "service-role client; returns another user's cached AI insight of the same type"
+   }
+  },
+  {
+   "id": "c3-corpus-r13--plant",
+   "repository": "corpus-r13/corpus-r13",
+   "commit": "d61989d9d4595507b8034834228eb66dec43b646",
+   "archiveSha256": "47b25f46a5347f7615e7d7fa783cef93dfae27b78d0554d16d891607978fe1ed",
+   "archiveId": "c3-corpus-r13",
+   "plant": {
+    "file": "web/src/app/api/agent/conversations/[id]/route.ts",
+    "entry": "/api/agent/conversations/[id]",
+    "operator": "remove_owner_scope",
+    "attackClasses": [
+     "missing_authorization"
+    ],
+    "start": 894,
+    "removed": "\n    .eq('user_id', auth.userId)",
+    "factsAfter": {
+     "authenticated": true,
+     "ownershipFiltered": true,
+     "identityReadable": true,
+     "ownershipReadable": true
+    },
+    "review": "service-role client; any member of an organization reads a colleague's agent conversation by id"
+   }
+  },
+  {
+   "id": "c3-corpus-r14--plant",
+   "repository": "rajputomsingh/corpus-r14",
+   "commit": "c8105f9c476a28f51a233907f8d71de2f8534be4",
+   "archiveSha256": "c4724d2423eb65600ddb1890a62937867ad64dee8cdea150ff2f91a92a94b085",
+   "archiveId": "c3-corpus-r14",
+   "plant": {
+    "file": "app/api/admin/notifications/broadcast/route.ts",
+    "entry": "/api/admin/notifications/broadcast",
+    "operator": "remove_auth_guard",
+    "attackClasses": [
+     "missing_authentication",
+     "missing_authorization"
+    ],
+    "start": 8305,
+    "removed": "if (!admin)\n      return NextResponse.json({ error: \"Unauthorized\" }, { status: 401 });",
+    "factsAfter": {
+     "authenticated": true,
+     "ownershipFiltered": true,
+     "identityReadable": true,
+     "ownershipReadable": true
+    },
+    "review": "Prisma; anyone cancels any scheduled notification by id (DELETE)"
+   }
+  },
+  {
+   "id": "c3-corpus-t--plant",
+   "repository": "corpus-t/corpus-t",
+   "commit": "1ab3492e5d319cd3e47006d723c48d1f3ca7b0be",
+   "archiveSha256": "2ec510de3a94d0cd1f2d7fd54d78fa12e74bf3a291c5ad532a1630b4ccd98681",
+   "archiveId": "c3-corpus-t",
+   "plant": {
+    "file": "src/app/api/bio-gallery/[username]/link/route.ts",
+    "entry": "/api/bio-gallery/[username]/link",
+    "operator": "remove_owner_scope",
+    "attackClasses": [
+     "missing_authorization"
+    ],
+    "start": 1988,
+    "removed": "userId: session.user.id,\n        ",
+    "factsAfter": {
+     "authenticated": true,
+     "ownershipFiltered": true,
+     "identityReadable": true,
+     "ownershipReadable": true
+    },
+    "review": "Prisma; any signed-in user adds links to anyone's bio gallery by username"
+   }
+  },
+  {
+   "id": "c4-corpus-ad--plant",
+   "repository": "issam-seghir/corpus-ad",
+   "commit": "665bea4a0f770e5e5885a67739b91fe3847954c4",
+   "archiveSha256": "0e550ea3d6c0b2d5f53f7d4b5926cbc9caaa3af141564e442af7af25fa9efa5b",
+   "archiveId": "c4-corpus-ad",
+   "plant": {
+    "file": "src/app/api/direct-messages/route.ts",
+    "entry": "/api/direct-messages",
+    "operator": "remove_auth_guard",
+    "attackClasses": [
+     "missing_authentication",
+     "missing_authorization"
+    ],
+    "start": 325,
+    "removed": "if (!profile) {\r\n\t\t\treturn new NextResponse(\"Unauthorized\", { status: 401 });\r\n\t\t}",
+    "factsAfter": {
+     "authenticated": true,
+     "ownershipFiltered": false,
+     "identityReadable": true,
+     "ownershipReadable": true
+    },
+    "review": "Prisma; anyone reads any conversation's direct messages by conversationId"
+   }
+  },
+  {
+   "id": "c4-flash-fathom-ai--plant",
+   "repository": "Suraj-kumar00/Flash-Fathom-AI",
+   "commit": "35c3941cf8643641f32b691643ea6e78960ca0cf",
+   "archiveSha256": "1eeb912856dcb18980e6336d093b5e57aacb3079956be72472c0f52922469bef",
+   "archiveId": "c4-flash-fathom-ai",
+   "plant": {
+    "file": "src/app/api/decks/[id]/route.ts",
+    "entry": "/api/decks/[id]",
+    "operator": "remove_owner_scope",
+    "attackClasses": [
+     "missing_authorization"
+    ],
+    "start": 605,
+    "removed": ",\n        userId: userId",
+    "factsAfter": {
+     "authenticated": true,
+     "ownershipFiltered": false,
+     "identityReadable": true,
+     "ownershipReadable": true
+    },
+    "review": "Prisma; any signed-in user deletes any deck by id"
+   }
+  },
+  {
+   "id": "c4-spider-node-uptime-tracker--plant",
+   "repository": "rakibutsho/SPIDER_NODE-uptime-tracker",
+   "commit": "27ce289d93c3652b0d3362d140b475738b8e6b42",
+   "archiveSha256": "a52630f605ded90e115bfbe590c415b0347b55e501ff925d7068e74d29c362ab",
+   "archiveId": "c4-spider-node-uptime-tracker",
+   "plant": {
+    "file": "src/app/api/feedback/route.ts",
+    "entry": "/api/feedback",
+    "operator": "remove_auth_guard",
+    "attackClasses": [
+     "missing_authentication",
+     "missing_authorization"
+    ],
+    "start": 1233,
+    "removed": "if (!session || !session.user) {\n      return NextResponse.json({ error: \"Unauthorized\" }, { status: 401 });\n    }",
+    "factsAfter": {
+     "authenticated": true,
+     "ownershipFiltered": true,
+     "identityReadable": true,
+     "ownershipReadable": true
+    },
+    "review": "Prisma; anyone lists all feedback with users' names and emails (GET)"
+   }
+  },
+  {
+   "id": "c5-sotto--plant",
+   "repository": "affromero/Sotto",
+   "commit": "98bc101269e13e266372387b6d46f460894ed6ef",
+   "archiveSha256": "1d9f89ded569d75c718cc3df44cfce8e1a7271ab022b58568096a7940006cbc8",
+   "archiveId": "c5-sotto",
+   "plant": {
+    "file": "apps/web/src/app/api/v1/saved/route.ts",
+    "entry": "/api/v1/saved",
+    "operator": "remove_owner_scope",
+    "attackClasses": [
+     "missing_authorization"
+    ],
+    "start": 435,
+    "removed": "userId: session.user.id, ",
+    "factsAfter": {
+     "authenticated": true,
+     "ownershipFiltered": true,
+     "identityReadable": true,
+     "ownershipReadable": true
+    },
+    "review": "Prisma; any signed-in user lists every user's saved episodes"
+   }
+  },
+  {
+   "id": "c5-open-isms--plant",
+   "repository": "NISD2/open-isms",
+   "commit": "4595142ee16a68fac5fef72275e94e6df4f3c682",
+   "archiveSha256": "a035b4ed75102a248cf12cd574a92df57ec541bd2f47b39f798c5e543d6c073d",
+   "archiveId": "c5-open-isms",
+   "plant": {
+    "file": "app/api/export/gap-assessment/route.ts",
+    "entry": "/api/export/gap-assessment",
+    "operator": "remove_owner_scope",
+    "attackClasses": [
+     "missing_authorization"
+    ],
+    "start": 1165,
+    "removed": ", eq(gapAssessment.userId, session.user.id)",
+    "factsAfter": {
+     "authenticated": true,
+     "ownershipFiltered": true,
+     "identityReadable": true,
+     "ownershipReadable": true
+    },
+    "review": "Drizzle; any signed-in user exports any gap assessment by id"
+   }
+  },
+  {
+   "id": "corpus-b--plant",
+   "repository": "corpus-b/corpus-b",
+   "commit": "ed19717ec02a1ac79aecf5569159aa9d2d869312",
+   "archiveSha256": "e934340949660e8cdb367f2f212360d42b89844ed31931d9e4266a07fc1ad7cd",
+   "archiveId": "corpus-b",
+   "plant": {
+    "file": "app/(ee)/api/ai/chat/[chatId]/messages/route.ts",
+    "entry": "/api/ai/chat/[chatId]/messages",
+    "operator": "remove_auth_guard",
+    "attackClasses": [
+     "missing_authentication",
+     "missing_authorization"
+    ],
+    "start": 1820,
+    "removed": "if (!hasAccess) {\n      return new Response(JSON.stringify({ error: \"Unauthorized\" }), {\n        status: 401,\n        headers: { \"Content-Type\": \"application/json\" },\n      });\n    }",
+    "factsAfter": {
+     "authenticated": true,
+     "ownershipFiltered": true,
+     "identityReadable": true,
+     "ownershipReadable": true
+    },
+    "review": "Prisma; anyone posts to any AI chat once the access check is gone"
+   }
+  }
+ ]
+}

@@ -15,7 +15,8 @@ const manifestBytes = fs.readFileSync(manifestPath);
 const manifest = JSON.parse(manifestBytes);
 const cache = path.join(root, ".cache/shiplock-corpus");
 const sha = (bytes) => crypto.createHash("sha256").update(bytes).digest("hex");
-const archivePath = (pin) => path.join(cache, `${pin.id}.tar.gz`);
+// A planted pin (R1) reads its base repository's archive: archiveId names it.
+const archivePath = (pin) => path.join(cache, `${pin.archiveId ?? pin.id}.tar.gz`);
 const endpoint = (pin) => `https://api.github.com/repos/${pin.repository}/tarball/${pin.commit}`;
 
 async function fileHash(file) {
@@ -105,6 +106,7 @@ function loadProductModules() {
     ...require("../lib/agent/findings.ts"),
     ...require("../lib/eval/benchmark.ts"),
     ...require("../lib/agent/confirmed.ts"),
+    ...require("../lib/eval/plant.ts"),
     // The harness's own model calls; the product makes none (Felipe, 2026-10-01).
     ...require("./corpusModel.ts"),
   };
@@ -118,6 +120,13 @@ async function analyzePin(product, pin) {
     return new Response(Readable.toWeb(fs.createReadStream(archivePath(pin))));
   };
   const archive = await product.fetchRepoArchive("offline-placeholder", pin.repository, pin.commit);
+  // R1: a planted pin removes one recorded control before anything reads the
+  // files; applyPlant refuses unless the bytes sit at the recorded offset.
+  if (pin.plant) {
+    const file = archive.files.find((f) => f.path === pin.plant.file);
+    if (!file) throw new Error(`${pin.id}: planted file ${pin.plant.file} is not in the archive`);
+    file.content = product.applyPlant(file.content, pin.plant);
+  }
   // Route handlers, entry server actions and tRPC procedures, exactly as the
   // audit sees them (7E-3, 7G-2).
   const { routes } = product.applicationEntries(archive.files);
@@ -670,6 +679,114 @@ async function agentShown(dirArg) {
     + `${totals.agentFindings} agent findings. ${path.join(dir, "shown.json")}`);
 }
 
+// R1, recall on planted holes (Felipe 2026-10-07: "how are we measuring
+// recall?"). `plant <out.json> [max]` writes a manifest of planted pins from
+// the current manifest: per repository at most one route the audit reads as
+// signed in (and, for an owner filter, scoped to the caller), with one control
+// removed by lib/eval/plant.ts. The selection is mechanical and recorded before
+// any agent runs. `plant-extract <dir>` writes each planted copy for the agent
+// to read; `recall <run dir>` scores the run's shown.json against the plants.
+const ROUTE_HANDLER_FILE = /(^|\/)app\/(.*\/)?route\.[jt]sx?$|(^|\/)pages\/api\//;
+async function plant(outArg, maxArg) {
+  blockNetwork();
+  const product = loadProductModules();
+  const max = Number(maxArg ?? 60);
+  const pins = [];
+  let examined = 0;
+  for (const pin of manifest.repositories) {
+    if (pins.length >= max) break;
+    if (await fileHash(archivePath(pin)) !== pin.archiveSha256) throw new Error(`${pin.id}: archive checksum mismatch`);
+    examined++;
+    const { routes, files } = await analyzePin(product, pin);
+    const byFile = new Map();
+    for (const r of routes) byFile.set(r.file, [...(byFile.get(r.file) ?? []), r]);
+    const options = [];
+    for (const [file, rs] of [...byFile].sort(([a], [b]) => a.localeCompare(b))) {
+      const r = rs[0];
+      if (rs.length !== 1 || !ROUTE_HANDLER_FILE.test(file) || r.tables.length === 0 || !r.authenticated) continue;
+      const f = files.get(file);
+      const content = typeof f === "string" ? f : f.content;
+      for (const p of product.findPlants(content, { defaultExportHandles: /(^|\/)pages\/api\//.test(file) })) {
+        if (p.operator === "remove_owner_scope" && !r.ownershipFiltered) continue;
+        options.push({ route: r, file, plant: p });
+      }
+    }
+    if (!options.length) continue;
+    // Alternate the preferred operator by plant count, so both kinds of hole are measured.
+    const prefer = pins.length % 2 === 0 ? "remove_auth_guard" : "remove_owner_scope";
+    const chosen = options.find((o) => o.plant.operator === prefer) ?? options[0];
+    const planted = { ...pin, id: `${pin.id}--plant`, archiveId: pin.id,
+      plant: { file: chosen.file, entry: chosen.route.path, operator: chosen.plant.operator, attackClasses: chosen.plant.attackClasses,
+        start: chosen.plant.start, removed: chosen.plant.removed } };
+    // What the deterministic layer reads once the control is gone (stage 1).
+    const after = (await analyzePin(product, planted)).routes.find((r) => r.path === chosen.route.path);
+    planted.plant.factsAfter = after ? { authenticated: after.authenticated, ownershipFiltered: after.ownershipFiltered,
+      identityReadable: after.identityReadable, ownershipReadable: after.ownershipReadable } : null;
+    pins.push(planted);
+  }
+  const out = { version: 1, experiment: `${manifest.experiment}-plants`,
+    prediction: `Recorded before any agent run on these plants (${new Date().toISOString().slice(0, 10)}): no prediction of recall.`,
+    scope: "Recall on planted holes: one control removed per repository from a route the audit read as signed in (and, for an owner filter, scoped to the caller). Ground truth is the plant itself.",
+    selection: { rule: "lib/eval/plant.ts findPlants over route-handler files with exactly one route, tables read, authenticated (and ownershipFiltered for an owner filter); files in path order; first plant of the preferred operator, alternating by plant count; at most one per repository; manifest order.",
+      base: path.relative(root, manifestPath), examined, max,
+      head: execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim() },
+    repositories: pins };
+  await fsp.writeFile(path.resolve(root, outArg), JSON.stringify(out, null, 1) + "\n", { flag: "wx" });
+  console.log(`${pins.length} plants from ${examined} repositories examined. ${path.resolve(root, outArg)}`);
+}
+
+async function plantExtract(dirArg) {
+  const product = loadProductModules();
+  const dir = path.resolve(root, dirArg);
+  for (const pin of manifest.repositories.filter((p) => p.plant)) {
+    const dest = path.join(dir, pin.id);
+    if (fs.existsSync(dest)) throw new Error(`${dest} exists; extract into an empty directory`);
+    await fsp.mkdir(dest, { recursive: true });
+    execFileSync("tar", ["-xzf", archivePath(pin), "-C", dest, "--strip-components=1"]);
+    const target = path.join(dest, pin.plant.file);
+    if (!path.resolve(target).startsWith(dest + path.sep)) throw new Error(`${pin.id}: planted path leaves the extract`);
+    await fsp.writeFile(target, product.applyPlant(await fsp.readFile(target, "utf8"), pin.plant));
+  }
+  console.log(`Planted copies written under ${dir}`);
+}
+
+async function recall(dirArg) {
+  const product = loadProductModules();
+  const dir = path.resolve(root, dirArg);
+  const shown = readJson(path.join(dir, "shown.json"));
+  const rows = [];
+  for (const pin of manifest.repositories.filter((p) => p.plant)) {
+    const record = shown.records.find((r) => r.id === pin.id);
+    const at = (record?.findings ?? []).filter((f) => f.entry === pin.plant.entry);
+    const answer = path.join(dir, `${pin.id}.reason.answer.json`);
+    const proposed = fs.existsSync(answer) ? (readJson(answer).hypotheses ?? []).filter((h) => h?.entry === pin.plant.entry).length : 0;
+    const admitted = fs.readdirSync(dir).filter((n) => n.startsWith(`${pin.id}.verify-`) && n.endsWith(".state.json"))
+      .flatMap((n) => readJson(path.join(dir, n)).hypotheses).filter((h) => h.entry === pin.plant.entry).length;
+    const facts = pin.plant.factsAfter;
+    rows.push({ id: pin.id, entry: pin.plant.entry, operator: pin.plant.operator,
+      factsFlag: Boolean(facts && (pin.plant.operator === "remove_auth_guard" ? !facts.authenticated && facts.identityReadable
+        : !facts.ownershipFiltered && facts.ownershipReadable)),
+      reasoningTask: fs.existsSync(path.join(dir, `${pin.id}.reason.json`)), proposed, admitted,
+      shown: at.length > 0,
+      caught: at.some((f) => f.confirmed && pin.plant.attackClasses.includes(f.attackClass)),
+      caughtOtherClass: at.some((f) => f.confirmed && !pin.plant.attackClasses.includes(f.attackClass)) });
+  }
+  const n = rows.length, k = rows.filter((r) => r.caught).length;
+  const by = (op) => { const rs = rows.filter((r) => r.operator === op); const c = rs.filter((r) => r.caught).length;
+    return { plants: rs.length, caught: c, recall: rs.length ? c / rs.length : null }; };
+  const report = { experiment: "planted-recall", head: execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim(),
+    manifest: path.relative(root, manifestPath), plants: n, caught: k, recall: n ? k / n : null,
+    lower95: n ? product.clopperPearsonLower(k, n) : null,
+    funnel: { factsFlag: rows.filter((r) => r.factsFlag).length, reasoningTask: rows.filter((r) => r.reasoningTask).length,
+      proposed: rows.filter((r) => r.proposed > 0).length, admitted: rows.filter((r) => r.admitted > 0).length,
+      shownAtEntry: rows.filter((r) => r.shown).length, confirmed: k },
+    byOperator: { remove_auth_guard: by("remove_auth_guard"), remove_owner_scope: by("remove_owner_scope") }, rows };
+  const out = path.join(dir, `recall-${crypto.randomUUID()}.json`);
+  await fsp.writeFile(out, JSON.stringify(report, null, 2) + "\n", { flag: "wx" });
+  console.log(`Planted recall: ${k} of ${n}${n ? ` (${(k / n * 100).toFixed(1)}%, lower bound ${(report.lower95 * 100).toFixed(1)}%)` : " (unavailable)"}. `
+    + `Funnel: facts flag ${report.funnel.factsFlag}, reasoning task ${report.funnel.reasoningTask}, proposed ${report.funnel.proposed}, admitted ${report.funnel.admitted}, shown ${report.funnel.shownAtEntry}, confirmed ${k}. ${out}`);
+}
+
 async function main() {
   validateManifest();
   if (process.argv[2] === "acquire") {
@@ -692,6 +809,12 @@ async function main() {
     console.log(`${labelPack(records).length} packets written to ${process.argv[4]}`);
   } else if (process.argv[2] === "bench" && process.argv[5]) {
     await bench(process.argv[3], process.argv[4], process.argv.slice(5));
+  } else if (process.argv[2] === "plant" && process.argv[3]) {
+    await plant(process.argv[3], process.argv[4]);
+  } else if (process.argv[2] === "plant-extract" && process.argv[3]) {
+    await plantExtract(process.argv[3]);
+  } else if (process.argv[2] === "recall" && process.argv[3]) {
+    await recall(process.argv[3]);
   } else if (process.argv[2] === "evaluate") {
     await evaluate();
   } else if (process.argv[2] === "holdout" && process.argv[3]) {
@@ -703,7 +826,7 @@ async function main() {
   } else if (process.argv[2] === "render" && process.argv[3]) {
     await render(process.argv[3]);
   } else {
-    throw new Error("Usage: node scripts/corpus.cjs acquire|evaluate|shown|agent-tasks [dir]|agent-admit <dir>|agent-shown <dir>|label-pack <shown.json> <pack.json>|bench <shown.json> <pack.json> <answers.json>...|holdout <labels.json>|render <paid run dir>|paid --confirm-paid --max-usd <usd> --price <model=in,out>... [--model claude-sonnet-5] [--only <id>]");
+    throw new Error("Usage: node scripts/corpus.cjs acquire|evaluate|shown|agent-tasks [dir]|agent-admit <dir>|agent-shown <dir>|label-pack <shown.json> <pack.json>|plant <out.json> [max]|plant-extract <dir>|recall <run dir>|bench <shown.json> <pack.json> <answers.json>...|holdout <labels.json>|render <paid run dir>|paid --confirm-paid --max-usd <usd> --price <model=in,out>... [--model claude-sonnet-5] [--only <id>]");
   }
 }
 
