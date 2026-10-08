@@ -1,0 +1,206 @@
+{
+ "experiment": "recall-r1-run2-2026-10-08",
+ "head": "4c3bdea",
+ "manifest": "docs/evaluation/plants-r1-2026-10-08.json",
+ "change": "R1b per-method refusal fact (unrefused= in the brief, guard admits missing_authentication on such routes to verification)",
+ "plants": 12,
+ "caught": 8,
+ "recall": 0.6666666666666666,
+ "lower95": 0.39086230177096315,
+ "funnel": {
+  "factsFlag": 4,
+  "reasoningTask": 12,
+  "proposed": 9,
+  "admitted": 9,
+  "shownAtEntry": 8,
+  "confirmed": 8
+ },
+ "byOperator": {
+  "remove_auth_guard": {
+   "plants": 4,
+   "caught": 4,
+   "recall": 1
+  },
+  "remove_owner_scope": {
+   "plants": 8,
+   "caught": 4,
+   "recall": 0.5
+  }
+ },
+ "rows": [
+  {
+   "id": "c2-devhunt--plant",
+   "entry": "/api/ads/mine",
+   "operator": "remove_owner_scope",
+   "factsFlag": false,
+   "reasoningTask": true,
+   "proposed": 1,
+   "admitted": 1,
+   "shown": true,
+   "caught": true,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "c2-corpus-r20--plant",
+   "entry": "/api/media",
+   "operator": "remove_owner_scope",
+   "factsFlag": false,
+   "reasoningTask": true,
+   "proposed": 1,
+   "admitted": 1,
+   "shown": true,
+   "caught": true,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "c2-corpus-r2--plant",
+   "entry": "/api/ai-insights",
+   "operator": "remove_owner_scope",
+   "factsFlag": false,
+   "reasoningTask": true,
+   "proposed": 0,
+   "admitted": 0,
+   "shown": false,
+   "caught": false,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "c3-corpus-r13--plant",
+   "entry": "/api/agent/conversations/[id]",
+   "operator": "remove_owner_scope",
+   "factsFlag": false,
+   "reasoningTask": true,
+   "proposed": 0,
+   "admitted": 0,
+   "shown": false,
+   "caught": false,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "c3-corpus-r14--plant",
+   "entry": "/api/admin/notifications/broadcast",
+   "operator": "remove_auth_guard",
+   "factsFlag": true,
+   "reasoningTask": true,
+   "proposed": 1,
+   "admitted": 1,
+   "shown": true,
+   "caught": true,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "c3-corpus-t--plant",
+   "entry": "/api/bio-gallery/[username]/link",
+   "operator": "remove_owner_scope",
+   "factsFlag": false,
+   "reasoningTask": true,
+   "proposed": 1,
+   "admitted": 1,
+   "shown": false,
+   "caught": false,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "c4-corpus-ad--plant",
+   "entry": "/api/direct-messages",
+   "operator": "remove_auth_guard",
+   "factsFlag": false,
+   "reasoningTask": true,
+   "proposed": 1,
+   "admitted": 1,
+   "shown": true,
+   "caught": true,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "c4-flash-fathom-ai--plant",
+   "entry": "/api/decks/[id]",
+   "operator": "remove_owner_scope",
+   "factsFlag": true,
+   "reasoningTask": true,
+   "proposed": 1,
+   "admitted": 1,
+   "shown": true,
+   "caught": true,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "c4-spider-node-uptime-tracker--plant",
+   "entry": "/api/feedback",
+   "operator": "remove_auth_guard",
+   "factsFlag": true,
+   "reasoningTask": true,
+   "proposed": 1,
+   "admitted": 1,
+   "shown": true,
+   "caught": true,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "c5-sotto--plant",
+   "entry": "/api/v1/saved",
+   "operator": "remove_owner_scope",
+   "factsFlag": false,
+   "reasoningTask": true,
+   "proposed": 0,
+   "admitted": 0,
+   "shown": false,
+   "caught": false,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "c5-open-isms--plant",
+   "entry": "/api/export/gap-assessment",
+   "operator": "remove_owner_scope",
+   "factsFlag": false,
+   "reasoningTask": true,
+   "proposed": 1,
+   "admitted": 1,
+   "shown": true,
+   "caught": true,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "corpus-b--plant",
+   "entry": "/api/ai/chat/[chatId]/messages",
+   "operator": "remove_auth_guard",
+   "factsFlag": true,
+   "reasoningTask": true,
+   "proposed": 1,
+   "admitted": 1,
+   "shown": true,
+   "caught": true,
+   "caughtOtherClass": false
+  }
+ ],
+ "method": "same as run 1: agent-tasks, one reasoning subagent, agent-admit, one verifier subagent, agent-shown, recall; Felipe's subscription, no API",
+ "comparedWithRun1": {
+  "remove_auth_guard": "1 of 4 -> 4 of 4 (the 3 the fact targeted all caught)",
+  "remove_owner_scope": "7 of 8 -> 4 of 8",
+  "total": "8 of 12 -> 8 of 12"
+ },
+ "ownerDropCause": "agent variance, not R1b: the planted owner routes' brief lines are byte-identical in both runs (only the SYSTEM text gained the unrefused= label). corpus-r2 and corpus-r13 not proposed; corpus-t proposed and left unverified by the verifier.",
+ "misses": [
+  {
+   "id": "c2-corpus-r2--plant",
+   "stage": "not proposed"
+  },
+  {
+   "id": "c3-corpus-r13--plant",
+   "stage": "not proposed"
+  },
+  {
+   "id": "c3-corpus-t--plant",
+   "stage": "verifier unverified"
+  },
+  {
+   "id": "c5-sotto--plant",
+   "stage": "never in the brief: the planted route is past the 60-route cap (both runs)"
+  }
+ ],
+ "notes": [
+  "One run per condition on 12 plants; run to run agent variance is large (owner plants 7 of 8 vs 4 of 8 with identical inputs). Recall needs repeated runs and more plants (R1c) before any claim.",
+  "sotto is a truncation miss: rankRoutes keeps 60 routes and the planted owner-filtered route ranks below them.",
+  "factsFlag now reads the run's brief prompt (harness fix); run 1 recomputed: unchanged, 1."
+ ]
+}

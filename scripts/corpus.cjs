@@ -767,7 +767,7 @@ async function recall(dirArg) {
     // the frozen factsAfter only when the brief is missing.
     const reasonFile = path.join(dir, `${pin.id}.reason.json`);
     const line = fs.existsSync(reasonFile)
-      ? String(readJson(reasonFile).brief ?? "").split("\n").find((l) => l.startsWith(`${pin.plant.entry} `)) : undefined;
+      ? String(readJson(reasonFile).brief?.prompt ?? "").split("\n").find((l) => l.startsWith(`${pin.plant.entry} `)) : undefined;
     const factsFlag = line !== undefined
       ? (pin.plant.operator === "remove_auth_guard" ? / id=anonymous | unrefused=/.test(line) : / scope=unscoped /.test(line))
       : Boolean(facts && (pin.plant.operator === "remove_auth_guard" ? !facts.authenticated && facts.identityReadable
