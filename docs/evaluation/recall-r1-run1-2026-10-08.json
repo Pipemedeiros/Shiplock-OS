@@ -1,0 +1,207 @@
+{
+ "experiment": "recall-r1-run1-2026-10-08",
+ "head": "5cb2bc8d10d0539c38a57ce77a68880f19a15271",
+ "manifest": "docs/evaluation/plants-r1-2026-10-08.json",
+ "plants": 12,
+ "caught": 8,
+ "recall": 0.6666666666666666,
+ "lower95": 0.39086230177096315,
+ "funnel": {
+  "factsFlag": 1,
+  "reasoningTask": 12,
+  "proposed": 8,
+  "admitted": 8,
+  "shownAtEntry": 8,
+  "confirmed": 8
+ },
+ "byOperator": {
+  "remove_auth_guard": {
+   "plants": 4,
+   "caught": 1,
+   "recall": 0.25
+  },
+  "remove_owner_scope": {
+   "plants": 8,
+   "caught": 7,
+   "recall": 0.875
+  }
+ },
+ "rows": [
+  {
+   "id": "c2-devhunt--plant",
+   "entry": "/api/ads/mine",
+   "operator": "remove_owner_scope",
+   "factsFlag": false,
+   "reasoningTask": true,
+   "proposed": 1,
+   "admitted": 1,
+   "shown": true,
+   "caught": true,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "c2-corpus-r20--plant",
+   "entry": "/api/media",
+   "operator": "remove_owner_scope",
+   "factsFlag": false,
+   "reasoningTask": true,
+   "proposed": 1,
+   "admitted": 1,
+   "shown": true,
+   "caught": true,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "c2-corpus-r2--plant",
+   "entry": "/api/ai-insights",
+   "operator": "remove_owner_scope",
+   "factsFlag": false,
+   "reasoningTask": true,
+   "proposed": 1,
+   "admitted": 1,
+   "shown": true,
+   "caught": true,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "c3-corpus-r13--plant",
+   "entry": "/api/agent/conversations/[id]",
+   "operator": "remove_owner_scope",
+   "factsFlag": false,
+   "reasoningTask": true,
+   "proposed": 1,
+   "admitted": 1,
+   "shown": true,
+   "caught": true,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "c3-corpus-r14--plant",
+   "entry": "/api/admin/notifications/broadcast",
+   "operator": "remove_auth_guard",
+   "factsFlag": false,
+   "reasoningTask": true,
+   "proposed": 0,
+   "admitted": 0,
+   "shown": false,
+   "caught": false,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "c3-corpus-t--plant",
+   "entry": "/api/bio-gallery/[username]/link",
+   "operator": "remove_owner_scope",
+   "factsFlag": false,
+   "reasoningTask": true,
+   "proposed": 1,
+   "admitted": 1,
+   "shown": true,
+   "caught": true,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "c4-corpus-ad--plant",
+   "entry": "/api/direct-messages",
+   "operator": "remove_auth_guard",
+   "factsFlag": false,
+   "reasoningTask": true,
+   "proposed": 1,
+   "admitted": 1,
+   "shown": true,
+   "caught": true,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "c4-flash-fathom-ai--plant",
+   "entry": "/api/decks/[id]",
+   "operator": "remove_owner_scope",
+   "factsFlag": true,
+   "reasoningTask": true,
+   "proposed": 1,
+   "admitted": 1,
+   "shown": true,
+   "caught": true,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "c4-spider-node-uptime-tracker--plant",
+   "entry": "/api/feedback",
+   "operator": "remove_auth_guard",
+   "factsFlag": false,
+   "reasoningTask": true,
+   "proposed": 0,
+   "admitted": 0,
+   "shown": false,
+   "caught": false,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "c5-sotto--plant",
+   "entry": "/api/v1/saved",
+   "operator": "remove_owner_scope",
+   "factsFlag": false,
+   "reasoningTask": true,
+   "proposed": 0,
+   "admitted": 0,
+   "shown": false,
+   "caught": false,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "c5-open-isms--plant",
+   "entry": "/api/export/gap-assessment",
+   "operator": "remove_owner_scope",
+   "factsFlag": false,
+   "reasoningTask": true,
+   "proposed": 1,
+   "admitted": 1,
+   "shown": true,
+   "caught": true,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "corpus-b--plant",
+   "entry": "/api/ai/chat/[chatId]/messages",
+   "operator": "remove_auth_guard",
+   "factsFlag": false,
+   "reasoningTask": true,
+   "proposed": 0,
+   "admitted": 0,
+   "shown": false,
+   "caught": false,
+   "caughtOtherClass": false
+  }
+ ],
+ "method": "Plants frozen in docs/evaluation/plants-r1-2026-10-08.json (committed before this run). Customer agent = one Claude Code reasoning subagent and one verifier subagent on Felipe's subscription, no API key; same blind prompts as A8. Caught = a confirmed finding at the planted entry in a planted class.",
+ "guardFix": {
+  "before": "With the old guard (missing_authorization refused whenever any query in the route is narrowed to the caller), the agent proposed 9 planted holes and the guard refused 6 true ones: 2 of 12 would have been confirmed.",
+  "after": "Guard admits those claims to verification (lib/agent/attackGuard.ts); 8 of 12 confirmed."
+ },
+ "misses": [
+  {
+   "id": "c3-corpus-r14--plant",
+   "operator": "remove_auth_guard",
+   "stage": "not proposed by the agent"
+  },
+  {
+   "id": "c4-spider-node-uptime-tracker--plant",
+   "operator": "remove_auth_guard",
+   "stage": "not proposed by the agent"
+  },
+  {
+   "id": "c5-sotto--plant",
+   "operator": "remove_owner_scope",
+   "stage": "not proposed by the agent"
+  },
+  {
+   "id": "corpus-b--plant",
+   "operator": "remove_auth_guard",
+   "stage": "not proposed by the agent"
+  }
+ ],
+ "notes": [
+  "Route facts flagged the planted route in 1 of 12: authenticated means the handler resolves identity, not that it refuses anonymous callers, and ownershipFiltered is route-wide; both stay true after the plant.",
+  "All 3 missed sign-in plants are routes whose facts still read as signed in.",
+  "12 plants is a small sample; comments near a removed line may hint."
+ ]
+}

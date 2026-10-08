@@ -188,10 +188,11 @@ function compatibility(
 
   switch (attackClass) {
     case "missing_authorization":
-      if (route.ownershipFiltered) {
-        return { ok: false, reason: "we read a query narrowed to the caller in this route", unassessed: false };
-      }
-      if (!route.ownershipReadable) {
+      // ownershipFiltered is route-wide ("some query here is narrowed to the
+      // caller") and cannot contradict a claim about another query in the same
+      // route: on planted holes this refusal dropped 6 of 9 true attacks (R1,
+      // 2026-10-08). Verification with quoted lines decides those claims.
+      if (!route.ownershipFiltered && !route.ownershipReadable) {
         return { ok: false, reason: `we could not read how this route narrows its query: ${route.ownershipGap}`, unassessed: true };
       }
       return { ok: true };

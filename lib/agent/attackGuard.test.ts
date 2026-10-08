@@ -245,11 +245,15 @@ describe("a claim contradicted by our own facts", () => {
   const judge = (h: Partial<Hypothesis>, over: Partial<RouteFact>) =>
     judgeHypothesis({ ...valid, ...h } as Hypothesis, reconWith(over));
 
-  it("refuses missing_authorization when we read a filter", () => {
-    const v = judge({ attackClass: "missing_authorization" }, { ownershipFiltered: true });
-    expect(v.allowed).toBe(false);
-    expect(!v.allowed && v.reason).toMatch(/narrowed to the caller/);
-    expect(!v.allowed && v.unassessed).toBeUndefined(); // contradicted, not unassessed
+  // R1 (2026-10-08): ownershipFiltered is route-wide, "some query here is
+  // narrowed to the caller". It cannot contradict a claim about ANOTHER query
+  // in the same route. On 12 planted holes the agent proposed 9 and this rule
+  // refused 6 true ones (docs/evaluation/plants-r1-2026-10-08.json). The claim
+  // goes to verification, where quoted lines decide; nothing reaches a founder
+  // unproven.
+  it("admits missing_authorization on a route where some query is narrowed to the caller", () => {
+    const v = judge({ attackClass: "missing_authorization" }, { ownershipFiltered: true, ownershipReadable: true });
+    expect(v.allowed).toBe(true);
   });
 
   it("refuses missing_authorization when the filter is unreadable", () => {
