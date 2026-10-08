@@ -544,18 +544,48 @@ function mergeAnswers(pack, answerSets) {
   return { labels: [...byKey.values()], unknownKeys };
 }
 
-async function bench(shownFile, packFile, answerFiles) {
+function benchInputs(shownFile, packFile, answerFiles) {
   const shownDoc = JSON.parse(fs.readFileSync(path.resolve(root, shownFile), "utf8"));
   const pack = JSON.parse(fs.readFileSync(path.resolve(root, packFile), "utf8"));
   const answers = answerFiles.map((file) => JSON.parse(fs.readFileSync(path.resolve(root, file), "utf8")).answers);
   const { labels, unknownKeys } = mergeAnswers(pack.packets, answers);
-  const thresholds = JSON.parse(fs.readFileSync(path.join(root, "docs/evaluation/thresholds-release-2026-10.json"), "utf8"));
-  const g = thresholds.gates;
-  const gate = { observedPrecisionAtLeast: g.statusSetting.observedPrecisionAtLeast, lowerBound95AtLeast: g.statusSetting.lowerBound95AtLeast,
-    minimumLabeledFindings: g.statusSetting.minimumLabeledFindings, repositoriesWithCorrectStatusAtLeast: g.statusCorrectness.repositoriesWithCorrectStatusAtLeast };
-  const product = loadProductModules();
   const findings = shownDoc.records.flatMap((r) => r.findings.filter((f) => f.confirmed !== false)
     .map((f) => ({ repo: r.id, id: f.id, severity: f.severity, attackClass: f.attackClass })));
+  return { findings, labels, unknownKeys };
+}
+
+function releaseGate() {
+  const g = JSON.parse(fs.readFileSync(path.join(root, "docs/evaluation/thresholds-release-2026-10.json"), "utf8")).gates;
+  return { observedPrecisionAtLeast: g.statusSetting.observedPrecisionAtLeast, lowerBound95AtLeast: g.statusSetting.lowerBound95AtLeast,
+    minimumLabeledFindings: g.statusSetting.minimumLabeledFindings, repositoriesWithCorrectStatusAtLeast: g.statusCorrectness.repositoriesWithCorrectStatusAtLeast };
+}
+
+// A8's running total, recomputed from the batch run directories (each with
+// shown.json, pack.json and answers-*.json), in the order given. Re-check
+// directories go after the batch they re-read; a finding counts once.
+async function gateTotal(outArg, dirs) {
+  const product = loadProductModules();
+  const batches = dirs.map((dir) => {
+    const answers = fs.readdirSync(dir).filter((n) => /^answers-.+\.json$/.test(n)).sort().map((n) => path.join(dir, n));
+    if (answers.length < 2) throw new Error(`${dir}: needs two labelers' answers`);
+    const { findings, labels, unknownKeys } = benchInputs(path.join(dir, "shown.json"), path.join(dir, "pack.json"), answers);
+    if (unknownKeys.length) throw new Error(`${dir}: answers for keys not in the pack: ${unknownKeys.join(", ")}`);
+    return { name: dir, findings, labels };
+  });
+  const { findings, labels, duplicates } = product.combineBatches(batches);
+  const report = product.scoreBenchmark(findings, labels, releaseGate());
+  await fsp.writeFile(path.resolve(root, outArg), JSON.stringify({ batches: dirs, thresholds: "docs/evaluation/thresholds-release-2026-10.json",
+    duplicates, report }, null, 2) + "\n", { flag: "wx" });
+  const s = report.statusSetting;
+  console.log(`Running total over ${dirs.length} runs: ${s.labeled} labeled, ${s.tp} true, precision ${s.precision === null ? "unavailable" : (s.precision * 100).toFixed(1) + "%"}`
+    + `${s.lower95 === null ? "" : `, lower bound ${(s.lower95 * 100).toFixed(1)}%`}; status right on ${report.statusCorrect.correct} of ${report.statusCorrect.judged}; `
+    + `${duplicates.length} duplicate findings folded. Gate: ${report.gate.result}. Report: ${outArg}`);
+}
+
+async function bench(shownFile, packFile, answerFiles) {
+  const { findings, labels, unknownKeys } = benchInputs(shownFile, packFile, answerFiles);
+  const gate = releaseGate();
+  const product = loadProductModules();
   const report = product.scoreBenchmark(findings, labels, gate);
   const out = path.join(path.dirname(path.resolve(root, shownFile)), `bench-${crypto.randomUUID()}.json`);
   await fsp.writeFile(out, JSON.stringify({ shown: shownFile, pack: packFile, answers: answerFiles, thresholds: "docs/evaluation/thresholds-release-2026-10.json",
@@ -804,6 +834,8 @@ async function main() {
     }
   } else if (process.argv[2] === "shown") {
     await shown();
+  } else if (process.argv[2] === "gate-total" && process.argv[3] && process.argv[4]) {
+    await gateTotal(process.argv[3], process.argv.slice(4));
   } else if (process.argv[2] === "agent-tasks") {
     await agentTasks(process.argv[3]);
   } else if (process.argv[2] === "agent-admit" && process.argv[3]) {
@@ -833,7 +865,7 @@ async function main() {
   } else if (process.argv[2] === "render" && process.argv[3]) {
     await render(process.argv[3]);
   } else {
-    throw new Error("Usage: node scripts/corpus.cjs acquire|evaluate|shown|agent-tasks [dir]|agent-admit <dir>|agent-shown <dir>|label-pack <shown.json> <pack.json>|plant <out.json> [max]|plant-extract <dir>|recall <run dir>|bench <shown.json> <pack.json> <answers.json>...|holdout <labels.json>|render <paid run dir>|paid --confirm-paid --max-usd <usd> --price <model=in,out>... [--model claude-sonnet-5] [--only <id>]");
+    throw new Error("Usage: node scripts/corpus.cjs acquire|evaluate|shown|agent-tasks [dir]|agent-admit <dir>|agent-shown <dir>|label-pack <shown.json> <pack.json>|plant <out.json> [max]|plant-extract <dir>|recall <run dir>|gate-total <out.json> <run dir>...|bench <shown.json> <pack.json> <answers.json>...|holdout <labels.json>|render <paid run dir>|paid --confirm-paid --max-usd <usd> --price <model=in,out>... [--model claude-sonnet-5] [--only <id>]");
   }
 }
 

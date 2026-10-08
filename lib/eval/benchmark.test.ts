@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clopperPearsonLower, scoreBenchmark, type BenchFinding, type BenchLabel } from "./benchmark";
+import { clopperPearsonLower, combineBatches, scoreBenchmark, type BenchFinding, type BenchLabel } from "./benchmark";
 
 // Plan item H (Felipe 2026-10-06): "we can only launch when 90%+ precision,
 // after all it is a security product". The gate is the recorded one
@@ -83,5 +83,23 @@ describe("scoreBenchmark", () => {
     expect(report.repositories).toEqual([{ repo: "a", status: "exposed", correct: false }, { repo: "b", status: "at_risk", correct: true }]);
     expect(report.bySeverity.CRITICAL).toMatchObject({ n: 1, tp: 0, fp: 1 });
     expect(report.byClass.x).toMatchObject({ n: 3, tp: 1 });
+  });
+});
+
+// A8 runs in paced batches, and re-check runs (the R1 guard fix) re-read
+// repositories a batch already scored. The running total is the bench over
+// the union, never a hand sum, and a finding counts once.
+describe("combineBatches", () => {
+  const f = (repo: string, id: string): BenchFinding => ({ repo, id, severity: "CRITICAL", attackClass: "missing_authorization" });
+  it("unions batches and keeps a finding seen twice once, with the labels it was first given", () => {
+    const out = combineBatches([
+      { name: "b1", findings: [f("r1", "a"), f("r1", "b")], labels: [{ repo: "r1", id: "a", labelers: [yes, yes] }, { repo: "r1", id: "b", labelers: [yes, no] }] },
+      { name: "b1-recheck", findings: [f("r1", "b"), f("r1", "c")], labels: [{ repo: "r1", id: "b", labelers: [yes, yes] }, { repo: "r1", id: "c", labelers: [yes, yes] }] },
+    ]);
+    expect(out.findings.map((x) => x.id)).toEqual(["a", "b", "c"]);
+    expect(out.labels.find((l) => l.id === "b")?.labelers).toEqual([yes, no]);
+    expect(out.duplicates).toEqual([{ repo: "r1", id: "b", first: "b1", again: "b1-recheck" }]);
+    const report = scoreBenchmark(out.findings, out.labels, gate);
+    expect(report.statusSetting).toMatchObject({ n: 3, labeled: 3, tp: 2 });
   });
 });

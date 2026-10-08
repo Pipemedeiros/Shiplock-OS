@@ -107,3 +107,32 @@ export function scoreBenchmark(findings: BenchFinding[], labels: BenchLabel[], g
   return { statusSetting, bySeverity, byClass, repositories, statusCorrect,
     gate: { result: !measurable ? "not_measurable" : pass ? "pass" : "fail", reasons } };
 }
+
+export type BenchBatch = { name: string; findings: BenchFinding[]; labels: BenchLabel[] };
+
+/**
+ * The union of paced batches, for one bench over the running total (A8). A
+ * re-check run re-reads repositories a batch already scored, so a finding
+ * (repo and id) counts once, with the labels it was first given: a later
+ * relabel never replaces an earlier verdict. Duplicates are returned so the
+ * report can say what was folded.
+ */
+export function combineBatches(batches: BenchBatch[]) {
+  const seen = new Map<string, string>();
+  const findings: BenchFinding[] = [];
+  const labels: BenchLabel[] = [];
+  const duplicates: { repo: string; id: string; first: string; again: string }[] = [];
+  for (const batch of batches) {
+    const own = new Map(batch.labels.map((l) => [`${l.repo}\u0000${l.id}`, l]));
+    for (const f of batch.findings) {
+      const key = `${f.repo}\u0000${f.id}`;
+      const first = seen.get(key);
+      if (first !== undefined) { duplicates.push({ repo: f.repo, id: f.id, first, again: batch.name }); continue; }
+      seen.set(key, batch.name);
+      findings.push(f);
+      const label = own.get(key);
+      if (label) labels.push(label);
+    }
+  }
+  return { findings, labels, duplicates };
+}
