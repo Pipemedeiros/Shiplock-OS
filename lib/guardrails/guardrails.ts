@@ -18,6 +18,8 @@ const ruleSchema = z.object({
   route: z.string(),
   file: z.string(),
   tables: z.array(z.string()),
+  /** requires_signed_in_caller: the methods we read refusing an anonymous caller (R1b). Absent on older rules. */
+  methods: z.array(z.string()).optional(),
   because: z.string(),
   keep: z.string(),
 });
@@ -50,12 +52,16 @@ export function deriveGuardrails(routes: RouteFact[], meta: { repository: string
   for (const route of [...routes].sort((a, b) => a.path.localeCompare(b.path))) {
     if (route.tables.length === 0) continue;
     const kinds: GuardrailKind[] = [];
-    if (route.authenticated && route.identityReadable) kinds.push("requires_signed_in_caller");
+    // R1b: `authenticated` is route-wide; the rule covers only the methods we
+    // did not read as never refusing, and a route where none refuses gets none.
+    const refusing = route.methods.filter((m) => !(route.unrefusedMethods ?? []).includes(m));
+    if (route.authenticated && route.identityReadable && refusing.length > 0) kinds.push("requires_signed_in_caller");
     if (route.ownershipFiltered && route.ownershipReadable) kinds.push("scopes_rows_to_caller");
     if (route.machineGated && route.machineGateReadable) kinds.push("requires_machine_secret");
     const tables = [...route.tables].sort();
     for (const kind of kinds) {
       rules.push({ id: `${kind}:${route.path}`, kind, route: route.path, file: route.file, tables,
+        ...(kind === "requires_signed_in_caller" ? { methods: refusing } : {}),
         because: WORDING[kind].because(tables.join(", ")), keep: WORDING[kind].keep });
     }
   }
@@ -82,10 +88,15 @@ export function checkGuardrails(guardrails: Guardrails, routesAfter: RouteFact[]
       rule.kind === "requires_signed_in_caller" ? [route.authenticated, route.identityReadable]
       : rule.kind === "scopes_rows_to_caller" ? [route.ownershipFiltered, route.ownershipReadable]
       : [route.machineGated, route.machineGateReadable];
-    if (holds) continue;
+    const stopped = rule.kind === "requires_signed_in_caller"
+      ? (rule.methods ?? []).filter((m) => route.unrefusedMethods?.includes(m)) : [];
+    if (holds && stopped.length === 0) continue;
     if (!readable) { unread.push(`${rule.kind} ${rule.route}`); continue; }
+    const afterText = stopped.length > 0
+      ? `After this change nothing in its ${stopped.join(" or ")} handler refuses a caller who is not signed in.`
+      : "After this change it no longer does.";
     violations.push({ ...rule, severity: "CRITICAL",
-      detail: `${rule.because.replace("today ", "before this change ")} After this change it no longer does. ${rule.keep}` });
+      detail: `${rule.because.replace("today ", "before this change ")} ${afterText} ${rule.keep}` });
   }
   return { violations, unread };
 }

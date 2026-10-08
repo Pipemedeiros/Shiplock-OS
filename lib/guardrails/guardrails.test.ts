@@ -29,6 +29,24 @@ describe("deriving guardrails from observed route facts", () => {
 });
 
 describe("checking a change against the guardrails", () => {
+  it("records which methods refuse an anonymous caller, and blocks a change that stops one refusing (R1b)", () => {
+    const before = route({ methods: ["GET", "POST"], unrefusedMethods: ["GET"] });
+    const g2 = deriveGuardrails([before], { repository: "acme/app", commit: "a".repeat(40) });
+    const rule = g2.rules.find((r) => r.kind === "requires_signed_in_caller")!;
+    expect(rule.methods).toEqual(["POST"]);
+    expect(guardrailsSchema.parse(g2)).toEqual(g2);
+    const touched = new Set(["app/api/invoices/route.ts"]);
+    expect(checkGuardrails(g2, [route({ methods: ["GET", "POST"], unrefusedMethods: ["GET"] })], touched).violations).toEqual([]);
+    const out = checkGuardrails(g2, [route({ methods: ["GET", "POST"], unrefusedMethods: ["GET", "POST"] })], touched);
+    expect(out.violations.map((v) => v.kind)).toEqual(["requires_signed_in_caller"]);
+    expect(out.violations[0].detail).toMatch(/POST/);
+  });
+
+  it("makes no sign-in rule for a route where no method refuses", () => {
+    const g2 = deriveGuardrails([route({ methods: ["GET"], unrefusedMethods: ["GET"] })], { repository: "acme/app", commit: null });
+    expect(g2.rules.map((r) => r.kind)).toEqual(["scopes_rows_to_caller"]);
+  });
+
   const g = deriveGuardrails([route({})], { repository: "acme/app", commit: "a".repeat(40) });
   const changed = new Set(["app/api/invoices/route.ts"]);
 

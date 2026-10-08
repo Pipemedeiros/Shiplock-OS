@@ -119,6 +119,8 @@ function routeClaims(route: RouteFact | undefined, stack: StackReport): Claim[] 
     {
       claim: route.machineGated
         ? "The route is gated by a shared secret or signature."
+        : route.authenticated && route.unrefusedMethods?.length
+          ? `The route resolves a user, but nothing in its ${route.unrefusedMethods.join(" or ")} handler refuses a caller who is not signed in${route.refusalGap ? `; ${route.refusalGap}` : ""}.`
         : route.authenticated
           ? "The route resolves a user, so this is a gap between customers rather than an open door."
           : route.identityReadable

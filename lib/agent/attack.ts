@@ -43,6 +43,12 @@ export const SYSTEM = [
   "    mechanism we could not follow, such as a session lookup that carries the",
   "    scope in its arguments. NEVER report it as missing an ownership or tenant",
   "    check. Judge it on other grounds or leave it alone.",
+  "  unrefused=<methods>: on a route marked id=user, we read the handler for these",
+  "    methods and nothing in it refuses a caller who is not signed in: no 401, no",
+  "    redirect, no throwing check, no use of the caller that would fail without one.",
+  "    id=user only means some handler here resolves the caller. A request with no",
+  "    sign-in to these methods may reach the data. middleware=may-refuse means a",
+  "    middleware runs on this path and may refuse first; read it before reporting.",
   "  owner-filtered: we read a query narrowed by the caller's identity, such as",
   "    .eq('user_id', session.userId). Never report it as missing an ownership,",
   "    tenant or authorization check.",
@@ -159,11 +165,16 @@ export function routeRisk(route: RouteFact, sensitive: Set<string>): number {
   // it enters the reasoning budget and the truncation fuse counts it.
   const permissionGap = (route.permissionGaps?.length ?? 0) > 0;
 
+  // R1b: a signed-in route with a method we read as never refusing an
+  // anonymous caller ranks with the anonymous routes it may really be. Only
+  // set where no machine gate was read (routeInventory withRefusal).
+  const unrefused = route.authenticated && (route.unrefusedMethods?.length ?? 0) > 0;
+
   if (anonymous && unscoped && touchesSensitive) return 0;
   if (anonymous && unscoped) return 1;
   if (route.authenticated && unscoped && touchesSensitive) return 2;
   if (route.authenticated && unscoped) return 3;
-  if (anonymous) return 4;
+  if (anonymous || unrefused) return 4;
   if (route.machineGated && unscoped) return 5;
   if (permissionGap) return 5;
   return 6;
@@ -232,7 +243,10 @@ export function buildPrompt(input: AgentInput): string {
     // Methods move behind a label like every other attribute. The path is now
     // the only unlabelled token on the line, which is what makes "the text
     // before the first space" an unambiguous instruction in SYSTEM.
-    return `${r.path} id=${identity} scope=${scoped} methods=${r.methods.join(",") || "GET"} tables=${r.tables.join(",")} file=${r.file}`;
+    const refusal = r.authenticated && r.unrefusedMethods?.length
+      ? ` unrefused=${r.unrefusedMethods.join(",")}${r.refusalGap ? " middleware=may-refuse" : ""}`
+      : "";
+    return `${r.path} id=${identity}${refusal} scope=${scoped} methods=${r.methods.join(",") || "GET"} tables=${r.tables.join(",")} file=${r.file}`;
   });
 
   const stackLine = input.stack.tools

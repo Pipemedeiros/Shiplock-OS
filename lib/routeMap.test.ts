@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildRouteMap, compactRouteFacts, exposureOf, simulateRequest, type MapRoute, type RouteMap } from "./routeMap";
+import { buildRouteMap, compactRouteFacts, exposureOf, parseRouteFacts, simulateRequest, type MapRoute, type RouteMap } from "./routeMap";
 
 const route = (path: string, tables: string[], over: Partial<MapRoute> = {}): MapRoute =>
   ({ path, file: `app${path}/route.ts`, tables, authenticated: true, ownershipFiltered: true, machineGated: false, ...over });
@@ -102,6 +102,25 @@ describe("route map, connections and simulation (Felipe 2026-09-30)", () => {
     expect(pairs(map)).toEqual(expect.arrayContaining([["route:/api/a", "helper:lib/auth.ts"], ["route:/api/b", "helper:lib/auth.ts"]]));
     expect(edge(map, "route:/api/a", "helper:lib/auth.ts")).toMatchObject({ kind: "shared" });
     expect(map.nodes.find((n) => n.id === "helper:lib/auth.ts")?.detail).toMatch(/2 routes/);
+  });
+
+  it("does not call a route signed in where we read a method that never refuses (R1b)", () => {
+    const unrefused = full("/api/feedback", [], { unrefusedMethods: ["GET"] });
+    const behind = full("/api/admin", [], { unrefusedMethods: ["DELETE"], refusalGap: "a middleware at proxy.ts checks the caller on this path and may refuse first" });
+    expect(exposureOf(unrefused)).toBe("open");
+    expect(exposureOf(behind)).toBe("unknown");
+    expect(simulateRequest(unrefused, "anonymous")).toMatchObject({ outcome: "reaches", reached: ["invoices"] });
+    expect(simulateRequest(unrefused, "anonymous").steps.join(" ")).toMatch(/Nothing in its GET handler refuses a request with no sign-in/);
+    expect(simulateRequest(behind, "anonymous")).toMatchObject({ outcome: "unknown" });
+    const map = buildRouteMap({ ...input, routes: [unrefused], findings: [] });
+    const node = map.nodes.find((n) => n.id === "route:/api/feedback")!;
+    expect(node.detail).toMatch(/no refusal of a caller who is not signed in was read in GET/);
+    expect(node.detail).not.toMatch(/Requires a signed-in caller/);
+    expect(node.level).toBe("yellow");
+    expect(edge(map, "route:/api/feedback", "control:session")).toBeUndefined();
+    const [kept] = compactRouteFacts([unrefused]);
+    expect(kept).toMatchObject({ unrefusedMethods: ["GET"] });
+    expect(parseRouteFacts([behind])?.[0]).toMatchObject({ refusalGap: expect.stringMatching(/proxy\.ts/) });
   });
 
   it("simulates a request from facts only, and says unknown where a control was not read", () => {

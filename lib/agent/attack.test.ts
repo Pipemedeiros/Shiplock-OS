@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RouteFact } from "@/lib/graph/routeInventory";
-import { MAX_PROMPT_ROUTES, buildPrompt, extractJsonArray, rankRoutes, routesOmitted,
+import { MAX_PROMPT_ROUTES, SYSTEM, buildPrompt, extractJsonArray, rankRoutes, routesOmitted,
   salvageJsonObjects,
   nothingToAsk,
 } from "./attack";
@@ -59,6 +59,32 @@ describe("buildPrompt", () => {
 
     expect(prompt).toContain("id=user");
     expect(prompt).toContain("unscoped");
+  });
+
+  it("names the methods we read as never refusing an anonymous caller (R1b)", () => {
+    const prompt = buildPrompt({
+      routes: [
+        route({ path: "/api/feedback", tables: ["feedback"], authenticated: true, ownershipFiltered: true, unrefusedMethods: ["GET"] }),
+        route({ path: "/api/admin", tables: ["users"], authenticated: true, unrefusedMethods: ["DELETE"],
+          refusalGap: "a middleware at proxy.ts checks the caller on this path and may refuse first" }),
+        route({ path: "/api/notes", tables: ["notes"], authenticated: true, ownershipFiltered: true }),
+      ],
+      stack,
+      tables: ["feedback", "users", "notes"],
+      files: [],
+    });
+    expect(prompt).toContain("/api/feedback id=user unrefused=GET scope=owner-filtered");
+    expect(prompt).toContain("/api/admin id=user unrefused=DELETE middleware=may-refuse scope=unscoped");
+    expect(prompt).toContain("/api/notes id=user scope=owner-filtered");
+    expect(SYSTEM).toMatch(/unrefused=/);
+  });
+
+  it("ranks a signed-in route with an unrefused method ahead of one that refuses everywhere", () => {
+    const ranked = rankRoutes([
+      route({ path: "/api/a", tables: ["t"], authenticated: true, ownershipFiltered: true }),
+      route({ path: "/api/b", tables: ["t"], authenticated: true, ownershipFiltered: true, unrefusedMethods: ["GET"] }),
+    ]);
+    expect(ranked.map((r) => r.path)).toEqual(["/api/b", "/api/a"]);
   });
 
   it("says the stack is unidentified rather than omitting the line", () => {

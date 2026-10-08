@@ -33,7 +33,8 @@ async function censusOne(manifest) {
   for (const pin of corpus.manifest.repositories) {
     const { routes } = await corpus.analyzePin(product, pin);
     out[pin.id] = Object.fromEntries(routes.map((r) => [r.path,
-      `${stateOf(r)}${r.ownershipFiltered ? "+scoped" : ""}${r.tables.length ? "+data" : ""}`]));
+      `${stateOf(r)}${r.ownershipFiltered ? "+scoped" : ""}${r.tables.length ? "+data" : ""}`
+      + `${r.unrefusedMethods ? `+unrefused:${r.unrefusedMethods.join(",")}` : ""}${r.refusalGap ? "+middleware" : ""}`]));
   }
   return out;
 }

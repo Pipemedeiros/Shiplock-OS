@@ -5,6 +5,7 @@ import { blankDeclarations } from "./declarations";
 import { traceExecutedSources } from "./callPath";
 import { isWorkspacePackageImport } from "./tsconfigPaths";
 import { findPermissionGaps, type PermissionGap } from "./permissionGaps";
+import { middlewareGap, unrefusedMethods } from "./methodRefusal";
 
 // The source collector's structural output: which HTTP routes exist, which
 // tables each one touches, and whether it checks who is asking.
@@ -132,6 +133,16 @@ export interface RouteFact {
    * source; see ./permissionGaps.ts). Absent means none was read.
    */
   permissionGaps?: PermissionGap[];
+
+  /**
+   * Methods whose handler we read in full and in which nothing refuses an
+   * anonymous caller, on a route read as `authenticated` (R1b, see
+   * ./methodRefusal.ts). `authenticated` is route-wide: one method's 401 kept
+   * it true while another method had none. Absent when none was read.
+   */
+  unrefusedMethods?: string[];
+  /** A middleware that may refuse those methods before the handler runs, or absent. */
+  refusalGap?: string;
 }
 
 const ROUTE_FILE_RE = /(^|\/)route\.(ts|js|tsx|jsx)$/;
@@ -1610,7 +1621,7 @@ export function collectRoutes(files: RepoFile[]): RouteFact[] {
     .filter((f) => isRouteFile(f.path))
     .map((f) => {
       const route = analyzeRouteFile(f.path, f.content, byPath);
-      return gaps.has(f.path) ? { ...route, permissionGaps: gaps.get(f.path) } : route;
+      return withRefusal(gaps.has(f.path) ? { ...route, permissionGaps: gaps.get(f.path) } : route, f, byPath, files);
     });
   // Step 7I: a monorepo may serve the same path from several apps (corpus-e:
   // /api/trpc/lambda/[trpc] in three). The path is what hypotheses, findings,
@@ -1631,6 +1642,20 @@ export function collectRoutes(files: RepoFile[]): RouteFact[] {
       return { ...r, path: `${distinct ? root : r.file}:${r.path}` };
     })
     .sort((a, b) => a.path.localeCompare(b.path));
+}
+
+/** R1b: the per-method refusal fact, only where the route-wide fact says signed in. */
+function withRefusal(route: RouteFact, f: RepoFile, byPath: Map<string, RepoFile>, files: RepoFile[]): RouteFact {
+  if (!route.authenticated || route.machineGated || !ROUTE_FILE_RE.test(f.path)) return route;
+  const imports = importsOf(f.path, f.content, byPath);
+  const body = (name: string) => {
+    const target = imports.get(name);
+    return functionBody(target ? byPath.get(target)?.content ?? "" : f.content, name);
+  };
+  const methods = unrefusedMethods(f.content, body);
+  if (methods.length === 0) return route;
+  const gap = middlewareGap(f.path, route.path, files);
+  return { ...route, unrefusedMethods: methods, ...(gap ? { refusalGap: gap } : {}) };
 }
 
 /** Table -> routes that reference it. The graph's `exposes` edge, inverted. */

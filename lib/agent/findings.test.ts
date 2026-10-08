@@ -71,6 +71,16 @@ describe("confidenceFrom", () => {
 describe("buildFindings", () => {
   const base = { deterministic: [], routes: [route], stack, repositoryId: "r1", hasDatabase: false };
 
+  it("says which method we read as never refusing, instead of calling the route signed in (R1b)", () => {
+    const unrefused = { ...route, ownershipFiltered: true, unrefusedMethods: ["GET"] };
+    const [finding] = buildFindings({ ...base, routes: [unrefused],
+      admitted: [{ ...hypothesis, attackClass: "missing_authentication" as const, title: "Anyone can list invoices" }] });
+    const text = finding.claims.map((c) => c.claim).join(" ");
+    expect(text).toMatch(/nothing in its GET handler refuses a caller who is not signed in/);
+    expect(text).not.toMatch(/gap between customers rather than an open door/);
+    expect(text).not.toMatch(/[–—]/);
+  });
+
   it("attaches the route's own facts as verified claims", () => {
     const [finding] = buildFindings({ ...base, admitted: [hypothesis] });
 

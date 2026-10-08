@@ -270,6 +270,15 @@ describe("a claim contradicted by our own facts", () => {
     expect(judge({ attackClass: "missing_authentication" }, { authenticated: false, machineGated: true }).allowed).toBe(false);
   });
 
+  it("admits missing_authentication on a signed-in route where we read a method that never refuses (R1b)", () => {
+    // `authenticated` is route-wide: one method's 401 kept it true on three of
+    // four planted sign-in holes. Verification with quoted lines decides.
+    expect(judge({ attackClass: "missing_authentication" }, { authenticated: true, unrefusedMethods: ["GET"] }).allowed).toBe(true);
+    expect(judge({ attackClass: "missing_authentication" }, { authenticated: true, unrefusedMethods: [] }).allowed).toBe(false);
+    expect(judge({ attackClass: "missing_authentication" },
+      { authenticated: true, machineGated: true, unrefusedMethods: ["GET"] }).allowed).toBe(false);
+  });
+
   it("refuses missing_authentication when identity is unreadable", () => {
     const v = judge(
       { attackClass: "missing_authentication" },

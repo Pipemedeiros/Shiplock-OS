@@ -1,0 +1,57 @@
+{
+ "version": 1,
+ "experiment": "R1b census: per-method refusal fact (lib/graph/methodRefusal.ts) over every pinned corpus, offline, no model",
+ "date": "2026-10-08",
+ "population": {
+  "repositories": 427,
+  "routes": 20364,
+  "readAsSignedIn": 10651
+ },
+ "flagged": {
+  "routes": 156,
+  "reachData": 108,
+  "behindMiddlewareThatMayRefuse": 75,
+  "repositories": 50
+ },
+ "otherStatesMoved": 0,
+ "accuracyOfTheFact": {
+  "question": "Is it true that nothing in the listed handler refuses a caller who is not signed in?",
+  "round1": {
+   "sampled": 14,
+   "accurate": 7,
+   "wrong": 7,
+   "causes": [
+    "401 after a neutrally named helper (uid, token lookup, cron check)",
+    "test-and-return on a context helper that resolves the user",
+    "returning a sign-in helper's own answer"
+   ],
+   "fixedWith": "tests in methodRefusal.test.ts; all 7 no longer flagged"
+  },
+  "round2": {
+   "sampled": 16,
+   "accurate": 16,
+   "wrong": 0,
+   "note": "fresh sample after the fixes; most are public by design (login, feeds, docs), which the fact does not claim otherwise"
+  }
+ },
+ "plantedSignInHoles": {
+  "flaggedBefore": 0,
+  "flaggedAfter": 3,
+  "of": 4,
+  "notFlagged": "c4-corpus-ad: its helper redirects anonymous callers, so the planted hole is an authorization gap, caught by the agent in run 1"
+ },
+ "consumers": [
+  "agent brief (unrefused=, middleware=may-refuse)",
+  "route ranking",
+  "attackGuard missing_authentication",
+  "finding route claim",
+  "map exposure, detail and simulation",
+  "PR guardrails (methods that refuse)",
+  "recall harness factsFlag"
+ ],
+ "unchanged": [
+  "route-wide authenticated",
+  "deterministic findings and status",
+  "diffScan, routeChecks, attackPaths, possessionGate"
+ ]
+}

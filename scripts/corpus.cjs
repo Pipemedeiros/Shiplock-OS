@@ -763,9 +763,16 @@ async function recall(dirArg) {
     const admitted = fs.readdirSync(dir).filter((n) => n.startsWith(`${pin.id}.verify-`) && n.endsWith(".state.json"))
       .flatMap((n) => readJson(path.join(dir, n)).hypotheses).filter((h) => h.entry === pin.plant.entry).length;
     const facts = pin.plant.factsAfter;
-    rows.push({ id: pin.id, entry: pin.plant.entry, operator: pin.plant.operator,
-      factsFlag: Boolean(facts && (pin.plant.operator === "remove_auth_guard" ? !facts.authenticated && facts.identityReadable
-        : !facts.ownershipFiltered && facts.ownershipReadable)),
+    // The facts this run's brief carried (they move with the product code);
+    // the frozen factsAfter only when the brief is missing.
+    const reasonFile = path.join(dir, `${pin.id}.reason.json`);
+    const line = fs.existsSync(reasonFile)
+      ? String(readJson(reasonFile).brief ?? "").split("\n").find((l) => l.startsWith(`${pin.plant.entry} `)) : undefined;
+    const factsFlag = line !== undefined
+      ? (pin.plant.operator === "remove_auth_guard" ? / id=anonymous | unrefused=/.test(line) : / scope=unscoped /.test(line))
+      : Boolean(facts && (pin.plant.operator === "remove_auth_guard" ? !facts.authenticated && facts.identityReadable
+        : !facts.ownershipFiltered && facts.ownershipReadable));
+    rows.push({ id: pin.id, entry: pin.plant.entry, operator: pin.plant.operator, factsFlag,
       reasoningTask: fs.existsSync(path.join(dir, `${pin.id}.reason.json`)), proposed, admitted,
       shown: at.length > 0,
       caught: at.some((f) => f.confirmed && pin.plant.attackClasses.includes(f.attackClass)),

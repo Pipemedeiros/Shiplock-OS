@@ -198,7 +198,10 @@ function compatibility(
       return { ok: true };
 
     case "missing_authentication":
-      if (route.authenticated || route.machineGated) {
+      // R1b: `authenticated` is route-wide ("some handler resolves the
+      // caller"). A method we read as never refusing an anonymous caller is
+      // not contradicted by it; verification with quoted lines decides.
+      if (route.machineGated || (route.authenticated && !(route.unrefusedMethods?.length))) {
         return { ok: false, reason: "we read a credential check in this route", unassessed: false };
       }
       if (!route.identityReadable) {

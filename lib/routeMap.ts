@@ -13,6 +13,8 @@ export type MapRoute = {
   /** Code files the route executes (auth helpers, database clients); links routes to each other. */
   via?: string[];
   identityReadable?: boolean; ownershipReadable?: boolean; machineGateReadable?: boolean;
+  /** R1b: methods we read as never refusing an anonymous caller, and a middleware that may refuse first. */
+  unrefusedMethods?: string[]; refusalGap?: string;
 };
 export type MapTool = { id: string; name: string; kind: StackKind };
 /** confirmed: a proven issue (lib/agent/confirmed.ts); otherwise a candidate. */
@@ -28,6 +30,7 @@ export function exposureOf(r: MapRoute): Exposure {
   if (r.tables.length === 0) return "none";
   if (r.machineGated) return r.machineGateReadable === false ? "unknown" : "secret";
   if (!r.authenticated) return r.identityReadable === false ? "unknown" : "open";
+  if (r.unrefusedMethods?.length) return r.refusalGap ? "unknown" : "open";
   if (!r.ownershipFiltered) return r.ownershipReadable === false ? "unknown" : "unscoped";
   return "scoped";
 }
@@ -70,6 +73,7 @@ const storedRoute = z.object({
   authenticated: z.boolean(), ownershipFiltered: z.boolean(), machineGated: z.boolean(),
   via: z.array(z.string().max(1024)).max(12).optional(),
   identityReadable: z.boolean().optional(), ownershipReadable: z.boolean().optional(), machineGateReadable: z.boolean().optional(),
+  unrefusedMethods: z.array(z.string().max(16)).max(8).optional(), refusalGap: z.string().max(300).optional(),
 });
 /** Stored route facts, validated on read; anything malformed is no facts. */
 export function parseRouteFacts(value: unknown): MapRoute[] | null {
@@ -83,6 +87,8 @@ export function compactRouteFacts(routes: MapRoute[]): MapRoute[] {
     path: r.path, file: r.file, tables: r.tables.slice(0, 40), authenticated: r.authenticated, ownershipFiltered: r.ownershipFiltered,
     machineGated: r.machineGated, via: (r.via ?? []).slice(0, 12), identityReadable: r.identityReadable ?? true,
     ownershipReadable: r.ownershipReadable ?? true, machineGateReadable: r.machineGateReadable ?? true,
+    ...(r.unrefusedMethods?.length ? { unrefusedMethods: r.unrefusedMethods.slice(0, 8) } : {}),
+    ...(r.refusalGap ? { refusalGap: r.refusalGap.slice(0, 300) } : {}),
   }));
 }
 const MAX_TABLES = 80;
@@ -115,7 +121,9 @@ export function buildRouteMap(input: { routes: MapRoute[]; tools: MapTool[]; fin
   routes.forEach((r) => {
     const finding = worst.get(r.path);
     const controls = r.machineGated ? "Requires a secret or signature." : [
-      r.authenticated ? "Requires a signed-in caller." : "No sign-in check read.",
+      !r.authenticated ? "No sign-in check read."
+        : r.unrefusedMethods?.length ? `Resolves the caller, but no refusal of a caller who is not signed in was read in ${r.unrefusedMethods.join(" or ")}.`
+        : "Requires a signed-in caller.",
       r.tables.length ? (r.ownershipFiltered ? "Scoped to the caller's rows." : "Not scoped to the caller's rows.") : "Reaches no table we read.",
     ].join(" ");
     const exposure = exposureOf(r);
@@ -164,7 +172,7 @@ export function buildRouteMap(input: { routes: MapRoute[]; tools: MapTool[]; fin
     const flow = (src: string, risk: Risk) => { for (const t of reached) add({ from: src, to: `table:${t}`, kind: "flow", risk }); };
     if (exposure === "secret") {
       controlUse.secret++; add({ from, to: "control:secret", kind: "guard" }); flow("control:secret", "guarded");
-    } else if (r.authenticated && r.identityReadable !== false) {
+    } else if (r.authenticated && r.identityReadable !== false && !r.unrefusedMethods?.length) {
       controlUse.session++; add({ from, to: "control:session", kind: "guard" });
       if (exposure === "scoped") {
         controlUse.scope++; add({ from: "control:session", to: "control:scope", kind: "guard" }); flow("control:scope", "guarded");
@@ -200,6 +208,11 @@ export function simulateRequest(route: MapRoute, attacker: Attacker): Simulation
   if (route.tables.length === 0) return { outcome: "stopped", reached: [], steps: [...steps, "It reaches no table we read."] };
   if (attacker === "anonymous") {
     if (route.identityReadable === false) return unknown("how it checks the caller");
+    if (route.authenticated && route.unrefusedMethods?.length) {
+      if (route.refusalGap) return unknown("whether the middleware on this path refuses it");
+      return { outcome: "reaches", reached: route.tables,
+        steps: [...steps, `Nothing in its ${route.unrefusedMethods.join(" or ")} handler refuses a request with no sign-in. It reaches ${route.tables.join(", ")}.`] };
+    }
     if (route.authenticated) return { outcome: "stopped", reached: [], steps: [...steps, "It is stopped by the sign-in check we read."] };
     return { outcome: "reaches", reached: route.tables, steps: [...steps, `No sign-in check was read. It reaches ${route.tables.join(", ")}.`] };
   }
