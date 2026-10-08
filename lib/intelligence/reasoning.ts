@@ -44,22 +44,30 @@ export type ReasoningContext = {
 type VerificationContext = { version: 1; hypotheses: (Hypothesis & { attackClass: AttackClass })[]; items: VerifyItem[] };
 
 /**
- * What the agent reasons over: the routes that reach data, ranked and capped
- * exactly as the prompt shows them, and the files a hypothesis may cite (those
- * routes' handlers and the modules their facts came from, plus schema files).
- * Null when there is nothing to ask: a framework we only inventory, or no
- * route that reaches a table.
+ * What the agent reasons over, one page per task: the routes that reach data,
+ * ranked, in consecutive pages of MAX_PROMPT_ROUTES, and on each page the
+ * files a hypothesis may cite (those routes' handlers and the modules their
+ * facts came from, plus schema files). Felipe 2026-10-08: every data route
+ * reaches the customer's agent. A page that does not fit its stored bytes
+ * hands its lowest-ranked routes to the next page; nothing is dropped below
+ * MAX_REASONING_PAGES, and what lies beyond it is disclosed as not reasoned
+ * over. Empty when there is nothing to ask: a framework we only inventory,
+ * or no route that reaches a table.
  */
-export function reasoningContext(input: {
+export const MAX_REASONING_PAGES = 20;
+
+type ContextInput = {
   routes: RouteFact[]; stack: StackReport; tables: string[]; files: string[]; domain?: AgentInput["domain"];
   liveFacts: { id: string; statement: string }[]; possessionGates: ReadonlyMap<string, Gate>;
   oneIdAccess: ReadonlyMap<string, Gate>; hasDatabase: boolean;
-}): ReasoningContext | null {
-  if (routeAnalysisSupport(input.stack).level !== "deep") return null;
+};
+
+export function reasoningPages(input: ContextInput): ReasoningContext[] {
+  if (routeAnalysisSupport(input.stack).level !== "deep") return [];
   // Helper lists are capped as on the route map (lib/routeMap.ts): a file a
   // route reached beyond them is not citable, which can only reject more.
-  let shown = rankRoutes(input.routes.filter((r) => r.tables.length > 0), new Set(input.domain?.sensitive ?? []))
-    .slice(0, MAX_PROMPT_ROUTES).map((r) => ({ ...r, via: r.via.slice(0, MAX_VIA) }));
+  let rest = rankRoutes(input.routes.filter((r) => r.tables.length > 0), new Set(input.domain?.sensitive ?? []))
+    .map((r) => ({ ...r, via: r.via.slice(0, MAX_VIA) }));
   const schema = input.files.filter((f) => /(^|\/)schema\.prisma$|\.sql$|(^|\/)schema\.[cm]?[jt]s$/.test(f));
   const build = (routes: RouteFact[]): ReasoningContext => {
     const onShown = new Set(routes.map((r) => r.path));
@@ -73,14 +81,25 @@ export function reasoningContext(input: {
       stack: input.stack, hasDatabase: input.hasDatabase,
     };
   };
-  // Drop the lowest-ranked routes until the stored context fits; the prompt
-  // and the guard always see the same routes.
-  while (shown.length > 0) {
-    const context = build(shown);
-    if (Buffer.byteLength(JSON.stringify(context)) <= MAX_CONTEXT_BYTES) return context;
-    shown = shown.slice(0, Math.max(0, Math.floor(shown.length * 0.8)));
+  const pages: ReasoningContext[] = [];
+  while (rest.length > 0 && pages.length < MAX_REASONING_PAGES) {
+    // The prompt and the guard always see the same routes.
+    let take = Math.min(MAX_PROMPT_ROUTES, rest.length);
+    let page = build(rest.slice(0, take));
+    while (take > 1 && Buffer.byteLength(JSON.stringify(page)) > MAX_CONTEXT_BYTES) {
+      take = Math.max(1, Math.floor(take * 0.8));
+      page = build(rest.slice(0, take));
+    }
+    if (Buffer.byteLength(JSON.stringify(page)) > MAX_CONTEXT_BYTES) break;
+    pages.push(page);
+    rest = rest.slice(take);
   }
-  return null;
+  return pages;
+}
+
+/** The first page: what the corpus harness and single-task callers read. */
+export function reasoningContext(input: ContextInput): ReasoningContext | null {
+  return reasoningPages(input)[0] ?? null;
 }
 
 const connectionSchema = z.object({ host: z.enum(["claude-code", "codex", "chatgpt", "api"]), revoked_at: z.string().nullable(),
@@ -100,37 +119,48 @@ export async function approvedAgent(userId: string): Promise<ApprovedAgent | nul
 }
 
 /**
- * After a complete audit: ask the customer's approved agent to reason over it.
- * Best effort and never fatal, because the audit is already durable; the
- * Coverage note says reasoning has not run until an answer is admitted. The
- * handler files' hashes come from the audit's own archive at its commit.
+ * After a complete audit: ask the customer's approved agent to reason over it,
+ * one task per page. Best effort and never fatal, because the audit is
+ * already durable; the Coverage note says reasoning has not run until an
+ * answer is admitted, and routes on a page that was not created are counted
+ * as not reasoned over. The handler files' hashes come from the audit's own
+ * archive at its commit. Returns the created task ids, in page order.
  */
 export async function offerAuditReasoning(input: {
   userId: string; repositoryId: string; runId: string; commit: string; fullName: string;
-  context: ReasoningContext | null; contents: ReadonlyMap<string, string>; agent: ApprovedAgent | null;
-}): Promise<string | null> {
-  if (!input.context || !input.agent) return null;
+  contexts: ReasoningContext[]; contents: ReadonlyMap<string, string>; agent: ApprovedAgent | null;
+}): Promise<string[]> {
+  if (input.contexts.length === 0 || !input.agent) return [];
   const admin = getSupabaseAdmin();
-  const sources = [...new Set(input.context.routes.map((r) => r.file))]
-    .filter((path) => input.contents.has(path)).slice(0, MAX_SOURCES)
-    .map((path) => ({ path, sourceHash: sourceHash(input.contents.get(path)!) }));
-  if (sources.length === 0) return null;
-  const instruction = `Attack reasoning for the audit of ${input.fullName} at ${input.commit.slice(0, 12)}: `
-    + `${input.context.routes.length} routes that reach data. Read system and prompt, reason over your own checkout at `
-    + "this commit, and answer with hypotheses: a JSON array as system describes, at most 60. Cite only routes, files, "
-    + "tables and fact ids that appear in the prompt. ShipLock checks every hypothesis, then asks you to prove each one "
-    + "with quoted lines before it becomes a finding. If you cannot finish, answer unavailable; never report clean for "
-    + `what you did not read. Stay within ${input.agent.runTokenBudget} tokens for this task.`;
-  const { data: id, error: createError } = await admin.rpc("create_audit_reasoning_task", {
-    p_user: input.userId, p_repository: input.repositoryId, p_run: input.runId, p_commit: input.commit,
-    p_host: input.agent.host, p_instruction: instruction, p_sources: sources, p_context: input.context,
-    p_expires_at: new Date(Date.now() + TASK_MINUTES * 60_000).toISOString(), p_key: `reason:${input.runId}`,
-  });
-  if (createError) {
-    if (/intelligence not approved|intelligence budget exhausted/.test(createError.message)) return null;
-    throw new Error("reasoning_task_not_created");
+  const created: string[] = [];
+  for (const [index, context] of input.contexts.entries()) {
+    const sources = [...new Set(context.routes.map((r) => r.file))]
+      .filter((path) => input.contents.has(path)).slice(0, MAX_SOURCES)
+      .map((path) => ({ path, sourceHash: sourceHash(input.contents.get(path)!) }));
+    if (sources.length === 0) continue;
+    const part = input.contexts.length > 1 ? ` (part ${index + 1} of ${input.contexts.length} of the route inventory)` : "";
+    const instruction = `Attack reasoning for the audit of ${input.fullName} at ${input.commit.slice(0, 12)}${part}: `
+      + `${context.routes.length} routes that reach data. Read system and prompt, reason over your own checkout at `
+      + "this commit, and answer with hypotheses: a JSON array as system describes, at most 60. Cite only routes, files, "
+      + "tables and fact ids that appear in the prompt. ShipLock checks every hypothesis, then asks you to prove each one "
+      + "with quoted lines before it becomes a finding. If you cannot finish, answer unavailable; never report clean for "
+      + `what you did not read. Stay within ${input.agent.runTokenBudget} tokens for this task.`;
+    const { data: id, error: createError } = await admin.rpc("create_audit_reasoning_task", {
+      p_user: input.userId, p_repository: input.repositoryId, p_run: input.runId, p_commit: input.commit,
+      p_host: input.agent.host, p_instruction: instruction, p_sources: sources, p_context: context,
+      p_expires_at: new Date(Date.now() + TASK_MINUTES * 60_000).toISOString(),
+      p_key: index === 0 ? `reason:${input.runId}` : `reason:${input.runId}:${index + 1}`,
+    });
+    if (createError) {
+      // A monthly limit ends the offer; later pages are disclosed as not
+      // reasoned over. Any other failure is an error only if nothing exists.
+      if (/intelligence not approved|intelligence budget exhausted/.test(createError.message)) break;
+      if (created.length === 0) throw new Error("reasoning_task_not_created");
+      break;
+    }
+    created.push(z.uuid().parse(id));
   }
-  return z.uuid().parse(id);
+  return created;
 }
 
 const identity = z.object({ taskId: z.uuid(), tenantId: z.uuid(), repositoryId: z.uuid(), commit: z.string().regex(/^[a-f0-9]{40}$/) }).strict();

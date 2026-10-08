@@ -276,10 +276,14 @@ export function buildPrompt(input: AgentInput): string {
   ].join("\n");
 }
 
-/** Routes that did not fit in the prompt, so coverage can say so out loud. */
-export function routesOmitted(input: AgentInput): number {
+/**
+ * Routes no reasoning page covered, so coverage can say so out loud. Pages are
+ * consecutive slices of the ranking (lib/intelligence/reasoning.ts), so
+ * `covered` is how many ranked routes reached the agent.
+ */
+export function routesOmitted(input: AgentInput, covered = MAX_PROMPT_ROUTES): number {
   const interesting = input.routes.filter((r) => r.tables.length > 0);
-  return Math.max(0, interesting.length - MAX_PROMPT_ROUTES);
+  return Math.max(0, interesting.length - covered);
 }
 
 /**
@@ -302,10 +306,10 @@ export function routesOmitted(input: AgentInput): number {
  * Returns 0 in the healthy case, which is the case on every corpus repository
  * today. Any non-zero means the cap is now hiding candidates.
  */
-export function riskyRoutesOmitted(input: AgentInput): number {
+export function riskyRoutesOmitted(input: AgentInput, covered = MAX_PROMPT_ROUTES): number {
   const interesting = input.routes.filter((r) => r.tables.length > 0);
-  if (interesting.length <= MAX_PROMPT_ROUTES) return 0;
-  const cut = rankRoutes(interesting, new Set(input.domain?.sensitive ?? [])).slice(MAX_PROMPT_ROUTES);
+  if (interesting.length <= covered) return 0;
+  const cut = rankRoutes(interesting, new Set(input.domain?.sensitive ?? [])).slice(covered);
   return cut.filter((r) => routeRisk(r, new Set()) < 6).length;
 }
 

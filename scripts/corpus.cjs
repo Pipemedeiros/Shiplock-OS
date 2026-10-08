@@ -619,12 +619,16 @@ async function agentContexts(product) {
   for (const pin of manifest.repositories) {
     if (await fileHash(archivePath(pin)) !== pin.archiveSha256) throw new Error(`${pin.id}: archive checksum mismatch`);
     const { routes, stack, tables, domain, files, reasoned } = await analyzePin(product, pin);
-    const context = product.reasoningContext({ routes: reasoned, stack, tables, domain, files: [...files.keys()], liveFacts: [],
+    // Production pages the route inventory (lib/intelligence/reasoning.ts);
+    // the harness asks the agent about every page, as production does.
+    const pages = product.reasoningPages({ routes: reasoned, stack, tables, domain, files: [...files.keys()], liveFacts: [],
       possessionGates: product.possessionGates(routes, files), oneIdAccess: product.oneIdAccess(routes, files), hasDatabase: false });
-    out.push({ pin, context, files });
+    out.push({ pin, pages, files });
   }
   return out;
 }
+// Page 1 keeps the repository id as its name, so one-page runs read as before.
+const pageName = (id, index) => (index === 0 ? id : `${id}.p${index + 1}`);
 
 async function agentTasks(outArg) {
   blockNetwork();
@@ -633,12 +637,15 @@ async function agentTasks(outArg) {
   await fsp.mkdir(dir, { recursive: true });
   let written = 0;
   const skipped = [];
-  for (const { pin, context } of await agentContexts(product)) {
-    if (!context) { skipped.push(pin.id); continue; }
-    await fsp.writeFile(path.join(dir, `${pin.id}.reason.json`), JSON.stringify({ repo: pin.id, repository: pin.repository, commit: pin.commit,
-      answerFile: `${pin.id}.reason.answer.json`, answerShape: '{"hypotheses": [ ...objects as the brief asks... ]}',
-      brief: product.reasoningBrief(context) }, null, 2) + "\n", { flag: "wx" });
-    written++;
+  for (const { pin, pages } of await agentContexts(product)) {
+    if (pages.length === 0) { skipped.push(pin.id); continue; }
+    for (const [index, context] of pages.entries()) {
+      const name = pageName(pin.id, index);
+      await fsp.writeFile(path.join(dir, `${name}.reason.json`), JSON.stringify({ repo: pin.id, page: index + 1, pages: pages.length,
+        repository: pin.repository, commit: pin.commit, answerFile: `${name}.reason.answer.json`,
+        answerShape: '{"hypotheses": [ ...objects as the brief asks... ]}', brief: product.reasoningBrief(context) }, null, 2) + "\n", { flag: "wx" });
+      written++;
+    }
   }
   await fsp.writeFile(path.join(dir, "manifest.json"), JSON.stringify({ manifest: path.relative(root, manifestPath), head: execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim(),
     reasoningTasks: written, skipped }, null, 2) + "\n");
@@ -650,24 +657,27 @@ async function agentAdmit(dirArg) {
   const product = loadAgentModules();
   const dir = path.resolve(root, dirArg);
   let tasks = 0, admitted = 0, rejected = 0, answered = 0;
-  for (const { pin, context, files } of await agentContexts(product)) {
-    const answerFile = path.join(dir, `${pin.id}.reason.answer.json`);
-    if (!context || !fs.existsSync(answerFile)) continue;
-    answered++;
-    const guard = product.guardAnswer(context, readJson(answerFile).hypotheses);
-    admitted += guard.admitted.length; rejected += guard.rejected.length;
-    const contentOf = (p) => { const f = files.get(p); return f === undefined ? null : (typeof f === "string" ? f : f.content); };
-    for (const t of product.verificationTasks(context, guard.admitted, contentOf)) {
-      const name = `${pin.id}.verify-${t.index}`;
-      await fsp.writeFile(path.join(dir, `${name}.json`), JSON.stringify({ repo: pin.id, answerFile: `${name}.answer.json`,
-        answerShape: '{"verdicts": [ ...objects as the brief asks, one per claim id... ]}', brief: t.brief,
-        sources: t.sources.map((s) => ({ path: s.path, numbered: numbered(s.content) })) }, null, 2) + "\n");
-      await fsp.writeFile(path.join(dir, `${name}.state.json`), JSON.stringify({ hypotheses: t.hypotheses, items: t.items,
-        sources: t.sources.map((s) => s.path) }, null, 2) + "\n");
-      tasks++;
+  for (const { pin, pages, files } of await agentContexts(product)) {
+    for (const [index, context] of pages.entries()) {
+      const page = pageName(pin.id, index);
+      const answerFile = path.join(dir, `${page}.reason.answer.json`);
+      if (!fs.existsSync(answerFile)) continue;
+      answered++;
+      const guard = product.guardAnswer(context, readJson(answerFile).hypotheses);
+      admitted += guard.admitted.length; rejected += guard.rejected.length;
+      const contentOf = (p) => { const f = files.get(p); return f === undefined ? null : (typeof f === "string" ? f : f.content); };
+      for (const t of product.verificationTasks(context, guard.admitted, contentOf)) {
+        const name = `${page}.verify-${t.index}`;
+        await fsp.writeFile(path.join(dir, `${name}.json`), JSON.stringify({ repo: pin.id, answerFile: `${name}.answer.json`,
+          answerShape: '{"verdicts": [ ...objects as the brief asks, one per claim id... ]}', brief: t.brief,
+          sources: t.sources.map((s) => ({ path: s.path, numbered: numbered(s.content) })) }, null, 2) + "\n");
+        await fsp.writeFile(path.join(dir, `${name}.state.json`), JSON.stringify({ page: index, hypotheses: t.hypotheses, items: t.items,
+          sources: t.sources.map((s) => s.path) }, null, 2) + "\n");
+        tasks++;
+      }
+      await fsp.writeFile(path.join(dir, `${page}.guard.json`), JSON.stringify({ admitted: guard.admitted.length, rejected: guard.rejected.length,
+        reasons: guard.rejected.map((r) => r.reason).slice(0, 40), unassessed: guard.unassessed.slice(0, 40) }, null, 2) + "\n");
     }
-    await fsp.writeFile(path.join(dir, `${pin.id}.guard.json`), JSON.stringify({ admitted: guard.admitted.length, rejected: guard.rejected.length,
-      reasons: guard.rejected.map((r) => r.reason).slice(0, 40), unassessed: guard.unassessed.slice(0, 40) }, null, 2) + "\n");
   }
   console.log(`${answered} answers read; ${admitted} hypotheses admitted, ${rejected} rejected; ${tasks} verification tasks written.`);
 }
@@ -678,7 +688,7 @@ async function agentShown(dirArg) {
   const dir = path.resolve(root, dirArg);
   const records = [];
   const totals = { confirmed: 0, refuted: 0, unverified: 0, agentFindings: 0, unanswered: 0 };
-  for (const { pin, context, files } of await agentContexts(product)) {
+  for (const { pin, pages, files } of await agentContexts(product)) {
     const { archive, routes, stack } = await analyzePin(product, pin);
     const deterministic = product.buildFindings({
       admitted: [], deterministic: product.deterministicFindings(archive.files.map((f) => ({ path: f.path, content: f.content }))),
@@ -686,11 +696,13 @@ async function agentShown(dirArg) {
       possessionGates: product.possessionGates(routes, files), oneIdAccess: product.oneIdAccess(routes, files),
     });
     const agent = [];
-    for (const name of fs.readdirSync(dir).filter((n) => n.startsWith(`${pin.id}.verify-`) && n.endsWith(".state.json"))) {
+    const ownVerify = new RegExp(`^${pin.id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\.p\\d+)?\\.verify-\\d+\\.state\\.json$`);
+    for (const name of fs.readdirSync(dir).filter((n) => ownVerify.test(n))) {
       const base = name.slice(0, -".state.json".length);
       const answer = path.join(dir, `${base}.answer.json`);
       if (!fs.existsSync(answer)) { totals.unanswered++; continue; }
       const state = readJson(path.join(dir, name));
+      const context = pages[state.page ?? 0];
       const sources = state.sources.map((p) => { const f = files.get(p); return { path: p, content: typeof f === "string" ? f : f.content }; });
       const result = product.admitVerified(context, { hypotheses: state.hypotheses, items: state.items, sources }, readJson(answer).verdicts ?? [], pin.id);
       totals.confirmed += result.confirmed; totals.refuted += result.refuted; totals.unverified += result.unverified;
@@ -788,22 +800,25 @@ async function recall(dirArg) {
   for (const pin of manifest.repositories.filter((p) => p.plant)) {
     const record = shown.records.find((r) => r.id === pin.id);
     const at = (record?.findings ?? []).filter((f) => f.entry === pin.plant.entry);
-    const answer = path.join(dir, `${pin.id}.reason.answer.json`);
-    const proposed = fs.existsSync(answer) ? (readJson(answer).hypotheses ?? []).filter((h) => h?.entry === pin.plant.entry).length : 0;
-    const admitted = fs.readdirSync(dir).filter((n) => n.startsWith(`${pin.id}.verify-`) && n.endsWith(".state.json"))
+    // Every page of this repository's reasoning (pageName): page 1 is the id.
+    const esc = pin.id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const names = fs.readdirSync(dir);
+    const briefs = names.filter((n) => new RegExp(`^${esc}(\\.p\\d+)?\\.reason\\.json$`).test(n));
+    const proposed = names.filter((n) => new RegExp(`^${esc}(\\.p\\d+)?\\.reason\\.answer\\.json$`).test(n))
+      .flatMap((n) => readJson(path.join(dir, n)).hypotheses ?? []).filter((h) => h?.entry === pin.plant.entry).length;
+    const admitted = names.filter((n) => new RegExp(`^${esc}(\\.p\\d+)?\\.verify-\\d+\\.state\\.json$`).test(n))
       .flatMap((n) => readJson(path.join(dir, n)).hypotheses).filter((h) => h.entry === pin.plant.entry).length;
     const facts = pin.plant.factsAfter;
     // The facts this run's brief carried (they move with the product code);
-    // the frozen factsAfter only when the brief is missing.
-    const reasonFile = path.join(dir, `${pin.id}.reason.json`);
-    const line = fs.existsSync(reasonFile)
-      ? String(readJson(reasonFile).brief?.prompt ?? "").split("\n").find((l) => l.startsWith(`${pin.plant.entry} `)) : undefined;
+    // the frozen factsAfter only when no brief exists.
+    const line = briefs.flatMap((n) => String(readJson(path.join(dir, n)).brief?.prompt ?? "").split("\n"))
+      .find((l) => l.startsWith(`${pin.plant.entry} `));
     const factsFlag = line !== undefined
       ? (pin.plant.operator === "remove_auth_guard" ? / id=anonymous | unrefused=/.test(line) : / scope=unscoped /.test(line))
       : Boolean(facts && (pin.plant.operator === "remove_auth_guard" ? !facts.authenticated && facts.identityReadable
         : !facts.ownershipFiltered && facts.ownershipReadable));
     rows.push({ id: pin.id, entry: pin.plant.entry, operator: pin.plant.operator, factsFlag,
-      reasoningTask: fs.existsSync(path.join(dir, `${pin.id}.reason.json`)), proposed, admitted,
+      reasoningTask: briefs.length > 0, inBrief: line !== undefined, proposed, admitted,
       shown: at.length > 0,
       caught: at.some((f) => f.confirmed && pin.plant.attackClasses.includes(f.attackClass)),
       caughtOtherClass: at.some((f) => f.confirmed && !pin.plant.attackClasses.includes(f.attackClass)) });
@@ -815,6 +830,7 @@ async function recall(dirArg) {
     manifest: path.relative(root, manifestPath), plants: n, caught: k, recall: n ? k / n : null,
     lower95: n ? product.clopperPearsonLower(k, n) : null,
     funnel: { factsFlag: rows.filter((r) => r.factsFlag).length, reasoningTask: rows.filter((r) => r.reasoningTask).length,
+      inBrief: rows.filter((r) => r.inBrief).length,
       proposed: rows.filter((r) => r.proposed > 0).length, admitted: rows.filter((r) => r.admitted > 0).length,
       shownAtEntry: rows.filter((r) => r.shown).length, confirmed: k },
     byOperator: { remove_auth_guard: by("remove_auth_guard"), remove_owner_scope: by("remove_owner_scope") }, rows };

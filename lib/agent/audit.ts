@@ -16,7 +16,7 @@ import { extractTables, extractColumns } from "./schema";
 import { inferDomain } from "./domain";
 import { loadLiveFacts } from "./liveFacts";
 import { unassessedNote, summarizeUnassessed } from "./unassessed";
-import { approvedAgent, offerAuditReasoning, reasoningContext, type ApprovedAgent } from "@/lib/intelligence/reasoning";
+import { approvedAgent, offerAuditReasoning, reasoningPages, type ApprovedAgent } from "@/lib/intelligence/reasoning";
 import { auditProgress } from "./auditProgress";
 
 /**
@@ -68,6 +68,34 @@ function clock(startedAt: number): string {
  * never from a static list -- a coverage note that does not change when the run
  * changes is decoration.
  */
+const OMITTED_NOTE = /^\d+ routes? not reasoned over$/;
+
+/**
+ * Routes that reached no reasoning page. Saying so is not optional: an audit
+ * that silently reasoned over part of a codebase and reported nothing looks
+ * exactly like an audit that found nothing. Since 2026-10-08 every data route
+ * is paged to the agent, so this appears only past the page bound or when a
+ * page could not be offered (the customer's monthly limit).
+ */
+export function routesOmittedNote(count: number, risky: number): CoverageNote | null {
+  if (count <= 0) return null;
+  return {
+    name: `${count} route${count === 1 ? "" : "s"} not reasoned over`,
+    why: "Your agent was not given these routes: the audit reached its page limit, or a page could not be offered within your agent's monthly limit. We ranked routes by exposure, putting routes with no identity and nothing narrowing the query first.",
+    effect:
+      risky > 0
+        ? `${risky} of them had no identity or nothing narrowing the query, so they are NOT the already-guarded ones and we did not reason over them. Treat this run as incomplete for those routes rather than clean.`
+        : "The routes left out are the ones already scoped or already guarded. They are still read, and still checked for credentials and known vulnerabilities.",
+  };
+}
+
+/** The coverage with its not-reasoned-over note replaced by this count. */
+export function withRoutesOmitted(coverage: CoverageNote[], count: number, risky: number): CoverageNote[] {
+  const rest = coverage.filter((n) => !OMITTED_NOTE.test(n.name));
+  const note = routesOmittedNote(count, risky);
+  return note ? [...rest, note] : rest;
+}
+
 export function buildCoverage(
   stack: StackReport,
   truncated: boolean,
@@ -227,19 +255,8 @@ export function buildCoverage(
     });
   }
 
-  if (routesOmittedCount > 0) {
-    // The reasoning prompt holds a bounded number of routes. Saying so is not
-    // optional: an audit that silently reasoned over two thirds of a codebase
-    // and reported nothing looks exactly like an audit that found nothing.
-    notes.push({
-      name: `${routesOmittedCount} route${routesOmittedCount === 1 ? "" : "s"} not reasoned over`,
-      why: "More routes reach data than fit in one reasoning pass. We ranked them by exposure, putting routes with no identity and nothing narrowing the query first, and reasoned over that end.",
-      effect:
-        riskyOmittedCount > 0
-          ? `${riskyOmittedCount} of them had no identity or nothing narrowing the query, so they are NOT the already-guarded ones and we did not reason over them. Treat this run as incomplete for those routes rather than clean.`
-          : "The routes left out are the ones already scoped or already guarded. They are still read, and still checked for credentials and known vulnerabilities.",
-    });
-  }
+  const omitted = routesOmittedNote(routesOmittedCount, riskyOmittedCount);
+  if (omitted) notes.push(omitted);
 
   if (truncated || skipped > 0) {
     notes.push({
@@ -477,9 +494,14 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
 
     // Whether the customer's agent will be asked to reason over this audit,
     // so Coverage points to its AI check instead of offering a connection.
-    const reasoning = reasoningContext({ routes: routes.filter((r) => !notes.some((n) => n.path === r.path)), stack, tables, domain,
+    const pages = reasoningPages({ routes: routes.filter((r) => !notes.some((n) => n.path === r.path)), stack, tables, domain,
       files: archive.files.map((f) => f.path), liveFacts, possessionGates: gates, oneIdAccess: oneId,
       hasDatabase: options.hasDatabase ?? false });
+    const reasoning = pages[0] ?? null;
+    // Routes that reach the agent on some page, plus those reported as
+    // cross-tenant notes instead; pages are consecutive slices of the ranking.
+    const noted = routes.filter((r) => r.tables.length > 0 && notes.some((n) => n.path === r.path)).length;
+    const coveredBy = (n: number) => noted + pages.slice(0, n).reduce((sum, p) => sum + p.routes.length, 0);
     let agent: ApprovedAgent | null = null;
     try {
       agent = reasoning ? await approvedAgent(userId) : null;
@@ -492,8 +514,8 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       archive.truncated,
       archive.skipped,
       options.hasDatabase ?? false,
-      routesOmitted({ routes, stack, tables, domain, files: [] }),
-      riskyRoutesOmitted({ routes, stack, tables, domain, files: [] }),
+      routesOmitted({ routes, stack, tables, domain, files: [] }, coveredBy(pages.length)),
+      riskyRoutesOmitted({ routes, stack, tables, domain, files: [] }, coveredBy(pages.length)),
       liveFacts.length > 0 ? ["connected"] : [],
       // Reasoning did not run in this audit: always disclosed, never clean.
       true,
@@ -580,16 +602,24 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
     // (lib/intelligence/reasoning.ts). Best effort: the audit is already
     // durable, and Coverage says reasoning has not run until an answer is
     // verified and admitted.
-    let taskId: string | null = null;
+    let taskIds: string[] = [];
     try {
-      taskId = await offerAuditReasoning({ userId, repositoryId, runId, commit, fullName, agent, context: reasoning,
+      taskIds = await offerAuditReasoning({ userId, repositoryId, runId, commit, fullName, agent, contexts: pages,
         contents: new Map(archive.files.map((f) => [f.path, f.content])) });
     } catch (err) {
       console.warn(`[audit] reasoning task not offered for ${runId}: ${err instanceof Error ? err.message : "unknown"}`);
     }
-    // Coverage said the agent was asked. If no task exists, say what is true.
-    if (agent && !taskId) {
-      const corrected = coverage.map((note) => (note.name === REASONING_NOTE ? reasoningNote(stack, "not_sent") : note));
+    // Coverage said the agent was asked about every page. If no task exists,
+    // or fewer pages than planned, say what is true.
+    if (agent && taskIds.length < pages.length) {
+      let corrected = taskIds.length === 0
+        ? coverage.map((note) => (note.name === REASONING_NOTE ? reasoningNote(stack, "not_sent") : note))
+        : coverage;
+      if (taskIds.length > 0) {
+        const covered = coveredBy(taskIds.length);
+        corrected = withRoutesOmitted(corrected, routesOmitted({ routes, stack, tables, domain, files: [] }, covered),
+          riskyRoutesOmitted({ routes, stack, tables, domain, files: [] }, covered));
+      }
       const { error: noteError } = await admin.from("audit_runs").update({ coverage: corrected }).eq("id", runId);
       if (noteError) console.error(`[audit] reasoning note not corrected for ${runId}: ${noteError.message}`);
     }

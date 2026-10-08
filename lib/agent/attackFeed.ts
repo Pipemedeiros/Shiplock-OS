@@ -29,12 +29,14 @@ const arrayAt = (value: unknown, key: string): unknown[] => {
 const expired = (t: AttackTask, now: number) => t.status === "pending" && Boolean(t.expires_at) && Date.parse(t.expires_at!) <= now;
 
 export function attackFeed(tasks: readonly AttackTask[], now = Date.now()): AttackFeed {
-  const reasoning = tasks.find((t) => t.kind === "attack_reasoning");
-  if (!reasoning) return { phase: "not_offered", proposed: 0, steps: [] };
-  if (reasoning.status === "pending" && !expired(reasoning, now)) return { phase: "waiting_for_agent", proposed: 0, steps: [] };
-  if (reasoning.status !== ANSWERED) return { phase: "agent_unavailable", proposed: 0, steps: [] };
+  // One reasoning task per page of the route inventory (2026-10-08).
+  const pages = tasks.filter((t) => t.kind === "attack_reasoning");
+  if (pages.length === 0) return { phase: "not_offered", proposed: 0, steps: [] };
+  const answered = pages.filter((t) => t.status === ANSWERED);
+  const pageWaits = pages.some((t) => t.status === "pending" && !expired(t, now));
+  if (answered.length === 0) return { phase: pageWaits ? "waiting_for_agent" : "agent_unavailable", proposed: 0, steps: [] };
 
-  const proposals = (arrayAt(reasoning.result, "admitted") as Proposal[])
+  const proposals = answered.flatMap((page) => arrayAt(page.result, "admitted") as Proposal[])
     .filter((p) => typeof p.entry === "string" && typeof p.title === "string") as { entry: string; title: string }[];
   // Each proposal's state, from the verification task that tested it.
   const states = new Map<string, AttackStepState>();
@@ -51,5 +53,5 @@ export function attackFeed(tasks: readonly AttackTask[], now = Date.now()): Atta
   }
   const steps = proposals.map((p) => ({ entry: p.entry, title: p.title,
     state: states.get(`${p.entry}\u0000${p.title}`) ?? "could_not_tell" as AttackStepState }));
-  return { phase: steps.some((s) => s.state === "checking") ? "checking" : "done", proposed: proposals.length, steps };
+  return { phase: pageWaits || steps.some((s) => s.state === "checking") ? "checking" : "done", proposed: proposals.length, steps };
 }

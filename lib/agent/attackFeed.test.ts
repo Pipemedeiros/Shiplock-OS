@@ -56,3 +56,16 @@ describe("attackFeed", () => {
       [{ id: "0", verdict: "unverified" }])], now).steps[0].state).toBe("could_not_tell");
   });
 });
+
+// Felipe 2026-10-08: one reasoning task per page of the route inventory.
+describe("attackFeed across pages", () => {
+  it("shows the attacks from every answered page and keeps checking while a page waits", () => {
+    const a = attack("/api/orders", "Any user reads every order"), b = attack("/api/users", "Anyone deletes a user");
+    const feed = attackFeed([reasoning("proposal_received", [a]), reasoning("proposal_received", [b]), reasoning("pending")], now);
+    expect(feed.proposed).toBe(2);
+    expect(feed.steps.map((s) => s.entry)).toEqual(["/api/orders", "/api/users"]);
+    expect(feed.phase).toBe("checking");
+    expect(attackFeed([reasoning("pending"), reasoning("unavailable")], now).phase).toBe("waiting_for_agent");
+    expect(attackFeed([reasoning("unavailable"), reasoning("pending", [], earlier)], now).phase).toBe("agent_unavailable");
+  });
+});

@@ -125,7 +125,7 @@ export const getOpenFindings = cache(async (userId: string): Promise<DashboardFi
 
 /**
  * The customer agent's attack tasks for the newest audit that has any (A3):
- * its reasoning task and the verification tasks under it. Service role, scoped
+ * its reasoning tasks (one per page) and the verification tasks under them. Service role, scoped
  * to the user, bounded.
  */
 export async function getAttackTasks(userId: string): Promise<AttackTask[]> {
@@ -136,7 +136,7 @@ export async function getAttackTasks(userId: string): Promise<AttackTask[]> {
   const runId = (newest as Array<{ audit_run_id?: string }> | null)?.[0]?.audit_run_id;
   if (!runId) return [];
   const { data } = await admin.from("intelligence_tasks").select("id, kind, status, expires_at, result, context")
-    .eq("user_id", userId).eq("audit_run_id", runId).in("kind", ["attack_reasoning", "attack_verification"]).limit(50);
+    .eq("user_id", userId).eq("audit_run_id", runId).in("kind", ["attack_reasoning", "attack_verification"]).limit(200);
   return ((data ?? []) as AttackTask[]);
 }
 

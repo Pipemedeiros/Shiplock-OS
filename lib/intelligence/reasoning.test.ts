@@ -12,7 +12,7 @@ vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ rpc: mocks.rpc, fr
   return chain;
 } }) }));
 
-import { approvedAgent, offerAuditReasoning, reasoningContext, submitReasoningResult, submitVerificationResult, taskBrief,
+import { approvedAgent, MAX_REASONING_PAGES, offerAuditReasoning, reasoningContext, reasoningPages, submitReasoningResult, submitVerificationResult, taskBrief,
   verificationBatches, type ReasoningContext, type ReasoningTask } from "./reasoning";
 
 const hash = (s: string) => createHash("sha256").update(s).digest("hex");
@@ -78,13 +78,65 @@ describe("reasoningContext", () => {
   });
 });
 
+// Felipe 2026-10-08: "why would we not cover something?" A data route the
+// agent never sees is a hole we cannot find. The ranked inventory is split
+// into consecutive pages of MAX_PROMPT_ROUTES; nothing is dropped below the
+// page bound, and each page is its own task.
+describe("reasoningPages", () => {
+  const many = (n: number) => Array.from({ length: n }, (_, i) => route({ path: `/api/r${String(i).padStart(3, "0")}`,
+    file: `app/api/r${i}/route.ts` }));
+  const pagesOf = (routes: RouteFact[]) => reasoningPages({ routes, stack: next, tables: ["orders"], files: routes.map((r) => r.file),
+    liveFacts: [], possessionGates: new Map(), oneIdAccess: new Map(), hasDatabase: false });
+
+  it("covers every data route once, in ranked order, sixty to a page", () => {
+    const pages = pagesOf(many(130));
+    expect(pages.map((p) => p.routes.length)).toEqual([60, 60, 10]);
+    const seen = pages.flatMap((p) => p.routes.map((r) => r.path));
+    expect(new Set(seen).size).toBe(130);
+    expect(seen).toEqual([...seen].sort());
+    for (const page of pages) for (const r of page.routes) expect(page.prompt).toContain(`${r.path} id=`);
+    expect(pages[0]).toEqual(reasoningContext({ routes: many(130), stack: next, tables: ["orders"], files: many(130).map((r) => r.file),
+      liveFacts: [], possessionGates: new Map(), oneIdAccess: new Map(), hasDatabase: false }));
+  });
+
+  it("moves what does not fit in a page's bytes to the next page instead of dropping it", () => {
+    const via = Array.from({ length: 12 }, (_, i) => `packages/shared/src/a/very/long/module/path/for/size/number-${i}/index.ts`);
+    const routes = Array.from({ length: 150 }, (_, i) => route({ path: `/api/resource-${String(i).padStart(3, "0")}/[id]/sub/[sub]/x`,
+      file: `app/api/resource-${i}/[id]/sub/[sub]/x/route.ts`, via: via.map((v) => `${v}-${i}`), tables: ["orders", "users", "invoices"] }));
+    const pages = pagesOf(routes);
+    for (const page of pages) expect(Buffer.byteLength(JSON.stringify(page))).toBeLessThanOrEqual(180_000);
+    expect(pages.flatMap((p) => p.routes).length).toBe(150);
+  });
+
+  it("stops at the page bound, so a job stays bounded and the rest is disclosed", () => {
+    const pages = pagesOf(many(MAX_REASONING_PAGES * 60 + 5));
+    expect(pages).toHaveLength(MAX_REASONING_PAGES);
+    expect(MAX_REASONING_PAGES * 60).toBeGreaterThanOrEqual(1000);
+  });
+});
+
 describe("offerAuditReasoning", () => {
   const agent = { host: "claude-code" as const, runTokenBudget: 50000 };
   const offer = (approved: typeof agent | null = agent) => offerAuditReasoning({ userId: user, repositoryId: repo, runId: run, commit,
-    fullName: "acme/app", context: ctx, contents: new Map([[handler, source]]), agent: approved });
+    fullName: "acme/app", contexts: [ctx], contents: new Map([[handler, source]]), agent: approved });
+
+  it("creates one reasoning task per page, the first keyed by the audit alone", async () => {
+    const second = { ...ctx, routes: [route({ path: "/api/second" })] };
+    expect(await offerAuditReasoning({ userId: user, repositoryId: repo, runId: run, commit, fullName: "acme/app",
+      contexts: [ctx, second], contents: new Map([[handler, source]]), agent })).toEqual([taskId, taskId]);
+    expect(mocks.rpc.mock.calls.map(([, a]) => a.p_key)).toEqual([`reason:${run}`, `reason:${run}:2`]);
+    expect(mocks.rpc.mock.calls[1][1].p_instruction).toMatch(/part 2 of 2/);
+  });
+
+  it("stops creating pages when the monthly limit is reached, keeping what was created", async () => {
+    mocks.rpc.mockResolvedValueOnce({ data: taskId, error: null }).mockResolvedValueOnce({ data: null, error: { message: "intelligence budget exhausted" } });
+    expect(await offerAuditReasoning({ userId: user, repositoryId: repo, runId: run, commit, fullName: "acme/app",
+      contexts: [ctx, ctx, ctx], contents: new Map([[handler, source]]), agent })).toEqual([taskId]);
+    expect(mocks.rpc).toHaveBeenCalledTimes(2);
+  });
 
   it("creates one reasoning task per audit for the approved host, hashing handlers from the audit's own archive", async () => {
-    expect(await offer()).toBe(taskId);
+    expect(await offer()).toEqual([taskId]);
     const [name, args] = mocks.rpc.mock.calls[0];
     expect(name).toBe("create_audit_reasoning_task");
     expect(args).toMatchObject({ p_user: user, p_repository: repo, p_run: run, p_commit: commit, p_host: "claude-code",
@@ -101,13 +153,13 @@ describe("offerAuditReasoning", () => {
       expect(await approvedAgent(user)).toBeNull();
     }
     expect(await approvedAgent(user)).toEqual(agent);
-    expect(await offer(null)).toBeNull();
+    expect(await offer(null)).toEqual([]);
     expect(mocks.rpc).not.toHaveBeenCalled();
   });
 
   it("treats a monthly limit as no task, and any other failure as an error", async () => {
     mocks.rpc.mockResolvedValueOnce({ data: null, error: { message: "intelligence budget exhausted" } });
-    expect(await offer()).toBeNull();
+    expect(await offer()).toEqual([]);
     mocks.rpc.mockResolvedValueOnce({ data: null, error: { message: "audit unavailable" } });
     await expect(offer()).rejects.toThrow("reasoning_task_not_created");
   });

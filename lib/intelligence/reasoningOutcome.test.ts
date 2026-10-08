@@ -72,3 +72,32 @@ describe("applying the outcome to a run's coverage", () => {
     expect(withReasoningOutcome(notes, [reasoning("pending")], NOW)).toBe(notes);
   });
 });
+
+// Felipe 2026-10-08: every data route is paged to the agent, one task per
+// page. The note sums every answered page and says which parts are still
+// waiting or were never answered; one answered page is not the whole audit.
+describe("reasoning outcome note across pages", () => {
+  it("waits while every page waits, and sums answered pages", () => {
+    expect(reasoningOutcomeNote([reasoning("pending"), reasoning("pending")], NOW)).toBeNull();
+    const note = reasoningOutcomeNote([
+      reasoning("proposal_received", { admitted: [{}], rejected: 1 }),
+      reasoning("proposal_received", { admitted: [{}, {}], rejected: 0 }),
+      verify("proposal_received", { confirmed: 2, refuted: 1, unverified: 0 }),
+    ], NOW)!;
+    expect(note.why).toMatch(/3 attack paths/);
+    expect(note.why).not.toMatch(/parts of your route inventory/);
+  });
+
+  it("says when some parts are still waiting or were not answered", () => {
+    const waiting = reasoningOutcomeNote([reasoning("proposal_received", { admitted: [], rejected: 2 }), reasoning("pending")], NOW)!;
+    expect(waiting.why).toMatch(/1 of 2 parts of your route inventory have an answer so far/);
+    const lost = reasoningOutcomeNote([reasoning("proposal_received", { admitted: [], rejected: 0 }), reasoning("pending", null, earlier)], NOW)!;
+    expect(lost.why).toMatch(/1 was not answered/);
+    expect(lost.upgrade).toBe("Run the audit again");
+    expect(JSON.stringify([waiting, lost])).not.toMatch(/[–—]/);
+  });
+
+  it("says the agent did not answer only when no page was answered", () => {
+    expect(reasoningOutcomeNote([reasoning("unavailable"), reasoning("pending", null, earlier)], NOW)!.why).toMatch(/did not answer|could not answer/);
+  });
+});

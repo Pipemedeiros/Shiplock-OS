@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RouteFact } from "@/lib/graph/routeInventory";
-import { MAX_PROMPT_ROUTES, SYSTEM, buildPrompt, extractJsonArray, rankRoutes, routesOmitted,
+import { MAX_PROMPT_ROUTES, SYSTEM, buildPrompt, extractJsonArray, rankRoutes, riskyRoutesOmitted, routesOmitted,
   salvageJsonObjects,
   nothingToAsk,
 } from "./attack";
@@ -171,6 +171,15 @@ describe("what survives truncation", () => {
   it("counts what did not fit, so coverage can say so", () => {
     const many = Array.from({ length: MAX_PROMPT_ROUTES + 7 }, (_, i) => r({ path: `/api/${i}` }));
     expect(routesOmitted({ routes: many, stack: emptyStack, tables: [], files: [] })).toBe(7);
+  });
+
+  it("counts only what no reasoning page covered when the inventory is paged", () => {
+    const many = Array.from({ length: 137 }, (_, i) => r({ path: `/api/${i}`, ownershipFiltered: false }));
+    const input = { routes: many, stack: emptyStack, tables: [], files: [] };
+    expect(routesOmitted(input, 137)).toBe(0);
+    expect(routesOmitted(input, 120)).toBe(17);
+    expect(riskyRoutesOmitted(input, 137)).toBe(0);
+    expect(riskyRoutesOmitted(input, 120)).toBe(17);
   });
 });
 
