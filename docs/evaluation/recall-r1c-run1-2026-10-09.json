@@ -1,0 +1,226 @@
+{
+ "experiment": "recall-r1c-run1-2026-10-09",
+ "head": "0574c56",
+ "manifest": "docs/evaluation/plants-r1c-2026-10-08.json",
+ "plants": 14,
+ "caught": 13,
+ "recall": 0.9285714285714286,
+ "lower95": 0.7032657610511253,
+ "funnel": {
+  "factsFlag": 3,
+  "reasoningTask": 14,
+  "inBrief": 14,
+  "proposed": 13,
+  "admitted": 13,
+  "shownAtEntry": 13,
+  "confirmed": 13
+ },
+ "byOperator": {
+  "remove_auth_guard": {
+   "plants": 2,
+   "caught": 1,
+   "recall": 0.5
+  },
+  "remove_owner_scope": {
+   "plants": 12,
+   "caught": 12,
+   "recall": 1
+  }
+ },
+ "rows": [
+  {
+   "id": "c6-trustlend-stellar--plant",
+   "entry": "/api/lender/transactions",
+   "operator": "remove_owner_scope",
+   "factsFlag": false,
+   "reasoningTask": true,
+   "inBrief": true,
+   "proposed": 1,
+   "admitted": 1,
+   "shown": true,
+   "caught": true,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "c6-auditsystems--plant",
+   "entry": "/api/admin/billing-events",
+   "operator": "remove_auth_guard",
+   "factsFlag": true,
+   "reasoningTask": true,
+   "inBrief": true,
+   "proposed": 1,
+   "admitted": 1,
+   "shown": true,
+   "caught": true,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "c6-studymate-ai--plant",
+   "entry": "/api/chat",
+   "operator": "remove_owner_scope",
+   "factsFlag": false,
+   "reasoningTask": true,
+   "inBrief": true,
+   "proposed": 1,
+   "admitted": 1,
+   "shown": true,
+   "caught": true,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "c6-ose--plant",
+   "entry": "/api/ai/chat/sessions/[id]",
+   "operator": "remove_owner_scope",
+   "factsFlag": false,
+   "reasoningTask": true,
+   "inBrief": true,
+   "proposed": 1,
+   "admitted": 1,
+   "shown": true,
+   "caught": true,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "c6-nextjs-fullstack-template--plant",
+   "entry": "/api/todos/[id]",
+   "operator": "remove_owner_scope",
+   "factsFlag": false,
+   "reasoningTask": true,
+   "inBrief": true,
+   "proposed": 1,
+   "admitted": 1,
+   "shown": true,
+   "caught": true,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "c6-email-campaign-automation-saas--plant",
+   "entry": "/api/collections/[id]/items",
+   "operator": "remove_owner_scope",
+   "factsFlag": true,
+   "reasoningTask": true,
+   "inBrief": true,
+   "proposed": 1,
+   "admitted": 1,
+   "shown": true,
+   "caught": true,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "c6-applymate-jobcopilot--plant",
+   "entry": "/api/agent/application-tasks",
+   "operator": "remove_owner_scope",
+   "factsFlag": false,
+   "reasoningTask": true,
+   "inBrief": true,
+   "proposed": 1,
+   "admitted": 1,
+   "shown": true,
+   "caught": true,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "c6-hub-agentes-ia--plant",
+   "entry": "/api/chat",
+   "operator": "remove_owner_scope",
+   "factsFlag": false,
+   "reasoningTask": true,
+   "inBrief": true,
+   "proposed": 1,
+   "admitted": 1,
+   "shown": true,
+   "caught": true,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "c6-permit-forge--plant",
+   "entry": "/api/permits/[id]/certificate",
+   "operator": "remove_owner_scope",
+   "factsFlag": false,
+   "reasoningTask": true,
+   "inBrief": true,
+   "proposed": 1,
+   "admitted": 1,
+   "shown": true,
+   "caught": true,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "c6-cogni--plant",
+   "entry": "/api/agents/audio-overview",
+   "operator": "remove_owner_scope",
+   "factsFlag": false,
+   "reasoningTask": true,
+   "inBrief": true,
+   "proposed": 1,
+   "admitted": 1,
+   "shown": true,
+   "caught": true,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "c6-maildesk--plant",
+   "entry": "/api/emails/send",
+   "operator": "remove_owner_scope",
+   "factsFlag": false,
+   "reasoningTask": true,
+   "inBrief": true,
+   "proposed": 1,
+   "admitted": 1,
+   "shown": true,
+   "caught": true,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "c6-store-ease--plant",
+   "entry": "/api/orders/me",
+   "operator": "remove_owner_scope",
+   "factsFlag": false,
+   "reasoningTask": true,
+   "inBrief": true,
+   "proposed": 1,
+   "admitted": 1,
+   "shown": true,
+   "caught": true,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "c6-corpus-r12--plant",
+   "entry": "/api/instructor/assessments/[id]",
+   "operator": "remove_auth_guard",
+   "factsFlag": false,
+   "reasoningTask": true,
+   "inBrief": true,
+   "proposed": 0,
+   "admitted": 0,
+   "shown": false,
+   "caught": false,
+   "caughtOtherClass": false
+  },
+  {
+   "id": "c6-codevibe--plant",
+   "entry": "/api/mcp/servers/for-agent",
+   "operator": "remove_owner_scope",
+   "factsFlag": true,
+   "reasoningTask": true,
+   "inBrief": true,
+   "proposed": 1,
+   "admitted": 1,
+   "shown": true,
+   "caught": true,
+   "caughtOtherClass": false
+  }
+ ],
+ "method": "paged brief (17 page tasks for 14 repositories), one reasoning and one verifier subagent, Felipe's subscription; plants frozen in b13e976 before any agent run; the R1e rewording was committed before admission and never tuned on this set",
+ "misses": [
+  {
+   "id": "c6-corpus-r12--plant",
+   "stage": "not proposed (an ownership refusal removed from an instructor DELETE)"
+  }
+ ],
+ "combinedWithR1run3": {
+  "plants": 26,
+  "caught": 20,
+  "note": "R1 run 3 (7 of 12) and R1c run 1 (13 of 14) on current code; R1's 12 were used to develop R1b, R1d and R1e, R1c's 14 were not"
+ }
+}
