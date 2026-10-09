@@ -56,4 +56,6 @@ docs/audit/gate-census-witnesses.json
 # Reacquirable checksum-verified evaluation archives and raw per-run inputs.
 .cache/shiplock-corpus/
 .cache/step23-sql/
-docs/evaluation/runs/
+docs/evaluation/runs/*
+# A8's labeled batches (192 KB, no source): gate-total recomputes the gate from them.
+!docs/evaluation/runs/a8-corpus6-2026-10/
