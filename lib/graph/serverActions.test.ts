@@ -22,6 +22,33 @@ describe("findServerActionEntries", () => {
     ]);
   });
 
+  // A8 batch 6 (2026-10-09): a server component that only AWAITS an action
+  // on the server never sends its id to the browser, so anyone cannot call
+  // it. It exposes the action only by handing it over: a form or button
+  // action, or a prop to a client component.
+  it("does not count a server component that only calls the action on the server", () => {
+    const action = f("actions/contact.actions.ts", '"use server";\nexport async function getContactById(id) { return db.contact.find(id); }');
+    expect(findServerActionEntries([action,
+      f("app/dashboard/contact/[id]/page.tsx", 'import { getContactById } from "@/actions/contact.actions";\nexport default async function P({ params }) { const c = await getContactById(params.id); return <div>{c.name}</div>; }'),
+    ])).toEqual([]);
+    for (const use of ["<form action={getContactById} />", "<button formAction={getContactById} />", "<ContactView load={getContactById} />",
+      "<Plan api={{ load: getContactById }} />", "<Plan api={{ getContactById }} />", "<Plan list={[getContactById]} />"]) {
+      expect(findServerActionEntries([action,
+        f("app/contact/page.tsx", `import { getContactById } from "@/actions/contact.actions";\nexport default function P() { return ${use}; }`),
+      ]).map((e) => e.name)).toEqual(["getContactById"]);
+    }
+    // A component file without "use client" inherits the client boundary of
+    // whatever imports it (corpus-a's ui/modals/*.tsx call actions from hooks):
+    // only App Router page and layout files are known server components.
+    expect(findServerActionEntries([action,
+      f("ui/modals/contact-modal.tsx", 'import { getContactById } from "@/actions/contact.actions";\nexport function M() { const { execute } = useAction(getContactById); return null; }'),
+    ]).map((e) => e.name)).toEqual(["getContactById"]);
+    // A client component counts however it uses the action.
+    expect(findServerActionEntries([action,
+      f("components/Contact.tsx", '"use client";\nimport { getContactById } from "@/actions/contact.actions";\nexport function C() { getContactById(1); return null; }'),
+    ]).map((e) => e.name)).toEqual(["getContactById"]);
+  });
+
   it("does not count a helper imported only by server code or a route handler", () => {
     expect(findServerActionEntries([
       f("lib/helpers/enroll.ts", '"use server";\nexport async function enroll() {}'),
