@@ -266,7 +266,29 @@ describe("a claim contradicted by our own facts", () => {
   });
 
   it("refuses missing_authentication when we read a credential check", () => {
-    expect(judge({ attackClass: "missing_authentication" }, { authenticated: true }).allowed).toBe(false);
+    expect(judge({ attackClass: "missing_authentication" }, { authenticated: true, ownershipFiltered: true }).allowed).toBe(false);
+    expect(judge({ attackClass: "missing_authentication" }, { authenticated: false, machineGated: true }).allowed).toBe(false);
+  });
+
+  // R1 run 3 (2026-10-08): on corpus-ad the agent called a signed-in
+  // IDOR "readable without sign-in". Refusing it lost the hole that runs 1
+  // and 2 caught as authorization. On a route we read as signed in on every
+  // method and NOT narrowed to the caller, the true sentence is the
+  // authorization one; it goes to verification under neutral wording, never
+  // the model's false "without signing in".
+  it("rewords missing_authentication to missing_authorization on a signed-in route with nothing narrowing the query", () => {
+    const v = judge({ attackClass: "missing_authentication", title: "Anyone can read messages without signing in" },
+      { authenticated: true, ownershipFiltered: false, ownershipReadable: true });
+    expect(v).toMatchObject({ allowed: true, attackClass: "missing_authorization" });
+    const admitted = guardHypotheses([{ ...valid, attackClass: "missing_authentication", title: "Anyone can read messages without signing in",
+      consequence: "No sign-in is needed." }], reconWith({ authenticated: true, ownershipFiltered: false, ownershipReadable: true })).admitted;
+    expect(admitted).toHaveLength(1);
+    expect(admitted[0].attackClass).toBe("missing_authorization");
+    expect(`${admitted[0].title} ${admitted[0].consequence}`).not.toMatch(/without sign|no sign-in/i);
+    expect(`${admitted[0].title} ${admitted[0].consequence}`).not.toMatch(/[–—]/);
+    // Scoped or unreadable: still refused.
+    expect(judge({ attackClass: "missing_authentication" }, { authenticated: true, ownershipFiltered: true }).allowed).toBe(false);
+    expect(judge({ attackClass: "missing_authentication" }, { authenticated: true, ownershipFiltered: false, ownershipReadable: false }).allowed).toBe(false);
     expect(judge({ attackClass: "missing_authentication" }, { authenticated: false, machineGated: true }).allowed).toBe(false);
   });
 
@@ -274,7 +296,7 @@ describe("a claim contradicted by our own facts", () => {
     // `authenticated` is route-wide: one method's 401 kept it true on three of
     // four planted sign-in holes. Verification with quoted lines decides.
     expect(judge({ attackClass: "missing_authentication" }, { authenticated: true, unrefusedMethods: ["GET"] }).allowed).toBe(true);
-    expect(judge({ attackClass: "missing_authentication" }, { authenticated: true, unrefusedMethods: [] }).allowed).toBe(false);
+    expect(judge({ attackClass: "missing_authentication" }, { authenticated: true, ownershipFiltered: true, unrefusedMethods: [] }).allowed).toBe(false);
     expect(judge({ attackClass: "missing_authentication" },
       { authenticated: true, machineGated: true, unrefusedMethods: ["GET"] }).allowed).toBe(false);
   });

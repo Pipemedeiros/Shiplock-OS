@@ -97,7 +97,7 @@ export interface ReconIndex {
 }
 
 export type GuardVerdict =
-  | { allowed: true; attackClass: AttackClass; citedFacts: string[] }
+  | { allowed: true; attackClass: AttackClass; citedFacts: string[]; title?: string; consequence?: string }
   | { allowed: false; reason: string; unassessed?: string };
 
 const MAX_TITLE = 160;
@@ -337,6 +337,22 @@ export function judgeHypothesis(h: Hypothesis, recon: ReconIndex): GuardVerdict 
   // with no route at all -- there is nothing of ours for it to contradict.
   const gate = recon.possessionGates?.get(h.entry);
   const compat = compatibility(h.attackClass as AttackClass, recon.routes?.get(h.entry), gate);
+  // A SECOND REWORDING, also in one direction (R1 run 3, 2026-10-08). On a
+  // route we read as signed in on every method and NOT narrowed to the
+  // caller, "no sign-in needed" is wrong but "any signed-in user reaches
+  // rows that are not theirs" is what our own facts describe. Refusing it
+  // lost a planted IDOR that two earlier runs caught as authorization. The
+  // claim goes to verification as missing_authorization under neutral
+  // wording; the model's false sentence never reaches a founder.
+  const route = recon.routes?.get(h.entry);
+  if (!compat.ok && h.attackClass === "missing_authentication" && !gate && route && route.authenticated
+      && route.identityReadable && !route.machineGated && !(route.unrefusedMethods?.length)
+      && route.ownershipReadable && !route.ownershipFiltered) {
+    const tables = route.tables.slice(0, 4).join(", ") || "its data";
+    return { allowed: true, attackClass: "missing_authorization", citedFacts: verifiedFacts,
+      title: "Any signed-in user may reach rows that are not theirs",
+      consequence: `A signed-in caller reaches ${tables} through this route, and nothing we read narrows the query to their own rows.` };
+  }
   if (!compat.ok) {
     return {
       allowed: false,
@@ -419,6 +435,8 @@ export function guardHypotheses(raw: unknown, recon: ReconIndex): GuardResult {
         ...(item as Hypothesis),
         attackClass: verdict.attackClass,
         citedFacts: verdict.citedFacts,
+        ...(verdict.title ? { title: verdict.title } : {}),
+        ...(verdict.consequence ? { consequence: verdict.consequence } : {}),
       });
     } else {
       result.rejected.push({ hypothesis: item, reason: verdict.reason });

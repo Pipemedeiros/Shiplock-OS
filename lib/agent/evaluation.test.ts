@@ -42,7 +42,13 @@ describe("offline evaluation honesty", () => {
       entries: new Set(routes.map((route) => route.path)), files: new Set(files.map((file) => file.path)),
       tables: new Set(["invoices"]), routes: new Map(routes.map((route) => [route.path, route])),
     });
-    expect(result.admitted.map((hypothesis) => hypothesis.entry)).toEqual(["/api/open"]);
-    expect(result.rejected).toHaveLength(1);
+    // The guarded route is never admitted as anonymous. Since R1 run 3 the
+    // claim goes to verification as authorization (it reads every invoice
+    // with no owner filter), under neutral wording.
+    const asAnonymous = result.admitted.filter((h) => h.attackClass === "missing_authentication").map((h) => h.entry);
+    expect(asAnonymous).toEqual(["/api/open"]);
+    const guarded = result.admitted.find((h) => h.entry === "/api/guarded");
+    expect(guarded).toMatchObject({ attackClass: "missing_authorization", title: "Any signed-in user may reach rows that are not theirs" });
+    expect(result.rejected).toHaveLength(0);
   });
 });
