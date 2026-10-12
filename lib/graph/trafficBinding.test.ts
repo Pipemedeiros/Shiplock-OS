@@ -39,6 +39,8 @@ describe("traffic reaches a repository only through its bound sites (2F)", () =>
     expect(input.trafficHotPaths).toEqual([{ path: "/auth/v1/token", suspiciousRequests: 25 }, { path: "/api/orders", suspiciousRequests: 3 }]);
     expect(state.filters).toHaveBeenCalledWith("traffic_events", "repository_id", "r1");
     expect(state.filters).toHaveBeenCalledWith("traffic_route_observations", "repository_id", "r1");
+    // X2: the snippet's own rows are already counted from traffic_events.
+    expect(state.filters).toHaveBeenCalledWith("traffic_route_observations", "source", "supabase");
     expect(state.reads).not.toHaveBeenCalledWith("graph_facts");
   });
 

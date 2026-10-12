@@ -34,7 +34,42 @@ export interface TrafficHotPath {
 export async function collectTrafficFacts(userId: string, repositoryId?: string): Promise<TrafficHotPath[]> {
   const admin = getSupabaseAdmin();
   const since = new Date(Date.now() - WINDOW_HOURS * 60 * 60 * 1000).toISOString();
+  const counts = await snippetCounts(userId, repositoryId);
 
+  // Provider-log observations for this repository (2F-4: Supabase gateway),
+  // already judged per source upstream; merged with snippet counts per path.
+  if (repositoryId) {
+    const { data: observed } = await admin
+      .from("traffic_route_observations")
+      .select("path, suspicious_requests")
+      .eq("user_id", userId)
+      .eq("repository_id", repositoryId)
+      // The snippet's own rows (X2) are already counted from traffic_events.
+      .eq("source", "supabase")
+      .gte("observed_at", since)
+      .limit(MAX_PATHS * 2);
+    for (const row of (observed ?? []) as { path?: unknown; suspicious_requests?: unknown }[]) {
+      if (typeof row.path !== "string" || typeof row.suspicious_requests !== "number") continue;
+      counts.set(row.path, (counts.get(row.path) ?? 0) + row.suspicious_requests);
+    }
+  }
+
+  return top(counts);
+}
+
+/**
+ * Snippet requests per path from sources already flagged, bound to this
+ * repository through its traffic site when one is given (2F-2a); without one,
+ * the account-scoped (legacy) view. Also what X2 writes as the repository's
+ * snippet observations, so the rate-limit offer sees the snippet too.
+ */
+export async function collectSnippetHotPaths(userId: string, repositoryId?: string): Promise<TrafficHotPath[]> {
+  return top(await snippetCounts(userId, repositoryId));
+}
+
+async function snippetCounts(userId: string, repositoryId?: string): Promise<Map<string, number>> {
+  const admin = getSupabaseAdmin();
+  const since = new Date(Date.now() - WINDOW_HOURS * 60 * 60 * 1000).toISOString();
   const [alerted, blocked] = await Promise.all([
     admin
       .from("traffic_alert_log")
@@ -45,13 +80,13 @@ export async function collectTrafficFacts(userId: string, repositoryId?: string)
     admin.from("traffic_blocklist").select("source_id").eq("user_id", userId).limit(MAX_SOURCES),
   ]);
 
+  const counts = new Map<string, number>();
   const suspicious = new Set<string>();
   for (const row of [...(alerted.data ?? []), ...(blocked.data ?? [])]) {
     const id = (row as { source_id?: unknown }).source_id;
     if (typeof id === "string") suspicious.add(id);
   }
 
-  const counts = new Map<string, number>();
   if (suspicious.size > 0) {
     // With a repository, count only events bound to it through a traffic site
     // (2F-2a); without one, this is the account-scoped (legacy) view.
@@ -69,25 +104,10 @@ export async function collectTrafficFacts(userId: string, repositoryId?: string)
       counts.set(row.path, (counts.get(row.path) ?? 0) + 1);
     }
   }
-
-  // Provider-log observations for this repository (2F-4: Supabase gateway),
-  // already judged per source upstream; merged with snippet counts per path.
-  if (repositoryId) {
-    const { data: observed } = await admin
-      .from("traffic_route_observations")
-      .select("path, suspicious_requests")
-      .eq("user_id", userId)
-      .eq("repository_id", repositoryId)
-      .gte("observed_at", since)
-      .limit(MAX_PATHS * 2);
-    for (const row of (observed ?? []) as { path?: unknown; suspicious_requests?: unknown }[]) {
-      if (typeof row.path !== "string" || typeof row.suspicious_requests !== "number") continue;
-      counts.set(row.path, (counts.get(row.path) ?? 0) + row.suspicious_requests);
-    }
-  }
-
-  return [...counts.entries()]
-    .map(([path, suspiciousRequests]) => ({ path, suspiciousRequests }))
-    .sort((a, b) => b.suspiciousRequests - a.suspiciousRequests || a.path.localeCompare(b.path))
-    .slice(0, MAX_PATHS);
+  return counts;
 }
+
+const top = (counts: Map<string, number>): TrafficHotPath[] => [...counts.entries()]
+  .map(([path, suspiciousRequests]) => ({ path, suspiciousRequests }))
+  .sort((a, b) => b.suspiciousRequests - a.suspiciousRequests || a.path.localeCompare(b.path))
+  .slice(0, MAX_PATHS);

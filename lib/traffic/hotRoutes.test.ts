@@ -40,4 +40,13 @@ describe("getHotRoutes (Q12-4)", () => {
     rows.user_profiles = { github_installation_id: null };
     expect(await getHotRoutes("u1")).toEqual({});
   });
+  // X2: the snippet and the gateway are separate request streams for the
+  // same route; one offer per route carries both counts.
+  it("adds the snippet's and the gateway's counts for one route into one offer", async () => {
+    rows.traffic_route_observations = [
+      { repository_id: "r1", path: "/api/orders/1", suspicious_requests: 30 },
+      { repository_id: "r1", path: "/api/orders/1", suspicious_requests: 12 },
+    ];
+    expect(await getHotRoutes("u1")).toEqual({ r1: [{ file: "app/api/orders/[id]/route.ts", pattern: "/api/orders/:id", suspiciousRequests: 42 }] });
+  });
 });

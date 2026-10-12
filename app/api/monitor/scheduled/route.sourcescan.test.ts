@@ -15,6 +15,7 @@ const purgeIntelligenceMock = vi.fn();
 const pruneSnapshotsMock = vi.fn();
 const enqueueJobMock = vi.fn();
 const supersedeMock = vi.fn();
+const syncSnippetMock = vi.fn();
 
 let tableRows: Record<string, unknown[]> = {};
 
@@ -36,6 +37,7 @@ vi.mock("@/lib/graph/graphRun", () => ({
   saveFacts: saveFactsMock,
 }));
 vi.mock("@/lib/traffic/graphFacts", () => ({ collectTrafficFacts: collectTrafficFactsMock }));
+vi.mock("@/lib/traffic/snippetObservations", () => ({ syncSnippetObservations: syncSnippetMock }));
 vi.mock("@/lib/monitoring/digest", () => ({ sendWeeklyDigest: sendWeeklyDigestMock }));
 
 vi.mock("@/lib/supabase", () => ({
@@ -92,6 +94,24 @@ describe("GET /api/monitor/scheduled — durable source admission", () => {
     pruneSnapshotsMock.mockResolvedValue({ ok: true, pruned: 5 });
     freshnessMock.mockResolvedValue({ admitted: 3, failed: 0 });
     enqueueJobMock.mockResolvedValue("11111111-1111-4111-8111-111111111111");
+    syncSnippetMock.mockResolvedValue(1);
+  });
+
+  // X2 (2026-10-12): each selected repository's snippet traffic is written as
+  // observations before its graph job, so the rate-limit offer sees it; one
+  // repository's failure never stops the others or the graph admission.
+  it("records each repository's snippet traffic before its graph job, failing soft", async () => {
+    tableRows = { user_profiles: [{ id: "u1" }], repositories: [{ id: "r1" }, { id: "r2" }] };
+    syncSnippetMock.mockRejectedValueOnce(new Error("snippet observations not written: invalid traffic observations"));
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const body = await (await GET(request())).json();
+      expect(syncSnippetMock).toHaveBeenCalledWith("u1", "r1");
+      expect(syncSnippetMock).toHaveBeenCalledWith("u1", "r2");
+      expect(enqueueJobMock).toHaveBeenCalledWith("u1", "r1", "graph", expect.any(String));
+      expect(enqueueJobMock).toHaveBeenCalledWith("u1", "r2", "graph", expect.any(String));
+      expect(body).toMatchObject({ snippetObservationsFailed: 1, graphJobsAdmitted: 2 });
+    } finally { log.mockRestore(); }
   });
 
   it("authenticates before any admission or legacy side effect", async () => {

@@ -6,6 +6,7 @@ import { admitFreshnessRechecks } from "@/lib/monitoring/freshness";
 import { purgeIntelligenceTasks } from "@/lib/intelligence/retention";
 import { saveFacts } from "@/lib/graph/graphRun";
 import { collectTrafficFacts } from "@/lib/traffic/graphFacts";
+import { syncSnippetObservations } from "@/lib/traffic/snippetObservations";
 import { sendWeeklyDigest } from "@/lib/monitoring/digest";
 import { withPaidFilter, BILLING_ENABLED } from "@/lib/access";
 import {
@@ -81,6 +82,7 @@ export async function GET(req: NextRequest) {
 
   let graphJobsAdmitted = 0;
   let graphAdmissionsFailed = 0;
+  let snippetObservationsFailed = 0;
   const graphDay = new Date().toISOString().slice(0, 10);
   for (const profile of paidUsers ?? []) {
     try {
@@ -99,6 +101,16 @@ export async function GET(req: NextRequest) {
         .limit(50);
       if (repositoriesError) throw new Error("Selected repositories could not be read");
       for (const repository of repositories ?? []) {
+        // X2: the snippet's flagged traffic becomes this repository's
+        // observations, so the rate-limit offer sees it. Failing soft: the
+        // previous set stays, and the graph job is still admitted.
+        try {
+          await syncSnippetObservations(profile.id as string, repository.id as string);
+        } catch (err) {
+          snippetObservationsFailed++;
+          console.error(`[monitor/scheduled] snippet observations failed for user ${profile.id}:`,
+            err instanceof Error ? err.message : err);
+        }
         try {
           await enqueueJob(
             profile.id as string,
@@ -176,6 +188,7 @@ export async function GET(req: NextRequest) {
     intelligenceAdmissionLimited: intelligenceAdmission.limited,
     graphJobsAdmitted,
     graphAdmissionsFailed,
+    snippetObservationsFailed,
     digestsSent,
     // -1 means the sweep is switched off with billing, not that it found nobody.
     expired,
