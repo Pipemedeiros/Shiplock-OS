@@ -1,7 +1,7 @@
 import { guardHypotheses, safeConsequence, type AttackClass, type Hypothesis } from "@/lib/agent/attackGuard";
 import { buildFindings, type AgentFinding } from "@/lib/agent/findings";
 import { applyVerdicts, checkVerdicts, type RawVerdict, type VerifyItem } from "@/lib/agent/verify";
-import { schemaFiles, taskBrief, verificationBatches, type ReasoningContext, type ReasoningTask } from "@/lib/intelligence/reasoning";
+import { schemaFiles, taskBrief, verificationBatches, verifyItems, type ReasoningContext, type ReasoningTask } from "@/lib/intelligence/reasoning";
 
 /**
  * The customer agent's path, offline (plan item H, option B; Felipe
@@ -42,11 +42,9 @@ export function verificationTasks(context: ReasoningContext, admitted: (Hypothes
     const sources = batch.files.map((path) => ({ path, content: contentOf(path) }))
       .filter((s): s is { path: string; content: string } => s.content !== null);
     if (sources.length === 0) continue;
-    const items = batch.hypotheses.map((h, i): VerifyItem => ({ id: String(i), entry: h.entry, attackClass: h.attackClass,
-      title: h.title, consequence: h.consequence, citedFiles: h.citedFiles ?? [],
-      handlerFile: context.routes.find((r) => r.path === h.entry)?.file }));
-    tasks.push({ index, hypotheses: batch.hypotheses, items, sources,
-      brief: brief("attack_verification", { version: 1, hypotheses: batch.hypotheses, items }) });
+    const { hypotheses, items } = verifyItems(batch.hypotheses, context.routes, context.liveFacts);
+    tasks.push({ index, hypotheses, items, sources,
+      brief: brief("attack_verification", { version: 1, hypotheses, items }) });
   }
   return tasks;
 }

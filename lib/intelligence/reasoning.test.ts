@@ -13,7 +13,7 @@ vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ rpc: mocks.rpc, fr
 } }) }));
 
 import { approvedAgent, MAX_REASONING_PAGES, offerAuditReasoning, reasoningContext, reasoningPages, submitReasoningResult, submitVerificationResult, taskBrief,
-  verificationBatches, type ReasoningContext, type ReasoningTask } from "./reasoning";
+  verificationBatches, verifyItems, type ReasoningContext, type ReasoningTask } from "./reasoning";
 
 const hash = (s: string) => createHash("sha256").update(s).digest("hex");
 const user = "11111111-1111-4111-8111-111111111111", repo = "22222222-2222-4222-8222-222222222222";
@@ -307,6 +307,43 @@ describe("verificationBatches", () => {
     }
     expect(batches.flatMap((b) => b.hypotheses)).toHaveLength(12);
     expect(verificationBatches(many.slice(0, 1), routes)[0].files).toEqual(["app/api/r0/route.ts"]);
+  });
+});
+
+// X1 (2026-10-12): the live database reaches the verifier. Facts read from
+// the connected database for the tables a claim's route reaches go with the
+// claim, so a row policy is an observation instead of "unverified"; an open
+// table also becomes a cited live claim on the finding.
+describe("verifyItems", () => {
+  const facts = [
+    { id: "db:public.orders:rls-off", statement: "row security is off on public.orders" },
+    { id: "db:public.users:rls-filtered", statement: "row security is on for public.users" },
+    { id: "db:public.notes:open-policy", statement: "a policy on public.notes matches every row" },
+    { id: "vercel:project:p:env:STRIPE_SECRET_KEY", statement: "STRIPE_SECRET_KEY set in production" },
+  ];
+  const routes = [route({ path: "/api/orders", tables: ["orders", "users"] })];
+  const h = { ...hypothesis, attackClass: "missing_authentication" as const };
+
+  it("lists the facts for the route's tables with the claim and cites only the open ones", () => {
+    const out = verifyItems([h], routes, facts);
+    expect(out.items[0].facts?.map((f) => f.id)).toEqual(["db:public.orders:rls-off", "db:public.users:rls-filtered"]);
+    expect((out.hypotheses[0] as { citedFacts?: string[] }).citedFacts).toEqual(["db:public.orders:rls-off"]);
+  });
+
+  it("keeps a fact the agent cited, and adds nothing where nothing was read", () => {
+    const cited = { ...h, citedFacts: ["vercel:project:p:env:STRIPE_SECRET_KEY"] };
+    expect(verifyItems([cited], routes, facts).items[0].facts?.map((f) => f.id))
+      .toEqual(["vercel:project:p:env:STRIPE_SECRET_KEY", "db:public.orders:rls-off", "db:public.users:rls-filtered"]);
+    const none = verifyItems([h], routes, []);
+    expect(none.items[0]).not.toHaveProperty("facts");
+    expect(none.hypotheses[0]).toBe(h);
+  });
+
+  it("shows the verifier the facts in its brief", () => {
+    const { hypotheses, items } = verifyItems([h], routes, facts);
+    const brief = taskBrief(reasoningTask({ kind: "attack_verification", context: { version: 1, hypotheses, items } }));
+    expect(brief.claims?.[0]).toMatchObject({ facts: [{ id: "db:public.orders:rls-off" }, { id: "db:public.users:rls-filtered" }] });
+    expect(brief.system).toMatch(/connected database/);
   });
 });
 

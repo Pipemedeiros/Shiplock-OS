@@ -205,7 +205,8 @@ export function taskBrief(task: ReasoningTask) {
   }
   const context = verificationContextSchema.parse(task.context);
   const claims = (context.items as VerifyItem[]).map((item) => ({ id: item.id, entry: item.entry, attackClass: item.attackClass,
-    claim: `${item.title}. ${item.consequence}`, handlerFile: item.handlerFile ?? null, citedFiles: item.citedFiles }));
+    claim: `${item.title}. ${item.consequence}`, handlerFile: item.handlerFile ?? null, citedFiles: item.citedFiles,
+    ...(item.facts?.length ? { facts: item.facts } : {}) }));
   return { system: VERIFY_SYSTEM, claims, resultSchema: z.toJSONSchema(verificationResultSchema),
     limits: { verdicts: VERIFY_BATCH, citationsPerVerdict: 12, resultBytes: 64_000 },
     note: "Read only the listed files at this commit. Cite each line by its 1-based number in that file and quote it exactly. A claim that depends on any file not listed is unverified." };
@@ -282,14 +283,12 @@ export async function submitReasoningResult(userId: string, task: ReasoningTask,
         if (content !== null) sources.push({ path, sourceHash: sourceHash(content) });
       }
       if (sources.length === 0) continue;
-      const items = batch.hypotheses.map((h, i): VerifyItem => ({ id: String(i), entry: h.entry, attackClass: h.attackClass,
-        title: h.title, consequence: h.consequence, citedFiles: h.citedFiles ?? [],
-        handlerFile: context.routes.find((r) => r.path === h.entry)?.file }));
+      const { hypotheses, items } = verifyItems(batch.hypotheses, context.routes, context.liveFacts);
       const { data: id, error: verifyError } = await admin.rpc("create_verification_task", { p_user: userId, p_parent: task.id,
         p_instruction: `Verify ${items.length} attack ${items.length === 1 ? "claim" : "claims"} on ${task.repositories.full_name} at `
           + `${task.commit_sha.slice(0, 12)}. Most claims are wrong. Confirm one only when quoted lines from the listed files prove reach, `
           + "data and no control; refute it when the code shows a check; answer unverified when it depends on anything not listed.",
-        p_sources: sources, p_context: { version: 1, hypotheses: batch.hypotheses, items }, p_key: `verify:${task.id}:${index}` });
+        p_sources: sources, p_context: { version: 1, hypotheses, items }, p_key: `verify:${task.id}:${index}` });
       if (verifyError) {
         if (/intelligence not approved|intelligence budget exhausted/.test(verifyError.message)) break;
         throw rpcError(verifyError.message);
@@ -320,6 +319,40 @@ export function verificationBatches(admitted: (Hypothesis & { attackClass: Attac
     else batches.push({ hypotheses: [h], files: needed });
   }
   return batches.map((b) => ({ ...b, files: [...b.files, ...shared] }));
+}
+
+/** Database facts read live for the tables a route reaches (X1). */
+function tableFacts(route: RouteFact | undefined, facts: { id: string; statement: string }[]) {
+  const tables = new Set((route?.tables ?? []).filter((t) => !t.startsWith("rpc:"))
+    .map((t) => (t.includes(".") ? t : `public.${t}`)));
+  return facts.filter((f) => { const m = /^db:([^:]+):/.exec(f.id); return m !== null && tables.has(m[1]); });
+}
+
+/**
+ * The verifier's items for one batch (X1, 2026-10-12). Each claim carries the
+ * live facts it cited and the connected database's state for the tables its
+ * route reaches, so a row policy is an observation rather than "unverified".
+ * An open table (row security off, or a policy matching every row) is also
+ * added to the hypothesis's cited facts, so a confirmed finding carries it
+ * as a live claim; a filtered table is shown to the verifier only.
+ */
+export function verifyItems<H extends Hypothesis & { attackClass: AttackClass }>(
+  batch: H[], routes: RouteFact[], liveFacts: { id: string; statement: string }[]) {
+  const byId = new Map(liveFacts.map((f) => [f.id, f]));
+  const hypotheses = batch.map((h) => {
+    const open = tableFacts(routes.find((r) => r.path === h.entry), liveFacts)
+      .filter((f) => !f.id.endsWith(":rls-filtered")).map((f) => f.id);
+    const cited = [...new Set([...(h.citedFacts ?? []), ...open])];
+    return cited.length === (h.citedFacts ?? []).length ? h : { ...h, citedFacts: cited };
+  });
+  const items = hypotheses.map((h, i): VerifyItem => {
+    const route = routes.find((r) => r.path === h.entry);
+    const facts = [...new Map([...(h.citedFacts ?? []).map((id) => byId.get(id)), ...tableFacts(route, liveFacts)]
+      .filter((f): f is { id: string; statement: string } => Boolean(f)).map((f) => [f.id, f])).values()];
+    return { id: String(i), entry: h.entry, attackClass: h.attackClass, title: h.title, consequence: h.consequence,
+      citedFiles: h.citedFiles ?? [], handlerFile: route?.file, ...(facts.length ? { facts } : {}) };
+  });
+  return { hypotheses, items };
 }
 
 /** The schema files a reasoning context lists, as the audit read them. */

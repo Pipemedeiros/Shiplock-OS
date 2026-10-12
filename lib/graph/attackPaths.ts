@@ -106,7 +106,7 @@ export function isUnreadable(route: RouteFact): boolean {
  * switched on and whether some rule grants access unconditionally. Both
  * questions have an answer on every engine we model.
  */
-function storeProtects(asset: AuthzFacts): boolean | null {
+export function storeProtects(asset: AuthzFacts): boolean | null {
   // Enforcement switched OFF is conclusive on its own: nothing is filtering, and
   // no unread rule could change that. This stays a definite `false` even when
   // the rules were never read.

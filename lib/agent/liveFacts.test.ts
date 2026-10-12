@@ -116,6 +116,54 @@ describe("loadLiveFacts", () => {
     expect(await loadLiveFacts("u", "repo-a")).toEqual([]);
   });
 
+  // X1 (2026-10-12): the connected database's own state for the tables this
+  // repository's routes reach, admitted only through the repository-bound
+  // projection (a confirmed binding on the current connection).
+  const bound = (over: Record<string, unknown> = {}) => ({
+    correlationScope: "repository-bound",
+    routes: [{ path: "/api/x", tables: ["invoices", "notes", "profiles", "drafts"] }],
+    scanTables: [{ name: "invoices", rlsEnabled: false }, { name: "notes", rlsEnabled: true },
+      { name: "profiles", rlsEnabled: true }, { name: "drafts", rlsEnabled: true }, { name: "audit_log", rlsEnabled: false }],
+    policies: [{ schemaname: "public", tablename: "notes", qual: "true", roles: ["anon"] },
+      { schemaname: "public", tablename: "profiles", qual: "(auth.uid() = user_id)", roles: ["authenticated"] }],
+    ...over,
+  });
+  const repoScoped = (repoInput: Record<string, unknown>) =>
+    loadGraphInput.mockImplementation(async (_u: string, repo?: string) => (repo ? repoInput : {}));
+
+  it("makes the bound database's state citable for the tables a route reaches, open tables first", async () => {
+    repoScoped(bound());
+    const facts = await loadLiveFacts("u", "repo-a");
+    expect(loadGraphInput).toHaveBeenCalledWith("u", "repo-a");
+    expect(facts.map((f) => f.id)).toEqual([
+      "db:public.invoices:rls-off", "db:public.notes:open-policy",
+      "db:public.drafts:rls-filtered", "db:public.profiles:rls-filtered"]);
+    expect(facts[0].statement).toMatch(/row level security off on public\.invoices/);
+    expect(facts[1].statement).toMatch(/anon/);
+  });
+
+  it("states nothing about a database that is not bound to this repository", async () => {
+    repoScoped(bound({ correlationScope: "source-only" }));
+    expect(await loadLiveFacts("u", "repo-a")).toEqual([]);
+  });
+
+  it("states nothing where the rules were never read", async () => {
+    repoScoped(bound({ policies: undefined, scanTables: [{ name: "notes", rlsEnabled: true }] }));
+    expect(await loadLiveFacts("u", "repo-a")).toEqual([]);
+  });
+
+  it("keeps the audit running when the bound database cannot be read", async () => {
+    loadGraphInput.mockImplementation(async (_u: string, repo?: string) => {
+      if (repo) throw new Error("Graph facts could not be read");
+      return { runtimeProvidersRead: ["vercel"], runtimeEnvVars: [] };
+    });
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      expect(await loadLiveFacts("u", "repo-a")).toEqual([]);
+      expect(log).toHaveBeenCalledOnce();
+    } finally { log.mockRestore(); }
+  });
+
   it("excludes optional runtime context without breaking source audits on a mapping read failure", async () => {
     loadGraphInput.mockResolvedValue({ runtimeProvidersRead: ["vercel"], runtimeEnvVars: [] });
     loadVerifiedProviderProjects.mockRejectedValue(new Error("migration missing"));

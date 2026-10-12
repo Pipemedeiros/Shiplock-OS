@@ -1,4 +1,6 @@
 import { loadGraphInput } from "@/lib/graph/graphRun";
+import { buildAuthzFacts, type GraphInput } from "@/lib/graph/graph";
+import { storeProtects } from "@/lib/graph/attackPaths";
 import { loadVerifiedProviderProjects } from "@/lib/deep/providerRepositoryMap";
 
 /**
@@ -35,6 +37,56 @@ const PUBLIC_PREFIX = /^(NEXT_PUBLIC_|VITE_|PUBLIC_|REACT_APP_)/;
 const MAX_FACTS = 20;
 
 export async function loadLiveFacts(userId: string, repositoryId: string): Promise<LiveFact[]> {
+  const [database, runtime] = await Promise.all([
+    // Optional context, like the runtime half: an unreadable database adds no
+    // fact and never stops the source audit.
+    loadGraphInput(userId, repositoryId).then(databaseFacts).catch(() => {
+      console.error("[liveFacts] Bound database evidence unreadable; database context excluded");
+      return [];
+    }),
+    runtimeFacts(userId, repositoryId),
+  ]);
+  // An open table first: it is the fact that can carry a finding. Then a
+  // public-prefixed credential, then the filtered tables (what lets the
+  // verifier refute), then the rest of the host's variables.
+  const rank = (f: LiveFact) =>
+    f.id.startsWith("db:") && !f.id.endsWith(":rls-filtered") ? 0
+      : f.id.includes(":public-secret:") ? 1 : f.id.startsWith("db:") ? 2 : 3;
+  return [...database, ...runtime]
+    .sort((a, b) => rank(a) - rank(b) || a.id.localeCompare(b.id))
+    .slice(0, MAX_FACTS);
+}
+
+/**
+ * The connected database's own state for the tables this repository's routes
+ * reach (X1, 2026-10-12). Only the repository-bound projection counts: a
+ * confirmed binding on the current connection, one control-capable transport.
+ * A table whose rules were never read states nothing, because unread is not
+ * filtered and not open.
+ */
+function databaseFacts(input: GraphInput): LiveFact[] {
+  if (input.correlationScope !== "repository-bound") return [];
+  const reached = new Set((input.routes ?? []).flatMap((r) => r.tables)
+    .filter((t) => !t.startsWith("rpc:"))
+    .map((t) => (t.includes(".") ? t : `public.${t}`)));
+  const facts: LiveFact[] = [];
+  for (const table of buildAuthzFacts(input).values()) {
+    if (!reached.has(table.qualified)) continue;
+    const protects = storeProtects(table);
+    const q = table.qualified;
+    if (protects === false && table.enforced === false) {
+      facts.push({ id: `db:${q}:rls-off`, statement: `The connected database reports row level security off on ${q}: the database does not filter which rows of ${q} a query returns.` });
+    } else if (protects === false) {
+      const roles = table.grantedRoles.length ? table.grantedRoles.join(", ") : "every role it names";
+      facts.push({ id: `db:${q}:open-policy`, statement: `The connected database has a policy on ${q} that matches every row, for ${roles}.` });
+    } else if (protects === true) {
+      facts.push({ id: `db:${q}:rls-filtered`, statement: `The connected database reports row level security on for ${q}, and none of the policies read on it matches every row.` });
+    }
+  }
+  return facts;
+}
+
+async function runtimeFacts(userId: string, repositoryId: string): Promise<LiveFact[]> {
   const input = await loadGraphInput(userId);
 
   // Absent means no runtime collector has ever run for this account. That is
@@ -88,11 +140,5 @@ export async function loadLiveFacts(userId: string, repositoryId: string): Promi
     }
   }
 
-  // Public-secret facts first: they are the ones that can carry a finding.
-  facts.sort((a, b) => {
-    const rank = (f: LiveFact) => (f.id.includes(":public-secret:") ? 0 : 1);
-    return rank(a) - rank(b) || a.id.localeCompare(b.id);
-  });
-
-  return facts.slice(0, MAX_FACTS);
+  return facts;
 }
