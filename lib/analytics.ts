@@ -1,6 +1,7 @@
 "use client";
 
-// Thin client-side wrapper around posthog-js. Initialised only after the
+// Thin client-side wrapper around posthog-js (and Google Analytics, see
+// ./googleAnalytics.ts). Initialised only after the
 // visitor accepts analytics cookies (components/CookieConsent.tsx); everything
 // else calls track() and never touches posthog directly. Rules:
 // - Never put keys, URLs, emails, or scan content in properties — counts,
@@ -9,11 +10,15 @@
 // - No key configured (local dev) → everything silently no-ops.
 
 import posthog from "posthog-js";
+import { startGoogleAnalytics } from "./googleAnalytics";
 
 let initialised = false;
 
 export function initAnalytics(): void {
   if (initialised || typeof window === "undefined") return;
+  // Google Analytics: visit counts, same consent; a no-op without its id.
+  startGoogleAnalytics(document as unknown as Parameters<typeof startGoogleAnalytics>[0],
+    window as unknown as Parameters<typeof startGoogleAnalytics>[1], process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID);
   const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
   if (!key) return;
   posthog.init(key, {

@@ -17,12 +17,13 @@ const PROCESSORS: [string, string][] = [
   ["GitHub", "The GitHub App you install: reading the repositories you select and opening pull requests you click."],
   ["Resend", "Email: the welcome email, and alerts if you turn them on. Receives your email address."],
   ["PostHog", "Product analytics, only after you accept analytics cookies. Never your code or findings."],
+  ["Google Analytics", "Visit counts for shiplock.dev, only after you accept analytics cookies, with advertising signals off. Never your code or findings."],
   ["Stripe", "Billing, when paid plans open. Card details go to Stripe; we never see them."],
 ];
 
 export default function PrivacyPage() {
   return (
-    <LegalPage title="Privacy policy" updated="2026-10-07" other={{ href: "/terms", label: "Terms" }}>
+    <LegalPage title="Privacy policy" updated="2026-10-12" other={{ href: "/terms", label: "Terms" }}>
       <section>
         <h2>What we read</h2>
         <p>
@@ -75,8 +76,8 @@ export default function PrivacyPage() {
         <p>
           ShipLock watches its own site the way it watches yours: for each request to shiplock.dev it keeps the path,
           method, user agent and a salted hash of the visitor, never the address, the query string or any content.
-          Sign-in cookies are always on because the app cannot work without them. Analytics cookies (PostHog) start
-          only after you accept them in the cookie banner. If you choose Reject, we remember it and never ask again on
+          Sign-in cookies are always on because the app cannot work without them. Analytics cookies (PostHog and Google
+          Analytics) start only after you accept them in the cookie banner. If you choose Reject, we remember it and never ask again on
           that browser.
         </p>
       </section>

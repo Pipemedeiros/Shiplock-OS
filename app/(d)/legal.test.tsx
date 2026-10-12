@@ -17,7 +17,7 @@ describe("privacy policy", () => {
     expect(t).not.toMatch(/anon \(public\) key you paste/);
   });
   it("lists sub-processors including the conditional ones", () => {
-    for (const name of ["Supabase", "Vercel", "GitHub", "Resend", "PostHog", "Stripe"]) expect(t).toContain(name);
+    for (const name of ["Supabase", "Vercel", "GitHub", "Resend", "PostHog", "Google Analytics", "Stripe"]) expect(t).toContain(name);
     expect(t).toMatch(/only after you accept/i);
   });
   // ShipLock makes no model call (Felipe, 2026-10-01): no model provider is a
@@ -29,7 +29,7 @@ describe("privacy policy", () => {
   });
   it("is in the v3 frame, dated, links terms, and has no dashes", () => {
     expect(html).toContain('class="v3');
-    expect(t).toContain("Last updated 2026-10-07");
+    expect(t).toContain("Last updated 2026-10-12");
     expect(html).toContain('href="/terms"');
     expect(t).not.toMatch(/[–—]/);
   });
