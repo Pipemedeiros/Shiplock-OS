@@ -183,7 +183,8 @@ describe("submitReasoningResult", () => {
     expect(stored.p_result).toMatchObject({ rejected: 2, unmatchedEntries: ["/api/invented"],
       admitted: [{ entry: "/api/orders", attackClass: "missing_authentication", title: hypothesis.title }] });
     const verify = mocks.rpc.mock.calls.find(([name]) => name === "create_verification_task")![1];
-    expect(verify).toMatchObject({ p_parent: taskId, p_key: `verify:${taskId}:0`, p_sources: [{ path: handler, sourceHash: hash(source) }] });
+    expect(verify).toMatchObject({ p_parent: taskId, p_key: `verify:${taskId}:0`, p_sources: [{ path: handler, sourceHash: hash(source) },
+      { path: "prisma/schema.prisma", sourceHash: hash(source) }] }); // the schema goes with every batch
     expect(verify.p_context.items).toEqual([expect.objectContaining({ id: "0", entry: "/api/orders", handlerFile: handler })]);
     expect(mocks.file).toHaveBeenCalledWith("token", "acme/app", handler, commit);
   });
@@ -289,6 +290,23 @@ describe("verificationBatches", () => {
     const batches = verificationBatches(many, routes);
     expect(batches.every((b) => b.hypotheses.length <= 10 && b.files.length <= 16)).toBe(true);
     expect(batches.flatMap((b) => b.hypotheses)).toHaveLength(30);
+  });
+
+  // A8 batch 6 (2026-10-09): a claim on a query the schema rejects was
+  // "confirmed" because the verifier never saw the schema. The schema files
+  // the audit read go with every batch (at most two), inside the file cap.
+  it("lists the schema with every batch so a claim can be checked against it", () => {
+    const routes = Array.from({ length: 12 }, (_, i) => route({ path: `/api/r${i}`, file: `app/api/r${i}/route.ts` }));
+    const many = routes.map((r) => ({ ...hypothesis, entry: r.path, citedFiles: [r.file], attackClass: "missing_authentication" as const }));
+    const schema = ["prisma/schema.prisma", "db/extra.sql", "db/third.sql"];
+    const batches = verificationBatches(many, routes, schema);
+    for (const b of batches) {
+      expect(b.files).toEqual(expect.arrayContaining(["prisma/schema.prisma", "db/extra.sql"]));
+      expect(b.files).not.toContain("db/third.sql");
+      expect(b.files.length).toBeLessThanOrEqual(16);
+    }
+    expect(batches.flatMap((b) => b.hypotheses)).toHaveLength(12);
+    expect(verificationBatches(many.slice(0, 1), routes)[0].files).toEqual(["app/api/r0/route.ts"]);
   });
 });
 

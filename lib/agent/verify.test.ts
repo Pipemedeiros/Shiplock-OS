@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyVerdicts, buildVerifyPrompt, checkVerdicts, parseVerdicts, resolveImport, selectVerifyContext, type RawVerdict, type VerifyItem } from "./verify";
+import { VERIFY_SYSTEM, applyVerdicts, buildVerifyPrompt, checkVerdicts, parseVerdicts, resolveImport, selectVerifyContext, type RawVerdict, type VerifyItem } from "./verify";
 
 const files = new Map([
   ["app/api/invoices/[id]/route.ts", 'import { db } from "@/lib/db";\nimport { helper } from "../../helper";\nexport async function GET(req, { params }) {\n  const row = await db.from("invoices").select("*").eq("id", params.id).single();\n  return Response.json(row);\n}'],
@@ -94,5 +94,15 @@ describe("applying verdicts to admitted proposals", () => {
     const out = applyVerdicts(admitted, [verdict("0", "confirmed")]);
     expect(out.kept).toEqual([admitted[0]]);
     expect(out.unverified).toBe(2);
+  });
+});
+
+// A8 batch 6 (2026-10-09): the verifier confirmed a debug route whose Prisma
+// query the schema rejects. The schema now goes with every batch; the
+// instructions say what to do with it.
+describe("VERIFY_SYSTEM and the schema", () => {
+  it("tells the verifier to refute a query the listed schema cannot run", () => {
+    expect(VERIFY_SYSTEM).toMatch(/schema file is listed/);
+    expect(VERIFY_SYSTEM).toMatch(/does not run/);
   });
 });

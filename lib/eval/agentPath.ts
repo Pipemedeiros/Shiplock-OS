@@ -1,7 +1,7 @@
 import { guardHypotheses, safeConsequence, type AttackClass, type Hypothesis } from "@/lib/agent/attackGuard";
 import { buildFindings, type AgentFinding } from "@/lib/agent/findings";
 import { applyVerdicts, checkVerdicts, type RawVerdict, type VerifyItem } from "@/lib/agent/verify";
-import { taskBrief, verificationBatches, type ReasoningContext, type ReasoningTask } from "@/lib/intelligence/reasoning";
+import { schemaFiles, taskBrief, verificationBatches, type ReasoningContext, type ReasoningTask } from "@/lib/intelligence/reasoning";
 
 /**
  * The customer agent's path, offline (plan item H, option B; Felipe
@@ -38,7 +38,7 @@ export type VerificationTask = {
 export function verificationTasks(context: ReasoningContext, admitted: (Hypothesis & { attackClass: AttackClass })[],
   contentOf: (path: string) => string | null): VerificationTask[] {
   const tasks: VerificationTask[] = [];
-  for (const [index, batch] of verificationBatches(admitted, context.routes).entries()) {
+  for (const [index, batch] of verificationBatches(admitted, context.routes, schemaFiles(context.files)).entries()) {
     const sources = batch.files.map((path) => ({ path, content: contentOf(path) }))
       .filter((s): s is { path: string; content: string } => s.content !== null);
     if (sources.length === 0) continue;

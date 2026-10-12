@@ -275,7 +275,7 @@ export async function submitReasoningResult(userId: string, task: ReasoningTask,
       if (!read.has(path)) read.set(path, await getFile(token, task.repositories.full_name, path, task.commit_sha));
       return read.get(path) ?? null;
     };
-    for (const [index, batch] of verificationBatches(guard.admitted, context.routes).entries()) {
+    for (const [index, batch] of verificationBatches(guard.admitted, context.routes, schemaFiles(context.files)).entries()) {
       const sources: { path: string; sourceHash: string }[] = [];
       for (const path of batch.files) {
         const content = await contentOf(path);
@@ -302,19 +302,28 @@ export async function submitReasoningResult(userId: string, task: ReasoningTask,
 }
 
 /** Admitted hypotheses in batches of at most VERIFY_BATCH claims whose
- * handler and cited files together fit in MAX_SOURCES listed files. */
-export function verificationBatches(admitted: (Hypothesis & { attackClass: AttackClass })[], routes: RouteFact[]) {
+ * handler and cited files together fit in MAX_SOURCES listed files. The
+ * schema files the audit read (at most MAX_SCHEMA_SOURCES) go with every
+ * batch: a claim on a query the schema rejects, or on a row id the schema
+ * mints at random, is judged against it (A8 batch 6, 2026-10-09). */
+const MAX_SCHEMA_SOURCES = 2;
+export function verificationBatches(admitted: (Hypothesis & { attackClass: AttackClass })[], routes: RouteFact[], schema: string[] = []) {
+  const shared = schema.slice(0, MAX_SCHEMA_SOURCES);
+  const room = MAX_SOURCES - shared.length;
   const batches: { hypotheses: (Hypothesis & { attackClass: AttackClass })[]; files: string[] }[] = [];
   for (const h of admitted) {
     const handler = routes.find((r) => r.path === h.entry)?.file;
-    const needed = [...new Set([handler, ...(h.citedFiles ?? [])].filter((f): f is string => Boolean(f)))].slice(0, MAX_SOURCES);
+    const needed = [...new Set([handler, ...(h.citedFiles ?? [])].filter((f): f is string => Boolean(f) && !shared.includes(f!)))].slice(0, room);
     const open = batches.find((b) => b.hypotheses.length < VERIFY_BATCH
-      && new Set([...b.files, ...needed]).size <= MAX_SOURCES);
+      && new Set([...b.files, ...needed]).size <= room);
     if (open) { open.hypotheses.push(h); open.files = [...new Set([...open.files, ...needed])]; }
     else batches.push({ hypotheses: [h], files: needed });
   }
-  return batches;
+  return batches.map((b) => ({ ...b, files: [...b.files, ...shared] }));
 }
+
+/** The schema files a reasoning context lists, as the audit read them. */
+export const schemaFiles = (files: string[]) => files.filter((f) => /(^|\/)schema\.prisma$|\.sql$|(^|\/)schema\.[cm]?[jt]s$/.test(f));
 
 /**
  * Checks a verification answer and admits what it proved. Every cited line is
