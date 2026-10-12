@@ -59,3 +59,4 @@ docs/audit/gate-census-witnesses.json
 docs/evaluation/runs/*
 # A8's labeled batches (192 KB, no source): gate-total recomputes the gate from them.
 !docs/evaluation/runs/a8-corpus6-2026-10/
+!docs/evaluation/runs/corpus7-release-2026-10/

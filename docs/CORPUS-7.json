@@ -1,0 +1,2665 @@
+{
+ "version": 1,
+ "experiment": "corpus-7-release-2026-10-12",
+ "prediction": "Recorded before evaluation (2026-10-12): the release set for the 97% launch bar (thresholds-release-2026-10-12.json); run once through the A8 agent steps after the last precision change; no prediction of the result.",
+ "scope": "Status-setting findings the audit shows after the customer agent path (agent-tasks, reasoning, agent-admit, verification, agent-shown), labeled by two blind labelers. Repository and agent only: no provider snapshot or traffic.",
+ "selection": {
+  "rule": "Fixed in the ledger before searching (2bb8e06): CORPUS-6 rule unchanged except stars 2..4 and pushed:>=2025-10-12; every CORPUS to CORPUS-6 repository excluded; template, starter, boilerplate, demo, example, tutorial, clone, course or workshop by name or description dropped and listed; ranked by stars then name; up to 300 kept.",
+  "searched": 1194,
+  "pool": 1084,
+  "checked": 366,
+  "selected": 300,
+  "pinned": 300,
+  "acquisitionFailed": [],
+  "dropped": [
+   {
+    "repository": "andrianllmm/iskommerce",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "Arnoldsteve/artisan-base",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "arunrajiah/supafleet",
+    "next": true,
+    "db": false,
+    "server": true
+   },
+   {
+    "repository": "charlesonogwu/Open-MDB",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "educlopez/roast-web",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "Evan0571/Badgers_Research_Explorer",
+    "next": true,
+    "db": false,
+    "server": true
+   },
+   {
+    "repository": "giorgiotoffoli/planomy",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "Gladiarn/Scentique-Monorepo",
+    "next": true,
+    "db": false,
+    "server": false
+   },
+   {
+    "repository": "Growlancer-Official/Growlancer",
+    "next": false,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "janekskr/vero-ai",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "Kevin-Liu-01/Ariadne",
+    "next": true,
+    "db": false,
+    "server": true
+   },
+   {
+    "repository": "kralion/exaya",
+    "next": false,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "Lordpluha/bitrate",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "Owinovative/invinceible_core_hms_v2",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "prabothcharith/nxt-gen-cli",
+    "next": false,
+    "db": false,
+    "server": false
+   },
+   {
+    "repository": "Rafa-KozAnd/Projeto_Monitoria_App",
+    "next": false,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "Rethabile2004/travel-guide",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "senapati484/stackmint",
+    "next": false,
+    "db": true,
+    "server": true
+   },
+   {
+    "repository": "sheikhlimon/infra-scope",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "Shriii19/OpenBill",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "SpaceSyt/watch-tracker",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "sujalvk888/finvise-ai",
+    "next": true,
+    "db": false,
+    "server": false
+   },
+   {
+    "repository": "swamiabhishek45/OpenBook",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "taizhixuan/PingGuard",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "takumi399/ResumePilot-AI-",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "theShihamAhamed/ZUZI-ecommerce-microservices-monorepo",
+    "next": true,
+    "db": false,
+    "server": true
+   },
+   {
+    "repository": "Tizun71/OceanFin",
+    "next": true,
+    "db": false,
+    "server": false
+   },
+   {
+    "repository": "YheChen/TorontoGuessr",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "aadisang/open-attendance",
+    "next": true,
+    "db": false,
+    "server": true
+   },
+   {
+    "repository": "aakashsaini09/Silent-Shout",
+    "next": false,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "AsymmetricFrequency/Conteo",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "atharvaarbat/gym-management",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "Bhaumik182001/buzzbox-next",
+    "next": true,
+    "db": false,
+    "server": true
+   },
+   {
+    "repository": "bsospace/BSOSpace-Blog-Frontend",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "Cesar-Matta/multi-erp-system-pro",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "creativoma/networkpro",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "felmonon/jungian-typology-assessment",
+    "next": false,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "fraimerdev/luminae",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "Globussoft-Technologies/medcore",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "hesbonangwenyi606/doctor-fix-mvp",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "hfeng620-cmd/timin_api_test_and_forum",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "ho9504/helm-landing",
+    "next": true,
+    "db": false,
+    "server": false
+   },
+   {
+    "repository": "Huzaifa-12Imran/ImpactTracker",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "jihto/next-supabase-clerk",
+    "next": false,
+    "db": false,
+    "server": false
+   },
+   {
+    "repository": "JoudAwad97/server-driven-ui-nestjs-react-native",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "jukangpark/Deskify",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "kaiumallimon/cosmos-admin-panel",
+    "next": true,
+    "db": false,
+    "server": true
+   },
+   {
+    "repository": "MahirSalahin/cavs",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "manita02/MusicTab",
+    "next": false,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "mantaskaveckas/brizzle",
+    "next": false,
+    "db": false,
+    "server": false
+   },
+   {
+    "repository": "MarlonVictor/nlwHeart",
+    "next": false,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "Masculinn/blog-editor",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "Melckykaisha/Dharura_Ai",
+    "next": false,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "mocherfaoui/watch-together",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "musadiq7860/job-copilot",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "NausheenFaiyaz/QuestForm",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "Nazmussakib247/CSE4204-8B-T04-Enterprise-Nexus-Multi-Agent-AI-Business-Automation-OS-with-Security-Intelligence",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "nicolavivarelli01/JobTrack",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "nirnejak/bookmarks",
+    "next": true,
+    "db": false,
+    "server": true
+   },
+   {
+    "repository": "Ohmyni/arctipjar",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "osharim/apitrail",
+    "next": true,
+    "db": false,
+    "server": true
+   },
+   {
+    "repository": "patkub/mold-inventory",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "phantekzy/vex",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "pharre1111/manimatic",
+    "next": true,
+    "db": false,
+    "server": false
+   },
+   {
+    "repository": "poyrazavsever/supabase-youtube",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "PradeepKundekar0101/Ecommerce",
+    "next": true,
+    "db": false,
+    "server": false
+   }
+  ],
+  "demoDropped": [
+   {
+    "repository": "adeeshperera/coursegenix-ai-learning-studio",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "ashsajal1/next-saas-template",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "CarboxyDev/blitzpack",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "RodrigoAlexander7/next-nest-auth-starter",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Omi1804/NEXTSkillSphere",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Teloz1870/cartwright-template",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "yeezysmem/e-learning-web",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "IvanTsxx/AI-Nextjs-Monorepo-Starter",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "LogicMason5/SaaS-LMS-platform",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "maubisa-id/account-center-starter",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "M4ss1ck/bot-manager",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Vipul99999/Distributed-Task-Management-System-TUDU-",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "latenode-com/embedded-demo",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "francogalfre/netflix-clone",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "victor-lis-bronzo/StudyPlus-with-NextJS",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Redhairknight/SeaStar",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "ReoHakase/mystack",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Pyr33x/nextauth-prisma",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "ywc0008/next.js-neon-boilerplate",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "quueli/backend-blueprint-ts",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "aaronchen827/fullstack-integrated",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "psykat1116/Planit",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "elsoul/skeet-graphql",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Fuutu-company/fuutu-stack",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "dino3616/manaslu",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Piero24/airbnb-clone",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "ok200ok/corpus-ad",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Vuln-SafeLab/HiTo",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "rxshabN/corpus-ad",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "maher-naija-pro/next-js-stack-starter-2026",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "rushikesh611/zeroDowntime",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "AlexAgo83/pole-app",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "GrandeVx/Paradigma",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "brettoak/onlineteacher",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "PraxisGrove/t3-web-api-template",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "tripplemay/aigcgateway",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Sejmou/basic-video-course-portal",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "goshops-com/open-clickup",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "yajatkaul/corpus-ad",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "simonknittel/nextjs-template",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "shmuelmekonen/nexus-chat",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "pastropsucez/vibe-stack",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "MaherAbderrahim/CV_Generator",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "ridays2001/mini-gallery",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "JoaquinVilchez/fullstack-starter",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "berkanumutlu/corpus-ad",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "millionairesmastery/startup-setup-app",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "baohg1108/multivendor-ecommerce",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "moisesvalero/next-agent-template",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "mohitvashu1/Twitter-Clone",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "rajofearth/sunx",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "ahmifte/pathfinder",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "sadbinsiddique/sad_bin_siddique",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "ziadamr45/quadra_studio",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Archnightt/QuantView",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "theBappy/Know-Thyself-LMS",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "samarthgalhe89/cloudframe-studio",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "cfatrane/monorepo-boilerplate",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "HasnainIrfan/3d-portfolio",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "ameghcoder/Supabase-and-Nextjs-Authentication",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "ositaka/kitab--noorui-blog-starter",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "lucasps136/baseClaudeReactWebtemplate",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "raytonx-dev/raytonx-starter-stripe-subscription",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "UtkarshDubeyGIT/Next-ProjectSpace",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "rexxAman/Bodo",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "geeks-accelerator/animal-house-ai-tamagotchi",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "AlexTuring010/signal-processing-with-alexturing",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "MuhammadNiazAli/nextjs-supabase-starter",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "zancandigital/painel-de-mineracao-info-global",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "NotTahaAli/sessclone",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "photon-hq/observability-boilerplate",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "ohenriquesilvar/saas-root",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "waqasraza123/ai-ad-studio",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "CreatmanCEO/lingua-companion",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "SamRome1/supabase-auth-storage-template",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Near08x/demo",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "DareDev256/pulsemap",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "afrinxnahar/Turborepo-Fullstack-Starter-Template",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Vidson313/sorena-marketplace",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "afaizalam2003/launchpad-pro",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "jaiminnair-hub/orbit-learning",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Fatima-Rahmani79/Kaaryab",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Medo-ID/musicfy",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "SamRome1/supabase-dashboard-template",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "alexjiaguo/offerpath",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "WuxieLUK/ai-study-copilot",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "isaacdarcilla/supabase-edge-nextjs",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Clubedge/clubedge-starter",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "EsawAdhana/stanford-root",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "SamRome1/supabase-realtime-chat-template",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "itecbrains-source/keelblock",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "syedqzaidi/agency-web-stack",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "pranavgawasproject/medi-care",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "KerimKulah/nextjs-supabase-rbac-boilerplate-2",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "andre-koga/supanext-starter",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "simojam93/postecho",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "abin-karukappallil/Next.js-oRPC-TanStack-query-Boilerplate",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Charles-Chrismann/drizzle-nest-next",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Hrpav/NewTube",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "teton-web/next-starter-template",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "DeaaJobran/nextjs-saas-boilerplate",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "santosh-marar/predict-hub",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "DjFikie25/shipkit",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "SzpakLabs/lead-dashboard-copilotkit-demo",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "chitamoor/shipkit",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Nayanchandrakar/saas-starter-kit",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "deessejs/deessejs",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "FeSens/never-code",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "mplibunao/readit",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "maxx-abrt/trpc-action-state-adapter",
+    "reason": "template, demo or tutorial by name or description"
+   }
+  ]
+ },
+ "labelProvenance": "docs/evaluation/runs/corpus7-release-2026-10/ (two blind subagent labelers per batch)",
+ "loader": {
+  "files": 4000,
+  "fileBytes": 400000,
+  "sourceBytes": 25165824,
+  "inflatedBytes": 125829120
+ },
+ "repositories": [
+  {
+   "id": "c7-javelet-dev",
+   "repository": "0xMatt/javelet.dev",
+   "commit": "0b89d986fdce7354d4f3ca36a41a8b5c05fc1e6b",
+   "archiveSha256": "3a3c8ae2bbc58c57d95d845cebbcd4dd9aa2c62a74fab09c33f2c6e1418c8ad8"
+  },
+  {
+   "id": "c7-self-portrait-studio",
+   "repository": "1vannce/self-portrait-studio",
+   "commit": "e9e7ee9053c3dd6e0f9bd0af1769e1b437849287",
+   "archiveSha256": "9efacc65a88b981a074a92c948b1a0dfef64380597b76fd2d3176d7b8373dbc7"
+  },
+  {
+   "id": "c7-circle-ablo",
+   "repository": "Abloatai/circle-ablo",
+   "commit": "536701dda31e864ac6b297c619ba5df02fc26b7a",
+   "archiveSha256": "94f88328110984627adfe8668b8d533cf22010bdb26cd8da447490c16060dd1d"
+  },
+  {
+   "id": "c7-store-it",
+   "repository": "aditya-2k23/store-it",
+   "commit": "470c0ecca8a528ca58aa27be99503734cea4e404",
+   "archiveSha256": "7799819885445515ada9ce17ecac69c449eafb8c8e800eee6545d5d3f6e66886"
+  },
+  {
+   "id": "c7-quizeroo",
+   "repository": "adiulalam/quizeroo",
+   "commit": "1a66359733fc07788ebdff0928887ebce0430eae",
+   "archiveSha256": "e06434aea7d006c501e8afdccc4addd39096bb8dc38ae9891552f89c13ee9c83"
+  },
+  {
+   "id": "c7-big-two",
+   "repository": "AdoryVo/big-two",
+   "commit": "130ee42b45899ead0ae668048b1c9ff3c4cd6fab",
+   "archiveSha256": "2847b2e04f586552b9c28b89c2249f9aa79e94049884f1267a988f65d53da85d"
+  },
+  {
+   "id": "c7-bad-choices",
+   "repository": "adPalafox/bad_choices",
+   "commit": "fa79a4a1b5fa672c29a54233dba7fabd45c047be",
+   "archiveSha256": "2f190f3822c7bef81dd4d510ad907b2b8e428b464f334493fb244cbd58d61baa"
+  },
+  {
+   "id": "c7-poar-research-assistant",
+   "repository": "advien/poar-research-assistant",
+   "commit": "4d019238cd82cc86328801e95e5da1503452c466",
+   "archiveSha256": "0a4d5ae6bc0d0b14202b619fd7fc186ae479b4de3f11c8c4feb5858763e5e954"
+  },
+  {
+   "id": "c7-quicktext",
+   "repository": "akshitsutharr/quicktext",
+   "commit": "6d284a959acdf25b49378870c8261e539073e578",
+   "archiveSha256": "5f547541895d159963e9b6fd86014ede79f1c26a402be7c92a1550e2ad20429d"
+  },
+  {
+   "id": "c7-animal-shelter",
+   "repository": "albdangarcia/animal-shelter",
+   "commit": "75976016b15b9c5ffcc8330445c58dca6eb4fe58",
+   "archiveSha256": "6c51daa36357b95149aeaa6a692c1bd541f696471c8ca26ee51c943aec6c34cf"
+  },
+  {
+   "id": "c7-tech-companies-portugal-app",
+   "repository": "alexmarqs/tech-companies-portugal-app",
+   "commit": "cf7e2535b71059cca16990e99fb8479084d1b76a",
+   "archiveSha256": "8a83f4535b16d74dd8c168f81caea048a7d2fca00a9c2ddab7a37e4d79bc184f"
+  },
+  {
+   "id": "c7-codesync",
+   "repository": "ali-imtiyazkhan/codeSync",
+   "commit": "15e08d19e740a80f140c9643c2a64c7867a1f28c",
+   "archiveSha256": "6f6355db7951aba245fd75977d9422dd0de415d776107bfa7ee81c45b5249e8e"
+  },
+  {
+   "id": "c7-detective-quill",
+   "repository": "Amama-Fatima/detective-quill",
+   "commit": "c1ebd0341d69a39b4fa95fe33d369db7c8c17518",
+   "archiveSha256": "01c120358ab37f3dc19e62a9cb65acb6baa130aa9f4279333b965595f0fb306f"
+  },
+  {
+   "id": "c7-repomatch",
+   "repository": "amarjaleelbanbhan/repomatch",
+   "commit": "f6198a527c02b4bdb6f78d94ebe0ec49b4d2d9bc",
+   "archiveSha256": "3dc7c1070d6c6f7ff7f0431d78f35b53d3c1ef2bcff34f386ab472bdc83fffdd"
+  },
+  {
+   "id": "c7-fast-utilities",
+   "repository": "ammarasad2005/FAST-Utilities",
+   "commit": "6648cfd3c6febab0716ae4df58ba616bd7cf3187",
+   "archiveSha256": "155425bc396b89b92ef326cbaa42eda6d72a0260784795f6e6b7ff5599cc2639"
+  },
+  {
+   "id": "c7-agentic-mobile-blueprint",
+   "repository": "Ampli-Group/agentic-mobile-blueprint",
+   "commit": "0bfffb16a4f850cc7ec6c4d7bc80feac7b4124bd",
+   "archiveSha256": "6bf837169929b05f3ec03d5cd96a29f53abf4ed4595bd9da5271b5eead7c4ac8"
+  },
+  {
+   "id": "c7-navansh-finserv",
+   "repository": "anshumankhunteta/navansh-finserv",
+   "commit": "e25808cbea747a89d1983a901bf357c633baf209",
+   "archiveSha256": "c8731e48ba852f49de5e30a195d334130ece136f2329ce594c3127a257502a4a"
+  },
+  {
+   "id": "c7-envelope-budgeting-app",
+   "repository": "anton-karlovskiy/envelope-budgeting-app",
+   "commit": "50273de124e12b6324e309bcaa31115bfa5c7578",
+   "archiveSha256": "12d26e0cc8031d204b839b2558974a9df0150735698dd44a1057e9def4bca71f"
+  },
+  {
+   "id": "c7-next-supabase-authentication",
+   "repository": "arththakkar1/next-supabase-authentication",
+   "commit": "2739f6fa45806e55d744d1627325bdb5f29566c0",
+   "archiveSha256": "42084752036048c01c17dfc2f257163e2152d488d1b6194f759ba78a654706ea"
+  },
+  {
+   "id": "c7-english-agent",
+   "repository": "ava-agent/english-agent",
+   "commit": "f214b1b6f088885e2add906e1ef10214845a8dac",
+   "archiveSha256": "ab0d995ffd3c317f23e749fd4bd6e003cf38ca2ab6ecf8f1ff493e535ab167e4"
+  },
+  {
+   "id": "c7-chef",
+   "repository": "AxiomaSystems/Chef",
+   "commit": "d77c64a2141343d9181562b0797cbe6f07565189",
+   "archiveSha256": "819a5bf7a7e83b2d5324b8072c0c17de689ce1acc8df93712a548765b0d05ee8"
+  },
+  {
+   "id": "c7-corpus-ah-platform",
+   "repository": "ayoubhayda/corpus-ah-platform",
+   "commit": "2711d78b6864b61213a4c4bf9806e23f2c18d21e",
+   "archiveSha256": "f75c23577c303deb915b74996fd330174a1719bd42f86f55f47cc736bf5707a9"
+  },
+  {
+   "id": "c7-eztor-fullblood",
+   "repository": "Bailipa/EZTor_FULLBLOOD",
+   "commit": "07d7e5234b18d0cff1bd5bdc35062a25a24236c3",
+   "archiveSha256": "de1e0f2cf0c1d713d2919b1d1106c12ab03577f6ef8cae4e19fe6be843251564"
+  },
+  {
+   "id": "c7-saaschet",
+   "repository": "BangDills/saaschet",
+   "commit": "c18233dd5a60d73246e55ff9b6d93b134ded972a",
+   "archiveSha256": "963a7ea1f8303ed1eff58e694ffe7a76acfbd7eff8a76d6a4e9b8961b1adfeb9"
+  },
+  {
+   "id": "c7-hazenasvinov-nextjs",
+   "repository": "benesvoj/hazenasvinov-nextjs",
+   "commit": "a5229af4bfae0282636dec38ebe626656d634c0f",
+   "archiveSha256": "bc0de614553e44b3b53aa64d758c8c499970126e9f0140742bc1641618811165"
+  },
+  {
+   "id": "c7-corpus-r11",
+   "repository": "BlackishGreen33/corpus-r11",
+   "commit": "4060b626ac5eacf3f821525f36fc3ca6c62be83f",
+   "archiveSha256": "d73d0ad6455e32a9c71264d3e4bf73fae6202bd4b3e913b6f6c3dd620b0aef5b"
+  },
+  {
+   "id": "c7-wenlan",
+   "repository": "canyexuanfan/wenlan",
+   "commit": "b8c36da6783f481bf594fb20bdd9bc405504a11d",
+   "archiveSha256": "921e49dfd55e5b00b042feb4a34d54a2dc4986432b340a76c2146f3f422a7e95"
+  },
+  {
+   "id": "c7-link",
+   "repository": "ccrsxx/link",
+   "commit": "cdc7598d3243e19e0096db9054fa33fac412284e",
+   "archiveSha256": "ad570c9c2e0f275ce820b9d6b36e27075c5914471caa6c0ac7b1d89ed3f73ce2"
+  },
+  {
+   "id": "c7-imaginate-ai",
+   "repository": "coderomm/Imaginate-AI",
+   "commit": "1ffba335d257a4295b10e466f21d2bd3c67c9868",
+   "archiveSha256": "c87a0e2036633e026491cc38a04f7d63c8f4ca6c1d32e916609f8e163c1d1574"
+  },
+  {
+   "id": "c7-policyjar",
+   "repository": "coydevs/policyjar",
+   "commit": "d01c257515a79cfd3fbead6c3bd5da6ee78f16e5",
+   "archiveSha256": "954a7a4331ab61bc904b761d3effce0a4e2c421983eada995811757382d3388b"
+  },
+  {
+   "id": "c7-fullstack-deploy",
+   "repository": "cypggs/fullstack-deploy",
+   "commit": "c9ba7cb3134114bb1e9b220d077636e61d111c60",
+   "archiveSha256": "6e533c6118cc17651268bd01487579bd88a0c15b57faa79dd180bb800bc591ee"
+  },
+  {
+   "id": "c7-face-guardian",
+   "repository": "Cyvid7-Darus10/face-guardian",
+   "commit": "e006e89b2e9c602f43062e62c06bc363f63d068f",
+   "archiveSha256": "e27d90093146e747680a0d443983552827509bdabdd427825d12e7d73994677f"
+  },
+  {
+   "id": "c7-competitorfinder",
+   "repository": "Devansh-365/competitorfinder",
+   "commit": "7a696f2464948d6d47ec8039deda81306ab6c3ce",
+   "archiveSha256": "1c40b93ddb8d9f26fc0e5ce6831d213d806b2c23ff940af90324ef6da0c5e7be"
+  },
+  {
+   "id": "c7-modern-esthete",
+   "repository": "devsebastian44/Modern-Esthete",
+   "commit": "7a7c1a751b7c4ba3e6137f6dfd829daf812c8939",
+   "archiveSha256": "be316f049d9216ea6be02d1d3695d9fe10c3d6a8b82ebff2b0045b42ec5d6e67"
+  },
+  {
+   "id": "c7-beacon",
+   "repository": "Ducksss/beacon",
+   "commit": "cfaabc3612e15506dfa7f89d6ab99efe12b5d91f",
+   "archiveSha256": "11bf9907fe6b320fd11de26184194f2721e6d3756deb7425154a08cdadc13223"
+  },
+  {
+   "id": "c7-portfolioai",
+   "repository": "Dutta2005/PortfolioAI",
+   "commit": "796dfedd22cc7511463d06abd9241f912e463a86",
+   "archiveSha256": "40beb075d1c23e3229363926d074caa5ac67d986dac89763bc742b0b7ba2250d"
+  },
+  {
+   "id": "c7-fincare",
+   "repository": "erenemrearik/fincare",
+   "commit": "f97b3102ae21a87405478966de4c2e40547dd137",
+   "archiveSha256": "422384fa86a2c39e8f5bd72c87e7ac64192477c275ed446afd66519c264277b3"
+  },
+  {
+   "id": "c7-kal-dev-group",
+   "repository": "Erhanalp35/KAL_DEV_Group",
+   "commit": "8ce253a05aba7f1472cea08d3c056f1f6d0aed28",
+   "archiveSha256": "75b62af82abdae5352f89f11b13d2669a3236cbfd26fb63fdb3c187ac55b7594"
+  },
+  {
+   "id": "c7-ffcam-formations",
+   "repository": "ffcam-aura/ffcam-formations",
+   "commit": "dcfd9b2ddc46bbbdf0ef598fef3221c36057b00a",
+   "archiveSha256": "3220b1c87a1dc17ef0b8fbd160a03f7e0ea988c30de6c567622854d63ee2381b"
+  },
+  {
+   "id": "c7-music-craftbook",
+   "repository": "florianlpg/music-craftbook",
+   "commit": "b6b27724ab99207956c3277c675abb00e587fcd8",
+   "archiveSha256": "4febde28c029065a00060a92195cf7eb2e7c1a7d61bb5e8bedd74fd100f0fff2"
+  },
+  {
+   "id": "c7-manga-xr",
+   "repository": "Friedrich482/manga-xr",
+   "commit": "2b86982048a88dd7801f89f3328fdb3da062f6e2",
+   "archiveSha256": "6d2306101e1687982149624210eefb252b4050c181099cc44136f674d9fc1cfe"
+  },
+  {
+   "id": "c7-git-go",
+   "repository": "FRONT-END-BOOTCAMP-PLUS-4/git-go",
+   "commit": "74b523191a18b981bcad7331cf9a10d8ef5e8ed9",
+   "archiveSha256": "36f33218f707ecdab2da67ad6bc1a24497331223e9ea20c4722553f716dd606c"
+  },
+  {
+   "id": "c7-dragg",
+   "repository": "fsousac/Dragg",
+   "commit": "f1a89fc062f06e37ea8f3d038f9a723bdc99f936",
+   "archiveSha256": "f1b472172053a5e03c712e5336d933f87ac7ce6797804bee8539b50d09ad532c"
+  },
+  {
+   "id": "c7-flowagent",
+   "repository": "gama2219/flowagent",
+   "commit": "e75c0cc17e50f05a5e1311b923de91d77dafea6d",
+   "archiveSha256": "0baec7ed188b86fb27347528451f4930c4199307e654dea43700dc0e9c85426c"
+  },
+  {
+   "id": "c7-threatx5",
+   "repository": "gsvprharsha/threatx5",
+   "commit": "1361a7846f87832c4571875106316a505c81991d",
+   "archiveSha256": "7a25acec9f519a58d9c52dc72f91db2852f20de7c7de6d03213032bd7c7910e3"
+  },
+  {
+   "id": "c7-developer-candicate",
+   "repository": "gurkanfikretgunak/developer-candicate",
+   "commit": "b2955b4e3fdbee8a57a043470691eb4dfed2f1a5",
+   "archiveSha256": "11cc2fe63bff1612d22ec19441af3c805a25f9a6b78f34e78e0eeb59b22bb252"
+  },
+  {
+   "id": "c7-draftmind",
+   "repository": "HakimIqbal/draftmind",
+   "commit": "508f07e0281663ea7d6ee7918ef896a7606daebb",
+   "archiveSha256": "fce8708088136bb92002e73979d3f9f27ec9a3020cca79e8f482ec07057295c7"
+  },
+  {
+   "id": "c7-aerocanaan",
+   "repository": "HalaMadi/AeroCanaan",
+   "commit": "941d2d197664409d5e3a5df8aa6d88739411bfe3",
+   "archiveSha256": "74b7f6ed45ebd19d7624e8556134b80aa11752151ab2fe603a29e8e6a5000488"
+  },
+  {
+   "id": "c7-airtable-engine",
+   "repository": "HarshitBadam/airtable-engine",
+   "commit": "a5bb10a19fc6591db0a258545848c19847468c15",
+   "archiveSha256": "a31fe5798e82195eb0942039e5417570f3b7e4fb9438f6a8cd3d437ba93a3a6e"
+  },
+  {
+   "id": "c7-2nothing",
+   "repository": "hokithree7/2nothing",
+   "commit": "af82896827281671bfe9143030a91f363198ee0a",
+   "archiveSha256": "a7021631a44bdb8c4f42fb52a4ce6a6148571dbe629d94914be079c897b90089"
+  },
+  {
+   "id": "c7-humanix-academie",
+   "repository": "Humanix-Cybersecurity/Humanix-Academie",
+   "commit": "0293be2ef42e613ebb993f9a2b68e390feb3dd6f",
+   "archiveSha256": "4aea55b4218ecac3af74ab7e39ee90d7cd18382423060bedefa493b7329c003b"
+  },
+  {
+   "id": "c7-smart-ledger",
+   "repository": "HyxiaoGe/smart-ledger",
+   "commit": "19fc6542c2acaad7846db320ca0c2479cdd728f6",
+   "archiveSha256": "363eec43761f94991405eb7222cff4672ef99bbfe286b572e3c4793a079d6534"
+  },
+  {
+   "id": "c7-pomodoro-todo-app",
+   "repository": "iamfitsum/pomodoro-todo-app",
+   "commit": "1e29369739c6289ff48d77ebe8993aad82d95aab",
+   "archiveSha256": "6b4fb18e32441a579dda53444170578203cabf5a811d1e286f77f18c00312dd4"
+  },
+  {
+   "id": "c7-vidya-pod",
+   "repository": "imsks/vidya-pod",
+   "commit": "a4e1afbf893e619ae76e5a19fcd26cba19272e83",
+   "archiveSha256": "c007d4f5d1e8b42a3ca643d355a3732a1542e198eddad7d8f8112487a63fa234"
+  },
+  {
+   "id": "c7-aksharsetu",
+   "repository": "intrance7/AksharSetu",
+   "commit": "6283c88027ea0ae4057b5e8bb34a97df5225acfa",
+   "archiveSha256": "8b9eb3d44b54486c6c7fbbddf56b4087b373ee0b6600b85f372626a5ed741f9e"
+  },
+  {
+   "id": "c7-tmdent",
+   "repository": "ItsME-TM/tmdent",
+   "commit": "98aa6f9036049bfc9b493525ec388bb6d5a055d0",
+   "archiveSha256": "a0abc4e4ddc25645b4fe2711876440d14624813b01d00dd7f3ddfcef33be8455"
+  },
+  {
+   "id": "c7-itsweber-play",
+   "repository": "ITSWEBER-OFFICIAL/itsweber-play",
+   "commit": "6b62c5634868a0cf56f8c4655ec2ce488ef019b5",
+   "archiveSha256": "b07815c85bbee90fe224c9bd553a2ef9cfee982a6aba445c14130724b791cce1"
+  },
+  {
+   "id": "c7-h4hila",
+   "repository": "Jacksonmills/h4hila",
+   "commit": "fe229d120e99fc6ff5240ffc26fa8c8e04910424",
+   "archiveSha256": "996ebbf205d1a6e7d5045858e100b2d9ae103e104324d5beab5eabe8b2debb46"
+  },
+  {
+   "id": "c7-teamski",
+   "repository": "janakrathi/Teamski",
+   "commit": "4c236db14c4463ef26ba24d39776756a27bc2e0b",
+   "archiveSha256": "2e139c490e122ff38553065419a88baef2af6f63ba68b343bcc2b99dfa3df508"
+  },
+  {
+   "id": "c7-dart",
+   "repository": "jasonca2023/dart",
+   "commit": "257c5650f9cf90dedfe1978163e46f0978813c4f",
+   "archiveSha256": "42f6b262d35cb5f2d0e5ed687285f01b688bf19b232b13dde017ef601b7787cb"
+  },
+  {
+   "id": "c7-monolith-industries",
+   "repository": "josheche/monolith-industries",
+   "commit": "35d84ecf32a7c84d6b2b58231e262717cf32a5d8",
+   "archiveSha256": "da91fe99d9097096c954d87164a19f03d84fa40ecb63af459ae91702a31e87f5"
+  },
+  {
+   "id": "c7-livepoll",
+   "repository": "jutionck/livepoll",
+   "commit": "eb5ee91504a05cb8cc14f1861ed05313737642a0",
+   "archiveSha256": "a99de0688ac1ec4b988aedc567a5a40492638866948e92465711413e95484720"
+  },
+  {
+   "id": "c7-ratemyemployer",
+   "repository": "Kabi10/ratemyemployer",
+   "commit": "51220d93045d155e6d6a65032422729c02ebf89d",
+   "archiveSha256": "be4e772a09aa9bcd8840f0ae5894f65b27ebf5d066621e053bca9f111aa82cbe"
+  },
+  {
+   "id": "c7-hit-ani",
+   "repository": "kajimi16/hit-ani",
+   "commit": "9a770fb0aeab65ce3646c0e34e9b9bbda0bd2abc",
+   "archiveSha256": "11074bf247563f2d4b6060b4df02a6c3813bf493ac848f87fc94ae47157bb395"
+  },
+  {
+   "id": "c7-xupersplit",
+   "repository": "kanylbullen/xupersplit",
+   "commit": "455949f2fdaae0757f2ad978e798841d554658a4",
+   "archiveSha256": "29c3f7395898c2ff49e43246f82f90516c724056d1d929d47a8a4e919da632e3"
+  },
+  {
+   "id": "c7-applyx",
+   "repository": "KIET7UKE/ApplyX",
+   "commit": "9aeaa7e35d6150e0582a3d512e729837dec0b046",
+   "archiveSha256": "6fa7ea37414d4cffa7caa24a59ecd9e557d272039c7bd90c125b7ce37e31fa6f"
+  },
+  {
+   "id": "c7-scrapbook",
+   "repository": "kisk-muni/scrapbook",
+   "commit": "713d1452d7e6243e952daa44c7729fba27ae8c86",
+   "archiveSha256": "59701d11b081f698038c53613eb75d13b65e4697a5f582559fb94e01111f7050"
+  },
+  {
+   "id": "c7-lab68dev-platform",
+   "repository": "lab68dev/lab68dev-platform",
+   "commit": "e249cd321945172e7810f0c7512b6596cd969c38",
+   "archiveSha256": "dfbedf0499640686d9192584adff9ddbfa6f40a41cba24dfcadad2a86a8bbc74"
+  },
+  {
+   "id": "c7-buildt",
+   "repository": "laribright/buildt",
+   "commit": "4d0141338372fec399e94da9638fa5743e357cf6",
+   "archiveSha256": "8b317b2dd9289a3968f3159ec896057ee42180f114b4d7fe8ce9ff782924f7a7"
+  },
+  {
+   "id": "c7-dangkhuong-platform-public",
+   "repository": "ledangkhuong/dangkhuong-platform-public",
+   "commit": "de4f9cdc6f803fbdb5392e38c7ff48ee9b3e8ba4",
+   "archiveSha256": "cda8f7ef7a9102762271258dd618815b40cc50fd0625dd278cc6001c18677334"
+  },
+  {
+   "id": "c7-keyword-explorer",
+   "repository": "lif3time-secr3t-c0de/Keyword-Explorer",
+   "commit": "3588ab294e9abb6b0345ea2aa8c4c5d091b20a65",
+   "archiveSha256": "7c23f529ddb6d63f5cc006db82aac94ea00523bd26dd6b6d8327899c25e19d3a"
+  },
+  {
+   "id": "c7-jiunity",
+   "repository": "LindungiLw/jiunity",
+   "commit": "52327777a3131ebe35c05f1b3576eba0f7d92019",
+   "archiveSha256": "edd183c0c0e427a7e99c0bcf593a95284e40678a29093e0199a703329aeba1ce"
+  },
+  {
+   "id": "c7-byte-of-me",
+   "repository": "lthphuw/byte-of-me",
+   "commit": "1f6d58e47a952f197e18e832f488fdfd78832a55",
+   "archiveSha256": "c731447b5ada0bf4631e2015517d83c92d540205a49f35b259d35e4eef969bb5"
+  },
+  {
+   "id": "c7-workforge-recruitment-platform",
+   "repository": "Manthan-13521/WorkForge-Recruitment-Platform",
+   "commit": "e8a546ad85c3ab9e9258c06f6954181b240a470f",
+   "archiveSha256": "88a12bf5cbced42bd547826eba81574444d27a7ac473203005a8c75cddb2eabb"
+  },
+  {
+   "id": "c7-intaroom",
+   "repository": "Methasit-Pun/Intaroom",
+   "commit": "f5ad4c02fa0d1d931320efea944db72b0502d120",
+   "archiveSha256": "9b3085f86887b0a1fdd74ecd04b6297b6cba962ebbe203d60fe59a11ed8f20b7"
+  },
+  {
+   "id": "c7-t3-portfolio",
+   "repository": "michu2k/t3-portfolio",
+   "commit": "3b848a9a28abf89898dd44e51b0d8aca8fce3bdc",
+   "archiveSha256": "ef344cfdcdbbd255c27be70d1defcc142ec620deecbee6af2ba8d25dcf7527d1"
+  },
+  {
+   "id": "c7-deadlock-tracker",
+   "repository": "migueljbeltran/deadlock-tracker",
+   "commit": "679354d36354b1e0010729e595b857dbb712ff72",
+   "archiveSha256": "0a5d4c65d7d5f58977de875d18c6e88dd2704fdc2ccae5997dfc05b58a1c1869"
+  },
+  {
+   "id": "c7-minilink",
+   "repository": "minianon/MiniLink",
+   "commit": "829b0a705bdd3bfb473296cd9fedbdd1677d49f8",
+   "archiveSha256": "d5c7e4bece39466c61455adcb5b17df57a7a5bd592aa84cf79c77a4632b45fb6"
+  },
+  {
+   "id": "c7-copylot",
+   "repository": "mislavjc/copylot",
+   "commit": "d9eb022fffeb478859f2c973dccb73baea97bad6",
+   "archiveSha256": "29b5aa35dd2ecbe7a1a55edeca79e118e19d30cbf8046ba65e7c4129370b09b9"
+  },
+  {
+   "id": "c7-dndsoc",
+   "repository": "mkutay/dndsoc",
+   "commit": "45f43cb6b33ae0813f1fc3bcf8647784899f05b8",
+   "archiveSha256": "6066125a150b7c21b90d8a623b75d43f759d906e186aff4d12f77a46f747a3f2"
+  },
+  {
+   "id": "c7-ebec",
+   "repository": "mohaneddz/EBEC",
+   "commit": "b18ecabf72e6058fc79508cdb919eb1e210c4c9c",
+   "archiveSha256": "78ed3c28faa5c6954be686b272780cc0ae29d297126052c5189af0a1b7ee128b"
+  },
+  {
+   "id": "c7-ducktype",
+   "repository": "moneytosms/ducktype",
+   "commit": "2d886017edf262990754e6d269be513ab0d008b2",
+   "archiveSha256": "092e23f2183b3c67f9f7fc0f21e8525e6a1313ebdd03d2da3382e324d28d17a1"
+  },
+  {
+   "id": "c7-mr-x-sentinel",
+   "repository": "Mr-Aurevo-X/Mr-X-Sentinel",
+   "commit": "5c715a4509f8b2c18b203c7c3bc45e9b790b2512",
+   "archiveSha256": "2fd09ffe5e4c296cf5e4a94d90a71d25f7c1368aa1d10f6aa744fab9cd337869"
+  },
+  {
+   "id": "c7-sift",
+   "repository": "musbabaff/Sift",
+   "commit": "67f98fb24e312bf55b83647934292aa89d3c5272",
+   "archiveSha256": "6cc0bb1bb7febadba6d5632389c1832d11a64e62b605fac9c296e64d4a360459"
+  },
+  {
+   "id": "c7-quiz-master",
+   "repository": "nabarvn/quiz-master",
+   "commit": "3553388c5a9da9ae3a7d304148ae7ac396cd14a7",
+   "archiveSha256": "7d5783e21fed9fd0816461c7e9b46a816f3e353a04271f1b004f16df62321eec"
+  },
+  {
+   "id": "c7-navis-docs",
+   "repository": "navis-docs/navis-docs",
+   "commit": "a3781632eb314168532c628bcf01b7e6d14c7afd",
+   "archiveSha256": "af0cc606d6c0aca4f538a7d6c03b5bbef08ddaef31eb87a0af312be43de4c4f8"
+  },
+  {
+   "id": "c7-mindhouse",
+   "repository": "neurodivergent-dev/Mindhouse",
+   "commit": "9f6a70757ad9805d3343f4b76243511aab36489a",
+   "archiveSha256": "2eb710307b61108ec259b46e33c4ddcc3efec3ab77acd36e4878a2b23e36e955"
+  },
+  {
+   "id": "c7-worktowords",
+   "repository": "notsoocool/worktowords",
+   "commit": "b6d77d772f68a4cc0b9c79de54525fb27b5806a2",
+   "archiveSha256": "1341cfc5a066f9112f06b3b4442c45e29eee5b37446146f8a13bb80ecc68cbbe"
+  },
+  {
+   "id": "c7-unvibe",
+   "repository": "Omnikon-Org/UnVibe",
+   "commit": "d748dfea171a5bc0fe23b61547002195e42aad77",
+   "archiveSha256": "9c1271c2838ce40f625028d6ea6cf859fe6f6919722bc35185a5e067e4136963"
+  },
+  {
+   "id": "c7-what-to-code",
+   "repository": "owencooke/what-to-code",
+   "commit": "8b2a7ba7fb7f31c1177d105a0ee50174779928dd",
+   "archiveSha256": "01faba6e9c55b494eef1a87362839f4518ec453b41b539b753c0e6cdcdefb325"
+  },
+  {
+   "id": "c7-hackmate",
+   "repository": "owengretzinger/hackmate",
+   "commit": "4bc2892a600469c9362ccbd3eda06b57d35b388d",
+   "archiveSha256": "addff82c9a13e07d06022811066d2f0de289fa5ca50fb8a2c187841155f35094"
+  },
+  {
+   "id": "c7-hospital-management-system",
+   "repository": "parunchxi/hospital-management-system",
+   "commit": "0a5ee134602a7f10f208a66a990b69c7360e96fa",
+   "archiveSha256": "f6e250ac95976765573ea1eac0bd8496342a615c426aa7068665d2da6d9916ae"
+  },
+  {
+   "id": "c7-chat-with-github",
+   "repository": "Payalsahuj/Chat-With-Github",
+   "commit": "cbfb6b5e6ccbd64705ada59a65fe9829f9acaf62",
+   "archiveSha256": "7d6edac8e7961d9a61e7c22bcf6ac0a075c3fe6ddc1c5cddc19bf38106f01459"
+  },
+  {
+   "id": "c7-bottomfeed",
+   "repository": "plank1234567/bottomfeed",
+   "commit": "0c375d83fc6615521400a22d66a0f7aef08d7610",
+   "archiveSha256": "8b0d999d5f3f9bc3d539eb6b75850a454de4379c38be6fe1409efc1dfcd9d1aa"
+  },
+  {
+   "id": "c7-fullhp",
+   "repository": "poran-dip/fullhp",
+   "commit": "cefe47260c65d4ab969992b93903fa2d55d965e5",
+   "archiveSha256": "7124ccab128c5ce459227bff05e57caf77d3cacfa3922ccba88e2bb7a4300918"
+  },
+  {
+   "id": "c7-markup",
+   "repository": "pphilfre/markup",
+   "commit": "4f4000b17b5c80dafef5619ca19dbe9c2c11ddbe",
+   "archiveSha256": "f9329198f153a39f4f3295398de84bb8f4eb323c6197d47c25881a06e82c83e9"
+  },
+  {
+   "id": "c7-profiling",
+   "repository": "Pr1nkos/profiling",
+   "commit": "70ea22d140646890f348462bfb1d8221c51920f2",
+   "archiveSha256": "f3642556869998e2c86648917a7b63908c65c9ac46b87b5f30d9ad170a7557ca"
+  },
+  {
+   "id": "c7-linkfolio",
+   "repository": "Prasad48432/linkfolio",
+   "commit": "534e2a30ba3f8cdbbd7138a03b96ef245d3a0619",
+   "archiveSha256": "bfb69bf85f72699d9cb0b62e5f38fe50e6b30d44472bc455e3f4d26519277fee"
+  },
+  {
+   "id": "c7-carex-ai-healthcare-ecosystem",
+   "repository": "Precise-Goals/Carex-AI---Healthcare-Ecosystem",
+   "commit": "1e96ec4db2a5de2ffde31cf927a276c718172a28",
+   "archiveSha256": "d20be13893f23af177407627c81fd4544635a09365770c13556efc6729a052ce"
+  },
+  {
+   "id": "c7-twinstitute-ai",
+   "repository": "QizarBilal/Twinstitute-AI",
+   "commit": "210897ca9a2ac4d513143dd4fe1065181b1c9c05",
+   "archiveSha256": "7af254598728188883cd1566db4ab28341298e9574de6f23883d966bc573238e"
+  },
+  {
+   "id": "c7-mini-motion",
+   "repository": "quang-pham-dev/mini-motion",
+   "commit": "51202329e6cb378c5fe70fa7abec213395019e4c",
+   "archiveSha256": "50841b76a7cb3f2476976eda646ee269a7e88e79ba3560421a5a8885a66c854b"
+  },
+  {
+   "id": "c7-quoska",
+   "repository": "quoska-hq/quoska",
+   "commit": "6b4482d593a6098830d791b63a5c8b987dc169ac",
+   "archiveSha256": "eaa4bb9a21df7df28c02694c7e55235a3c03b4ae311d0b2646c8ad2eca796fd5"
+  },
+  {
+   "id": "c7-ignitecall-app",
+   "repository": "rafaumeu/ignitecall-app",
+   "commit": "acd0dff4a967c0800bb6fc4f1afb7299e20c2a3a",
+   "archiveSha256": "fcbab72b674bf72d036c76f0056d38fcefcc7362f1c0d40f03c2357ff67321c0"
+  },
+  {
+   "id": "c7-payflow",
+   "repository": "RahmaanQuresh/PayFlow",
+   "commit": "8142b9d32f3ef776a228a05467e558685d6de5be",
+   "archiveSha256": "b8933a33b30e0e77f555a3712d4fe459b63f10dba21d3af36dbdcf92ad4cefa6"
+  },
+  {
+   "id": "c7-llm-consensus",
+   "repository": "rahultapase/llm-consensus",
+   "commit": "4503bf3ad7d22d3bb8243b98f150a4976985d5bb",
+   "archiveSha256": "41194aa7f5fe4a345d14525bef25f007faa2cb6aafab2f007b3d3a7ad41414b2"
+  },
+  {
+   "id": "c7-builderai",
+   "repository": "rajpatel9595/BuilderAI",
+   "commit": "a81848c9707135038c04ccfa5b1a2d83e7c8526d",
+   "archiveSha256": "5df88b3a5660292cad0a0f8c66483af928e038f53810d6f95311760c52cb340c"
+  },
+  {
+   "id": "c7-tamborradata",
+   "repository": "ramistodev/tamborradata",
+   "commit": "e40d40b52f0e49f8d7f1ff1cc940c07b6993e12e",
+   "archiveSha256": "dfa1bc380f854426d6283fc74aeb74f6b372709c4ac115054eb068c7053f65f7"
+  },
+  {
+   "id": "c7-quiniela-platform",
+   "repository": "Rastipunk/Quiniela-Platform",
+   "commit": "fd711a59ea6a94aaec847f64ae1ccf0b6022735f",
+   "archiveSha256": "4f8c8969b8e0479e29b9f7f88300aed8c67743f2c47c4cadc9cc51c208dc9f2b"
+  },
+  {
+   "id": "c7-kennyelshoff-com",
+   "repository": "ReallyBadNews/kennyelshoff.com",
+   "commit": "0a0dbeeefb47ef3c450a7c686eddb0591e400521",
+   "archiveSha256": "3b18787a0e49769b5359bbe269f115b25094d9773904e5d9b141164036c3befb"
+  },
+  {
+   "id": "c7-arcade-points",
+   "repository": "rfkisctt/arcade-points",
+   "commit": "769170f0b9b8a867e766eaa53039c2580ad5c23a",
+   "archiveSha256": "289ab3a8c98e6f1bf05a667751930218a1d6a527e46d15d7500a96e311de209a"
+  },
+  {
+   "id": "c7-corpus-r5",
+   "repository": "rohan-pixel/corpus-r5",
+   "commit": "05e8934347b8653e3e68ef8db9ccec560bfe9e27",
+   "archiveSha256": "cf5b06fa8b079e619cc08b0406a1e582d60171409be4c268a0f79edbc6266da2"
+  },
+  {
+   "id": "c7-casebite",
+   "repository": "rohit-gotgit/CaseBite",
+   "commit": "3c8f69907d7a343746e073a40ec1cba4b1e88943",
+   "archiveSha256": "3599d373972102c3fdf2d8264a2c408f7ff92b05591f51a6da39176d1d74869b"
+  },
+  {
+   "id": "c7-r-motel",
+   "repository": "ryanzam/r-motel",
+   "commit": "a115f44b2a71bbf13272031ef9cf49e21ee0571b",
+   "archiveSha256": "e61c7540951227de04cfc184790b8a5bfacf87eaeb8cfe45387b70ecf7d854ba"
+  },
+  {
+   "id": "c7-saas-ai-website-builder",
+   "repository": "sachidumaleesha/saas-ai-website-builder",
+   "commit": "8b3c6a998d17474ac45f9575dbd48a700129559f",
+   "archiveSha256": "e16fdb472ef3fb316784bb0ae1d0b1deebd06cd4d1501da0b592cf322015d67f"
+  },
+  {
+   "id": "c7-pancake",
+   "repository": "sarimabbas/pancake",
+   "commit": "e98623619e14e787bc885cbd23d7aee56087cc0d",
+   "archiveSha256": "62b4dd0df3d42044262071577f965aab65553aaab4be4b99216e515ed6bb01fa"
+  },
+  {
+   "id": "c7-hired",
+   "repository": "shifulaboratories/Hired",
+   "commit": "627678c2e644a13203ae4bb646293f460622b6d3",
+   "archiveSha256": "21f1339f12a28119601bd85ca5b2cc20fdd90af02469759b52f5b6ed6216088b"
+  },
+  {
+   "id": "c7-ai-workflow-automation",
+   "repository": "Shreekar11/ai-workflow-automation",
+   "commit": "752bdcc5847383cf65ff59a0af28aac2431c641d",
+   "archiveSha256": "f59c8a53215e139f4600e8dedcd557348e5422d4e47500d56aa999992bd26664"
+  },
+  {
+   "id": "c7-next-auctions",
+   "repository": "SiegfriedBz/Next-Auctions",
+   "commit": "065565e4da6af0c8850ccd40b0aa4f10c26fc02d",
+   "archiveSha256": "16d375501055530c7dd7eafacc24d28ceb9a41051b0b2d593dc99eb348c258ab"
+  },
+  {
+   "id": "c7-daegyeo-me",
+   "repository": "SkyLightQP/daegyeo.me",
+   "commit": "d61f7ce2023ab00966168c352580c3f34155738e",
+   "archiveSha256": "056b2424492613e3dff53d44af29191d81d3c7d756d7bdad7ce13428a809ff50"
+  },
+  {
+   "id": "c7-personalfinanceimproved",
+   "repository": "smdion/PersonalFinanceImproved",
+   "commit": "adaeff855223a87f94c68ec6c8d274875ba93ad3",
+   "archiveSha256": "ee508b28e8370d6f3bf291e1f0011c6600c9acf15ce4f7c3eab263954cfe14b3"
+  },
+  {
+   "id": "c7-comsci-128",
+   "repository": "smmariquit/comsci-128",
+   "commit": "416b499de2b529c8d9aaabd74b3fbb9d257b08e2",
+   "archiveSha256": "9db1983b8101caaeb2fc37982d87c97ef09aa6e736c61dea7dbbfd42a7eda182"
+  },
+  {
+   "id": "c7-meridian-intelligence",
+   "repository": "solankivedant/Meridian-Intelligence",
+   "commit": "90f1a2ef388fb88dcf32039aaa9431d2081d7208",
+   "archiveSha256": "8b8ecc0a67b9b1f99c571439426224676d91ea8aef0a1264dd628fb3b388a460"
+  },
+  {
+   "id": "c7-reddit-signal",
+   "repository": "solzange/reddit-signal",
+   "commit": "b09153d17226c61369dcb308563adbd2953c6ff2",
+   "archiveSha256": "b52d273c39ed9b9c328e0b3171fca8fa17753731ed6443ca0bae62fddfb640d0"
+  },
+  {
+   "id": "c7-opensprout",
+   "repository": "sparshsam/opensprout",
+   "commit": "a170d9fc6bdf670a65a5d0385ef9947aa77c5df7",
+   "archiveSha256": "9ce744e02a1d18748f39420527b5e856b74d65111537f73068eaf0c4c3af65a3"
+  },
+  {
+   "id": "c7-time2guess",
+   "repository": "Spookywy/time2guess",
+   "commit": "e970555887a35f2344dedd2681b8b37973ae8307",
+   "archiveSha256": "c6f888dbab4abefc5d26523f11f78dea70d990f6acd3955236634ccf2821f2f9"
+  },
+  {
+   "id": "c7-inknote",
+   "repository": "Srinath10X/inknote",
+   "commit": "a92f43951d71f047aff5f0ad38bea3b2c798a8ba",
+   "archiveSha256": "f6bc2d3ab15cc3feb36f30505669f946c451e55ff472594051de6e6009ce36a6"
+  },
+  {
+   "id": "c7-simplist-blog",
+   "repository": "Steellgold/simplist.blog",
+   "commit": "4b66f83271d002b11da57d570470e6c76338ed88",
+   "archiveSha256": "f543e848d3f6f2a2b104f745fe3a0d89210d85ecff3225076e5d1a868d3dc121"
+  },
+  {
+   "id": "c7-divinora",
+   "repository": "SUGAM-ARORA/Divinora",
+   "commit": "5d672bd8d49a0c95103d608b79490938b28216a6",
+   "archiveSha256": "4726bf36c43a9f0ee76503069fdd76229f4780287e71adb1e670c0d0758cb438"
+  },
+  {
+   "id": "c7-roabh-mart-nextjs-and-supabase",
+   "repository": "thanhhoa3514/RoabH-Mart-Nextjs-and-Supabase",
+   "commit": "e115aad7c4c83c4e89d430eb85f4ffdadbd5f09e",
+   "archiveSha256": "5ec318d059c0097f8f317594f2be0ab868fc6180b861a055cb06fdb88a9aa14f"
+  },
+  {
+   "id": "c7-engineered-the-youtube",
+   "repository": "theBappy/Engineered-the-Youtube",
+   "commit": "46e03531f8b21d001bc28b8f1bdf8c64dd851c20",
+   "archiveSha256": "c94c000b4b5f43a066726e7bda63c5deb23fc2c2e39928e0d5a9afc6be8e93e5"
+  },
+  {
+   "id": "c7-reviewray",
+   "repository": "therajarshichakraborty/ReviewRay",
+   "commit": "4bbd3d646644819c3c3846c9d0701cb46d5a5823",
+   "archiveSha256": "748ca48848e3abffb26f58e4aa7dcf7043b2d47b4784122cdec3c5c417b29544"
+  },
+  {
+   "id": "c7-trungtmnguyen-com",
+   "repository": "trungntm/trungtmnguyen.com",
+   "commit": "a3881c46fdcb6cd0521bb024031c6efeed37c136",
+   "archiveSha256": "573133506fb85fe4a21edd8f2bc5089dd49edeeef4ea5cd8d2016b259d8af943"
+  },
+  {
+   "id": "c7-saw-that-band",
+   "repository": "victorgaard/saw-that-band",
+   "commit": "0afc278d35df0ea8ae8bcc4e3b23fe3d9f76be92",
+   "archiveSha256": "c1ecce3f3f91ea194add71639a81e5179cb7135970b8f65ed0f9977150e516e5"
+  },
+  {
+   "id": "c7-dominion-public",
+   "repository": "Virus250188/Dominion_Public",
+   "commit": "a1eb37c142fa81f97b6e9554224154c97be684e0",
+   "archiveSha256": "58a0720c5ddeea4843ef40c5240395a93517432e0c4342fa57362a59af1cdcd9"
+  },
+  {
+   "id": "c7-ai-tool-hunter",
+   "repository": "VishalsWorkspace/AI-TOOL-HUNTER",
+   "commit": "3eb8b1c5fae61e16136545dc75b30f4c76e5c6b0",
+   "archiveSha256": "341c0517d143816d3ae009732f4de8d5fca8f914129b6a6b34f93b6dde96c375"
+  },
+  {
+   "id": "c7-ai-talent-scanner",
+   "repository": "Vivek-736/AI-Talent-Scanner",
+   "commit": "2d4048d17377749d5d39f98f434a3118bfc8ebd7",
+   "archiveSha256": "70f5ace29310734b283f6c421d2c518df927a794ab0601881ecf036f1b2e61d0"
+  },
+  {
+   "id": "c7-shopverse",
+   "repository": "vivirony955/ShopVerse",
+   "commit": "dd15531b2c52e3d630a8801dd9058521e80cb217",
+   "archiveSha256": "d289feba17c5a32f73a7ce2f06b8224089bd4c6c431b942c57417ba9fbc2c127"
+  },
+  {
+   "id": "c7-code-in-the-dark",
+   "repository": "vLX42/code-in-the-dark",
+   "commit": "2bbebe07bb9476429675edc5d414802773a598c9",
+   "archiveSha256": "1bdf58a2c0f275760b4925048c471e18d47fb708bc35ba18395de334713b9aa1"
+  },
+  {
+   "id": "c7-vsait-org",
+   "repository": "vsaIT/vsait.org",
+   "commit": "b0678fd4f95fdb755e79493363e49a37cb6cf5e8",
+   "archiveSha256": "eae750cc63d85557c2ac8a4c1e724c3cf4bd74ec296ac2f560c52ec45cc734f5"
+  },
+  {
+   "id": "c7-vscubing-next",
+   "repository": "vscubing/vscubing-next",
+   "commit": "cf0cf503b111157dd716a9d7d8f3292c938509e5",
+   "archiveSha256": "55339285993e1c56bad389c85ab084aeceeef07c60f6a285b6107c63d1c13d97"
+  },
+  {
+   "id": "c7-wedgietracker",
+   "repository": "WedgieTracker/wedgietracker",
+   "commit": "d65c0a3822b1e18d78446124663faa2a0522c960",
+   "archiveSha256": "d23b7b2c8c77bf7c81c7e878b086990c89870eb55bca5f823941844a819415a8"
+  },
+  {
+   "id": "c7-test-next-13",
+   "repository": "wongprom/test-next-13",
+   "commit": "9410482671e6abd408a7fc38b270bfd4d85bd8df",
+   "archiveSha256": "d676fab97258a79d83b7aa9509cfd78299f4b6eca9d87a0c957d1ab04841089b"
+  },
+  {
+   "id": "c7-vibe-blog-next",
+   "repository": "yoea/vibe_blog_next",
+   "commit": "7869bdfdbe033f549687c1b2810a324b3f7d783c",
+   "archiveSha256": "14201d5fedad858817616f85e60b998d9e61aed45c2094a33b8870953a52ff7d"
+  },
+  {
+   "id": "c7-solvnote",
+   "repository": "yumumao/SolvNote",
+   "commit": "b1b0ed09c857a0589a5dcd88dbd1aabb5ed79ced",
+   "archiveSha256": "bc28a1d8e67c2f57c33f6d74a795257f66b02b366d990940f000b29445d9f3ce"
+  },
+  {
+   "id": "c7-kinetic",
+   "repository": "0PrashantYadav0/Kinetic",
+   "commit": "ff0e1a4dc554366e4a7fc9a95546d983fc37fcb3",
+   "archiveSha256": "49fa03fa622966ee22d3afe9beddb44884b48254f0a9e451830ec3cb24c9677f"
+  },
+  {
+   "id": "c7-feed2040",
+   "repository": "0xhav0c/Feed2040",
+   "commit": "f9c18204da3f3e1602fff89a5cf84436995f6f41",
+   "archiveSha256": "d655b04976f66168aba674aff8af9d3424347f7e0fe09624f09b741c735c5372"
+  },
+  {
+   "id": "c7-13-nowonlikeus",
+   "repository": "2026-KW-HACKATHON/13_NowonLikeUs",
+   "commit": "d2fd5bfa2ae00ae9c980ca76dab1658dfa1d2e92",
+   "archiveSha256": "d84ee74f7c24ae3d9ae72b4f1752e6edf0b87e5ce7dee83eeedffd7aa53788a7"
+  },
+  {
+   "id": "c7-mastermind-7dtd-ai-server-manager",
+   "repository": "248Tech/Mastermind-7DTD-AI-Server-Manager",
+   "commit": "a521b3847657139ece827e16052716c2e8cad85a",
+   "archiveSha256": "173faf18166ee061828df7b2c8bf4ac40f3c73c7c61fa2ea9b3771e9c029e75c"
+  },
+  {
+   "id": "c7-transcendence",
+   "repository": "42-BCN/Transcendence",
+   "commit": "72de391a198d785a167655c9404f6ee6199549a3",
+   "archiveSha256": "a8dc551717ab3f18ca47c5e41f241a7845322e78f79de1b4d7ba3568cd380520"
+  },
+  {
+   "id": "c7-cla-bot",
+   "repository": "514-labs/cla-bot",
+   "commit": "cbf21f97824499bbc6348d0ed90ba489bbd33b18",
+   "archiveSha256": "e80bb1e132512eeed28b18f926684fce31f9c0d25fdb26ffb16f59b1953e32b2"
+  },
+  {
+   "id": "c7-polly",
+   "repository": "a1exalexander/polly",
+   "commit": "e62f7ecf42767506ad576a14bd492817434b034a",
+   "archiveSha256": "76a6abbca8eeff97fad555a2b8e775421f52f532d85013a7cf9f1a5d517abdea"
+  },
+  {
+   "id": "c7-budget-buddy",
+   "repository": "aafrzl/budget-buddy",
+   "commit": "9d249087624a3ecc440846adaac50ac9f55fecf4",
+   "archiveSha256": "15b2f80b97ce4b6de693542f0bda1d31064afa5b90e98b152a0388dac7c6eb19"
+  },
+  {
+   "id": "c7-texttalk",
+   "repository": "Abdullah-dev0/texttalk",
+   "commit": "5f3ae9e084704c5e424bd170c5c0bef960e7019b",
+   "archiveSha256": "a3f48f5ad2bf001c0e4c6801ab499c85c710e1f8bec57fc690e29ffb8740c164"
+  },
+  {
+   "id": "c7-academy1",
+   "repository": "AbdullahSalimee/academy1",
+   "commit": "af0e998c72895eafd199d9a5b65f4b4b1c76076a",
+   "archiveSha256": "0e6fe4b58d4fa9edce2c4508099cbae13ef7ea2a84ebdc90040473f8a7d04cdc"
+  },
+  {
+   "id": "c7-taste",
+   "repository": "AbdullahSalimee/Taste",
+   "commit": "9f34e17083670652747e2e7dbde945c924218d81",
+   "archiveSha256": "3bb3f348d5e984382e18b16f08aa10d3280637517e3d233cfaaeee0cc67d334b"
+  },
+  {
+   "id": "c7-shipyardhq",
+   "repository": "abhi1693/shipyardhq",
+   "commit": "1b751b657a5070be71a4e90539b8dd94a55e127c",
+   "archiveSha256": "6574373f19109f5b964ffd29c682f6267dcd4979b35a6965a0fe335065b04375"
+  },
+  {
+   "id": "c7-apex-predict",
+   "repository": "Abhichandani-Yash-Manish/apex-predict",
+   "commit": "b0bf4e18a67ca48917656993ba17201bd20d5053",
+   "archiveSha256": "be896f2f1b5ff7d7a936207a111f1bfbcef881b26d00bd90450d0c38525809a0"
+  },
+  {
+   "id": "c7-ramble",
+   "repository": "Adam014/ramble",
+   "commit": "9e1711b5ad958b7ded5dedef09ad45af1ff5bf95",
+   "archiveSha256": "6fbda271743568e2762006370365af179437d85913697bfc21d759c7ef116266"
+  },
+  {
+   "id": "c7-moe-stream",
+   "repository": "AdingApkgg/moe-stream",
+   "commit": "4e0243a886f58ba0c4f8cde27544c5583ea66e9a",
+   "archiveSha256": "9a504eeb3dc6eacde71aa9ad6403b0dedd168963c0fd8d5869c6ac11ca1184c5"
+  },
+  {
+   "id": "c7-budget-tracker",
+   "repository": "AdityaZxxx/budget-tracker",
+   "commit": "513742668b94040b39ac988ccb43e0781ee63b1c",
+   "archiveSha256": "ecb1a80a073514cee9ebdeab471341ebeaef1c33b7157861ab980c1b9d5cb0fc"
+  },
+  {
+   "id": "c7-hero-quest",
+   "repository": "alexmita04/Hero-Quest",
+   "commit": "638a4b446e867374965a01e5cdb48aee5e17f74d",
+   "archiveSha256": "08f4db6481feb63fe0d6820f1eac18a9b3692ef5f2e7f473afbb506da08f3871"
+  },
+  {
+   "id": "c7-ai-exams",
+   "repository": "alfredang/ai-exams",
+   "commit": "9cd0ce3fb7b26bf5a674d0c0e41b4948f6c403a7",
+   "archiveSha256": "2d8b94ff3b189aa3040c7c1082b4909405c9eaa77384329861533bad428d78ac"
+  },
+  {
+   "id": "c7-iotplatform",
+   "repository": "alfredang/iotplatform",
+   "commit": "8fc6b6d000492006527349dab2b001a1872097e5",
+   "archiveSha256": "4fb06e99bd1393728543546447b4b99f2273e00e179e44a8c9dd1d33b1d078da"
+  },
+  {
+   "id": "c7-simple-config-cms",
+   "repository": "Aline86/simple_config_cms",
+   "commit": "4d16b77fc928e7b2c884f520fd427c33c6a374fd",
+   "archiveSha256": "1e9658b9adaf9632f6259ca8e16aa70330cbd5a790330fc166c11dce12139b72"
+  },
+  {
+   "id": "c7-refqueue",
+   "repository": "alinearonsky/refqueue",
+   "commit": "6adb29be9ecbca4b1036ed412807c80a36b6b9c4",
+   "archiveSha256": "52efbd4af25e838506ba1d4e61e7af8554af969dc8adba14ba5c4b6c75519ad9"
+  },
+  {
+   "id": "c7-velnox",
+   "repository": "Amir10202010/velnox",
+   "commit": "b79a9d53e98048e17a5e511ab69b0705560ba17e",
+   "archiveSha256": "a80e1ba0756ba1aa8e1cca62001f769a50621e5f465b3e69fd88d033ff4261fb"
+  },
+  {
+   "id": "c7-turistar",
+   "repository": "andre-lmarinho/turistar",
+   "commit": "1138c75c99c12345e49956936fedb425c0a72a1d",
+   "archiveSha256": "089dab9e6cf9acfbbcdf6f0ff3a3a15942aa5a8e38fe667d154c93fee567a79d"
+  },
+  {
+   "id": "c7-smart-resume-analyzer",
+   "repository": "aniruddhaadak80/smart-resume-analyzer",
+   "commit": "c247c9e23b4ba9a0921170d81fb994a9e548576c",
+   "archiveSha256": "ce1a5c5dea7265bb22484ba5a9d784f9c94af8b7b2c4241352ed7a15c9033704"
+  },
+  {
+   "id": "c7-foundersignal",
+   "repository": "apoorva-01/foundersignal",
+   "commit": "c55ed55229b4b5684863bff2917897dd38a374a2",
+   "archiveSha256": "1c198a34f36ba0c0459048d7214a720a0c247ce7f941e45aafb1a42c56c75502"
+  },
+  {
+   "id": "c7-recipe-guide-discovery-management-platform-nextjs-fullstack",
+   "repository": "arnobt78/Recipe-Guide-Discovery-Management-Platform--NextJS-FullStack",
+   "commit": "d42df89f839bc724cfa89a88aa27075a411d27fb",
+   "archiveSha256": "46170c4299dc36eed6d9990202d286fdc6a088056e3b28edfecfcb33e70b0681"
+  },
+  {
+   "id": "c7-visart",
+   "repository": "ArrinPaul/Visart",
+   "commit": "ab5f37029765db3e43b48f9a67a55a4935174ab2",
+   "archiveSha256": "16a6614113565b89322ba13f6683e5c00d93d27453407b0f6fa8d0b85272d319"
+  },
+  {
+   "id": "c7-cloudgram",
+   "repository": "Arsenic-01/cloudgram",
+   "commit": "67cbf825a9945cd06d2d322854c5f961fe8233fe",
+   "archiveSha256": "0d08a6ce19412d8f19a957612ed5de9658205f8dda8d21848dad20f2c30cafcb"
+  },
+  {
+   "id": "c7-finlabs",
+   "repository": "aseerkt/finlabs",
+   "commit": "9a6ea51d0ac98136498ea885f127f2740ddd6159",
+   "archiveSha256": "2b306246c04db7155df25e9ee193f0736fb763bcf26ddaa1338a60f0cf56ef02"
+  },
+  {
+   "id": "c7-multi-tenant-platform",
+   "repository": "ashcbrd/multi-tenant-platform",
+   "commit": "f250cb06cd6d21edfde2535dc6d3e7efd8551c0e",
+   "archiveSha256": "3662a1e3aa262e1ba9fd8275b307417c888ce5853687048ddbf89df272e06cf0"
+  },
+  {
+   "id": "c7-widgetly",
+   "repository": "ASHHADgit87/WidgetLy",
+   "commit": "c378c2388d8d253507e0fd572b51991bb1f45350",
+   "archiveSha256": "d2ed0f2d41a1d721161bf8f33e991a1757f5c02482061f4dc6038dd8fb432420"
+  },
+  {
+   "id": "c7-codit",
+   "repository": "audrbar/codit",
+   "commit": "9ec8c299c0a42218ffa44cbfc796e4bf38ba1546",
+   "archiveSha256": "667714c9df05ef61c64c7ed70c617e6e80bfb13fa953d15768b7ed56a74af212"
+  },
+  {
+   "id": "c7-research-platform",
+   "repository": "benmed00/research-platform",
+   "commit": "2171368e670c42f0512e637bf48a2367da7f9276",
+   "archiveSha256": "fe674edb1f2da51b174f30692e564f7ea52e6b0081edbf0a2f6c5c4bf41cd140"
+  },
+  {
+   "id": "c7-summora",
+   "repository": "bennettdams/summora",
+   "commit": "d52b48783bee10aaad2c16d64d11481ef647c93c",
+   "archiveSha256": "87891b62589f30eddcebb09af542ef9009ad16effa4deb1e837f4bc764a81b37"
+  },
+  {
+   "id": "c7-bhasile",
+   "repository": "betagouv/bhasile",
+   "commit": "c6dccf27fc4c1dfd910a65bd31708746a64e4a9d",
+   "archiveSha256": "b7f1609540c1f8275a3248673d296a2ee314fdb04223cfc4f2a77d6a9cc3b92d"
+  },
+  {
+   "id": "c7-lipy",
+   "repository": "biranchikulesika/lipy",
+   "commit": "673f162fd274347fd17e458232197a9c21a1f99c",
+   "archiveSha256": "c7c92a5e8186bfa0723c65a1f5539c065f1f44bec033db21ecbcecc704fb1af9"
+  },
+  {
+   "id": "c7-accesso",
+   "repository": "Bittu-the-coder/Accesso",
+   "commit": "b07c0fcfd230d19e315dacfa4bc3a49c83849952",
+   "archiveSha256": "e2e97e579d33a6936344714ed21021ca102421dee7e3249767440c61a76216c9"
+  },
+  {
+   "id": "c7-stint",
+   "repository": "BlakeEriks/stint",
+   "commit": "ac824da00ca30aa6b9f36e28bb952fabc6eca0f8",
+   "archiveSha256": "95c191d1f6518ff3112fbd708bd9d5889d914e9c50ca0ad324990e216e61fb67"
+  },
+  {
+   "id": "c7-next-js-blog-app",
+   "repository": "brickgale/next-js-blog-app",
+   "commit": "66914d51c4d69a42e716fdb077b862915fa2590b",
+   "archiveSha256": "d6ea5ce2edd99eb04ccc73749a6866b782e92d2d037fd452598c7fcc2187c84b"
+  },
+  {
+   "id": "c7-codeomnivis",
+   "repository": "Bynlk/CodeOmniVis",
+   "commit": "51fbf3524c5ebc890690428ee6e3de78189eca41",
+   "archiveSha256": "847ef320872749f92ab14e7780d630d5845c75cd3b027dea4c94a1668e609603"
+  },
+  {
+   "id": "c7-blogr-nextjs-prisma",
+   "repository": "casaub0n/blogr-nextjs-prisma",
+   "commit": "80509fc64fe3bc574cd79bbcb9060a68985c8aec",
+   "archiveSha256": "dea230581f86c439cd95b3fc2fb6a2aaea50d8389dee17bc2335e641c55e231a"
+  },
+  {
+   "id": "c7-casca",
+   "repository": "Casca-case/Casca",
+   "commit": "43095d0c327883cc6ed8fe580be561278d7760ab",
+   "archiveSha256": "88582385989bbbd80fada54da236602fd6586a8833e2a51bea698d7eda4244bb"
+  },
+  {
+   "id": "c7-nexo",
+   "repository": "castrogusttavo/nexo",
+   "commit": "299a0270d9c589a4f8e445f941a81ba269e66313",
+   "archiveSha256": "dca5bddae42fe8d6ef2b3a06fcde7eff19858df96c5382d10af8b7633d304fe5"
+  },
+  {
+   "id": "c7-asia-bot",
+   "repository": "Centered101/ASIA-BOT",
+   "commit": "103281339c77bff9b61ecbd4e6f649bef6311262",
+   "archiveSha256": "bb306d9cb8206bc8f68d8809f7ea4fbc7f00467b40f064107b279212575f3468"
+  },
+  {
+   "id": "c7-synapse",
+   "repository": "Chere3/Synapse",
+   "commit": "dba230ecfb6766d3ec358c62f90fcbcbe2b0ede4",
+   "archiveSha256": "69de978e5e67758cf09c175258669ca635bf614ac9b9a0444030fe451a0c304f"
+  },
+  {
+   "id": "c7-schema-lab",
+   "repository": "codebybilal18/schema-lab",
+   "commit": "d997365fcd49b7984d8eeef93dda9cc342820450",
+   "archiveSha256": "d9e8b4ba5dd7e4a0df610ca224546ab9e73f35a774c0868036495f55bd53eb20"
+  },
+  {
+   "id": "c7-weather-gpt",
+   "repository": "codexanjan/weather-gpt",
+   "commit": "36bb2b022f00033933d0825c9d05f075c2858191",
+   "archiveSha256": "c4e6a2a3c316b519f4af5081f42772f705f324f5c746b8228c3e56d9bba38a31"
+  },
+  {
+   "id": "c7-cogniba",
+   "repository": "cogniba/cogniba",
+   "commit": "70e6a25199a600238fadeb973c61b9528977f2a4",
+   "archiveSha256": "13429dff36bd2039c9d89057e8801b959fc0885a569c6cec11b952373cf6f5c5"
+  },
+  {
+   "id": "c7-oktolity",
+   "repository": "Constantiner/oktolity",
+   "commit": "f78f726af98b7d6b968d940ec5975899d86818bc",
+   "archiveSha256": "52f43793fce740fb4cce25246fd2ab05dfc600afffb8080930d9e0f6ece5bf09"
+  },
+  {
+   "id": "c7-zsp-aitool",
+   "repository": "cvsz/zsp-aitool",
+   "commit": "e2c61e80cfe5161dc9b761408ac5c55b74ee4ffe",
+   "archiveSha256": "49a0428f1352608931f12229a0a638cfe30ab7484d255b2f995c36e78e280acd"
+  },
+  {
+   "id": "c7-dante-web",
+   "repository": "dante-agent/dante-web",
+   "commit": "504b3e8819f281872e8e201e00822226ec30e806",
+   "archiveSha256": "cf7d668c34137f95ea96d40e13edcd58342bc4a7a4995e2606555d551f17baf6"
+  },
+  {
+   "id": "c7-kelbet-til",
+   "repository": "dastanozgeldi/kelbet_til",
+   "commit": "d827a2b6e88d1568d102b324a995b2f61f5f406f",
+   "archiveSha256": "c39eca8b36b92baa3fb11c07bbc67b6cb08bca797f700140059528086ae1ee3e"
+  },
+  {
+   "id": "c7-sis-davus",
+   "repository": "davusengenharia/sis-davus",
+   "commit": "cf0538a38d637716ae406336114e781dc7091497",
+   "archiveSha256": "48ca553fec6f38d270e91b94d585478bf7c5f90dc2da8f53ec37984f0c471ebe"
+  },
+  {
+   "id": "c7-publicdotcom-api-dashboard",
+   "repository": "ddavis83864/PublicDotCom-API-Dashboard",
+   "commit": "8dadcd90d1136bc435262a2951ebd2348378132e",
+   "archiveSha256": "2a2ff92b30d405de766701bdce50562e6fc23dfd141532d85e8b605f14f87b21"
+  },
+  {
+   "id": "c7-artsphere",
+   "repository": "deepsingh132/Artsphere",
+   "commit": "5c621466526e59320194141761b713f3137380fa",
+   "archiveSha256": "0e5a1115a2f5c1dd287c1d2b22a566ac538fc213fd3c7b6b9df1d428482864b0"
+  },
+  {
+   "id": "c7-medicheck",
+   "repository": "Derojuu/MediCheck",
+   "commit": "c4aa84ecb55f9a7dbf7cb01f69614f7fee1f0d35",
+   "archiveSha256": "ae78828b83c4e89f625267a64c8085a9fdc1c1bd95abe828b699dcfee9a1ea20"
+  },
+  {
+   "id": "c7-gagi",
+   "repository": "DerridaDriver/GAGI",
+   "commit": "a852ccaa2256b870d8d007e60fd85dd51a306594",
+   "archiveSha256": "84cb85425d9950efafa28b863f587af622fdfe995a7646bc4079574fe5d0c424"
+  },
+  {
+   "id": "c7-little-birds",
+   "repository": "desquaredp/little-birds",
+   "commit": "cc08f21218fd0142187ca5cd23806daf3ef0bfd1",
+   "archiveSha256": "26a29778d15d7809916babe6a29387cd3091b17147cdff652b339dcccdacb35e"
+  },
+  {
+   "id": "c7-cortex-craft",
+   "repository": "dev-andreola/cortex-craft",
+   "commit": "bcf82727477bbbe3465d968e173095e17b8e4f21",
+   "archiveSha256": "b848896efa1d1b9a0733c64815319ae7daecd102a3ec5a6788dce4d245bb3373"
+  },
+  {
+   "id": "c7-notebotlm",
+   "repository": "devadarshh/NoteBotLM",
+   "commit": "7185f1069d8c82a9603ab2d6a5042221cc476175",
+   "archiveSha256": "2e38982dfa34f592294604f49a58f574d0eb36e2e29baf40b6fcc770ba5aac2f"
+  },
+  {
+   "id": "c7-debate-lab",
+   "repository": "dinesh-git17/debate-lab",
+   "commit": "bd5d508f870011ecf2358a00c2e403b931792d56",
+   "archiveSha256": "5882824eca049afab69087235eda31dffa5993ce6fe85f6d402c200b7fa84826"
+  },
+  {
+   "id": "c7-smartext",
+   "repository": "domhhv/smartext",
+   "commit": "84105fee7b42496b5e10b4c5cc102fcf7cf9a6e2",
+   "archiveSha256": "79744792e037526a652253c7aa4c325ba29cc253bed7685e68c8b74bd17d83d7"
+  },
+  {
+   "id": "c7-doxynix",
+   "repository": "doxynix/doxynix",
+   "commit": "1fbddc7b0c314f478dc18cfe4ff39b8bdb743d95",
+   "archiveSha256": "937ac165f2d9649928e0062229b1e98627d00dbe86137f7d08ac339cdf4c5739"
+  },
+  {
+   "id": "c7-gitpacks",
+   "repository": "dparker1005/GitPacks",
+   "commit": "f513faedd9cc756ad77c95b46592af74d0530659",
+   "archiveSha256": "713d03d3b7ec9265420051324fe4d470e9055dbc7d4a43636d49e2057b709422"
+  },
+  {
+   "id": "c7-lognmaze",
+   "repository": "DreamEcho100/lognmaze",
+   "commit": "f353db5ee499f2778a50fa0b7ab55e8e4d087086",
+   "archiveSha256": "4e2a7db12f05a686960599d39f2d48224f3f7baf49d4e6d4543564b3e1a3240e"
+  },
+  {
+   "id": "c7-youtubed",
+   "repository": "ducheharsh/youtubed",
+   "commit": "2aaecd813d4ff66e3158a01f8641e04fd0306527",
+   "archiveSha256": "66246272631a373123e5e63b3b1f90ee538a9aa4deafec56bee3c1cfd70d40ac"
+  },
+  {
+   "id": "c7-advancedkillfeed-platform",
+   "repository": "educatalan02/advancedkillfeed-platform",
+   "commit": "6064c7382cff3ca162f2ebb9ebefb306f9240c1a",
+   "archiveSha256": "cb8541b15015c55f96b620f1961a10f6a41b9fcb0703b04c8a02dfbeac9a753f"
+  },
+  {
+   "id": "c7-webapp",
+   "repository": "emil-webkom/webapp",
+   "commit": "4b7fb6e1dc32e5a40f4533ba446ed0271c3ddc4d",
+   "archiveSha256": "725d30116ee13f881bed1c9d8c0139f0567517c098f78b024e572874d3d8d809"
+  },
+  {
+   "id": "c7-chore-quest",
+   "repository": "FrFrey98/Chore-Quest",
+   "commit": "f1afda61ecdb59b3e911021b02dc8a0c9fea8032",
+   "archiveSha256": "b7592a4706a123ee45f58e1f7183891fb3f3b3e8b54481e0916c71f978a61d40"
+  },
+  {
+   "id": "c7-shieldpeer",
+   "repository": "gargmegham/ShieldPeer",
+   "commit": "26df90ed2ff292bd3b2c6232c9f5cfd737f349b4",
+   "archiveSha256": "4884debe1b983249e83bdede06239965f2516ae82ba3e28cff7aaa9c14a122c9"
+  },
+  {
+   "id": "c7-cellar-door",
+   "repository": "golive-ready-llc/cellar-door",
+   "commit": "f0122d36182121c4e9c9969e2826645c6d2bfb17",
+   "archiveSha256": "50873b39fa8f5ab8c08d51ffe3aedca50e5695634a867441c557f084db0fc792"
+  },
+  {
+   "id": "c7-ai-sdk-chatbot",
+   "repository": "HabitualCoder/ai-sdk-chatbot",
+   "commit": "ac9936573c7a892a854cf82e78c8f9893c8cdc48",
+   "archiveSha256": "7a59ba9fd0494bb8752866633206e9c690151bd36edf51fa53babd9f8b2fa797"
+  },
+  {
+   "id": "c7-cert-portal",
+   "repository": "halvorot/cert-portal",
+   "commit": "4175fcaffadfe36cd0aa859f2c02967ad7083c2c",
+   "archiveSha256": "1f3ba13546ff651aee39edb160b76efed5bd479616661b30246b07751cc5aae0"
+  },
+  {
+   "id": "c7-next-posts",
+   "repository": "Hartaithan/next-posts",
+   "commit": "54912a8644ae7e0c5cf1a4febb8553df13ea34ff",
+   "archiveSha256": "eb1380807a5ad3237ab11a59f81edf4f2b7755b4aabebee7b4935e57560c790c"
+  },
+  {
+   "id": "c7-mada-builder",
+   "repository": "Hawks124/Mada-Builder",
+   "commit": "b97ca4f671d4db60cd517392ebfb9de8d36efee8",
+   "archiveSha256": "eae31a12dd37fca3ca282387cd3ecc706ef5169793085e33e48e1e6f833087c6"
+  },
+  {
+   "id": "c7-bolhadev-digest",
+   "repository": "heliomachado-dev/bolhadev-digest",
+   "commit": "1a03407e6d55acd68366c8b206ddb2b706b3aecd",
+   "archiveSha256": "03a7828b7b4f928b3242a430c3967e706739ea9e2ab1911354bf34fa5df7fd37"
+  },
+  {
+   "id": "c7-micro-saas-todo-app",
+   "repository": "Hundlee/micro-saas-todo-app",
+   "commit": "1172f3fd5b671b1cc2416d771406e715379dec79",
+   "archiveSha256": "ab87d946c0979a64e707eb9edb4c72626c74319c45c7504097232a2b508e71cd"
+  },
+  {
+   "id": "c7-ai-dental-assistant",
+   "repository": "Husnain-Ali-dev-02/AI-Dental-Assistant",
+   "commit": "58dc68b462549a69f14b38e1668d498e1ef1e339",
+   "archiveSha256": "ad04484fc61459983ad9fc2d8cb45a6b2ff9e41f0b15398cc674a1057029a3ef"
+  },
+  {
+   "id": "c7-asset-crm",
+   "repository": "IamAnhKhoa/asset-crm",
+   "commit": "a4e164b9f6136d67c2ed75f0eef44547e80753f8",
+   "archiveSha256": "65052915692973b12e48d8d82c25b90f63fba0aed55f44cc156c54dd82857d36"
+  },
+  {
+   "id": "c7-gym-hero",
+   "repository": "iliyasfs2/gym-hero",
+   "commit": "2b48661ef19e40fe1856fe1f2a9c6a0608d5fccb",
+   "archiveSha256": "1d24c16eeda028e766828f32cdde5647260cd28865e8a7110c3fec3b2b72a236"
+  },
+  {
+   "id": "c7-deskops-ai",
+   "repository": "Imesh-Madushan-Dev/deskops-ai",
+   "commit": "e050075256d5104472c7eb8730016cee4cf02b1a",
+   "archiveSha256": "1ed250a79d53922d179fe468b30302995070e59479d38db0f3b8d43671d2f787"
+  },
+  {
+   "id": "c7-solvesk",
+   "repository": "IMMINJU/solvesk",
+   "commit": "a4b4fbc58814e0e663e52c7c055f78d0eb3baebc",
+   "archiveSha256": "616e2f9c2c1dec3cdc81ed1fb403c69d1a6e8fcbc069b3eb54f0d0b37797e5dd"
+  },
+  {
+   "id": "c7-seth",
+   "repository": "j-manchesterllc/SETH",
+   "commit": "ceccea94b8d1e92b3a9d5fa23194352a73178867",
+   "archiveSha256": "e17ef0edf3333af5d712d14d132734d8d2bebd718b40f06d1ca05172a58e8fcd"
+  },
+  {
+   "id": "c7-neuroflow-enterprise-ai-saas-platform",
+   "repository": "JahanzaibJameel/NeuroFlow---Enterprise-AI-SaaS-Platform",
+   "commit": "7ba0747a07aacd05fddd7a669690f4b2dad0467b",
+   "archiveSha256": "90b4dc068a42d43e7d9585ff363db3bdb72c3b523630600ab6e057764d0e75f6"
+  },
+  {
+   "id": "c7-kitsune-finance",
+   "repository": "jefheee/kitsune-finance",
+   "commit": "cbdae41942082ebdd805a574a9f26a755d5ad52a",
+   "archiveSha256": "edb1999e22d6d910dbf494207e7f164924aed2dac545c17b5205232fa8593a9d"
+  },
+  {
+   "id": "c7-stacks-ai",
+   "repository": "jentrix-au/stacks-ai",
+   "commit": "21b12b27fec5e62f3290dac1b34cd4dd9cee9274",
+   "archiveSha256": "acba19242ad81146be98e9e0d2b8f77ab9fdd28a0cec1271975aa03a4ec638d6"
+  },
+  {
+   "id": "c7-onpu",
+   "repository": "jerryshell/onpu",
+   "commit": "9f3c6348ff50f0c2f3a10105bdb09fdcf3f788ab",
+   "archiveSha256": "9b5133ce901ae8df7af7a19c2fcdd4c72174bdba0955b312aceb09fa8f9da9af"
+  },
+  {
+   "id": "c7-my-blog",
+   "repository": "jianglai520/my-blog",
+   "commit": "2c9e05a893bd03a63767e94a37d96e2437f987fa",
+   "archiveSha256": "64509aa1e8c26ba878aa81a8873a763d5a7a4661e98aa2fc1414c70e13fe894f"
+  },
+  {
+   "id": "c7-newspaper-website",
+   "repository": "Jimmyu2foru18/Newspaper-Website",
+   "commit": "972000c0815e177dc4399b7c4397d59079e0a6c9",
+   "archiveSha256": "bf55949957a75ff432c58a3a6410b8b64d36c290e90cf4ac0d57458bfb03c32b"
+  },
+  {
+   "id": "c7-rsvp-to-me",
+   "repository": "joe-cole1/rsvp-to-me",
+   "commit": "e50793a1e684c4b30cb803ec483c950614279efb",
+   "archiveSha256": "fa2b2d61d826f7f015c7268925e7ac0b30ab201d52492844ee3c1a72595a12ed"
+  },
+  {
+   "id": "c7-3d-print-calculator",
+   "repository": "Jozkah/3d-print-calculator",
+   "commit": "e7679aba5efef818cd7e76f293aa28d68deb613b",
+   "archiveSha256": "9660f5d320fb9e86cd60f4ddd25af428a64107b6793503679a431baa5afb67f9"
+  },
+  {
+   "id": "c7-meteorvoice",
+   "repository": "JunchenMeteor/MeteorVoice",
+   "commit": "9bd50b3a04665d257b612a5580487c2a9911da26",
+   "archiveSha256": "a7ceebd15f5fc87df1369f9b4372254844783feaa32ee7fc11436c78ba707959"
+  },
+  {
+   "id": "c7-fuel-tracker",
+   "repository": "jyh9521/fuel-tracker",
+   "commit": "99e4928fb40c7717618a1a042deef763551c7574",
+   "archiveSha256": "2f22adefaacee232d063087c8688b7b6c9236d546f52ac02c80901eee38832d9"
+  },
+  {
+   "id": "c7-project-management",
+   "repository": "JyotirmoyBhowmik/Project-Management",
+   "commit": "152b138ff5340706b482a444ae1b512b94463490",
+   "archiveSha256": "adb6f11b78d5e4374257ad9c5d92dbb568a6d11cb8a26b67d7f0bcd7352d311f"
+  },
+  {
+   "id": "c7-corpus-z",
+   "repository": "Kabir-Narula/corpus-z",
+   "commit": "627fce02619caa55bd7b23604020f5a031c157e1",
+   "archiveSha256": "7ab0dbb8912f00a58c41e6f0a6d8cf7d3536feca41bf38b6cb7a4d024c651da4"
+  },
+  {
+   "id": "c7-chuti-leave-tracker",
+   "repository": "kamru1i/chuti-leave-tracker",
+   "commit": "304b68cfd9652c16fbcdea4a779b3b6129187cc3",
+   "archiveSha256": "cf040e8764e02928e63a33fae2ea366d0a24af5065b8bad85a5bcf3e2f2e613a"
+  },
+  {
+   "id": "c7-careerbyte-ai",
+   "repository": "karthikrshet/CareerByte-AI",
+   "commit": "21eac2d8986d687d0d241197aa1317bdcd60d753",
+   "archiveSha256": "58cb7beb3cc3bccf45e1ee872a48522dcd72939473368b0da629723cd8961a5b"
+  },
+  {
+   "id": "c7-learnos-ai",
+   "repository": "karthikrshet/LearnOS-ai",
+   "commit": "7c50f759528114414a9ef3d09dc4def0e17b98fa",
+   "archiveSha256": "25c20cff17078c9a7d39adb23f74d162b9710902dbce50f237b6d6980cab2c4b"
+  },
+  {
+   "id": "c7-tasks-tracker",
+   "repository": "Kayange123/tasks-tracker",
+   "commit": "e655c45d890842c60729e938f5e1dbfe1dada23f",
+   "archiveSha256": "dc6884453c7106279df028198718c9fb5926364da0a6ccd0b4c6dbdf8f725d20"
+  },
+  {
+   "id": "c7-inhalt",
+   "repository": "kozmos-tech/inhalt",
+   "commit": "2cd2c6e46d8e2b72a6b65e3354de0c2ea9cccd2b",
+   "archiveSha256": "dca7c7792a1893d6175aa4a990ee310c452915643bc7085234888873bdb4ba87"
+  },
+  {
+   "id": "c7-vkr-mirea-project-management",
+   "repository": "kr4chinin/vkr-mirea-project-management",
+   "commit": "eab0679e0fd111a978d53fe2d9f27ebcc41d489d",
+   "archiveSha256": "2271457dc99e7eb4b0cf43f84def880705806688ca2dc45049c47f93a85d9b70"
+  },
+  {
+   "id": "c7-gethired",
+   "repository": "kVarunkk/GetHired",
+   "commit": "5c8a8cf2ebb86c423293a0a50f697226521daad5",
+   "archiveSha256": "d5b6606a05b36a80e5892488cdafe57d80a2e2fc39db1da99108920ef5e04061"
+  },
+  {
+   "id": "c7-flowdesk",
+   "repository": "LaulinVasquez/FlowDesk",
+   "commit": "b7daa42fada46b114f1094f51f77032a51ac5325",
+   "archiveSha256": "383b59ef49cbffab5e4af810859871f15e5516a6b2759b6c648681e6a03068a9"
+  },
+  {
+   "id": "c7-proxy-ops-manager",
+   "repository": "leswww/proxy-ops-manager",
+   "commit": "76e3c8169acbb56e3c4a1c255bd02fe6675e5848",
+   "archiveSha256": "c55a7fe04ca63f440e49431412f10a925c105067e394c628bc0bb78dbaf833e0"
+  },
+  {
+   "id": "c7-fintech-dashboard",
+   "repository": "lina-whm/fintech-dashboard",
+   "commit": "6fd702e0adcf448bb119af5b1afaaa36d912a3b7",
+   "archiveSha256": "50f3e65940ef5f03046198796355442428df26eeb33f4334a24251f52110d905"
+  },
+  {
+   "id": "c7-cms",
+   "repository": "linkbcms/cms",
+   "commit": "52ec0e1b54111db8ea83736615eb19b386a0855e",
+   "archiveSha256": "ce941b3555916193387b20f5430a9ec00b363747d7e4c44d43da8bfdeab3c716"
+  },
+  {
+   "id": "c7-workscanner",
+   "repository": "liorwn/workscanner",
+   "commit": "aa98d1d1154b684a6abb9bec7b624f4977ad7d97",
+   "archiveSha256": "eccf5bed189e5be970e22eadcc757ef618e4cfcb8c7d03811c07a4cd6f202435"
+  },
+  {
+   "id": "c7-finalibaba-selfhosted",
+   "repository": "LoicSERRE/finalibaba-selfhosted",
+   "commit": "5c55344ee80eba1c6568736dd6afc8eac4a0d8f5",
+   "archiveSha256": "7f7582634b78435bc9203bc1b9079deb32311eddd938821913506c581069f633"
+  },
+  {
+   "id": "c7-memo-pro",
+   "repository": "m-jezewski/memo-pro",
+   "commit": "00bac28bc6f511304ae6b044df5793bf50a3d47a",
+   "archiveSha256": "4635abced3c50ec7ae8ba114f82f46a3acb97ae0fa9105747538a2dec36843bf"
+  },
+  {
+   "id": "c7-task-manager",
+   "repository": "maik-emanoel/task-manager",
+   "commit": "13b2fd5c633c0e58e4286d6f835a80a17c3212fa",
+   "archiveSha256": "00ceaa8e9840ec31f0c76e9a43f0cea21976157d8d50d39facbeddb26c3d973e"
+  },
+  {
+   "id": "c7-getpaid",
+   "repository": "maksim-pokhiliy/getpaid",
+   "commit": "dd18f59bf698833cce8ab0e3a227578738e4f09c",
+   "archiveSha256": "41940903f3d6dfca46178b62d93ba12f1c51eb95e5b7a105a521b40b9e80b58e"
+  },
+  {
+   "id": "c7-roadboard",
+   "repository": "Maless88/Roadboard",
+   "commit": "1cfe2946b54a27397e73e4f7b02747d6ad7699ed",
+   "archiveSha256": "4b278558a42dfc976fa057c3fd900eeea5329757d0c49238bf2379e189e618ac"
+  },
+  {
+   "id": "c7-pokedex",
+   "repository": "mayankmankhand/pokedex",
+   "commit": "7092dd946ad1fc171e7894e2b658ad7e0e3e1354",
+   "archiveSha256": "9432cb2494f3a1480c01857e7a1be5b29ef7b402a8ffab06f70f90e4726de76f"
+  },
+  {
+   "id": "c7-maydalabs",
+   "repository": "maydalabs/maydalabs",
+   "commit": "b6debc84da43c667184256875adf86846bca60fc",
+   "archiveSha256": "8051fc8e441c3a57600cb90f7d2c97b5153eeded3f00636e686d2fcd8e3299ef"
+  },
+  {
+   "id": "c7-donna",
+   "repository": "medelman17/donna",
+   "commit": "bf7a6c7a2e86d7783b4d6154d57d178cb04b9696",
+   "archiveSha256": "d653eb10ee3b08606e49f2c68964bfd4dd32ef3e130411303f9fa6c234c2cfdc"
+  },
+  {
+   "id": "c7-movier",
+   "repository": "mehmetali-ozturk/movier",
+   "commit": "f350e3ce3cd7c043ac3335fe719af1ee36a45063",
+   "archiveSha256": "2222db74b5eb25e2f5e367add46d580e440774bd06f94da971d6e30baf132898"
+  },
+  {
+   "id": "c7-kidora",
+   "repository": "Micka420-collab/kidora",
+   "commit": "16fe3dbfef6f491edeee6f2d9aa8035ddffe79f0",
+   "archiveSha256": "08a9d8d7f4bb4e589e65626158d5601dcb06008849f22838c04956a2e88a0198"
+  },
+  {
+   "id": "c7-folio",
+   "repository": "miguelrcha/folio",
+   "commit": "b6cdf8247388c34239cfd07ade5d754c3f1a6c29",
+   "archiveSha256": "0ae3de3181610fbc7434c252634918e37de21035e5c8cd54f5bc51263c963711"
+  },
+  {
+   "id": "c7-next-session-guard",
+   "repository": "MikeeeDeV/next-session-guard",
+   "commit": "051a1af0f8fbf8df76921e4ceb547b4beae09429",
+   "archiveSha256": "dd44d2bab7bd3d635a039d758f96d7ccfd30880d102a605f6bd9d6e57d05ec17"
+  },
+  {
+   "id": "c7-molthands",
+   "repository": "mileson/molthands",
+   "commit": "f4c9a0fe5d3c31ec8e0da77874d3abd6ed355031",
+   "archiveSha256": "fe6ae40a28b7b1e3a94f4bb894c2c997e950a163ca82e06719fa59dc570750b1"
+  },
+  {
+   "id": "c7-dispatch",
+   "repository": "misospace/dispatch",
+   "commit": "6888ff30f828331a9a2a52f21f6f194e73419f5d",
+   "archiveSha256": "d4bcbcb3bad9f67e199a72f463edf930482ed4e0501eae271a65f89b09c6c45c"
+  },
+  {
+   "id": "c7-waitlist",
+   "repository": "MiyuLabs/waitlist",
+   "commit": "9e2b8574ecc1d1872bf6fcc3163aef35371c1e60",
+   "archiveSha256": "34066c9c869cf099ce9b837121eb8c03ad19c7cb4676ad33e7e4ad733f3a7cbd"
+  },
+  {
+   "id": "c7-ghostykey",
+   "repository": "Mo7ammedd/GhostyKey",
+   "commit": "d4c6626cd41a466a5e64447d687dfdc2614b665c",
+   "archiveSha256": "ad6a4701c16168afcdc2985e80f881c4f435bcefbf11a8ba9ce7a1fed6f26b65"
+  },
+  {
+   "id": "c7-corpus-r7",
+   "repository": "mohaneddz/corpus-r7",
+   "commit": "9ec82ae5658bfe533e95867334cd934c86b31aba",
+   "archiveSha256": "5c9bec68b2cd887bbeb54c1f9e3778d27de407dcc777d2023d43f28ce1d37217"
+  },
+  {
+   "id": "c7-lms",
+   "repository": "MohitGoyal09/lms",
+   "commit": "532cec22c37c8c115dca733fdcf5ddd561ea349e",
+   "archiveSha256": "090c852c91bb443e7eb4c8c3316a7ddeb36e25595b75fa7c0fd8a60751f39e1b"
+  },
+  {
+   "id": "c7-movie-night",
+   "repository": "MovieNightHQ/Movie-Night",
+   "commit": "7b4abb87efb526372bc3aa2b1fe0942879f9ec62",
+   "archiveSha256": "7d36872093b9db23adc1dbcaae1023fb3a449361e6896bb68e2c6e87035e236e"
+  },
+  {
+   "id": "c7-jobreviewers",
+   "repository": "MrRafha/JobReviewers",
+   "commit": "bb1e6bc1566e67aeb25368d3a1d070b7e6cf809e",
+   "archiveSha256": "49c9b58e267785457627c07211a402d79090d20825fadba5017d3e7cf71f85b8"
+  },
+  {
+   "id": "c7-open-exam-web",
+   "repository": "MrSaikatS/open-exam-web",
+   "commit": "52a0ea18b2a41c0bb1a256faa9e94860d7f602de",
+   "archiveSha256": "b66808e88d0ca53e8ace8be6be2ab3ad73005ba14537de7fbe8b3a930b8953e1"
+  },
+  {
+   "id": "c7-adhd-dashboard",
+   "repository": "muhammadarifftaha/adhd-dashboard",
+   "commit": "444a275cc697ef3321869b2e5a81e339535df724",
+   "archiveSha256": "9f5ad125de76e805d2466f16029b75bc4e98c0baee56f8536b16ea0aa5c7e52f"
+  },
+  {
+   "id": "c7-crow-ecosystem-platform",
+   "repository": "MuhanadGhurab/crow-ecosystem-platform",
+   "commit": "f97a835f2cbcedbe7c5008ec81638c2c337c7fb7",
+   "archiveSha256": "20678314951c0a005812e0530faf06fbfea0537834003a30e5be1ea57c409409"
+  },
+  {
+   "id": "c7-ghostnet",
+   "repository": "mujthabasalim/ghostnet",
+   "commit": "0c1e8d5b6360c4214ea5d42d2ae82cd148e105bc",
+   "archiveSha256": "df2ff15eb92adaf5ebfb39d53966b0d81086397d7a6348df860a1886fc72fe05"
+  },
+  {
+   "id": "c7-awetube",
+   "repository": "muradmordukhay/awetube",
+   "commit": "ecac7e6ea6b7eb0fac7d255a74e750b6506a7535",
+   "archiveSha256": "ec43f587266479b4b6d85cb0afc8ed3e5cc6d07bee1b582291166a29b282c536"
+  },
+  {
+   "id": "c7-ai-agent",
+   "repository": "mykha1129/AI-Agent",
+   "commit": "5da7352c94253147fa9f7057b72e8ad5dd7a89ac",
+   "archiveSha256": "95aef71222e985b2b0dd17b6db85cf7eb3f9f9bf4a0816c4d7e6cbc37bb19583"
+  },
+  {
+   "id": "c7-casewise",
+   "repository": "nabarvn/casewise",
+   "commit": "5c82c0f24566def510395791afb85a48cf99f76b",
+   "archiveSha256": "7e2d3005f7652e1340101eadc91d9a999a4648f7212c3661f5f80de6578da16b"
+  },
+  {
+   "id": "c7-text-similarity-api",
+   "repository": "nabarvn/text-similarity-api",
+   "commit": "838eaa3957d08fc147769bd683382f4353dc3bb9",
+   "archiveSha256": "c0bb01d66d3299cdae34a8e8718aec0f722d48b91c899f4e6a60e3f22b55f980"
+  },
+  {
+   "id": "c7-diplomahub",
+   "repository": "nathancoolusername/DiplomaHub",
+   "commit": "009b6d6e72a51547bc6b4220001bdf37117daefb",
+   "archiveSha256": "15d3fffe17613ebf9045c4d096a2dacc450e1457994ebf8ccf208ce1564c8926"
+  },
+  {
+   "id": "c7-elekhajokha",
+   "repository": "navj62/Elekhajokha",
+   "commit": "73659604399c502bd11c2d20d3b4fdcbc5aa3e33",
+   "archiveSha256": "4c5dc2997c9a39498ec60692ad39fd4dc0f8634252593355a89abc410561a112"
+  },
+  {
+   "id": "c7-moyi-billiards",
+   "repository": "ndizeyedavid/moyi-billiards",
+   "commit": "4538acd79b5844f41418ca73144c89bba213bb40",
+   "archiveSha256": "92db94560ef6724a1e8c011e0e0739d77fb68817b616504d1cef85b08c6174ee"
+  },
+  {
+   "id": "c7-code-sprint-an-ultimate-code-editor-for-devs",
+   "repository": "NextGenGk/Code-Sprint-An-Ultimate-Code-Editor-For-Devs",
+   "commit": "6991360c1b8a075a00b979314f9406f9c3909aa1",
+   "archiveSha256": "b1d2d176beade8c218b46e96974e4bf33b908a131ffdb3926b8e128ab2357ae4"
+  },
+  {
+   "id": "c7-house-style",
+   "repository": "nicoleminoza/house-style",
+   "commit": "dbb43c1cfa021dcb112a54f210d2d8db0777e2f8",
+   "archiveSha256": "3bddc0648fa78cce4a92c13d9c30111524a319845900916a5e73d28a4e8f2374"
+  },
+  {
+   "id": "c7-jobhorizons-freelancing-marketplace",
+   "repository": "NiepresJohn/jobhorizons-freelancing-marketplace",
+   "commit": "3795b35384fa6fb29cd84d3e3e51a83b3ef9366f",
+   "archiveSha256": "a58efd96e79c8a2d25855020bfde943459984febaa1f7268af5541098b945303"
+  },
+  {
+   "id": "c7-whatsapp-agent",
+   "repository": "nikhilthakur01/WhatsAPP-Agent",
+   "commit": "14b7bdc0798ed1cdfa50311d1ae4ccd9dad78a02",
+   "archiveSha256": "56f048bb3c59f3f9f18e4e2c83fc3e2f22e3f2c9532190f04e98bec56699e7bb"
+  },
+  {
+   "id": "c7-done-done",
+   "repository": "nirnejak/done-done",
+   "commit": "9e7dab8d5a2e38cd9f1c8522bebfeae73ace9f7d",
+   "archiveSha256": "4ebaa30c66acc68c55f69a5d08b47500d97616e72241294d743b2f64687f21e1"
+  },
+  {
+   "id": "c7-rms",
+   "repository": "NtFelix/RMS",
+   "commit": "a730b091c0104e2d131cccd7ff646703f97d1498",
+   "archiveSha256": "7521cc6595d4d82e5716a5c5599a8943763b42439ca2d050f12cee9792a1dc91"
+  },
+  {
+   "id": "c7-oasisbio",
+   "repository": "Oasis-Company/OasisBio",
+   "commit": "d514f011cfb26674a9c1aaacf1e9dd11910b1a6d",
+   "archiveSha256": "b1cbd67f50fd4649d4ef8455fb7ddb66228e8f33f0a63acc06c4a4c5e5e78c66"
+  },
+  {
+   "id": "c7-when",
+   "repository": "omrajguru/when",
+   "commit": "6e9b5fd9a2e7e7b6a492ed9727bc689947519779",
+   "archiveSha256": "a1bbe4b035bed99795a24431cbbedfc8a5e9ec7b53c0d6f019080099e33648b0"
+  },
+  {
+   "id": "c7-portfoliokit",
+   "repository": "oussama-debug/portfoliokit",
+   "commit": "03aab0d3e2ecc049c43bb471a52fdcb6df7581de",
+   "archiveSha256": "fd672cfa3fbef50d11c098833a592c9398b734bf720624662c300c28fa84b3cc"
+  },
+  {
+   "id": "c7-1ai-nexus",
+   "repository": "oyi77/1ai-nexus",
+   "commit": "a5002bb37c7698e6930851feff1f23ccedbea2d6",
+   "archiveSha256": "a209df18aed085b019427bd206956d599b7aa1806e52f81617824d31f85426b2"
+  },
+  {
+   "id": "c7-lets-prep",
+   "repository": "Pantkartik/LETS_PREP_",
+   "commit": "152d8de22775d8d7348e41096dccbba2671ced93",
+   "archiveSha256": "1a891b2b72c5c38fb14918f8add1441b52b4b3809c94f896f57157b7cd76ba5a"
+  },
+  {
+   "id": "c7-lifetopia-platform",
+   "repository": "pashamuhammadd/lifetopia-platform",
+   "commit": "bf7e2e0802b2b23cae29a86519f6f37c82a84006",
+   "archiveSha256": "6f46d85fb0adae964908fa7744360f8732eaaaa12a62378ed21105a068df0d3f"
+  },
+  {
+   "id": "c7-stacklyst",
+   "repository": "pedrotescaro/Stacklyst",
+   "commit": "9256a4f7c28e5bd2de5ec91af69bc80cf1eaffc0",
+   "archiveSha256": "e86a8f2ed32722fa28b5184f0c412e3eefcc8f9cbc38297ca71e99ab7ee88f9d"
+  },
+  {
+   "id": "c7-soloplay",
+   "repository": "pengcong2020520/soloplay",
+   "commit": "e5d1f5cfd4ad3101c110d993a1fd96a0733e4509",
+   "archiveSha256": "df416e0326ca819a5112fbcedc991dbbc0317dcf486a1b5b308b6d12211680f7"
+  },
+  {
+   "id": "c7-abona-faltaus",
+   "repository": "Peter-Eshak-Abdo/abona-faltaus",
+   "commit": "712900f16e374a001ee485d15506c0768aa0c3e6",
+   "archiveSha256": "3e870d17f90ebe10b13cc1ee78a8299fc5254b4ded9b6468670f1b9d86c03550"
+  },
+  {
+   "id": "c7-skycle",
+   "repository": "pirmax/skycle",
+   "commit": "40d7eb2f06bbd048370e93fddb5f95de98855c89",
+   "archiveSha256": "4df7fcf81a2b87e1ea86d512e774acc13886498ac71991e161caad6dcc805eba"
+  },
+  {
+   "id": "c7-klaro",
+   "repository": "PP-Namias/Klaro",
+   "commit": "86243621ea939650b4905387188042e5817cf5ea",
+   "archiveSha256": "57eb74c2ce08a2bb78faff773074c73d9b2e65fd8ab99abcd02c84201ee2e8fc"
+  },
+  {
+   "id": "c7-argus",
+   "repository": "priyansh-dimri/argus",
+   "commit": "f8c8bd086963ac149d70a05603110af12d28d91d",
+   "archiveSha256": "2ad898eb3dbfee1784eae01967da4995385065f9df85bb973d70978ba1411b21"
+  }
+ ],
+ "labels": []
+}
