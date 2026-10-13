@@ -1464,5 +1464,27 @@ try {
     assert.equal((await db.query("select count(*)::int n from public.deep_findings where finding_id='f101'")).rows[0].n, 1, "the service path still reads");
     await db.exec("drop function public.stand_in_fn(); drop table public.stand_in_new; drop sequence public.stand_in_new_seq, public.stand_in_seq;");
   });
+  // X2: the snippet's flagged traffic is recorded per repository beside the gateway's.
+  await check("snippet observations sit beside gateway ones, replaced per source, service only (102)", async () => {
+    await db.exec("reset role");
+    await db.exec(await readFile(new URL("../supabase/migrations/102_snippet_traffic_observations.sql", import.meta.url), "utf8"));
+    await db.exec("set role service_role");
+    const replace=(source,paths)=>db.query("select public.replace_traffic_observations($1,$2,$3,$4) as n",[u1,r1,source,JSON.stringify(paths)]).then((x)=>x.rows[0].n);
+    assert.equal(await replace("supabase",[{path:"/rest/v1/orders",suspiciousRequests:7}]),1);
+    assert.equal(await replace("snippet",[{path:"/api/login",suspiciousRequests:40}]),1);
+    assert.equal(await replace("snippet",[{path:"/api/orders/1",suspiciousRequests:3}]),1);
+    await db.exec("reset role");
+    assert.deepEqual((await db.query("select source,path,suspicious_requests from public.traffic_route_observations where user_id=$1 and repository_id=$2 order by source",[u1,r1])).rows,
+      [{source:"snippet",path:"/api/orders/1",suspicious_requests:3},{source:"supabase",path:"/rest/v1/orders",suspicious_requests:7}]);
+    await assert.rejects(db.query("insert into public.traffic_route_observations(user_id,repository_id,source,path,suspicious_requests) values($1,$2,'other','/x',1)",[u1,r1]));
+    await db.exec("set role service_role");
+    await assert.rejects(replace("other",[{path:"/x",suspiciousRequests:1}]));
+    assert.equal(await replace("snippet",[]),0);
+    await db.exec("reset role");
+    for (const role of ["anon", "authenticated"]) {
+      assert.equal((await db.query("select has_function_privilege($1,'public.replace_traffic_observations(uuid,uuid,text,jsonb)','execute') ok", [role])).rows[0].ok, false, `${role} cannot write observations`);
+    }
+    await db.query("delete from public.traffic_route_observations where user_id=$1 and repository_id=$2",[u1,r1]);
+  });
   console.log(`${checks} SQL checks passed. Single-connection PostgreSQL WASM; multi-session contention and hosted Supabase remain unverified.`);
 } finally { await db.close(); }
