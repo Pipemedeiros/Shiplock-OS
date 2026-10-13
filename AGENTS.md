@@ -362,7 +362,9 @@ consumer before claiming a capability. The proving ground and native-agent distr
   per-file path for source monitoring. Truncation is coverage, not a clean scan.
   `lib/agent/stack.ts` infers providers; `lib/graph/routeInventory.ts`,
   `callPath.ts`, and `declarations.ts` derive Next.js route facts from executed
-  handler paths. Current route facts are route-wide, not per HTTP method or CFG.
+  handler paths. Route facts are route-wide, plus which HTTP methods nothing
+  refuses for an anonymous caller (`methodRefusal.ts`); there is no
+  control-flow graph.
 - `attackGuard.ts` checks class and observed citations of agent hypotheses,
   `findings.ts` computes confidence and severity ceilings, and `lib/proving/`
   alone may earn `proven`. A skipped or malformed answer is shown in Coverage
