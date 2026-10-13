@@ -117,3 +117,14 @@ describe("VERIFY_SYSTEM and data that does not matter", () => {
     expect(VERIFY_SYSTEM).toMatch(/only displayed/);
   });
 });
+
+// Release run r3 (2026-10-12, both labelers: real, statement partly
+// accurate): "or resetting their own" when the code only increments, and
+// "any other buyer's order" when that needs a random order id. The
+// founder's sentence says only what the quoted lines prove.
+describe("VERIFY_SYSTEM and the founder's sentence", () => {
+  it("asks for a statement that claims no more than the code shows", () => {
+    expect(VERIFY_SYSTEM).toMatch(/no effect the quoted lines do not show/);
+    expect(VERIFY_SYSTEM).toMatch(/who knows its id/);
+  });
+});
