@@ -388,6 +388,17 @@ describe("a committed env file is CRITICAL only with a live credential", () => {
     expect(sev(".env.production", "SECRET_KEY=F0E5AD933D7F6FD8F4DBB3E038C501C052DC0593C686D21ACB30AE205D2F634B\n")).toBe("CRITICAL");
     expect(sev("docker-compose/.env", "CF_DNS_API_TOKEN=SOME_CLOUDFLARE_TOKEN\n")).toBe("INFO");
   });
+  // Release run r2 (2026-10-12, both labelers: not accurate, not real): a
+  // French-named template, .env.exemple, holding the textbook placeholder
+  // URL user:password@host was reported CRITICAL.
+  it("a template named in another language is a template (corpus-ah .env.exemple)", () => {
+    expect(find(".env.exemple", "DATABASE_URL=\"postgresql://user:password@host:5432/corpus-ah?sslmode=require\"\n")).toBeUndefined();
+  });
+  it("the textbook placeholder URL user:password@host is not a live credential", () => {
+    expect(sev(".env", "DATABASE_URL=\"postgresql://user:password@host:5432/app\"\n")).not.toBe("CRITICAL");
+    expect(sev(".env", "DATABASE_URL=postgresql://username:password@hostname/db\n")).not.toBe("CRITICAL");
+    expect(sev(".env", "DATABASE_URL=postgresql://app:Zq8vLm2Rt5Xw@host.prod-db.internal/db\n")).toBe("CRITICAL");
+  });
   it("a filled secret in a deployed-environment file with no local host is CRITICAL", () => {
     expect(sev(".env.production", "JWT_SECRET=Kq7Lm2Xz8Rt4Bn6Vc1Wd5Fh3Jp9\n")).toBe("CRITICAL");
   });

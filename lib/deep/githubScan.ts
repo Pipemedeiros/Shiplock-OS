@@ -160,7 +160,9 @@ const COMMITTED_ENV_RE = /(^|\/)\.env(\.[A-Za-z0-9_-]+)*$/;
 // Their CONTENT is still scanned by the credential patterns below, so a real key
 // pasted into `.env.example` is still reported. It is the file's existence that
 // stops being a finding.
-const ENV_PLACEHOLDER_RE = /\.(example|template|sample|dist|defaults?|placeholder|tpl)$/i;
+// Release run r2 (2026-10-12): templates are also named in other languages
+// (.env.exemple, .env.ejemplo, .env.beispiel) and in the plural.
+const ENV_PLACEHOLDER_RE = /\.(examples?|exemple|ejemplo|esempio|beispiel|template|sample|dist|defaults?|placeholder|tpl)$/i;
 
 /** Prefixes whose values are published to the browser on purpose. */
 const PUBLIC_ENV_PREFIX = /^(NEXT_PUBLIC_|EXPO_PUBLIC_|VITE_|PUBLIC_|REACT_APP_|GATSBY_)/;
@@ -207,6 +209,8 @@ const PUBLISHABLE_KEY_VALUE = /^["']?(?:pk_(?:test|live)_|sb_publishable_|whsec_
  */
 // At least one underscore: an uppercase hex key (F0E5AD93...) is a value.
 const ENV_PLACEHOLDER_VALUE = /^["']?(?=[A-Z0-9_]{6,}["']?$)[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+["']?$/;
+/** The textbook template URL: user:password@host (release run r2, 2026-10-12). */
+const PLACEHOLDER_URL_RE = /:\/\/(user(name)?|admin|postgres|root):(password|pass|secret|changeme)@(host(name)?|server)(?=[:/"'?\s]|$)/i;
 /** A URL with `user:pass@` in it. That is a credential, wherever it points. */
 const ENV_URL_WITH_CREDENTIALS = /^["']?[a-z+]+:\/\/[^\s"'@/]*:[^\s"'@/]+@/i;
 /** A plain URL carrying no inline credentials is an endpoint, not a secret. */
@@ -228,7 +232,7 @@ function envSecretValues(content: string): string[] {
     // and `looksSynthetic` reads that as a placeholder -- which would have
     // dropped `postgresql://admin:Hunter2Hunter2@db.prod.example.com`, a real
     // production connection string. Caught by the pre-existing test.
-    if (ENV_URL_WITH_CREDENTIALS.test(value)) { values.push(value); continue; }
+    if (ENV_URL_WITH_CREDENTIALS.test(value)) { if (!PLACEHOLDER_URL_RE.test(value)) values.push(value); continue; }
     // A password HASH is not a password. bcrypt, argon2, scrypt and pbkdf2
     // digests are what a codebase is supposed to store, and corpus-ag's committed
     // dev env carries one.

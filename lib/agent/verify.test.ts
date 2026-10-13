@@ -106,3 +106,14 @@ describe("VERIFY_SYSTEM and the schema", () => {
     expect(VERIFY_SYSTEM).toMatch(/does not run/);
   });
 });
+
+// Release run r2 (2026-10-12, both labelers: accurate, not real): a route
+// overwrote any user's stored API key that nothing reads, and another set a
+// "role" that is only a display label. Reach and no control held; the data
+// did not matter. The verifier must check that the value is used.
+describe("VERIFY_SYSTEM and data that does not matter", () => {
+  it("tells the verifier to refute a write to a value nothing uses for access or secrets", () => {
+    expect(VERIFY_SYSTEM).toMatch(/nothing reads/);
+    expect(VERIFY_SYSTEM).toMatch(/only displayed/);
+  });
+});
