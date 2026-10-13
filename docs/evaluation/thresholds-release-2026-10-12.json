@@ -1,35 +1,36 @@
 {
- "experiment": "release-precision-thresholds",
- "recordedAt": "2026-10-12",
- "supersedes": "thresholds-release-2026-10.json (90% bar of 2026-10-06)",
- "recordedBefore": "the release benchmark; recorded after A8 reached 50 of 55 (90.9%), raising the bar, never lowering it",
- "status": "Felipe's bar (2026-10-12, binding): 'make sure it's at least 97. That's what we're waiting for.' Lower bound and sample size remain Claude's proposal, Felipe to confirm.",
- "scope": "Everything that sets a founder's status (Exposed or At risk): deterministic findings and the customer agent's admitted findings, as rendered, on a held-out set frozen before the change being measured. INFO facts are reported, not gated.",
- "definitions": {
-  "truePositive": "both blind labelers agree the statement as written is accurate AND the issue is real against the deployed app",
-  "falsePositive": "anything else, including partly accurate and contested (disagreement counts against us)",
-  "precision": "TP / (TP + FP), with a one-sided 95% Clopper-Pearson lower bound",
-  "zeroDenominator": "unavailable, never 100%"
- },
- "gates": {
-  "statusSetting": {
-   "observedPrecisionAtLeast": 0.97,
-   "lowerBound95AtLeast": 0.85,
-   "minimumLabeledFindings": 100,
-   "note": "With 100 labeled findings, 97% observed means at most 3 false, and the one-sided 95% lower bound is then about 92.4%; the 85% bound is no longer the binding constraint."
+  "experiment": "release-precision-thresholds",
+  "recordedAt": "2026-10-12",
+  "supersedes": "thresholds-release-2026-10.json (90% bar of 2026-10-06)",
+  "recordedBefore": "the release benchmark; recorded after A8 reached 50 of 55 (90.9%), raising the bar, never lowering it",
+  "status": "Felipe's bar (2026-10-12, binding): 'make sure it's at least 97. That's what we're waiting for.' Lower bound and sample size remain Claude's proposal, Felipe to confirm. Felipe confirmed 2026-10-13 that the 97% bar stands (\"it's authorized\" for the tie-break).",
+  "scope": "Everything that sets a founder's status (Exposed or At risk): deterministic findings and the customer agent's admitted findings, as rendered, on a held-out set frozen before the change being measured. INFO facts are reported, not gated.",
+  "definitions": {
+    "truePositive": "both blind labelers agree the statement as written is accurate AND the issue is real against the deployed app",
+    "falsePositive": "anything else, including partly accurate and contested (disagreement counts against us)",
+    "precision": "TP / (TP + FP), with a one-sided 95% Clopper-Pearson lower bound",
+    "zeroDenominator": "unavailable, never 100%",
+    "tieBreak": "From release attempt 4 (Felipe authorized 2026-10-13, recorded before the attempt runs): when the two blind labelers split on a finding (one strict yes, one not), a third blind labeler answers it, and the finding is true when a majority of the three says accurate and real. Two labelers who agree are final. Attempts 1 to 3 are scored without it."
   },
-  "statusCorrectness": {
-   "repositoriesWithCorrectStatusAtLeast": 0.9,
-   "note": "Exposed or At risk is right when at least one issue setting it is a true positive; No open issues is reported with what was unread."
+  "gates": {
+    "statusSetting": {
+      "observedPrecisionAtLeast": 0.97,
+      "lowerBound95AtLeast": 0.85,
+      "minimumLabeledFindings": 100,
+      "note": "With 100 labeled findings, 97% observed means at most 3 false, and the one-sided 95% lower bound is then about 92.4%; the 85% bound is no longer the binding constraint."
+    },
+    "statusCorrectness": {
+      "repositoriesWithCorrectStatusAtLeast": 0.9,
+      "note": "Exposed or At risk is right when at least one issue setting it is a true positive; No open issues is reported with what was unread."
+    },
+    "severity": {
+      "criticalSeverityFitsAtLeast": 0.9
+    }
   },
-  "severity": {
-   "criticalSeverityFitsAtLeast": 0.9
-  }
- },
- "reportedNotGated": [
-  "recall on named known vulnerabilities (misses listed by name)",
-  "unread and partial coverage",
-  "run-to-run variance across two passes",
-  "INFO fact accuracy"
- ]
+  "reportedNotGated": [
+    "recall on named known vulnerabilities (misses listed by name)",
+    "unread and partial coverage",
+    "run-to-run variance across two passes",
+    "INFO fact accuracy"
+  ]
 }

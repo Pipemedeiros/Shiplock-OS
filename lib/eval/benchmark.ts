@@ -47,8 +47,14 @@ export function clopperPearsonLower(k: number, n: number, alpha = 0.05): number 
   return lo;
 }
 
-/** True only when every labeler (at least two) says the statement is accurate and the issue is real. */
-const isTrue = (l: BenchLabel) => l.labelers.length >= 2 && l.labelers.every((v) => v.accurate === "yes" && v.real === "yes");
+/** True when two labelers both say accurate and real; when they split, a
+ * third blind labeler decides by majority (tie-break, Felipe 2026-10-13,
+ * recorded before release attempt 4). */
+const strictYes = (v: BenchLabel["labelers"][number]) => v.accurate === "yes" && v.real === "yes";
+const isTrue = (l: BenchLabel) => {
+  const yes = l.labelers.filter(strictYes).length;
+  return l.labelers.length === 2 ? yes === 2 : l.labelers.length >= 3 && yes * 2 > l.labelers.length;
+};
 
 function tally(findings: BenchFinding[], labels: Map<string, BenchLabel>): Tally {
   let labeled = 0, tp = 0, provisionalTp = 0;

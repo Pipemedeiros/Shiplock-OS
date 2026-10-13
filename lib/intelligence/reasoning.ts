@@ -68,7 +68,8 @@ export function reasoningPages(input: ContextInput): ReasoningContext[] {
   // route reached beyond them is not citable, which can only reject more.
   let rest = rankRoutes(input.routes.filter((r) => r.tables.length > 0), new Set(input.domain?.sensitive ?? []))
     .map((r) => ({ ...r, via: r.via.slice(0, MAX_VIA) }));
-  const schema = input.files.filter((f) => /(^|\/)schema\.prisma$|\.sql$|(^|\/)schema\.[cm]?[jt]s$/.test(f));
+  const schema = [...middlewareFiles(input.files),
+    ...input.files.filter((f) => /(^|\/)schema\.prisma$|\.sql$|(^|\/)schema\.[cm]?[jt]s$/.test(f))];
   const build = (routes: RouteFact[]): ReasoningContext => {
     const onShown = new Set(routes.map((r) => r.path));
     const files = [...new Set([...routes.flatMap((r) => [r.file, ...r.via]), ...schema])].slice(0, MAX_FILES);
@@ -276,7 +277,7 @@ export async function submitReasoningResult(userId: string, task: ReasoningTask,
       if (!read.has(path)) read.set(path, await getFile(token, task.repositories.full_name, path, task.commit_sha));
       return read.get(path) ?? null;
     };
-    for (const [index, batch] of verificationBatches(guard.admitted, context.routes, schemaFiles(context.files)).entries()) {
+    for (const [index, batch] of verificationBatches(guard.admitted, context.routes, schemaFiles(context.files), middlewareFiles(context.files)).entries()) {
       const sources: { path: string; sourceHash: string }[] = [];
       for (const path of batch.files) {
         const content = await contentOf(path);
@@ -306,8 +307,11 @@ export async function submitReasoningResult(userId: string, task: ReasoningTask,
  * batch: a claim on a query the schema rejects, or on a row id the schema
  * mints at random, is judged against it (A8 batch 6, 2026-10-09). */
 const MAX_SCHEMA_SOURCES = 2;
-export function verificationBatches(admitted: (Hypothesis & { attackClass: AttackClass })[], routes: RouteFact[], schema: string[] = []) {
-  const shared = schema.slice(0, MAX_SCHEMA_SOURCES);
+export function verificationBatches(admitted: (Hypothesis & { attackClass: AttackClass })[], routes: RouteFact[], schema: string[] = [],
+  middleware: string[] = []) {
+  // M1 (release attempt 3): the root middleware decides who reaches every
+  // route it matches, so it goes with every batch too.
+  const shared = [...middleware.slice(0, 1), ...schema.slice(0, MAX_SCHEMA_SOURCES)];
   const room = MAX_SOURCES - shared.length;
   const batches: { hypotheses: (Hypothesis & { attackClass: AttackClass })[]; files: string[] }[] = [];
   for (const h of admitted) {
@@ -357,6 +361,9 @@ export function verifyItems<H extends Hypothesis & { attackClass: AttackClass }>
 
 /** The schema files a reasoning context lists, as the audit read them. */
 export const schemaFiles = (files: string[]) => files.filter((f) => /(^|\/)schema\.prisma$|\.sql$|(^|\/)schema\.[cm]?[jt]s$/.test(f));
+
+/** The root middleware (or Next 16 proxy) file the audit read, if any (M1). */
+export const middlewareFiles = (files: string[]) => files.filter((f) => /^(src\/)?(middleware|proxy)\.[cm]?[jt]s$/.test(f));
 
 /**
  * Checks a verification answer and admits what it proved. Every cited line is

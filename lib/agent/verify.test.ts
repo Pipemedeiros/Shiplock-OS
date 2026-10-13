@@ -147,3 +147,17 @@ describe("VERIFY_SYSTEM and the title", () => {
     expect(VERIFY_SCHEMA.properties.verdicts.items.required).toContain("title");
   });
 });
+
+// Release attempt 3 (2026-10-13, both labelers): "every order" where the route
+// returns counts and five titles, "all users" past a role filter, "fields
+// they choose" where three are writable (V5); and fields a public list
+// already returns, reported as a leak (V4).
+describe("VERIFY_SYSTEM and data scope", () => {
+  it("names only what the response returns, with its filters", () => {
+    expect(VERIFY_SYSTEM).toMatch(/name only the fields/i);
+    expect(VERIFY_SYSTEM).toMatch(/filter/i);
+  });
+  it("refutes data another public route already serves", () => {
+    expect(VERIFY_SYSTEM).toMatch(/already returns the same fields/i);
+  });
+});

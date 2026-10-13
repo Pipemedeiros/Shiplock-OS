@@ -13,7 +13,7 @@ vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ rpc: mocks.rpc, fr
 } }) }));
 
 import { approvedAgent, MAX_REASONING_PAGES, offerAuditReasoning, reasoningContext, reasoningPages, submitReasoningResult, submitVerificationResult, taskBrief,
-  verificationBatches, verifyItems, type ReasoningContext, type ReasoningTask } from "./reasoning";
+  verificationBatches, verifyItems, middlewareFiles, type ReasoningContext, type ReasoningTask } from "./reasoning";
 
 const hash = (s: string) => createHash("sha256").update(s).digest("hex");
 const user = "11111111-1111-4111-8111-111111111111", repo = "22222222-2222-4222-8222-222222222222";
@@ -344,6 +344,38 @@ describe("verifyItems", () => {
     const brief = taskBrief(reasoningTask({ kind: "attack_verification", context: { version: 1, hypotheses, items } }));
     expect(brief.claims?.[0]).toMatchObject({ facts: [{ id: "db:public.orders:rls-off" }, { id: "db:public.users:rls-filtered" }] });
     expect(brief.system).toMatch(/connected database/);
+  });
+});
+
+// M1 (release attempt 3, 2026-10-13): the verifier confirmed "any caller can
+// list every profile" where middleware.ts, never shown to it, requires
+// sign-in. The root middleware goes with every batch, like the schema.
+describe("middleware with every verification batch", () => {
+  it("lists the root middleware beside the schema, within the file cap", () => {
+    const routes = Array.from({ length: 12 }, (_, i) => route({ path: `/api/r${i}`, file: `app/api/r${i}/route.ts` }));
+    const many = routes.map((r) => ({ ...hypothesis, entry: r.path, citedFiles: [r.file], attackClass: "missing_authentication" as const }));
+    const batches = verificationBatches(many, routes, ["prisma/schema.prisma"], ["src/middleware.ts"]);
+    for (const b of batches) {
+      expect(b.files).toEqual(expect.arrayContaining(["src/middleware.ts", "prisma/schema.prisma"]));
+      expect(b.files.length).toBeLessThanOrEqual(16);
+    }
+  });
+
+  it("finds only the root middleware or proxy file", () => {
+    expect(middlewareFiles(["middleware.ts", "src/middleware.ts", "lib/middleware.ts", "proxy.ts", "app/api/x/route.ts"]))
+      .toEqual(["middleware.ts", "src/middleware.ts", "proxy.ts"]);
+  });
+
+  it("puts the middleware in the reasoning context's files even when no route imports it", () => {
+    const pages = reasoningPages({ routes: [route()], stack: (ctx as ReasoningContext).stack, tables: ["orders"],
+      files: [handler, "middleware.ts", "README.md"], liveFacts: [], possessionGates: new Map(), oneIdAccess: new Map(), hasDatabase: true });
+    expect(pages[0].files).toContain("middleware.ts");
+    expect(pages[0].files).not.toContain("README.md");
+  });
+
+  it("tells the verifier to read the middleware before claiming anonymous reach", () => {
+    expect(taskBrief(reasoningTask({ kind: "attack_verification", context: { version: 1, hypotheses: [hypothesis], items: [] } })).system)
+      .toMatch(/middleware file is listed.*matcher/i);
   });
 });
 

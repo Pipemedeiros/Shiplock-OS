@@ -49,6 +49,25 @@ describe("findServerActionEntries", () => {
     ]).map((e) => e.name)).toEqual(["getContactById"]);
   });
 
+  // R2b (release attempt 3, 2026-10-13): corpus-z's sidebar component, a
+  // server component outside app/ (no "use client", imported only by a
+  // layout), awaited three actions on the server; they were reported as
+  // callable by anyone. A component file is client only when a client root
+  // reaches it: a "use client" file or a Pages Router page, through imports.
+  it("does not count a server component outside app/ that only calls the action", () => {
+    const action = f("src/lib/supabase/queries.ts", '"use server";\nexport async function getFolders(id) { return db.folders.find(id); }');
+    const sidebar = f("src/components/sidebar/sidebar.tsx", 'import { getFolders } from "@/lib/supabase/queries";\nexport default async function Sidebar({ id }) { const f = await getFolders(id); return <nav>{f.length}</nav>; }');
+    const layout = f("src/app/dashboard/layout.tsx", 'import Sidebar from "@/components/sidebar/sidebar";\nexport default function L({ children }) { return <Sidebar id="x" />; }');
+    expect(findServerActionEntries([action, sidebar, layout])).toEqual([]);
+    // A client root that reaches the component, directly or through another
+    // component, puts it in the browser bundle.
+    const shell = f("src/components/shell.tsx", '"use client";\nimport Frame from "./frame";\nexport function S() { return <Frame />; }');
+    const frame = f("src/components/frame.tsx", 'import Sidebar from "./sidebar/sidebar";\nexport default function Frame() { return <Sidebar id="x" />; }');
+    expect(findServerActionEntries([action, sidebar, layout, shell, frame]).map((e) => e.name)).toEqual(["getFolders"]);
+    const page = f("src/pages/index.tsx", 'import Sidebar from "@/components/sidebar/sidebar";\nexport default function P() { return <Sidebar id="x" />; }');
+    expect(findServerActionEntries([action, sidebar, page]).map((e) => e.name)).toEqual(["getFolders"]);
+  });
+
   it("does not count a helper imported only by server code or a route handler", () => {
     expect(findServerActionEntries([
       f("lib/helpers/enroll.ts", '"use server";\nexport async function enroll() {}'),

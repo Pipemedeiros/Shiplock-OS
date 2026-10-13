@@ -19,9 +19,30 @@ const USE_CLIENT = /(^|\n)\s*["']use client["'];?\s*(\n|$)/;
 const EXPORTED = /export\s+(?:async\s+)?(?:function\s+(\w+)|const\s+(\w+)\s*=)/g;
 const NAMED_IMPORT = /import\s*(?:type\s+)?\{([^}]*)\}\s*from\s*["']([^"']+)["']/g;
 
-// App Router segment files no client imports: without "use client" they are
-// server components. Any other .tsx may inherit a client boundary.
-const SERVER_COMPONENT_FILE = /(^|\/)app\/(.+\/)?(page|layout|template|default)\.[jt]sx$/;
+// Client roots: a "use client" file, or a Pages Router page (rendered in the
+// browser). A component file is client only when a root reaches it through
+// imports (R2b, release attempt 3: corpus-z's sidebar, a server component
+// outside app/, was counted as a browser entry). Unreached, it is a server
+// component, and an App Router page or layout is the common case.
+const PAGES_ROUTER_PAGE = /(^|\/)pages\/(?!api\/).+\.[jt]sx$/;
+const ANY_IMPORT = /(?:import|export)\s[^'"]*?from\s*["']([^"']+)["']|import\(\s*["']([^"']+)["']\s*\)/g;
+
+function clientReach(code: RepoFile[], byPath: Map<string, RepoFile>): Set<string> {
+  const reached = new Set<string>();
+  const queue = code.filter((f) => USE_CLIENT.test(f.content) || PAGES_ROUTER_PAGE.test(f.path)).map((f) => f.path);
+  while (queue.length) {
+    const path = queue.pop()!;
+    if (reached.has(path)) continue;
+    reached.add(path);
+    const file = byPath.get(path);
+    if (!file || USE_SERVER.test(file.content)) continue;
+    for (const [, spec, dynamic] of file.content.matchAll(ANY_IMPORT)) {
+      const target = resolveImport(path, spec ?? dynamic, byPath) ?? resolveViaTsconfigPaths(path, spec ?? dynamic, byPath);
+      if (target && !reached.has(target)) queue.push(target);
+    }
+  }
+  return reached;
+}
 
 function handsOver(content: string, local: string): boolean {
   // Conservative: the page keeps the action on the server only when every use
@@ -45,6 +66,7 @@ export function findServerActionEntries(files: RepoFile[]): ServerActionEntry[] 
     if (!USE_SERVER.test(file.content)) continue;
     actions.set(file.path, new Set([...file.content.matchAll(EXPORTED)].map((m) => m[1] ?? m[2])));
   }
+  const client = clientReach(code, byPath);
   const importers = new Map<string, Set<string>>(); // "file#name" -> importing UI files
   for (const file of code) {
     if (USE_SERVER.test(file.content) || !isUi(file)) continue;
@@ -55,11 +77,11 @@ export function findServerActionEntries(files: RepoFile[]): ServerActionEntry[] 
       for (const raw of names.split(",")) {
         const [name, alias] = raw.trim().replace(/^type\s+/, "").split(/\s+as\s+/).map((x) => x.trim());
         if (!name || !exported.has(name)) continue;
-        // A server component (an App Router page or layout without "use client") exposes the action
+        // A server component (no client root reaches it) exposes the action
         // only by handing it to the browser: a form or button action, or a
         // prop to a client component. Awaiting it on the server sends no id
-        // (A8 batch 6, 2026-10-09).
-        if (SERVER_COMPONENT_FILE.test(file.path) && !USE_CLIENT.test(file.content) && !handsOver(file.content, alias ?? name)) continue;
+        // (A8 batch 6, 2026-10-09; R2b, 2026-10-13).
+        if (!client.has(file.path) && !handsOver(file.content, alias ?? name)) continue;
         const key = `${target}#${name}`;
         importers.set(key, new Set([...(importers.get(key) ?? []), file.path]));
       }

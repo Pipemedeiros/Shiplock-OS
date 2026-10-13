@@ -103,3 +103,21 @@ describe("combineBatches", () => {
     expect(report.statusSetting).toMatchObject({ n: 3, labeled: 3, tp: 2 });
   });
 });
+
+// Tie-break (Felipe authorized 2026-10-13, recorded before release attempt
+// 4): two labelers must both say yes; when they split, a third blind
+// labeler decides, so a finding is true when a majority of three says yes.
+describe("the tie-break labeler", () => {
+  const f = [{ repo: "r", id: "i", severity: "WARNING" as const, attackClass: "x" }];
+  const score = (labelers: { accurate: "yes" | "partly" | "no"; real: "yes" | "no" | "unsure" }[]) =>
+    scoreBenchmark(f, [{ repo: "r", id: "i", labelers }], gate).statusSetting.tp;
+  it("keeps two yes as true and a two-labeler split as false", () => {
+    expect(score([yes, yes])).toBe(1);
+    expect(score([yes, no])).toBe(0);
+  });
+  it("lets a third labeler decide a split, by majority", () => {
+    expect(score([yes, no, yes])).toBe(1);
+    expect(score([yes, no, no])).toBe(0);
+    expect(score([yes, { accurate: "yes", real: "unsure" }, yes])).toBe(1);
+  });
+});
