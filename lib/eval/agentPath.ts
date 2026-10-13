@@ -1,4 +1,4 @@
-import { guardHypotheses, safeConsequence, type AttackClass, type Hypothesis } from "@/lib/agent/attackGuard";
+import { guardHypotheses, safeVerdictWording, type AttackClass, type Hypothesis } from "@/lib/agent/attackGuard";
 import { buildFindings, type AgentFinding } from "@/lib/agent/findings";
 import { applyVerdicts, checkVerdicts, type RawVerdict, type VerifyItem } from "@/lib/agent/verify";
 import { schemaFiles, taskBrief, verificationBatches, verifyItems, type ReasoningContext, type ReasoningTask } from "@/lib/intelligence/reasoning";
@@ -54,7 +54,7 @@ export function admitVerified(context: ReasoningContext, task: Pick<Verification
   raw: unknown[], repositoryId: string): { findings: AgentFinding[]; confirmed: number; refuted: number; unverified: number } {
   const files = new Map(task.sources.map((s) => [s.path, s.content]));
   const verdicts = checkVerdicts(raw as RawVerdict[], task.items, files, new Set(files.keys()));
-  const applied = applyVerdicts(task.hypotheses, verdicts.map((v) => (safeConsequence(v.statement.trim()) ? v : { ...v, statement: "" })));
+  const applied = applyVerdicts(task.hypotheses, verdicts.map(safeVerdictWording));
   const findings = buildFindings({
     admitted: applied.kept, deterministic: [], routes: context.routes, stack: context.stack, repositoryId,
     hasDatabase: context.hasDatabase, liveFacts: context.liveFacts, possessionGates: new Map(context.possessionGates),

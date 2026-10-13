@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { VERIFY_SYSTEM, applyVerdicts, buildVerifyPrompt, checkVerdicts, parseVerdicts, resolveImport, selectVerifyContext, type RawVerdict, type VerifyItem } from "./verify";
+import { VERIFY_SCHEMA, VERIFY_SYSTEM, applyVerdicts, buildVerifyPrompt, checkVerdicts, parseVerdicts, resolveImport, selectVerifyContext, type RawVerdict, type VerifyItem } from "./verify";
 
 const files = new Map([
   ["app/api/invoices/[id]/route.ts", 'import { db } from "@/lib/db";\nimport { helper } from "../../helper";\nexport async function GET(req, { params }) {\n  const row = await db.from("invoices").select("*").eq("id", params.id).single();\n  return Response.json(row);\n}'],
@@ -90,6 +90,18 @@ describe("applying verdicts to admitted proposals", () => {
     expect(out.unverified).toBe(1);
   });
 
+  // Release run r6 (2026-10-12, both labelers: real, partly accurate): the
+  // proposer's title said "any student" while the verifier's sentence was
+  // exact. The verifier writes the title too; the proposer's stands only
+  // when the verifier gave none.
+  it("takes the verifier's title with its statement", () => {
+    const out = applyVerdicts(admitted, [{ ...verdict("0", "confirmed", "Any signed-in user can enroll an unassigned student."),
+      title: "Any signed-in user can enroll unassigned students" }]);
+    expect(out.kept[0]).toMatchObject({ title: "Any signed-in user can enroll unassigned students",
+      consequence: "Any signed-in user can enroll an unassigned student." });
+    expect(applyVerdicts(admitted, [verdict("0", "confirmed", "x.")]).kept[0].title).toBe("A");
+  });
+
   it("never keeps a proposal the verifier did not answer", () => {
     const out = applyVerdicts(admitted, [verdict("0", "confirmed")]);
     expect(out.kept).toEqual([admitted[0]]);
@@ -126,5 +138,12 @@ describe("VERIFY_SYSTEM and the founder's sentence", () => {
   it("asks for a statement that claims no more than the code shows", () => {
     expect(VERIFY_SYSTEM).toMatch(/no effect the quoted lines do not show/);
     expect(VERIFY_SYSTEM).toMatch(/who knows its id/);
+  });
+});
+
+describe("VERIFY_SYSTEM and the title", () => {
+  it("asks the verifier for a title no broader than its statement", () => {
+    expect(VERIFY_SYSTEM).toMatch(/title/);
+    expect(VERIFY_SCHEMA.properties.verdicts.items.required).toContain("title");
   });
 });

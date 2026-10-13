@@ -109,6 +109,14 @@ const UNSAFE_PROSE = /[<>\u0000-\u001F]/;
  * control characters. The same rule the guard applies to hypothesis prose. */
 export const safeConsequence = (text: string) => text.length > 0 && text.length <= MAX_CONSEQUENCE && !UNSAFE_PROSE.test(text);
 
+/** The verifier's wording, kept only where it is safe prose; otherwise the
+ * guarded hypothesis wording stands (statement and title alike, V3). */
+export function safeVerdictWording<V extends { statement: string; title?: string }>(v: V): V {
+  const { title, ...rest } = v;
+  const safeTitle = title !== undefined && safeConsequence(title.trim()) ? { title } : {};
+  return { ...rest, statement: safeConsequence(v.statement.trim()) ? v.statement : "", ...safeTitle } as V;
+}
+
 /**
  * THE CLASS/FACT COMPATIBILITY MATRIX.
  *

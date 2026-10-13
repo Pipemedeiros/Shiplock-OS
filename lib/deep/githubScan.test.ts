@@ -426,3 +426,16 @@ describe("a committed env file is CRITICAL only with a live credential", () => {
     }
   });
 });
+
+// Release run r6 (2026-10-12, both labelers: real, partly accurate): an sk-
+// key sent to api.moonshot.ai was reported as "an OpenAI API key". The shape
+// proves the format, not the vendor.
+describe("a key in OpenAI's format names the format, not the vendor", () => {
+  it("does not claim the key is OpenAI's", () => {
+    const f = scanSecrets([{ path: "src/inngest/functions.ts", content: 'const k = { apiKey: "sk-U3wXq8Lm2Rt5Xw9Zb4Nc7Vd1", baseUrl: "https://api.moonshot.ai/v1" };\n' }])
+      .find((x) => x.id.includes("openai_key"));
+    expect(f).toBeDefined();
+    expect(`${f!.title} ${f!.consequence}`).not.toMatch(/an OpenAI API key/);
+    expect(f!.title).toMatch(/OpenAI's format/);
+  });
+});

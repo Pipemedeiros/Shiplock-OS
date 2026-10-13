@@ -2,7 +2,7 @@ import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { getFile, getInstallationToken } from "@/lib/deep/github";
 import { buildPrompt, MAX_PROMPT_ROUTES, rankRoutes, SYSTEM, type AgentInput } from "@/lib/agent/attack";
-import { guardHypotheses, safeConsequence, type AttackClass, type Hypothesis } from "@/lib/agent/attackGuard";
+import { guardHypotheses, safeVerdictWording, type AttackClass, type Hypothesis } from "@/lib/agent/attackGuard";
 import { buildFindings } from "@/lib/agent/findings";
 import type { PossessionGate } from "@/lib/agent/possessionGate";
 import { routeAnalysisSupport, type StackReport } from "@/lib/agent/stack";
@@ -179,7 +179,7 @@ const citation = z.object({ role: z.enum(["reach", "data", "control"]), path: z.
 export const verificationResultSchema = z.discriminatedUnion("status", [
   z.object({ ...answered, status: z.literal("proposed"), verdicts: z.array(z.object({
     id: z.string().max(10), verdict: z.enum(["confirmed", "refuted", "unverified"]), severity: z.enum(["critical", "high", "medium"]),
-    statement: z.string().max(600), reason: z.string().max(1_000), citations: z.array(citation).max(12),
+    statement: z.string().max(600), title: z.string().max(160).optional(), reason: z.string().max(1_000), citations: z.array(citation).max(12),
   }).strict()).max(VERIFY_BATCH) }).strict(),
   z.object({ ...answered, status: z.literal("unavailable"), reason: z.enum(["host_offline", "quota_exhausted", "unsupported", "cancelled"]) }).strict(),
 ]);
@@ -404,7 +404,7 @@ export async function submitVerificationResult(userId: string, task: ReasoningTa
   const verdicts = checkVerdicts(result.verdicts as RawVerdict[], verification.items, files, new Set(listed.keys()));
   // The verifier's statement replaces the proposer's wording only when it is
   // safe prose; otherwise the guarded hypothesis wording stands.
-  const applied = applyVerdicts(verification.hypotheses, verdicts.map((v) => safeConsequence(v.statement.trim()) ? v : { ...v, statement: "" }));
+  const applied = applyVerdicts(verification.hypotheses, verdicts.map(safeVerdictWording));
   const findings = buildFindings({
     admitted: applied.kept, deterministic: [], routes: context.routes, stack: context.stack, repositoryId: task.repository_id,
     hasDatabase: context.hasDatabase, liveFacts: context.liveFacts, possessionGates: new Map(context.possessionGates),

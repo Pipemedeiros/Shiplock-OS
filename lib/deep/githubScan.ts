@@ -34,7 +34,9 @@ const SECRET_PATTERNS: { id: string; label: string; re: RegExp }[] = [
   { id: "private_key", label: "a PEM private key", re: /-----BEGIN (?:RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY-----/ },
   { id: "supabase_service_key", label: "a Supabase service-role key", re: /\bsb_secret_[A-Za-z0-9_-]{10,}/ },
   { id: "aws_access_key", label: "an AWS access key id", re: /\bAKIA[0-9A-Z]{16}\b/ },
-  { id: "openai_key", label: "an OpenAI API key", re: /\bsk-[A-Za-z0-9]{20,}\b/ },
+  // The shape proves the format, not the vendor: compatible providers
+  // (Moonshot, DeepSeek and others) issue the same sk- keys (release run r6).
+  { id: "openai_key", label: "an API key in OpenAI's format", re: /\bsk-[A-Za-z0-9]{20,}\b/ },
 ];
 
 // OpenSSH uses its own binary container, which Node's PEM parser does not
