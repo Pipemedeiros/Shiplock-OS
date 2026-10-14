@@ -1,0 +1,5509 @@
+{
+ "version": 1,
+ "experiment": "corpus-8-release-pool-3-2026-10-13",
+ "prediction": "Recorded before evaluation (2026-10-13): pool 3 of release attempt 4 (ledger, e71e9cc and 54b90cf), used in manifest order only until attempt 4 reaches 100 labeled findings; no prediction of the result.",
+ "scope": "Status-setting findings the audit shows after the customer agent path (agent-tasks, reasoning, agent-admit, verification, agent-shown), labeled by two blind labelers. Repository and agent only: no provider snapshot or traffic.",
+ "selection": {
+  "rule": "Fixed in the ledger before searching (e71e9cc): CORPUS-7 rule unchanged except stars 0..1 and pushed:>=2025-10-13; every CORPUS to CORPUS-7 repository excluded; same template drop; ranked by stars then name; up to 600 kept.",
+  "searched": 2534,
+  "pool": 2306,
+  "checked": 763,
+  "selected": 600,
+  "pinned": 600,
+  "acquisitionFailed": [],
+  "dropped": [
+   {
+    "repository": "0xZAI/himati-app",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "1-xingcys/synqer",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "13304930782/teacher-intelligence-platform",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "14yao/GridDown",
+    "next": true,
+    "db": false,
+    "server": true
+   },
+   {
+    "repository": "15712632837q-source/ai-task-market",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "2iaad/tradel",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "a740411040/yunjian",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "Aahan-Desai/CineRealm",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "AbdallhElzorkany/TaskMaster",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "abdulhadi-js/fixit-aws",
+    "next": true,
+    "db": false,
+    "server": false
+   },
+   {
+    "repository": "Abdxlrahman/SmartPaws",
+    "next": true,
+    "db": false,
+    "server": false
+   },
+   {
+    "repository": "AbhinavBist-01/Peak-Form",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "abigailbrionesa/warmimind",
+    "next": true,
+    "db": false,
+    "server": true
+   },
+   {
+    "repository": "absastreon/bastion",
+    "next": false,
+    "db": false,
+    "server": false
+   },
+   {
+    "repository": "abusayed0206/cuet",
+    "next": true,
+    "db": false,
+    "server": false
+   },
+   {
+    "repository": "adamissac/constellation",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "AdithyaKotian/ca-compliance-vault",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "adityaayushman/pcb-mind",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "adityakashyap5047/kanvix",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "AdityaSarse/IMotive",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "adolforopeza/bittree-web",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "AdrianLopez001/System-lumiar",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "agentic-company/tellet",
+    "next": false,
+    "db": false,
+    "server": true
+   },
+   {
+    "repository": "ahmed-abdel-aal-a/multi-tenant-edtech-ai-platform",
+    "next": false,
+    "db": false,
+    "server": false
+   },
+   {
+    "repository": "AhmedHassanDev1/movieAtlas",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "Ahmedmoharam22/stories-and-consultations-bakr-ismail",
+    "next": true,
+    "db": false,
+    "server": true
+   },
+   {
+    "repository": "Aidin78/personal-website",
+    "next": true,
+    "db": false,
+    "server": false
+   },
+   {
+    "repository": "akansha2026/Connexa",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "akashmahlaz/School-Management-System",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "akshitbhardwajhere/foss-club",
+    "next": false,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "akshitsrijan001/decept-ai",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "AlberdaNazarius/FinanceTracker",
+    "next": true,
+    "db": false,
+    "server": true
+   },
+   {
+    "repository": "Alejandrehl/novios-app",
+    "next": true,
+    "db": false,
+    "server": false
+   },
+   {
+    "repository": "alexandreelkhoury/Stamply",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "alexandreraminelli/gosnack",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "AlexeyZharsky/Frontend-Backend-Practice",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "AlifSrSE/Cophee",
+    "error": "Get \"https://api.github.com/repos/AlifSrSE/Cophee/contents/packages/types/package.json?ref=e5d6e43901b2798ab096c875fa95e"
+   },
+   {
+    "repository": "AliMahmoudDev/Shifa",
+    "error": "Get \"https://api.github.com/repos/AliMahmoudDev/Shifa/commits/main\": dial tcp 140.82.113.6:443: connect: operation timed"
+   },
+   {
+    "repository": "alive-xd/NoCap",
+    "error": "Get \"https://api.github.com/repos/alive-xd/NoCap/commits/master\": dial tcp 140.82.114.5:443: i/o timeout\n"
+   },
+   {
+    "repository": "AliyaanZahid/DistillTube",
+    "error": "unexpected end of JSON input\n"
+   },
+   {
+    "repository": "AlokMahapatra26/charitraAI",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "AlphaaCode/fedmri-app",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "aman08-cool/healconnect-hub",
+    "next": false,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "Amaranthusss/portfolio",
+    "next": true,
+    "db": false,
+    "server": true
+   },
+   {
+    "repository": "anav5704/makora",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "andersonkaiti/rede-ct",
+    "next": true,
+    "db": false,
+    "server": true
+   },
+   {
+    "repository": "AndreiNeptune/site-stomatology-blog",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "AngadSudan/OctoDock",
+    "next": false,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "anmolsharma152/CodexEngine",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "ANSHSINGH050404/Design-Ecommerce-Product-Listing",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "antonblaise/photography-portfolio",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "AntonV0/pushkins-russian-school",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "anucoder01/Core_Connect",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "apLanka/blooso",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "ara-5/trading-erp",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "ARabee3/Convera",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "arcemichaelr/vino-log",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "ashiq72/cafze-backend",
+    "error": "gh: HTTP 500\n"
+   },
+   {
+    "repository": "ASHUTOSH-KUMAR-RAO/ecommerce-2",
+    "next": true,
+    "db": false,
+    "server": true
+   },
+   {
+    "repository": "asku1990/Portfolio",
+    "next": true,
+    "db": false,
+    "server": false
+   },
+   {
+    "repository": "asmsaifs/flash-chat",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "athulnath03/lynkhive",
+    "next": false,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "atuljha-tech/Logistics",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "aunccarmy-admin/aunccarmy",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "awais1019/Evento",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "aymanebouljam/filmora-x",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "Balisa50/hireiq",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "BasilMirza/corpus-r2",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "BeastAyyG/SAAAF",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "beltromatti/belimo-pulse",
+    "next": true,
+    "db": false,
+    "server": true
+   },
+   {
+    "repository": "BerlynDev/BerlynDev-Universal_Medical_Platform_MasterProject",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "Bhargava-Ram-Thunga/Dayly",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "BhushanLagare7/nextjs-saas-multitenant-ecommerce",
+    "next": true,
+    "db": false,
+    "server": true
+   },
+   {
+    "repository": "blu-marius/create-blu-app",
+    "next": false,
+    "db": false,
+    "server": false
+   },
+   {
+    "repository": "BoviliusMeidi/inventory-management",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "bry-ly/Portfolio",
+    "next": true,
+    "db": false,
+    "server": true
+   },
+   {
+    "repository": "BryanZheng802/AlignmentPoker",
+    "next": true,
+    "db": false,
+    "server": true
+   },
+   {
+    "repository": "codeandbe/iyobosa-amaddin",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "CodeReb00t/AgileFlow",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "codernayeem/ProjectBuddy",
+    "next": false,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "CodeWithMSami/Passkey",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "Cprakhar/DataWhiz",
+    "next": true,
+    "db": false,
+    "server": false
+   },
+   {
+    "repository": "cryptothud/dating-app",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "dana-khaing/FlowBit_Capacity-Based-Numeric-Transaction-Management-System",
+    "next": true,
+    "db": false,
+    "server": false
+   },
+   {
+    "repository": "Daniel-Nikoulchine/projectshop",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "danielwami/sellflow",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "danitdev/NexCart",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "daniyal-abbassi/Next.js-personal-blog",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "Danncode10/AdventFlow",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "Dantell12/ecommerce-sales-dashboard",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "dassudip2001/news-intelligence",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "David-LS-Bilbao/JobIT-platform",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "David-LS-Bilbao/verity-news-TFM",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "dBillionaire-Dev/Clinexia_v2.0",
+    "next": true,
+    "db": false,
+    "server": true
+   },
+   {
+    "repository": "dboatengg/capstone",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "deedbox-maintainers/deedbox-app",
+    "next": true,
+    "db": false,
+    "server": true
+   },
+   {
+    "repository": "deepanshu-verma-codes/prompt-snap",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "dev-erickydias/calculadora",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "devLuanPaiva/portfolio",
+    "next": true,
+    "db": false,
+    "server": false
+   },
+   {
+    "repository": "DevMCalderon/ecommerce-nextjs-typescript-prisma-shadcnui",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "DevMCalderon/lorebook-nextjs",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "DevPedroGomes/Reservas_Pousada",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "didifive/legisvisao",
+    "next": true,
+    "db": false,
+    "server": true
+   },
+   {
+    "repository": "dilrajkingra/WayFindr",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "Dimterion/expense-tracker",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "dineshdinz12/DocuAi",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "DoctorZalman/flamingo-issue-tracker",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "dracorisz/appforge",
+    "next": false,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "dreinst/DriveTech",
+    "next": true,
+    "db": false,
+    "server": true
+   },
+   {
+    "repository": "dreyvinixz/MyPersonaOS",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "ds4cabs/CABSweb",
+    "next": true,
+    "db": false,
+    "server": true
+   },
+   {
+    "repository": "duckling1169/valorant-mcp",
+    "next": true,
+    "db": false,
+    "server": true
+   },
+   {
+    "repository": "Ebo1996/ai-ecommerce-platform",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "eduardofrafre/biofrontier-sc",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "ElijahZhao/MetaNutri---AI-",
+    "next": true,
+    "db": false,
+    "server": false
+   },
+   {
+    "repository": "ElloveeRising/scratch-pad",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "enayat7/studentarena",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "eng-muhammad-hamza/flux",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "erickdc7/laboro",
+    "next": true,
+    "db": false,
+    "server": false
+   },
+   {
+    "repository": "Err0r51/Prime-Three",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "Erti123456/Crave-Cook",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "Evr1kys/metalib-game",
+    "next": true,
+    "db": false,
+    "server": true
+   },
+   {
+    "repository": "EXCOFFee/acalud",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "EzeibekweEmma/nuel-banking",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "ezphongdo-cmyk/guardvibe",
+    "next": false,
+    "db": false,
+    "server": false
+   },
+   {
+    "repository": "fathimasithara01/fullstack-ecommerce-platform",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "FeliperPC/goal-tracker",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "FIBA00/todoist",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "Fouzia-Oreen/EstateVoice_Real-Estate-Calling-Agent-Platform",
+    "next": true,
+    "db": false,
+    "server": false
+   },
+   {
+    "repository": "foxx054/clareza-financas",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "fzzv/linknest",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "Ganateju/ganateju-os",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "Gavinduachintha/Shorty",
+    "next": true,
+    "db": false,
+    "server": false
+   },
+   {
+    "repository": "gfendres/payments-view",
+    "next": true,
+    "db": false,
+    "server": true
+   },
+   {
+    "repository": "gggmlduswjs/speakfit",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "ghulamraza110/shop-ai-assistant",
+    "next": false,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "godaralokesh29/Duodle",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "Gribadan/click-payme-nextjs",
+    "next": false,
+    "db": false,
+    "server": true
+   },
+   {
+    "repository": "Gribadan/eskiz-sms-nextjs",
+    "next": false,
+    "db": false,
+    "server": true
+   },
+   {
+    "repository": "gui-bus/Atlas-HRMS",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "gui-bus/Scout",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "GuillermoGiles/cds-gastos",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "GuillermoGiles/sgf-gastos",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "gurkanfikretgunak/share-your-note",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "Gyanthakur/LoanPick",
+    "next": true,
+    "db": false,
+    "server": true
+   },
+   {
+    "repository": "haisamar/agentguard",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "HariYenuganti/marquee",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "haroondhanyal/FLOWNEXA",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "harshitgupta31415/nycr3s1-frontend",
+    "next": true,
+    "db": false,
+    "server": true
+   },
+   {
+    "repository": "harshmriduhash/Krits-ai-SMMA",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "hatimhtm/china-global-study",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "haydarkozat/fristen-hub-eu-ai-act",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "HeartThanakorn/retail-facility-management-platform",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "henrypf2026/boletoclick_front",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "hibaloughal1/MediLink-AI",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "Hikmahx/QuizMe",
+    "next": true,
+    "db": false,
+    "server": true
+   },
+   {
+    "repository": "hiteshmeta85/hiteshmeta",
+    "next": true,
+    "db": false,
+    "server": false
+   },
+   {
+    "repository": "Hlib4yk/attendance-tracking-app",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "Hum2a/Recount",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "iaadi4/InkLink",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "ibraheem9900/baby-fitters-boutique",
+    "next": false,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "ibraum/FastMarket",
+    "next": true,
+    "db": true,
+    "server": false
+   },
+   {
+    "repository": "idhem85/karny",
+    "next": true,
+    "db": true,
+    "server": false
+   }
+  ],
+  "demoDropped": [
+   {
+    "repository": "tgmarinho/t3-stack-turbo",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "AnujKV123/lovable_clone",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "wpalish/ai-saas-starter",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "arturtec006/saas-starter-kit",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "lorematteo/my-matflix",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "ahmifte/distill",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "sirawit-tanti/hr-leave-management-system",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Xyler0018/ai-systems-builder",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "caiofrota/next-blog",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "tylerarnone1/padma",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "yunuscaynak/nestjs-admin-starter",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "wpalish/nextjs-dashboard",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "M1rwana12/bookly",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "billalben/KnowSphere",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "creativoma/next-coolify-boilerplate",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "nayan777pratyush/PratyushLMS.",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Pacifique5/EduSphere",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "shivampatra2027/X.com-Mern-Stack",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "DataDarling/ehr-practice-management",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "GersonResplandes/payflow-saas-demo",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "thenolle/create-nolly-template",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "bos-8/modulon-lab-legacy",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "NikitaKoreshkov/aquagazteh-catalog",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "LucasMoniot/better-auth-boilerplate",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Luc4sguilherme/better-auth-demo",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "GulsumBegam/moonaichatbot",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "nunotamada/learnquest-lms",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Hasan36arnob/SocialApp",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "BuildByAman/SendFlow",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "farrukh-ali-khan/lms",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Hereetria/xenoforge-marketplace",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Afz07/OperationalKit",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "sandip-pathe/Cartograph",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Ma2903/music-ai-curatorship",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "mmgonnar/boilerplate_mmgn",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "jesusidev/nextstack-saas-starter",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "hardik139337/linkforge-starter-kit",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "yousribouhamed/Cravvelo-Website",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "samuelogboye/cv-forge-api",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "dev-taherm/my-profile-oc",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "shahadot786/threads-clone",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "testdemoqwenai2025-creator/trialgptbot-workbench-template",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "seed0001/ai-schooling",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "b1rd0w/BIgraph",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "BhushanLagare7/trello-clone",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "faizkhairi/next-boilerplate",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Kunal-CodeLab/AbleSpace",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "chrzanowskikamil/etool-app",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "canberkvarli/eunoia",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "PathumSandeepa/microservice-ecommerce",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "alfredang/digitalhuman",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "fanyicharllson/ai-agile-coach-scrum",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "kamangacode/conduit-fullstack",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "michael-padin/tech-stack",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "galactusclb/LaunchZap",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Vivancedata/learn",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "nymav/nymav-job-portal",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "gbaolt/next-starter",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "BlackcurrantLabs/blc-starter-next-b2c",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "arcdevoff/9gag-clone",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "developers-universe-1/nextjs-dashboard-starter",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "sahilmane69/Transfer.zip-clone-",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Yashh56/LearnMate",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "David-Belleau/youcode",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Babalsaab/Project_Starter",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "anushkachauhxn/learn-app",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Mostafasayedabdelwahab/next-ProductionReady-Template",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "AlphaIsYour/eno-link",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Moontaz/LuxeTravel",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "TrickyNoodle/medium-clone",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "swapnil2805/vibe-app",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "ArtemZhyto/shared-template",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "SonamYadav9022/SkillSage",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "DamarooWork/airbnb",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "KayqueGoldner/nextlearn-lms-course-platform-nextjs",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "duyvu871/boiler-next",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Giants-Ware/NexusAI-Production-Ready-AI-SaaS-Boilerplate",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "clicktronix/fullstack-ai-template",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "spider-rs/spider-example-diff-monitor",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "JasonTeixeira/micro-saas-starter",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "marcin2121/mdk",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "spider-rs/spider-example-sitemap-generator",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "hyzr1/shop",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "dievez/agentkit",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "jrenaldi79/mmm-cc-nextjs-template",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "VelimirMueller/portfolio-website",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "TechnicalPlayerZd/Nextbase",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "spider-rs/spider-example-link-graph",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "spider-rs/spider-example-dead-link-checker",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "iamaditya-gaur/metis-ai",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "ryan-flow/refine-yourself",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Danncode10/next-supabase-auth-template",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Ags-Ghafoor601/course-platform",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "omransoliman97/nextjs-supabase-auth-osdev",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "ConnorMeador/supabase-rls-auth-demo",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "StarSeedSystem/starseed-system",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "FabLrc/albert-old",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "SortieLabs/agentship-lite",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "hiromps/nextjs-mvp-starter",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "fabrizio-ferrentino/my-dev-bugtracker",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "arkan-ai-business/Arkan-CRM",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "wtmlx/turbo-nexpo",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "CedarCove/fullstack-monorepo-starter",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "EricKennedy101/viralclarity-app",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "CodeSquar/supafast-template",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Nanda-Regine/CreativelyNanda.co.za",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "CodingAbdullah/Next-MDX-Blog-Starter",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "rutiknarute/Evva",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Segodnya/scaffoldo",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "nullcryptodev/NextAuth-v5-Template",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "RaxTzu/AtlasP2P",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Open-Members/openmembers",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "hashimabufara3-ai/scientific-committe",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Yehonatal/coursehub",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Yojitkataria/carousel-studio",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "yishaik/free-stack-starter",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "AntonV0/volna-school-website",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Eldergenix/awesome-codex-app-template",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "victor-lis-bronzo/Casa-da-Mae",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "a-barzanti/SupabaseAuthKit",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "savant777/zzzcode",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "BryanReyes-dev/Evergreen-Estates",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "OrdinaryDev-in/claude-support-library",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "james-langridge/fotoro",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "vishaljudoka/AgentRelay",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "emjjkk/nextjs-discordbot-template",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "michaelreik/vibe-starter",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "AntonV0/gcse-russian-platform",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "samyak816/exam-preparation-ai",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "DRACOSFN/Turborepo-Fullstack-Starter-Template",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "alexmc2/coop-connect-demo",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "ww2d2vjh8c-lab/HustleClubV1",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "NoahMLoomis/medium-clone",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "notkunz/noun-tma-Main",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "aldiipratama/portfoliov7",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "ArdenoStudio/seylan-hub",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "jjnnaappaatt/line-oa-nextjs-starter",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "kyletristentran/kt-portfolio-dash",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "tyr1105/shipready",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "arkan-ai-business/arkan-llm-judge-eval",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "imnotannamaria/anna.maria.dev",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "mesbahdev1/n2s-stack",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "flabee/demo-feedback",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "SecVergueiro/sisvac-cecon",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Muhammad-Aman1718/invoice-generator",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "rachatanawee/nexus2",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Damilss/OpenHours",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "simonmak-ascent/vdd-dogfood-task-tracker",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Audiemartdev/next-saas-starter",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "randall-sim/yansb",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Mumma6/next-effect",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "supra126/solostore-tw",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "KaryawanSurga/idejadicode-starter",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "devtechedge/synthesis",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "skywalkerSam/image-gallery",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "nmnmcc/elysia-stack",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "kyle-hensman/clean-nextjs-starter-app",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "deessejs/saas-template",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "hskl18/Next.js-OAuth2-Template",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "0xatd/firebase-neon-template",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "nati-esh-zed/bbqdn-mono",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Meenic/cart0",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "ourhouchmohamed97/modern-crud-app",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "halfguru/castor-payroll",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "CoreDotToday/coredoteditor",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "jandrey/cardenorifa",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "byte55/project-template",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "branch42-labs/nextjs-clerk-drizzle-extension-turborepo",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "heidytg/brfeed",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "sam-maass/bargen",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "niiithish/shopify-app-template-nextjs",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "JunTierSS/wya-platform",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "jaqubowsky/create-nextjs-app",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "fikst/fullstack-starter",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "iamsrishanth/OpenTeleCRM",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "t3xydev/better-auth-server",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "git-adventures/duolingo-clone",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "elbionredenica/consumer-app-starter",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "statico/ian-stack-2025",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "williamwinkler/carhub",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Abdulmannankhann/youtube-clone",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "BhushanLagare7/youtube-clone",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "vldkorin/nextjs-starter",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Mehrdaaad021/dealflow-crm",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "ParvejAliDev/Infinite-scrolling",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Solgt/trpc-supertokens",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "mashdotdev/saas-starter-kit",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "aridder/vipps-starter",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "envoy1084/next-starter",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Ivanfvj/better-ai-starter",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "pikko233/youtube-clone",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "bigdropincs/kit",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "MykolaDotsenko/JunaLippu",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "wagleanuj/kanduli",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "collinskchirchir/youtube-clone",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "girishlade111/Lovable-Plus",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "nguyen-tinh/fsd-trpc-showcase",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Labib2003/ai-powered-outfit-picker",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "mkmahmud/driveflow",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "TimsTittus/Demokratia",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "AjayRajNegi/nodebase--n8n",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "stephentrembley-oss/nextjs-boilerplate",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "arlequins/template-agent",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "maher-alhoumsi/youtube-clone-nextjs",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "sangatiberga/monorepo-template",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "milocartal/cartall-starter",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "redsteelhat/bilardogo-demo",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "nvhuy249/airtable-clone",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "hishaamj007/kp-next-kit",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "srkn0/kubeplate",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "kszongic/nextjs-trpc-drizzle-starter",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Imolatte/swapplace",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "heyitsadityaa/nextjs-trpc-setup",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "ditinagrawal/shipfast-w-prisma",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "git-adventures/nodebase-clone",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "git-adventures/meet-ai-clone",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "chunjin666/next-enterprise-starter",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "mgalihpp/zyvo",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "kojiyamauchi/next-server-components-scaffold",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "ZRktty/nestjs-nextjs-trpc-poc",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Cachaza/internal-os-starter",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "x-mazloum/N8N-Clone",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "matchaciato/t3-stack-boilerplate",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "Vansh1379/BEN10-n8n-clone-",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "nesalia-labs/complete-web-template",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "chintondutta/echo",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "risixdzn/go",
+    "reason": "template, demo or tutorial by name or description"
+   },
+   {
+    "repository": "joaoricardofp/todo.jrfp.dev",
+    "reason": "template, demo or tutorial by name or description"
+   }
+  ]
+ },
+ "labelProvenance": "docs/evaluation/runs/attempt4-2026-10/ (two blind subagent labelers, a third on splits)",
+ "loader": {
+  "files": 4000,
+  "fileBytes": 400000,
+  "sourceBytes": 25165824,
+  "inflatedBytes": 125829120
+ },
+ "repositories": [
+  {
+   "id": "c8-uniscores",
+   "repository": "01REALES01/UNISCORES",
+   "commit": "ebd77a4f95c346fcd3b500661703e13594b4b430",
+   "archiveSha256": "ae457d8d26941cb28b5b1f12a16711e8e6dfa4b115e8efcf37667735a0defc37"
+  },
+  {
+   "id": "c8-lexiflow",
+   "repository": "06nikunj/LexiFlow",
+   "commit": "e1091f630a5ad21e25829e862e46aed4ebfc3ed1",
+   "archiveSha256": "b6bfb8a370e95e241b12e56651196e661df144f732d536040fa579f574fd4e2f"
+  },
+  {
+   "id": "c8-groupscribe",
+   "repository": "0rigind1865-bit/GroupScribe",
+   "commit": "050c071c2c41eaf34bc522bab6807db1c5a4fe5f",
+   "archiveSha256": "268593b949776da3ee7dbc6f38b291a4e1c3c44ad02c7234cef4ef00e60349c0"
+  },
+  {
+   "id": "c8-duunify-com",
+   "repository": "0xjulius/Duunify.com",
+   "commit": "0a940b161f28e2fb724e9123a346e162b25a9863",
+   "archiveSha256": "c354bb819fceb1b5d45350853ca59d54a4243d87648ae133f4ffb898e6e4b02e"
+  },
+  {
+   "id": "c8-omnimind",
+   "repository": "0xKhushwant/OmniMind",
+   "commit": "3bebcce909777075960040af5851303030f1c500",
+   "archiveSha256": "e5655825e616c670fd1b61c751329637308fb503e062507fadd6078467b2608b"
+  },
+  {
+   "id": "c8-formula-challenge",
+   "repository": "121212165/formula-challenge",
+   "commit": "2c948cf2456fe5e1c99cb255097ff5b1400a4c03",
+   "archiveSha256": "491ab9848f0476fc58ea0ba5f2a3227b998ac1b43f18194f57fcb76e79907a2a"
+  },
+  {
+   "id": "c8-deep-stars",
+   "repository": "125520/deep-stars",
+   "commit": "223d403395924e5dba609e36fb161e10f4f9bbc2",
+   "archiveSha256": "285d363c473ccb688c04b7ff966c4303dfe00d462710cb3ddbf165c1b6d2f444"
+  },
+  {
+   "id": "c8-yunwei-notes",
+   "repository": "17Signal/yunwei-notes",
+   "commit": "10ef1ce484d67bf18de7d56eaaa0331870ba6d52",
+   "archiveSha256": "b814d749b7ea619f4d5225a77e615353aa2362ded7332ddbcba024b3fc710a3a"
+  },
+  {
+   "id": "c8-inventory-reservation-system",
+   "repository": "22mis0246/Inventory-Reservation-System",
+   "commit": "94e3eff39de0fc9a13440973efc33ae5e1d1490b",
+   "archiveSha256": "451a82bbc9e76b1cb94a4f6802f2d207f668da57e8479df54da34c7947c6219b"
+  },
+  {
+   "id": "c8-nostalgianet",
+   "repository": "23f2003236/NostalgiaNet",
+   "commit": "aa19ac029c69bd4e45a54bba02bcab02191b463e",
+   "archiveSha256": "e1f629d194fb063b02853d4ddc9a2955ee847e29ea77f894c1241c7b63721522"
+  },
+  {
+   "id": "c8-tentgrid",
+   "repository": "248Tech/TentGrid",
+   "commit": "91153064924367a8da5a7f47a25646825ce102df",
+   "archiveSha256": "70a6a70fbec1e52489881fd0c85e72bb3bd473334e1314eeafe7e97154807ae7"
+  },
+  {
+   "id": "c8-agentxchange",
+   "repository": "3DMations/agentxchange",
+   "commit": "0c861587a88f0961c56d80fbda06403db90192da",
+   "archiveSha256": "8bc2d70d01f4e4e78d6508862916827b2964926e9dc2ecd182b240e7f9f9bfda"
+  },
+  {
+   "id": "c8-biopaper",
+   "repository": "a740411040/biopaper",
+   "commit": "9dedf87e93794a4842fe69a8fb64bfdee3b436c9",
+   "archiveSha256": "cfc3f9dc9daa03e8593657b679252790d640847c8d04319a22c4f6715590ebac"
+  },
+  {
+   "id": "c8-personal-debt-calculator-xa",
+   "repository": "A7medMo7ammed20/Personal-Debt-Calculator-xa",
+   "commit": "1181bc9b799fc213fa48bd86d36423abaeba83c8",
+   "archiveSha256": "80d067acc1eaef79e73d590a7eace4f7db080469ae6acf4b1202fba440a3a0fe"
+  },
+  {
+   "id": "c8-tare-website",
+   "repository": "Aabid-A/tare-website",
+   "commit": "4dd7c6d7230eb055578b60cf6565f8fb59dbda46",
+   "archiveSha256": "6433bbd8ff59c86b4812ce3dcb5ab354779bd5a1660034db7d914bde1507a158"
+  },
+  {
+   "id": "c8-cerebrum",
+   "repository": "AaryanBairagi/Cerebrum",
+   "commit": "7c472fa413585e4ad96ecb2c032e0d3dd9c0877d",
+   "archiveSha256": "ecf515fe2dfd41a55bec9d0a4badb576a20097b671f7b54484161510c3a78094"
+  },
+  {
+   "id": "c8-supabase-keeper",
+   "repository": "AayushPaigwar/supabase-keeper",
+   "commit": "7ac78b08a2752615e1cad8047863f404004df3e0",
+   "archiveSha256": "39bd55135c01394da54f0c3c518a236efd54ef851374c5159db48aa229bfed84"
+  },
+  {
+   "id": "c8-peakintel-ai",
+   "repository": "aayushsoni-ai/PeakIntel.ai",
+   "commit": "47d96819ea1a9ce39d78db32500ee26bce816b9e",
+   "archiveSha256": "524d9e92b95957ff748c93ef76b2cbda10c92cb2b02e8f0c02a7230ff18cc9b4"
+  },
+  {
+   "id": "c8-chat-aadi",
+   "repository": "abchatterjee7/chat-aadi",
+   "commit": "5bc26ff376c661ee940891b7b4fbefdc97483457",
+   "archiveSha256": "d36636d2283308d22f2ed1aba5157f8ac529e6cda4d1303bc8e2884401a13aa6"
+  },
+  {
+   "id": "c8-scanmenu",
+   "repository": "abdalla-ashraf-M7/ScanMenu",
+   "commit": "603112f8f047a645ebc3462cadefb5930485d097",
+   "archiveSha256": "e29e7f8c1c5449ecb420093b2bf164392b6bc8baeef8e486d7d44ce279cbd635"
+  },
+  {
+   "id": "c8-mycareeros",
+   "repository": "abdolmajed3/mycareeros",
+   "commit": "3ff7779f8c3432168956de125faa2f78243aef34",
+   "archiveSha256": "83d1bd74cfe249bf63ff9322d429773ba94ff568284d2edecb67a1802a27cb42"
+  },
+  {
+   "id": "c8-ai-app-builder",
+   "repository": "abdulbaqui17/Ai-app-builder",
+   "commit": "0875628aca92719a1ec5cdce3097e39dd599d0f6",
+   "archiveSha256": "4a65eac0ddcc1c72c428a2721c2ec5cf4bac5284402d7174bcdf3513f95e2de2"
+  },
+  {
+   "id": "c8-synapseagenticgtmos",
+   "repository": "abdulfatiraziz/SynapseAgenticGTMOS",
+   "commit": "f9f0681978187a41b3a5adffc9f4c22370db0b12",
+   "archiveSha256": "f366fa68c9141973884f7d658612c673d5026671c5bb48c45834ba2cc3440549"
+  },
+  {
+   "id": "c8-sweaty",
+   "repository": "Abdulla-AlBassam/sweaty",
+   "commit": "dbdf6c5e961190f4090c77721b0f98418d7cbe4f",
+   "archiveSha256": "b0f9efa327bea2e95eff6f48e16efa53ff2f5ebe2a8419d59b1ca91e7e951d08"
+  },
+  {
+   "id": "c8-lms",
+   "repository": "Abdullah-FSWD/lms",
+   "commit": "b7f6428a79700ae84dbc6258e2e72b1696373b5b",
+   "archiveSha256": "623fa0b64f94f427fd66e485eb15c98e579c6547ffe001a7d2290225323e11ba"
+  },
+  {
+   "id": "c8-gameigo",
+   "repository": "AbePlays/Gameigo",
+   "commit": "1137ea8fab2ce0f394acbe8b4ac6e837fbae9703",
+   "archiveSha256": "6a6d0f478c12d372c3ee92b3294f0b18a313567bb2fb326aacda1c008e5371e6"
+  },
+  {
+   "id": "c8-air",
+   "repository": "AbhijeetP21/Air",
+   "commit": "c2f0bf71a6c5932ea5d535b6714b3e70aa8fabff",
+   "archiveSha256": "57083e662dfbc8344379037f1f8dc473a099b1709d0a6fb31cf7652b2259674d"
+  },
+  {
+   "id": "c8-pact",
+   "repository": "AbhijeetP21/Pact",
+   "commit": "d9c9d24ec9a7cf716f90f089e84be724e1accc89",
+   "archiveSha256": "7ab0db3a4741a0966e76b88cbcb6c167ae6e1f6d986e20dd3915f109e5fdbec8"
+  },
+  {
+   "id": "c8-hirewise",
+   "repository": "abhimaancs/HIREWISE",
+   "commit": "0123235dcf64f468473e7fe09c442da8b0d5e98c",
+   "archiveSha256": "acf6b30bb1a87c05bdbeee3d130b08c8fedfad2788223fcd15fbb82ba2472c9d"
+  },
+  {
+   "id": "c8-stock-pilot",
+   "repository": "Abhinav1480/stock-pilot",
+   "commit": "a3ebbbe367e3b538375b639e4502ecd0f13f01c5",
+   "archiveSha256": "e73c219ccff3f2ecabe40a68e7ae674bee92eb6df1f771655f55a53e1ea173ae"
+  },
+  {
+   "id": "c8-vouch-ai-video-resume-platform",
+   "repository": "abhishekaj28/Vouch--AI-Video-Resume-Platform",
+   "commit": "0cd167f8b59aa3d30872428fcac08d5665bca9a2",
+   "archiveSha256": "5af4b709f5bc691057f4f5ee38e582423c3a0992577f9d001b261755bb87b575"
+  },
+  {
+   "id": "c8-resumeforge",
+   "repository": "abhishekreddy1206/resumeforge",
+   "commit": "94b1f043fe772df3c0f0e3b9734996d9d98c470c",
+   "archiveSha256": "eff53df981cdc1295621d759bfae55e0414db5e70c99213a958658ebca620f49"
+  },
+  {
+   "id": "c8-cloudsnap",
+   "repository": "AbhishekS04/CloudSnap",
+   "commit": "1ad15b4835fd46892cd6722800a7e68c3af93878",
+   "archiveSha256": "348bb31344f8a2d6dcb57b54f431b50d075ade2aceea9f9c03c51b03b3455086"
+  },
+  {
+   "id": "c8-fastjoin",
+   "repository": "abhiynar2804/fastjoin",
+   "commit": "5b432d879b29753e205ba2efa9df8e48912e6451",
+   "archiveSha256": "4780f826702b3e4ad584180c50ffc2cf913c49f8fc44ea9748c8a5c3eebae1d8"
+  },
+  {
+   "id": "c8-pushyourluck",
+   "repository": "achedon12/pushYourLuck",
+   "commit": "8d207e69c57e5534dfa8f64db18920a1f894bd52",
+   "archiveSha256": "2ead38168fb2a999fd106850d9577c6228988e05cf1f77d0bf6b0d4bd805554a"
+  },
+  {
+   "id": "c8-q-ecosystem",
+   "repository": "adarshthakur9240/Q-Ecosystem",
+   "commit": "0ed5857d80a2e7823abe1a7ca056bf5596347795",
+   "archiveSha256": "d8c19bd9f3faf94c21c4cd9a21dcbc03ed8bdc9dcefb1b6b14c7097d367ee450"
+  },
+  {
+   "id": "c8-voicepreserve",
+   "repository": "adeoluwa-4/VoicePreserve",
+   "commit": "a5403f4a57be791901eb78ede2170cb46df901ad",
+   "archiveSha256": "eac3cba5745562b25a14cb3643c71ce38961e8b9b56afaf825c5725873066245"
+  },
+  {
+   "id": "c8-hivon-blog",
+   "repository": "Aditee26/hivon_blog",
+   "commit": "3e5efa99828148b20d6c6a1f7db5f5040479a374",
+   "archiveSha256": "a690875df471ee49dce6ed4b91b1f808ad7f035054361dffd40e3c93dae8dc75"
+  },
+  {
+   "id": "c8-clausia",
+   "repository": "aDiThYa-808/Clausia",
+   "commit": "ac8b2c51b1597c891c7da5200ac0d450e568daf3",
+   "archiveSha256": "28ab217e0ad11748528b5373819504d6e89699d8f25a09b759defe690fb4a08b"
+  },
+  {
+   "id": "c8-dayflow-hrms",
+   "repository": "adithyap15122005/Dayflow-HRMS",
+   "commit": "c4eaef3cbe2b8e9e15c10a98b689d268e52cee9a",
+   "archiveSha256": "1936fa88ae6cbfe3b1101802856eaf5a314cd73769d84db1793b249b089ecb72"
+  },
+  {
+   "id": "c8-leaddesk-mini",
+   "repository": "Aditya-dxt/leaddesk-mini",
+   "commit": "416d28439c869d736301e72e876ce01a9af10add",
+   "archiveSha256": "cfd7418b38fdbdb45ac2648daf71afddd1f4445dd0db41b5c67bafad24e9e0fe"
+  },
+  {
+   "id": "c8-interview-iq-ai",
+   "repository": "adityadeoche/interview-iq-ai",
+   "commit": "7b5a06e4157df648f09cb44547129385ae101c4f",
+   "archiveSha256": "592b47a30c0a99703e104e643596ffc0b4c438d91016a14aa67f59f5c1e66513"
+  },
+  {
+   "id": "c8-roastco-campaign-crew",
+   "repository": "adityadhimaann/roastco-campaign-crew",
+   "commit": "a80321bc14e0f0ddff069d54df52230eec4de6ff",
+   "archiveSha256": "f4ac3c3102dd07002f877a099a4bcc9f612eab1d05b2e00d715f342f8fcaa0fa"
+  },
+  {
+   "id": "c8-heapflow",
+   "repository": "adityakashyap5047/heapflow",
+   "commit": "d3e048708311bbcde9ba981c93d2ab249b4927f7",
+   "archiveSha256": "a74ab81be537ab85706b0e4eafc24b98c188f04b99c839d6e65477de5c07d78c"
+  },
+  {
+   "id": "c8-hireiq",
+   "repository": "adityamawa/hireiq",
+   "commit": "2c72076c89e23389b62dca47425708ac3e490738",
+   "archiveSha256": "78d47338e0085890d8391ac66f9cb46009de5aab4a13304d1020c1488ff4d8d5"
+  },
+  {
+   "id": "c8-patchnote",
+   "repository": "AdityaShukla06/PatchNote",
+   "commit": "56d433ee163e1d856ca68c138daca9ec37b9d04b",
+   "archiveSha256": "97909e1ee6e09c1a1fcc717d1701300219d5f774650f4e46fcb52f4763b06fbe"
+  },
+  {
+   "id": "c8-next-launch",
+   "repository": "adityayaduvanshi/next-launch",
+   "commit": "063a623180783706c6a2a85f6becc4c7e4e6c3d6",
+   "archiveSha256": "36529f165719abcb526afa43459aca78de9ac52875b523d7fd805745b04b54a5"
+  },
+  {
+   "id": "c8-personal-garden-tracker",
+   "repository": "adotj/personal-garden-tracker",
+   "commit": "746e55206fd64340a73269fee077efcc320e0387",
+   "archiveSha256": "645be4c70952650a8c3ba68bc6faf9a69ed7afe94681508271b6b7dec1b0e78d"
+  },
+  {
+   "id": "c8-daily-insight",
+   "repository": "Adr1Est/daily-insight",
+   "commit": "772a3be548542777f352953f02f0ebcab209554d",
+   "archiveSha256": "9830872362fe4aa0c9d8b5e67127eb2115293d614ccb5f4b51156d41797ebe7b"
+  },
+  {
+   "id": "c8-resumai-hackathon",
+   "repository": "Adu9o9/resumai-hackathon",
+   "commit": "e78254430023d9acbd285064bde54c3650ce44cb",
+   "archiveSha256": "d11cde17834d564320ee7aeecab6e43ded24c244a21748cba5d2511b1336280e"
+  },
+  {
+   "id": "c8-moneda",
+   "repository": "AdvenTureee/moneda",
+   "commit": "54eb88b7d7ff1309f5caca9d2da39be90b76e982",
+   "archiveSha256": "7b82032bcbf2d9a577a142ad75170a86d39ce7b5ec736ad68c1adbbfb666d8d8"
+  },
+  {
+   "id": "c8-appointment-engine",
+   "repository": "aekiratli/appointment-engine",
+   "commit": "24d7a82d0667585402866e28fef587ed50adc02e",
+   "archiveSha256": "f033dc6b723d4b785669a75369bd8f0dd330e6abd87b691f407fe8ce3bdfa671"
+  },
+  {
+   "id": "c8-omnidoc",
+   "repository": "aethryn/omnidoc",
+   "commit": "e440aca6e9972784ee45fcc17f48fe90dc0b09c6",
+   "archiveSha256": "0c9109e05b782e94e771eddd4849f5f6bf40c10a98e2b0f1f0e54fca86cec93d"
+  },
+  {
+   "id": "c8-tyunnie-pa",
+   "repository": "affannajiy/tyunnie-pa",
+   "commit": "e6e8a15826f1705510d4c9bccd1c25fcf0738ca5",
+   "archiveSha256": "b9cada72a735672a2b8c4dfddf98c9846d031ac44434dde7a6c588200e79b5b9"
+  },
+  {
+   "id": "c8-finsight",
+   "repository": "afifn11/finsight",
+   "commit": "9dd8b0007e635a2f772ec97fda49e90e1c2c7e64",
+   "archiveSha256": "b25d25856e34ea15dc51afd4369fea458bbb490f07123db5ac28c323a3c56e9b"
+  },
+  {
+   "id": "c8-contextos",
+   "repository": "AFR0011/ContextOS",
+   "commit": "40de0ec7ba5d3ac503fe7894cd9b5847c4ab2512",
+   "archiveSha256": "f249267993dd552f04e8359f7e70fa6e0a9bef4b11c8ae9ed90d20f523142755"
+  },
+  {
+   "id": "c8-ravel",
+   "repository": "AFR0011/Ravel",
+   "commit": "641be9784c2dc7bd9c6ddc260a6e2dc1c65ec76f",
+   "archiveSha256": "b41531967294067c5e2a23a18d691149c8cecd872bb8a43655bfd110528aac8b"
+  },
+  {
+   "id": "c8-realnews",
+   "repository": "agentzz1/realnews",
+   "commit": "1b49bf4b0ffcf42203eae62d1a27aeda8b7776d8",
+   "archiveSha256": "7d58bae54e0750fc04156082d6ab079f388ead50a9d24cc53ac89c48165917f7"
+  },
+  {
+   "id": "c8-student-guard-syndicate",
+   "repository": "agp-369/student-guard-syndicate",
+   "commit": "d583f6b4fd6303b9cbf13f5135322346f58670ce",
+   "archiveSha256": "2bdc255cdbbb2abcb07acebc5074a9c91bf015e1ffae1d169889fd001772e65a"
+  },
+  {
+   "id": "c8-notes-crud-app",
+   "repository": "ahallali/notes-crud-app",
+   "commit": "6768b713a4cce77d9257a5dd0d24d9cd0adc1baa",
+   "archiveSha256": "c65fe06b2d63ed9e80e89419a9b34bb0622ffd3cf4f2a936ad1d0ad8ff2a43dc"
+  },
+  {
+   "id": "c8-korean-reference",
+   "repository": "ahhhhhhhhhh-cpu/korean-reference",
+   "commit": "4cf8ef734e64817b266c4f23354b4ed03b7b8530",
+   "archiveSha256": "2ec3e609c7c65e8f5085edc69200bc892e83f40bf03413c103741f3fc5f1a26b"
+  },
+  {
+   "id": "c8-larder-concierge-ai",
+   "repository": "Ahmadhsn1/larder-concierge-ai",
+   "commit": "ee346348a50e04e8e9b13eff4e6d52efed4ac7d1",
+   "archiveSha256": "1b0190d8cf068ca97758c5088d326924f8efcc22c10dbcfd860c47aa8f8f1b1c"
+  },
+  {
+   "id": "c8-leadforge-ai",
+   "repository": "Ahmadhsn1/leadforge-ai",
+   "commit": "b4e9eacc47c382f6097984e2e0ca482f33e08aee",
+   "archiveSha256": "031f28f9ebc7adeba7a42394b8d35d5ee8d2c8d6fb658af51e19cfa3d6a9df30"
+  },
+  {
+   "id": "c8-retailflow-saas",
+   "repository": "Ahmadhsn1/retailflow-saas",
+   "commit": "331c35d0d2fc7664896f31c29c7f49ecb0111dd5",
+   "archiveSha256": "1b7a54ce9a2f4d7f37f5a205476d256300adb34228b6aff4ecfaf3a6f0489292"
+  },
+  {
+   "id": "c8-converso-lms-platform",
+   "repository": "Ahmed900Wael/converso-lms-platform",
+   "commit": "2e870cb03761512b110864aead366f63023cdc67",
+   "archiveSha256": "dc433e51387bc102aa8e9ae9a6f16f991be59428b09b2b480824ea6781347785"
+  },
+  {
+   "id": "c8-nexmart",
+   "repository": "ahmedabbas52233-a11y/NexMart",
+   "commit": "ce6b8f51c7dd2db813a8d7f267ee7119fab4f1c4",
+   "archiveSha256": "61684e3c54349b67948cb132289e1917fb25ec7fd0fe4174eab4281ff8bffab1"
+  },
+  {
+   "id": "c8-lisanhub",
+   "repository": "ahmedTensei/LisanHub",
+   "commit": "cb2337e2eacb11cbd3f952ed857a43e61d928926",
+   "archiveSha256": "23eb8e02b852b32e458babf0adcaca8ef7cd89b59fbb3b9fd04b5ffae33e036c"
+  },
+  {
+   "id": "c8-anime-gravity",
+   "repository": "Ahmetzdemir/anime-gravity",
+   "commit": "f32f8e8d430abe610621bebe5e26f07ad0d0c629",
+   "archiveSha256": "e3a776f92dfc8e1e7966c3ba957d9f427d0fe0fd6e3e6f5072940013b9e409b8"
+  },
+  {
+   "id": "c8-mykitchen",
+   "repository": "aidankim324/MyKitchen",
+   "commit": "90e7815c792a8c28d979081cb7684018cbb88f03",
+   "archiveSha256": "22fa524adf8ace3ff0abc73dc03cd762dd2369767a1a7b675fe0dde23315ce0e"
+  },
+  {
+   "id": "c8-buybackai",
+   "repository": "aidanmarketingagency-lang/buybackai",
+   "commit": "59b51a9b298d026d9445d6a7ba105d64c9bde900",
+   "archiveSha256": "975fdc682a82f206985e0cc030f01e9cbe39a407d45b682d7b8c3234c9e9ff3d"
+  },
+  {
+   "id": "c8-cardos",
+   "repository": "aimindweave/cardos",
+   "commit": "e6ec6dd27913c311dfa64350dac4a8205b595d75",
+   "archiveSha256": "a9b9d3942a10b2b34bfccc1e33a96cc4488389bb027b5e26e3f14d15ddc92e55"
+  },
+  {
+   "id": "c8-cutz3d-norwich",
+   "repository": "AIOverflow-in/cutz3d-norwich",
+   "commit": "5f18db60314fc067256034efae32cc73086ffebc",
+   "archiveSha256": "38df81912567ccdfc791d06bd2442d6ad6b914ec9bcb91d52428b4deaad88338"
+  },
+  {
+   "id": "c8-gym-routine-builder",
+   "repository": "AIwithDiego/gym-routine-builder",
+   "commit": "8d62124da7d735c8fe48ebd28b2b728848e93142",
+   "archiveSha256": "080c2d42162bd7c6a2e75a8b5856b0888c2c45d2964aa29577bd9133c0c6b2bb"
+  },
+  {
+   "id": "c8-verifylive",
+   "repository": "ajibssss/verifylive",
+   "commit": "067f5b32e4cb2cbf4f96d74ca8d24327fbacc213",
+   "archiveSha256": "c0d3440e2e46abda19ac486e49e047f84443aec262c73511c9f12276c0049210"
+  },
+  {
+   "id": "c8-book-nook",
+   "repository": "akaBaytar/book-nook",
+   "commit": "96c79bb9386a34486fa215104caa5904810d41b4",
+   "archiveSha256": "0cf74a7b638b40cca51c89bad2e90e0ba48f666acd9d9c83595101885413f1d5"
+  },
+  {
+   "id": "c8-formation",
+   "repository": "akajdid-mostafa/formation",
+   "commit": "9e869dcf175b688966b6bc1b575b3038dae791fe",
+   "archiveSha256": "8e7b310324e73469f0e15865a526b6bc49b1b9e3aa1e124960135d5f1dafde2c"
+  },
+  {
+   "id": "c8-hangout-lobby",
+   "repository": "Akash4510/hangout-lobby",
+   "commit": "ab6591d0ca82e5583e56002e3df0cc3185da5118",
+   "archiveSha256": "b1a77af41f81778699a676549467415b3638c325ec3b590f53e9c1b4033c78da"
+  },
+  {
+   "id": "c8-cluefind",
+   "repository": "akashcorex/cluefind",
+   "commit": "5c9b89a96181891570e97441507fedd60bc6f615",
+   "archiveSha256": "98c2bd3aa0a5d793da314753a926f66c69fc6f25af065d90f010318f14c18e53"
+  },
+  {
+   "id": "c8-zerowaste",
+   "repository": "akawolfcito/zerowaste",
+   "commit": "8cf29e323c91d9868becc12fea665b1ea1f56c2b",
+   "archiveSha256": "d365f9b6a6e8cc1cee449d2d2897674aace783a95a7cbabeebede43e7c5d9a7b"
+  },
+  {
+   "id": "c8-bayaraja",
+   "repository": "akbarr13/bayaraja",
+   "commit": "b8878a08999e0ed29dbbd557f9cdde72064989b6",
+   "archiveSha256": "afb66a91a7a58ec746f037fcaa1e4b0ff5a809d4aabbdd8d8ddfd99dca498713"
+  },
+  {
+   "id": "c8-vault-pay",
+   "repository": "AKG2506/Vault_pay",
+   "commit": "7bf2e101c7b6c868fa718832283812d94f459113",
+   "archiveSha256": "f7e78246b8d8614a63379ee1714232ea7df3866e15a3b3854f2d28e21935f31b"
+  },
+  {
+   "id": "c8-command-center-app",
+   "repository": "akhanER2000/command-center-app",
+   "commit": "97a8c534ddc298d4d285fdf414700d84407a8bb3",
+   "archiveSha256": "39a278e2bfc9b08f538dc3533b509096fe85a2d97201a349cf42990f330dd8c2"
+  },
+  {
+   "id": "c8-cv-controller-ia",
+   "repository": "akhanER2000/CV_Controller_IA",
+   "commit": "7e4469c3f73e0fd189b7d4e0c9cdd6a581449906",
+   "archiveSha256": "e4f48636b80f454e649cd54cf59664e344a985983ed683aee2809228476098b5"
+  },
+  {
+   "id": "c8-timetracker",
+   "repository": "AKolenda/timetracker",
+   "commit": "44a2c8609ad57cd79663b17bdad072564cdd98ad",
+   "archiveSha256": "13f97b5f9a574de37cc14249cdfd45756012f1599602f343e1da2a4b10c1b613"
+  },
+  {
+   "id": "c8-crm-web",
+   "repository": "alberic13/CRM-web",
+   "commit": "bc6f3c80d44c248ef5b5071634e73ef3fd6c44e0",
+   "archiveSha256": "9c34a6ee695f548a5b67234402ac61945526b2a99dc61aab7381d328bf48ee6a"
+  },
+  {
+   "id": "c8-kairo",
+   "repository": "AlejoJamC/kairo",
+   "commit": "76252330ee4e953b04776841799a3fe30e582242",
+   "archiveSha256": "7d899c7c4d30beaf4111b573820058f90c4639b5ae7fb82ba1ac942cd3a0895b"
+  },
+  {
+   "id": "c8-etf-invest",
+   "repository": "Alex-wu-1314/etf-invest",
+   "commit": "2a652eb084773a76bcae69e030cdc097be5f84e3",
+   "archiveSha256": "d8a7caf7a446fdd7c842397f7b98d8390360d949fa016f6f68487b282917c8dd"
+  },
+  {
+   "id": "c8-loot-list-plus",
+   "repository": "alexandermayes/loot-list-plus",
+   "commit": "523e2efe18d05cf4a565b4df53ac569372a6548d",
+   "archiveSha256": "1caa572e5a4bc1e57a0c76080f598d06249ec87259f8b46a01fd5af8a8c00323"
+  },
+  {
+   "id": "c8-marryslate",
+   "repository": "alexandreadamdufour/marryslate",
+   "commit": "ca8b07e3e322bb8f2bb643686b5f8890fc8ea59e",
+   "archiveSha256": "931e1797b6441698d8d41d0bde14a014ba4c1e535f8359bbacf4265a05da91ad"
+  },
+  {
+   "id": "c8-transmission-radar",
+   "repository": "alexandreadamdufour/transmission-radar",
+   "commit": "e2c47ae1012bae8023b8bc3a2d9d6f4a67aaf778",
+   "archiveSha256": "0746c8bc827186931b2bb1a628e8fa39c66079c349f83a8b1187f0658b27ab33"
+  },
+  {
+   "id": "c8-e-commers",
+   "repository": "AlexisLerch/e-commers",
+   "commit": "8d9820e9232fba7eee19b97374a4ce1adda6492b",
+   "archiveSha256": "216eb1e81e942a8d3fe77133256af7f42ed31b080231e56d426b7e281bedb8de"
+  },
+  {
+   "id": "c8-corpus-r8",
+   "repository": "Alexuree/corpus-r8",
+   "commit": "95c726d32cf46e435c97cf77b97000527422b54b",
+   "archiveSha256": "28306c500b0d617a29f8aa7f5343153ff7b6ab3704c0df805585823e888ceef9"
+  },
+  {
+   "id": "c8-learnify-childcare",
+   "repository": "alfredang/learnify-childcare",
+   "commit": "518e37cf1899511b158f50f5253bf6df3fb1f50d",
+   "archiveSha256": "8375639b4aa80dace5a8f6220252c7ef035a91d52e2e6dbb64126b6d4f340ec6"
+  },
+  {
+   "id": "c8-socialmediapost",
+   "repository": "alfredang/socialmediapost",
+   "commit": "68e6bbd6d3b66bb789394a4940f5ad5ccd45e176",
+   "archiveSha256": "cfc2c034238a3d9dc54ae9740bf594cf3e0cc12deea9727c94e21c62e3240232"
+  },
+  {
+   "id": "c8-tapcard",
+   "repository": "alfredang/tapcard",
+   "commit": "7e364ae7f3a386d680766748b50527a64c812b71",
+   "archiveSha256": "9cca43f683564d6191d1b361b04ee857ca3bdd479dc697f430315538e6e6825f"
+  },
+  {
+   "id": "c8-tertiarytraining",
+   "repository": "alfredang/tertiarytraining",
+   "commit": "2968ffa4a15c775861a4d657adbc3ec4aa9b1c4a",
+   "archiveSha256": "f4f56b4f0a799a20ec1ad214b510d159ab423fbee95686a0ee0e937187564752"
+  },
+  {
+   "id": "c8-ai-receptionist-saas",
+   "repository": "alibhatti59/ai-receptionist-saas",
+   "commit": "79a611f619de9394562ef2119bb561dfdddc8165",
+   "archiveSha256": "6637c8013b4191c2e19dc2cfe120fc167677ee6ea56e2e3637fc9fcde5a28cb1"
+  },
+  {
+   "id": "c8-club-match-platform",
+   "repository": "aliciazong137/club-match-platform",
+   "commit": "552c825ec8f84eb2b394a70993bd1fd4d6fb88a9",
+   "archiveSha256": "33fbe034a8eb0b652f608303d2bd4a9c1b5ba6dc89a78eabeaf384c82d69525c"
+  },
+  {
+   "id": "c8-eduhub-api",
+   "repository": "alifanantomi/eduhub-api",
+   "commit": "86762e8376ba7912549aa4a8f60c2321ffa402bc",
+   "archiveSha256": "11cebef690a929e058ef960d5b540706c291867732d6bbec2b88ec443263dc15"
+  },
+  {
+   "id": "c8-cf-practice-ladder",
+   "repository": "almuzahidseyam/cf-practice-ladder",
+   "commit": "c3887f80e338698568b546c1d0f78c9bf4471ec6",
+   "archiveSha256": "8cd7f5b6a769a612c46bd2ec447dbd16b2405205bfb8db98e96ed2c7ba93aa4b"
+  },
+  {
+   "id": "c8-unlimited-storage",
+   "repository": "ALPHAMAN-0/Unlimited_Storage",
+   "commit": "54a677854da877942758b831576aa0d68c90e7e8",
+   "archiveSha256": "e41562dac09b8a8611cd31cc981e41454923c8f33e824477082d4488d0b0323b"
+  },
+  {
+   "id": "c8-money-protocol",
+   "repository": "AlvaricVon/money-protocol",
+   "commit": "23a52ab2fbdbad9c112cf00eb1ca58065b12cf9b",
+   "archiveSha256": "e970f6cb67982056b145881560872699c4bcc0df32a9d05b68cbfb99596795ab"
+  },
+  {
+   "id": "c8-studio",
+   "repository": "AlvaroMartinCrespo/studio",
+   "commit": "41f48ff693a6fc1c068f4f25cc7d71f93505f0df",
+   "archiveSha256": "bde8eb98b5aed22a1569d29e69b850aade7bde1ed876dc0ffb8ad1e760f533e7"
+  },
+  {
+   "id": "c8-meshlens",
+   "repository": "alvin20062006-beep/Meshlens",
+   "commit": "0ef50b6a63c7b857cf5bb37098623f4cf2dd8998",
+   "archiveSha256": "0b8138a59df7e268c8367593aeb0c65dfcbf38ec0c50d6b39f8cc1b3a2660971"
+  },
+  {
+   "id": "c8-quantify-todo",
+   "repository": "alvinluo-tech/quantify-todo",
+   "commit": "b868457215111e0e274ca68ef22bc09535c04b56",
+   "archiveSha256": "90e17e8a069a3d7e80d68ce73be12cd52b845992693aa49f643a2c7c79ac437e"
+  },
+  {
+   "id": "c8-securevault",
+   "repository": "Alwaz1143/securevault",
+   "commit": "43dc82f90736ca848e0acc126e943a738cfcdc2f",
+   "archiveSha256": "0659644005fa59b0e215bb0404bec08c497e96dd837e43f8ca75e530181e164a"
+  },
+  {
+   "id": "c8-xdesign-ai",
+   "repository": "amaan-ur-raheman/xdesign-ai",
+   "commit": "f7ede3a85daa11dc508d52cb980eebd9f7358ea4",
+   "archiveSha256": "711f100118d51e7b05e17cfc04ad867b6878a91fcb2648d455bf3b1fa27b4304"
+  },
+  {
+   "id": "c8-snip",
+   "repository": "AmanShakya0018/Snip",
+   "commit": "94a90dd2858972f9689efc03e24f4b2cc0aa52f6",
+   "archiveSha256": "f7d97ee34821713a8662fb496364ee3119f78288b5b88c9060351117d65f4a96"
+  },
+  {
+   "id": "c8-star-point",
+   "repository": "amat3/star-point",
+   "commit": "d4a6a336b4a8a7686aa5d983388b7799cca0d5d0",
+   "archiveSha256": "b9818b40aa60999a3155bc117c82891a306d0ac43f7ea32552fdbb916ea95887"
+  },
+  {
+   "id": "c8-skilli",
+   "repository": "amenallah5577/Skilli",
+   "commit": "84fca8e1e1392348e2ecfaf2368bdaf62338a36e",
+   "archiveSha256": "28139b89382fb338e5acb4d8e5402a625260715631eab3a15d4b2113748b8a49"
+  },
+  {
+   "id": "c8-ecommerce",
+   "repository": "AmirhosseinOlyaei/ecommerce",
+   "commit": "6d8caca740f34d931b485870536aae9e49930786",
+   "archiveSha256": "d21377e9794ab179edac219c4a3379dfef3b6bf5e2eb754534cb371f4fd8ab1a"
+  },
+  {
+   "id": "c8-nexus-os",
+   "repository": "amirnikzadcr-code/nexus-os",
+   "commit": "de93eb277974258bd3b92b9833b7ea777e8ab12b",
+   "archiveSha256": "aec7260e74a8b0a76e5c311f2005b5e65fe6545d9a78621d9600f7687ce75249"
+  },
+  {
+   "id": "c8-thegardentm",
+   "repository": "amirormir/thegardenTM",
+   "commit": "60815a426670d1905c182bc69aa002c33b077540",
+   "archiveSha256": "9fa197cccf068f887460858d190c7c3778529887916b52d6021fcb5272b96c8d"
+  },
+  {
+   "id": "c8-mind-pilot",
+   "repository": "Amzing-Ai/mind-pilot",
+   "commit": "d27dc6d779f0a0b036596ad39f8697425f83dd0d",
+   "archiveSha256": "cab4703c85f34ea4f1e39dc1c36928d4d043d8c56d5af098753650f45222bd39"
+  },
+  {
+   "id": "c8-fintrack-ai-app",
+   "repository": "Ana-Karoline-Tech/fintrack-ai-app",
+   "commit": "c1629183df7baff494096a628241df86a1f67901",
+   "archiveSha256": "49707136a807c0760f639a1390c4175c02a5b28b352fe6aba04a5993e11021cd"
+  },
+  {
+   "id": "c8-auditdesk",
+   "repository": "anaidenko/auditdesk",
+   "commit": "d21c94a947e32072c3c04e6277b4be6c4ab2fa9f",
+   "archiveSha256": "163c61b6964a8dba511203311f10afb409bad1fce9a79d81e94ba38a5ad240dc"
+  },
+  {
+   "id": "c8-triptabtally",
+   "repository": "anannyasalvi16/TripTabTally",
+   "commit": "5b4adf4aef9fcd9a61c7e8bc2a163fb3a104a100",
+   "archiveSha256": "70be607d2c3ce9b6a1dbfb2867cc1f3eb42ebc1e2dd52e71ff424cac014a6f15"
+  },
+  {
+   "id": "c8-lightspeed-shopsync",
+   "repository": "anas-farooq8/Lightspeed-ShopSync",
+   "commit": "21dd406ad62e76f864679d2ea80d37d5b7071a9b",
+   "archiveSha256": "bba2b28d0e1c54345e055bcc6ee69d2714313cc003372d04bf41572382657b18"
+  },
+  {
+   "id": "c8-corpus-r6",
+   "repository": "andre-sptr/corpus-r6",
+   "commit": "4112a8fbedd4235348079efd25ee0432b5e3a451",
+   "archiveSha256": "94184e056d4e0e89df391c000035029f1b41a7e11c44d12e858b0fd190865638"
+  },
+  {
+   "id": "c8-sbt-connect",
+   "repository": "andre-sptr/sbt-connect",
+   "commit": "fa6301ce83b4bb34d1ab3aaa3075223069195457",
+   "archiveSha256": "02e14b23366dcbaa74ac764a004d5c50a637e2304cf88142011ee83fbdecc6b1"
+  },
+  {
+   "id": "c8-rumo-a-vaga",
+   "repository": "andre-vg/rumo-a-vaga",
+   "commit": "38cb0b763a1d7b54fee8f8c98141f902d210bcdb",
+   "archiveSha256": "89b9c195f9aa80c2411c6c91a7899ebb8335cda97dc7843ea7f21f4f27d5269c"
+  },
+  {
+   "id": "c8-texugo-poupador",
+   "repository": "andrebatista2/texugo-poupador",
+   "commit": "358ef8e7bc25f841c264dbafe15062ebd6582dbd",
+   "archiveSha256": "a1d337861b83395217f810734efb968c4fbaac2ee133ad99f3451c284abd98de"
+  },
+  {
+   "id": "c8-my-bar",
+   "repository": "andreifilip123/my-bar",
+   "commit": "fadf9a301f4d3127b40fac88d0db79047c34e47f",
+   "archiveSha256": "0a8a1e23dd8a0df5a6385d4fc8a53fb2a743962af63970e055adccecab2120c8"
+  },
+  {
+   "id": "c8-site-realestate-hectare",
+   "repository": "AndreiNeptune/site-realestate-hectare",
+   "commit": "07c0cbce3d12e3331d97c7c59a75d7e2b40d5d2a",
+   "archiveSha256": "40bb53d664ca98d057aadcf178f791082000f0ed3be7f27d404d4b2a49a9eb1d"
+  },
+  {
+   "id": "c8-panic-design",
+   "repository": "AndrewWangDev/panic_design",
+   "commit": "f497535cc60a9b3da98a9284e31a9317b8601fa8",
+   "archiveSha256": "6e752fd86c7e666ee4e65aafb01f515c71dc0d6e0a0490f43ca2c5782a948521"
+  },
+  {
+   "id": "c8-portfolio",
+   "repository": "AndreyCadmo/Portfolio",
+   "commit": "c4c5adb94c4846f8911d099a2104b31c2b3964b4",
+   "archiveSha256": "4a580a2b76a1d227650bbde8e5005a51cdae1815436732139eb79719d0a9d111"
+  },
+  {
+   "id": "c8-relay",
+   "repository": "androdotdev/relay",
+   "commit": "98cf952e526531509e5f344cd4e5c44864dbaf3f",
+   "archiveSha256": "46d04bab1437230ce3e0c7a698551847132b7eb8653a2fcb71d3bb2c0d5ebace"
+  },
+  {
+   "id": "c8-marginalia",
+   "repository": "androyt1/marginalia",
+   "commit": "b7c08f3145c673023aceeb1ca61eb58e79644c43",
+   "archiveSha256": "ce1168b262c737efbb93eb27c5bf5d100b81931b69e9e6e20e213799ac191feb"
+  },
+  {
+   "id": "c8-grantforge-ai",
+   "repository": "aneesyounas/grantforge-ai",
+   "commit": "8859e55232d5530b099e6ba6c92650da9f1e3491",
+   "archiveSha256": "72e28093a042b67620f83bf16a499f43979da6fc7386615caa9105ee8cfcea5b"
+  },
+  {
+   "id": "c8-lazyfolio",
+   "repository": "Angshuman09/LazyFolio",
+   "commit": "ade16f6a17133984a4d7b2de1c55cb892662bf41",
+   "archiveSha256": "ad435d79d0945c9252653cbcd852a108e74b6954fdd8320ad3966a006f436cdf"
+  },
+  {
+   "id": "c8-courtify",
+   "repository": "anhducokok/Courtify",
+   "commit": "ac91ce0492ad226776a9ad25b6acb10aa21f5cdf",
+   "archiveSha256": "75cd5a4c6f1e7c04524801069087e34aea39b36c6c3a9f00dd34a4919101b798"
+  },
+  {
+   "id": "c8-fullstack-blogging-application",
+   "repository": "anishvkalbhor/fullstack_blogging_application",
+   "commit": "af05b6eab436739a4c5972ebb3e96e4f83ed03f9",
+   "archiveSha256": "b9bfb03e9206469b308e7364dc1144c1efec4037729d122a1a03558ae16377fb"
+  },
+  {
+   "id": "c8-llm-caching-layer",
+   "repository": "ankit-rv-08/llm-caching-layer",
+   "commit": "8053a64993611cb2d0125b62a56a4020051c21be",
+   "archiveSha256": "fe0cbf92e793b542987f66b28431f2ff121fef0e11c122ce27f98067bbe14eb4"
+  },
+  {
+   "id": "c8-archit",
+   "repository": "ankit1324/ArchIt",
+   "commit": "bae9cf5d2223bd7ebc9617cb2e8d70a84cb0e88b",
+   "archiveSha256": "84d77f66719821c39259c8cbaf2c381932036a1ba59f630e821089b2a574d5fe"
+  },
+  {
+   "id": "c8-ai-mock-test",
+   "repository": "ankitv909/ai-mock-test",
+   "commit": "99ecbf1476e2e2781115a44782ab1dca8960e3e5",
+   "archiveSha256": "04f459aef6aa62e2084da8fcdcb5a8c1ec4765371bf4dddc6b3082eec4518609"
+  },
+  {
+   "id": "c8-gtmcommit",
+   "repository": "ankurmans/gtmcommit",
+   "commit": "ac0e99cddba8baf3813ff8cc5715ec1162aaa4dc",
+   "archiveSha256": "cb781810fcf80a364810ae609aeddf07b8a8092e3f66eeeb0b12428589af63cc"
+  },
+  {
+   "id": "c8-nudge-scheduler",
+   "repository": "Ankurrr27/Nudge-Scheduler",
+   "commit": "ef586450331b33685048d5c169ce53cacd47c289",
+   "archiveSha256": "f171679cff7c384395f6ef81044b1154de5091069dc6c44b9bea0aaec32b0a93"
+  },
+  {
+   "id": "c8-emrgent-ai",
+   "repository": "anle9650/emrgent-ai",
+   "commit": "9bece26b05add6c9ce0d8fe9cc16e149f1a516d1",
+   "archiveSha256": "21d195fe1f0764f06c84dd1e20ed62e069d17b26c91125a0ef21b5276b7a497a"
+  },
+  {
+   "id": "c8-nutriai",
+   "repository": "AnmolVerma7/NutriAI",
+   "commit": "65b4419a701bce0092f345366bf44accef77f499",
+   "archiveSha256": "9f9ebe4e12b6420e8ddc88d8387d4195ab9db62f9be5208a8063bfd733ff7f43"
+  },
+  {
+   "id": "c8-kannanao",
+   "repository": "annaPerdomo/kannanao",
+   "commit": "b91622c366900e8d0c08feb8a014701d314da352",
+   "archiveSha256": "caec0be9d067940b2ff914baeeef289971c8f15f5e8cfdca48950ec4f0c61ffe"
+  },
+  {
+   "id": "c8-ecommerce-2",
+   "repository": "Ano2225/ecommerce",
+   "commit": "6b59c22f726ebce7efd938521f7b50ea380b3058",
+   "archiveSha256": "c956141009ba5e4631e5fdbac89b1d6566bb89ed32046d8f493fa5eb893286a6"
+  },
+  {
+   "id": "c8-candyshare",
+   "repository": "Anonymous961/CandyShare",
+   "commit": "5b074094a41aded5eb74bf7f6f86e151b00c7665",
+   "archiveSha256": "935d6fc169b679e212ef797955dcad59a0c908f4b3c9cafc62bf1e45c9d0641c"
+  },
+  {
+   "id": "c8-browseflow-ai-browser-workflows",
+   "repository": "ANSHSINGH050404/Browseflow-AI-browser-workflows",
+   "commit": "cdfdecb0265f0ac14160bc5243026ad007cb8f9f",
+   "archiveSha256": "fccda65a624bb4abddc1e202819113772ba5652fe04719d057d8c1fd26015d0f"
+  },
+  {
+   "id": "c8-voicevue-agent",
+   "repository": "ANSHSINGH050404/voicevue-agent",
+   "commit": "b2d20a4f96259363b5856a4b4f4cb8657081c382",
+   "archiveSha256": "d0b4fe061ffa8792f6cdd97b054b3e1ed9d12384da162603ff0bff88e1a27812"
+  },
+  {
+   "id": "c8-voicevue-ai-v2",
+   "repository": "ANSHSINGH050404/voicevue-ai-v2",
+   "commit": "11257264a8face0f3167d41406260cf844bf5a37",
+   "archiveSha256": "771fa1fded5b0f0493b26bae23ba1637f5c7c5d3775c5457a652d26d0d978861"
+  },
+  {
+   "id": "c8-dreamhacks2025",
+   "repository": "anson-antony1/dreamhacks2025",
+   "commit": "5ef6af72b23a0a72d3ed422ebc68d4877b9f2550",
+   "archiveSha256": "2ee10897d753fa98d6dea82ca09d7a9c934806e20259401a845d8bf0303223e6"
+  },
+  {
+   "id": "c8-xeenapz",
+   "repository": "Antholem/xeenapz",
+   "commit": "8d964d47534c735b35f9d74796af3e5334fda2fc",
+   "archiveSha256": "a6a678f2a697f2a21bb5bb8de7c81ffdb387f6a85f4e2dff55914224f6b57951"
+  },
+  {
+   "id": "c8-claude-code-meetup-app",
+   "repository": "anthonyisaa/claude-code-meetup-app",
+   "commit": "2264dde8dc1a970979b8c4d8a46ceac629a1d044",
+   "archiveSha256": "1dbe2f6fae00e7139c77be2193e0f39a15cb9ff6b9b05d407e0e2664f973bbdf"
+  },
+  {
+   "id": "c8-timbre-ai",
+   "repository": "anuj-singal/Timbre_AI",
+   "commit": "20e89560913fbd54a8c8944d2653c05070e602c6",
+   "archiveSha256": "3a52e728646e0705c9c66d8057326f838691f5010c5a5a25ef4b8d84a78ddd12"
+  },
+  {
+   "id": "c8-goodweave",
+   "repository": "Anurag-M1/GoodWeave",
+   "commit": "e5f816db5f1f743df1d98bc8f591033c0edbb55e",
+   "archiveSha256": "d681ffd010a3cc4ab5a5a08f8399ffba6ac249f9cf61257c6461f38cbc934b9e"
+  },
+  {
+   "id": "c8-regret-simulator",
+   "repository": "Ap-0007/regret-simulator",
+   "commit": "fd29877c32e3041f6f19feea0703afbba2692cb7",
+   "archiveSha256": "51672f9678d31a8595895f43cd574393a4baaff4804b7cbbcf8a9a9e5fd8236e"
+  },
+  {
+   "id": "c8-tic-tac-toe",
+   "repository": "Aquitano/tic-tac-toe",
+   "commit": "50d9f3f7e93d672a14e23737687e34c835bc0fb7",
+   "archiveSha256": "401c869de2b95489610f0cd3c39e9a674014c77564698ceab3d92df51353abaa"
+  },
+  {
+   "id": "c8-dashboard",
+   "repository": "ar-nayem/dashboard",
+   "commit": "2d3267c0cbea6ad1be099fca1dc9dea0bd42f66f",
+   "archiveSha256": "e3b71f20dc622167f7cf44f6fd5e91385ed8dc8fe7bd12761d86a4166816abf0"
+  },
+  {
+   "id": "c8-finance-tracker",
+   "repository": "ar-nayem/finance-tracker",
+   "commit": "48d2f7b76f6fa76c4aab0667cf9d23f0eb653217",
+   "archiveSha256": "6208360e1d3c22472952f15c37ea3d0d647e6285ba7ddcecf2496b2e970a6685"
+  },
+  {
+   "id": "c8-lead-crm",
+   "repository": "ar-nayem/lead-crm",
+   "commit": "d28d0ce3565954f48e65b7e722eb726b36309a58",
+   "archiveSha256": "2dc9cad4fad591f7f33fd3fb461b1abbe4f8c4885f1ededb46fc287eff295467"
+  },
+  {
+   "id": "c8-localfoodhub",
+   "repository": "ar-nayem/localfoodhub",
+   "commit": "35e72221a8752ebf4bf5ff057b68844da3a66289",
+   "archiveSha256": "d48d71f6dd12beb9eb0c10cd90e642b12794c7f6c87546bd3a9ba61b988736dd"
+  },
+  {
+   "id": "c8-salonbd",
+   "repository": "ar-nayem/salonbd",
+   "commit": "383adfa33517418e3e92e8641f643c9040318018",
+   "archiveSha256": "52c4da0cf5c4bcc09ad7d96583ce1c3fbc170b6506e201ba01e68d0fb03ccf1b"
+  },
+  {
+   "id": "c8-student-portal",
+   "repository": "ar-nayem/student-portal",
+   "commit": "fdd7f27bd45de2c9435672c0567fa0876ca20c51",
+   "archiveSha256": "297bbeae0c4cfd5fd006ebad1e8d7419e3ddedbe8bae4e235788421e0f1f8456"
+  },
+  {
+   "id": "c8-aicostlens",
+   "repository": "Araan-Sheikh/aicostlens",
+   "commit": "9b64c1b93dce2c9c2eeb4604acace46ce7499ae5",
+   "archiveSha256": "5bb6d66d2d7508e97b46f4dcc751cc583db8a8c2b1e80e0459a1b4e55f761de9"
+  },
+  {
+   "id": "c8-myportfolio",
+   "repository": "ArafatSany7/myportfolio",
+   "commit": "98335be1378613e79cade99cefb6b90786a7798e",
+   "archiveSha256": "e36f64411929a806f13025a05e98608e5ff996248d71edf04f3bb3a7fe80d991"
+  },
+  {
+   "id": "c8-yoga-diary",
+   "repository": "arambarrid/yoga-diary",
+   "commit": "9ed92b25cb2af9d720d7ec971745af3bb2e810c1",
+   "archiveSha256": "026f9eb365341f8b774adf23ed4657556c22e0e6e28c3c120e11b862fdd7c6bd"
+  },
+  {
+   "id": "c8-collabspace",
+   "repository": "ardiwirya/collabspace",
+   "commit": "e203be9b60447c01b7331836ec381ebfd316dce4",
+   "archiveSha256": "dc91f81ea7ad30a377bad9eac101a23676d90700dccbd832c8d4ad63c46978f1"
+  },
+  {
+   "id": "c8-nusa-mart",
+   "repository": "ardiwirya/nusa-mart",
+   "commit": "9a15b8c72d9c0cb74770c0d17d502c85708aa401",
+   "archiveSha256": "be93d8cbedb2ffe861b58b9815fcd37a216deeadd65fbe55bc56fd635965116d"
+  },
+  {
+   "id": "c8-ephemere",
+   "repository": "ArDnath/Ephemere",
+   "commit": "d2d2dbae858a42e87325137c4b260376690a2214",
+   "archiveSha256": "2aa2893c6adb8800472aba6516ebb867b7ad6bc4263176f5621196744fb7ea45"
+  },
+  {
+   "id": "c8-kairos",
+   "repository": "Ari-Agarwal/kairos",
+   "commit": "31d58f12dbff235e4cbda55182f2e09d2c7ef74d",
+   "archiveSha256": "e6c316c053857b05c0fa9007bd702adf22aeac15838b4123932aefda58b6da71"
+  },
+  {
+   "id": "c8-openreimbursements",
+   "repository": "ariavasulin/OpenReimbursements",
+   "commit": "c51c8ad17d279f65bcf930b8507624436a1ef2da",
+   "archiveSha256": "f80818035f1b351196b00f07dff8a9267f96cd4919df904fa0cde8288db25571"
+  },
+  {
+   "id": "c8-wtm",
+   "repository": "arigbede23/wtm",
+   "commit": "a4892c9bcfa7163caeaecf13dd599ddd8b55ee9d",
+   "archiveSha256": "09deceeb8e67d1af0e08454e53d77eda6b8fec6f716eb2f00f87088779271b6d"
+  },
+  {
+   "id": "c8-tax-system",
+   "repository": "Aris-Artates/tax-system",
+   "commit": "004f25ba6f32dd8b818a07a6c77d6b5311a3d678",
+   "archiveSha256": "372b1d6adc71131e750da09ad3cef9d0f18851685d8aea6182a4f4a0440f210e"
+  },
+  {
+   "id": "c8-website-chatbot",
+   "repository": "arkan-ai-business/Website-ChatBot",
+   "commit": "37fb1c9c3dbf68de68eef832e0c912ae6ab8577c",
+   "archiveSha256": "3e479cf0ae56097c83c41698be9864c418cc5c13bb5a7b098c6d24e89b5978ff"
+  },
+  {
+   "id": "c8-reviewlens",
+   "repository": "Arlikhozhaev/ReviewLens",
+   "commit": "0c571633804e742ddebcef6447ea270c3ca591df",
+   "archiveSha256": "6795e0f3127e94cddab02d5e3ca71628b4e94360c68ab375eb9e3226871fb32b"
+  },
+  {
+   "id": "c8-chimerai-app",
+   "repository": "armbur19-collab/chimerai-app",
+   "commit": "8df92acfa08101d7ca1f4b7bdfb771027b851c3f",
+   "archiveSha256": "6a52d78efe02703dc69038d07893c0f72b72b51242b5d7d6c020d529403c32da"
+  },
+  {
+   "id": "c8-doqtri",
+   "repository": "armlynobinguar/doqtri",
+   "commit": "7b875f752c6791d21d05646ae7da87b084c11e41",
+   "archiveSha256": "4c7e93c1f73d67edbab45bbcd363d717d4c8184dc10ea4e20040c5f7541857ef"
+  },
+  {
+   "id": "c8-embedded-feedback-collection-widget-nextjs-fullstack",
+   "repository": "arnobt78/Embedded-Feedback-Collection-Widget--NextJS-FullStack",
+   "commit": "c6c413e7ac58915ffc0ea88ec62b670077ec99c1",
+   "archiveSha256": "cfb059599a6f5416286c773ffef47b437130d754800dc03e1b32acca712bba61"
+  },
+  {
+   "id": "c8-multiview-calender-healthcare-appointment-system-nextjs-fullstack",
+   "repository": "arnobt78/MultiView-Calender-HealthCare-Appointment-System--NextJS-FullStack",
+   "commit": "24ac4f9efda62d6a299040fa9be65339e70f2403",
+   "archiveSha256": "e25d73e3b4fc232d3806b594cf3c2e48de3ac1ef838c1c27789642376aa9e546"
+  },
+  {
+   "id": "c8-portfolio-landing-page-17-nextjs-frontend",
+   "repository": "arnobt78/Portfolio-Landing-Page-17--NextJS-Frontend",
+   "commit": "829eaa3b9d272bd7fc613e86f3b58fb990f72328",
+   "archiveSha256": "609de01c22c74fd14d9ab52b8aa9d72037812714b420c0dcd03e91208cb89d9c"
+  },
+  {
+   "id": "c8-agri-link",
+   "repository": "arpitnayan123-bot/Agri-link",
+   "commit": "c3bec1d366a4a2bedc81eb67f13c555fde9ea8b0",
+   "archiveSha256": "219aabdf431304022cfed71ee6931a4fae982e811c9f41513359a2a42021ba57"
+  },
+  {
+   "id": "c8-nexura-os",
+   "repository": "arpitnayan123-bot/Nexura-OS",
+   "commit": "f4131de9b8f45bca6ee5194324a324333cf97a3d",
+   "archiveSha256": "ddf0b568e7826f99a429ead3c2649e82340dcc81c21932ffaa6ec3a7de2cf79a"
+  },
+  {
+   "id": "c8-ai-lead-responder-api-dashboard",
+   "repository": "arshia-pourfar/ai-lead-responder-api-dashboard",
+   "commit": "2eb015bc112890760393316ebb150b5ed5f86db6",
+   "archiveSha256": "30f7a8b05b130839081e4d0c15ab7d2740fbde815248be0a16bb0c90aac4a0c1"
+  },
+  {
+   "id": "c8-modelswitchyard",
+   "repository": "arslanvuzmal/ModelSwitchyard",
+   "commit": "dbee3a148e20a748f8e7e3d6e934b70af656e266",
+   "archiveSha256": "af07b22bf1cf546ca4675b8967392197a4a5fe2ad240e92a62028bb45655085b"
+  },
+  {
+   "id": "c8-sourcelatch",
+   "repository": "arslanvuzmal/SourceLatch",
+   "commit": "7fe037bfc114c8400b8d9779ac22f1004caf2f57",
+   "archiveSha256": "b007d69734de7a1bba13b1c708f1aa1772b1524c368fb12cea114fe1422b4ac8"
+  },
+  {
+   "id": "c8-task-manager",
+   "repository": "ART1377/Task-Manager",
+   "commit": "bb22be5b78a8d32a86b11c9f2240bd18075a07ca",
+   "archiveSha256": "b760f8123859fa46da71bdaf8b043938930f53c9dcf5f68d1fcda2293a19867f"
+  },
+  {
+   "id": "c8-voyage-travel-booking",
+   "repository": "ART1377/voyage-travel-booking",
+   "commit": "d87c7a61153f1a8315f0723473a51800f157c2df",
+   "archiveSha256": "e543d2ee0d582795268397350001bdefe73d21b1183c7e562a69b0a33fe6eb9c"
+  },
+  {
+   "id": "c8-aplicativo-web-barrera-wallpaper",
+   "repository": "artdigitalstudio1980-hash/Aplicativo-web-barrera-wallpaper",
+   "commit": "29800c6c0516eed06e5b41598e0e06085b05e258",
+   "archiveSha256": "6279c66804f9fffcfd7916c43427d07cc542872b5ba045273b64f1d134b5e4b4"
+  },
+  {
+   "id": "c8-adcopy",
+   "repository": "artemmalanin979-create/AdCopy",
+   "commit": "d5194cf1035ee32b1be6c86264490d1fe9a6f8c1",
+   "archiveSha256": "6852db687cb00589b9bd5eb68d795f842226fd6e86b49942ef85273e72b39a21"
+  },
+  {
+   "id": "c8-liora-studio",
+   "repository": "ArtJack/liora-studio",
+   "commit": "dac67d3a389dce01b539b5ff872c4e0d7caebaed",
+   "archiveSha256": "c08f9f539e2954919e0cb8e7ac971c85baf6a5404eaee44a14acd59ed33e5760"
+  },
+  {
+   "id": "c8-lovr",
+   "repository": "Arts-HCS/LOVR",
+   "commit": "6050f620b98340ef26758bbc61e597f2ab643a0b",
+   "archiveSha256": "be0c46ec66fcdcfac63ae55b348bde9161eb14ab871e85d56b0d6a94b61ef48c"
+  },
+  {
+   "id": "c8-task-mgmt",
+   "repository": "arvind-sahu/Task-Mgmt",
+   "commit": "ebcbbbef3962426b6e9232f707e99e89fcb57777",
+   "archiveSha256": "884904085a6b034d96b126869a96415cba675fa4245984a1244f6f1c29d6676a"
+  },
+  {
+   "id": "c8-cloudloom",
+   "repository": "aryamthecodebreaker/CloudLoom",
+   "commit": "995d1a7188538c915d7e4620b37d78fc157bf862",
+   "archiveSha256": "5d6e87bedbd7b0ef562deb1996499e13e9fe87fd8357e8629832f3b511dc3b1b"
+  },
+  {
+   "id": "c8-memorylane-v1-2",
+   "repository": "Aryan-Dhole/memorylane-v1.2",
+   "commit": "e898e6c64d983607aae4c1c7995c87b8057e2ef4",
+   "archiveSha256": "de4da17fe6b46c5fcc0026d3e18977eed2cad544a7dace816b40dde335bfd337"
+  },
+  {
+   "id": "c8-ideaxray",
+   "repository": "ARYANJATHAR/IdeaXray",
+   "commit": "469e9b6bb9210c6dcb4e1b7746f023d487115ab8",
+   "archiveSha256": "d1d98d5c58a31872662a634d2e6687969419384d3ff7e82bf8c716ed26d6e74b"
+  },
+  {
+   "id": "c8-carecompanion",
+   "repository": "aryanmotgi/CareCompanion",
+   "commit": "59ef1e97ec612f52baf120f2f043c4d668fe1778",
+   "archiveSha256": "a25a58b6b1862fafa4f24fdfb543205149105cdf0505128296b5c5f599f176cc"
+  },
+  {
+   "id": "c8-ai-chat-platform",
+   "repository": "Asamx1/ai-chat-platform",
+   "commit": "88266f9f515dc580e8c594c6a91769790e67eb68",
+   "archiveSha256": "c2bd6b2f80e5b383477e13a9f0373ac6088c21a6881b6ad7da4a33b550923638"
+  },
+  {
+   "id": "c8-briaspas-scale",
+   "repository": "Asapx380/briaspas-scale",
+   "commit": "9dc1769a340ba3d1369863f5981024438021e87e",
+   "archiveSha256": "820add8fa4a67f52d812aebd43d10d157c49cabcac0187cd9ed1aeb805ce9624"
+  },
+  {
+   "id": "c8-cv",
+   "repository": "asdznpro/cv",
+   "commit": "5e4e721c1793761f19dbf878b29780ea80c32e63",
+   "archiveSha256": "7dba60d10b6a0630d976cc91066a5ee72992dcfd5ad77dcd7906f2f38b715d45"
+  },
+  {
+   "id": "c8-deepframe",
+   "repository": "ashermenachem/DeepFrame",
+   "commit": "ccb53d43ae17818f2dee167d47e82069d5e4e7c3",
+   "archiveSha256": "fce4d4cb18dfe2cab777953915992c6d47611f00e420f955ba17f4924269e5f1"
+  },
+  {
+   "id": "c8-ddos",
+   "repository": "Ashishnaresh/Ddos",
+   "commit": "d04273ca84ea0e5ea687385b5227fbbd3048a0d4",
+   "archiveSha256": "04fb7bafe43e9387e36637a3ae9b9845188a2df7a4fcb497524adde356e8cc8e"
+  },
+  {
+   "id": "c8-nest",
+   "repository": "Ashnagdarc/Nest",
+   "commit": "ed25f3f5038214011725da8e77ef7dd77904b568",
+   "archiveSha256": "91237e15a8a8d904f66f4290760c892898c7bb755b1f3fd4af079cf03c56aba5"
+  },
+  {
+   "id": "c8-snapurl",
+   "repository": "AsifpMulla123/snapurl",
+   "commit": "891f3abe8ddc926254537873c6189b517892aad8",
+   "archiveSha256": "bf7053cf309441ea7a7be7773dfc6fa41e0c7d6d92c49eee35a8587d4606991f"
+  },
+  {
+   "id": "c8-adforge-ai",
+   "repository": "asiifdev/adforge-ai",
+   "commit": "a65889332362b3bb54432fcb7fba79c12c7b3bc1",
+   "archiveSha256": "480d5aceaf82a19197761e5eca387c0a1ac8ff5a6ff507dc1fb3465d4ba14e2e"
+  },
+  {
+   "id": "c8-mapgisnextjs",
+   "repository": "asmarahancur/MapGISNextJS",
+   "commit": "717fa0e95498f428954d2b064c00d4cc72aabfd2",
+   "archiveSha256": "60cf6a81d63ea5ff19406041792e51c01493334d079dd01cb5bd55ad2195777b"
+  },
+  {
+   "id": "c8-waycode",
+   "repository": "Aswinsaipalakonda/WayCode",
+   "commit": "73ccc2a7050102382d1c4d4be98302d2f382cffe",
+   "archiveSha256": "5a576558ec00903b07d371a4d15b6d93bbca30c79606d96e663cbf504af121d1"
+  },
+  {
+   "id": "c8-hair-booking-system",
+   "repository": "asyncasana/hair-booking-system",
+   "commit": "8a2055d96bafe5aa0ed3b24230b7f91ead7be07c",
+   "archiveSha256": "2f485984e95db3c2f89549be44f8411177d8a2c5699efd0bccd1abd8fb59b4e4"
+  },
+  {
+   "id": "c8-merrash-web",
+   "repository": "atack49/merrash-web",
+   "commit": "c618ec3e6e3c12cdbc9ef5dac5916b75702b320d",
+   "archiveSha256": "1dfbb60029e6f2ba801960755162465b218c2e9c00efd063c223de2c80cfa588"
+  },
+  {
+   "id": "c8-career-compass-job-tracker",
+   "repository": "athrenX/career-compass-job-tracker",
+   "commit": "ea5be343c932c9d5ee6cff05d34c3286f24eb77a",
+   "archiveSha256": "0fbb46585141d19f08d175b570092aef4f13bdc7e0a43f9734d852b8cc7c383d"
+  },
+  {
+   "id": "c8-financial-receipt-scanner",
+   "repository": "athrenX/financial-receipt-scanner",
+   "commit": "6349b7531bd8e9c2dbcee00f0fedde15b04d0f73",
+   "archiveSha256": "30720b9c0eb55df53ec33bacb62e0c40e45883da4c34070b54bd4f6cf0604aab"
+  },
+  {
+   "id": "c8-descriptai",
+   "repository": "AtulSahu778/DescriptAI",
+   "commit": "a5217c1bc49ff4ff5b38de07f44ae619cd6c7ba1",
+   "archiveSha256": "ff1bfe88a79e90d3839600b3a748bdb03b49c0ea2d913dc0ac74db0d3c46fd36"
+  },
+  {
+   "id": "c8-pesu-placement-tracker",
+   "repository": "Audatic07/pesu-placement-tracker",
+   "commit": "ab1828a0b5aa38265f48242a3fec249a099869dc",
+   "archiveSha256": "a32215363045fa79903922b2ed6c7eb607707140ab919238cad3088493c7bb1c"
+  },
+  {
+   "id": "c8-hublab",
+   "repository": "aulafy/hublab",
+   "commit": "826a7b50479827644a50e5eee4589b593d664208",
+   "archiveSha256": "95089fce1590b6d07db77545712bb746e74d129370c19970c142779af454125f"
+  },
+  {
+   "id": "c8-aimauta",
+   "repository": "aule-org/AImauta",
+   "commit": "a31b5cd0b11b8291ab5b3ef00faf67338c1f60ae",
+   "archiveSha256": "fa1819e53d13c3b1e33e4ef6acae8692b233b96493ee3469c61781d5e56a52fd"
+  },
+  {
+   "id": "c8-agentverse",
+   "repository": "ava-agent/agentverse",
+   "commit": "c24b8a6b1c644b130e1163323b89d46919ba876b",
+   "archiveSha256": "c4a0ae1cb1ee99d70de1ec1431336ec1b9f3320e7c3dccc6c8626580b7810612"
+  },
+  {
+   "id": "c8-campus-companion",
+   "repository": "aviralsaxena16/Campus-Companion",
+   "commit": "d702379ca6bb813ea3121af31681063341bb0083",
+   "archiveSha256": "78cef6448a9a92b57dac38c4bfbbd9b8b1ce1865b4d3808cd6baa89a73b486d3"
+  },
+  {
+   "id": "c8-ats-resume-builder",
+   "repository": "avp0122/ats-resume-builder",
+   "commit": "e780a387a6b4fcf9f089a915a4cc764bb65ce4ca",
+   "archiveSha256": "9a7686e1f93fcecbdf5eaef8a165d705e38f94d1dcef096f39f3e1557f166801"
+  },
+  {
+   "id": "c8-petsoft",
+   "repository": "awais1019/PetSoft",
+   "commit": "5fe4ebe92e4c463432a7b308b493c7d76ed8340d",
+   "archiveSha256": "35645a6880408d92b6282fd9f4f1e57345681849a3eb10a4a8e8a7d2d5204af8"
+  },
+  {
+   "id": "c8-portfolio-2",
+   "repository": "awebcode/portfolio",
+   "commit": "eba90008d75ec9cc04360ab5c4c401a676960a19",
+   "archiveSha256": "31b6ad82f2f81f2e859186baa3e6d938f342b016ee780d4c84e438a00c902a7e"
+  },
+  {
+   "id": "c8-developer-portfolio",
+   "repository": "AxelReid/developer-portfolio",
+   "commit": "03a05236cb3c12f6302c1bd55368569b344b81a7",
+   "archiveSha256": "8ae33d00ed4e0bfe88a2da02a7dcd03d35b9398b28b86218c73d001555e047aa"
+  },
+  {
+   "id": "c8-foonda",
+   "repository": "aya-mash/foonda",
+   "commit": "dea3bdeee975d2a145d393c8d78aff72e4472cff",
+   "archiveSha256": "cd915625bd4a6701178cd3d5bb45554ad352583a8e1d364473150c69db7251dc"
+  },
+  {
+   "id": "c8-intellect-docs-ai",
+   "repository": "ayush-s-tomar/intellect-docs-ai",
+   "commit": "1719d390d7b0d381b3f93d337d64462e82016ae2",
+   "archiveSha256": "aa7a7e9017fd4cf71d70cba523970be11f95e754f9a6bda5615381031be3bbc9"
+  },
+  {
+   "id": "c8-smartcrm",
+   "repository": "Ayush71071/SmartCRM",
+   "commit": "3ffa12b318c20531c5db5c1571f90ace7f999364",
+   "archiveSha256": "3e56278e78a9636fc99d0e3a186b1392c9f8258ce9b5d158d282247fee73e82c"
+  },
+  {
+   "id": "c8-pdf",
+   "repository": "Aziiz01/PDF",
+   "commit": "1997a46a1b4ffb7c2a154f39ffec55fb65170826",
+   "archiveSha256": "261631abf770b1b4fe476f254546045f4b1b4eb1d9b4a4a8f03d9cc4e26ac419"
+  },
+  {
+   "id": "c8-snaplist",
+   "repository": "azizu06/snaplist",
+   "commit": "59b148e83baa90b024d30587b17b642587ed124e",
+   "archiveSha256": "34295fbc2152a510bdd6051d7243395627c34fe27c1e141959d4c65983d344eb"
+  },
+  {
+   "id": "c8-inc-website",
+   "repository": "B-Dandelion/INC_Website",
+   "commit": "d49a7a16a9c61adb1bc103a98e69a51b3d511c06",
+   "archiveSha256": "47a9540687003cfc48e321acf52df81ab11549b042572917c8d2b86fa77b533a"
+  },
+  {
+   "id": "c8-academia-alexandria",
+   "repository": "B-Leach/Academia-Alexandria",
+   "commit": "ea7e6143badff4d3ccbec45a1832928301756838",
+   "archiveSha256": "12e5065448304cfc7140e284b5efca9559a19c8485ae21d4080a677f7808f9fa"
+  },
+  {
+   "id": "c8-prepcal",
+   "repository": "baboug/prepcal",
+   "commit": "018dfdd71f5d9fdd7e5cabac58a445d98e40e897",
+   "archiveSha256": "ba6252a431336ebe8fca731b736044bf9a95dd92ac37726ca5afb5b869bb994f"
+  },
+  {
+   "id": "c8-dochadzkovy-system",
+   "repository": "Balestruci0o/Dochadzkovy-system",
+   "commit": "74fa00d479cc1e1921d19e3138c0696af12036c6",
+   "archiveSha256": "bc692811115830c15e51cfa381cdb17e1b2f2a72e4fb34af17270c2a07907cc9"
+  },
+  {
+   "id": "c8-loggrr",
+   "repository": "banuragaxioned/loggrr",
+   "commit": "7b975f106263ae3b4760be593fa2adaafd302277",
+   "archiveSha256": "bf22a80e0cab6a4508bf0ae00dbb37960cd0e8ecf1831ecf86bdd0a484b0168d"
+  },
+  {
+   "id": "c8-batuhdede-me",
+   "repository": "batuhd/batuhdede.me",
+   "commit": "093ddb53a289d9416fd712d86b67753df7cde8ab",
+   "archiveSha256": "fa03cb66a82a1a7e5a7a5485c91177fec4f677894ddf371ed8d57b952f955656"
+  },
+  {
+   "id": "c8-shopby",
+   "repository": "bayy-kim/shopby",
+   "commit": "cbf5f7bc7fb427a9c31ab2672f7d5526897e1fab",
+   "archiveSha256": "5acca9fdde8ddb13bdbb2a7c27c445e6df24e9f57c834d4875ff50cb075329ee"
+  },
+  {
+   "id": "c8-levelrise",
+   "repository": "beagleknight/levelrise",
+   "commit": "77053287ba617f56df0445acb9ab9c003e68f1cc",
+   "archiveSha256": "4c94015cdaa7f4d66c6bd606c6e2aafe5a2a8f7c68c5d1e5fc34f8779c86e606"
+  },
+  {
+   "id": "c8-noesis-hosting",
+   "repository": "beltromatti/noesis-hosting",
+   "commit": "d8fbef2febe578506f42f06c3f29bdec33d27c71",
+   "archiveSha256": "376a146ffab1708800e6cebb1adcb8bad920a3af4e0209d1a89a21e2657238c1"
+  },
+  {
+   "id": "c8-stocklot-erp",
+   "repository": "bemoshiur/StockLot-ERP",
+   "commit": "516396373aeefaf24b0f5d590d7f9f3b92e3c0be",
+   "archiveSha256": "f0649ae9a956bf6d27ede795a903b37f52f900516698a9352190d5210a0e1154"
+  },
+  {
+   "id": "c8-hank",
+   "repository": "benjaminjkern/hank",
+   "commit": "619ffd2a56c849d97e433c3e4113ebbd4c41156f",
+   "archiveSha256": "ba7987d3f6c80d827b2ce2c783299729643e22b07c506daaceaa9d9f0d0d34cb"
+  },
+  {
+   "id": "c8-homework-assignment-system",
+   "repository": "benny2744/homework-assignment-system",
+   "commit": "f17e765c4be7ff60ee0b5d4f113858c9630cde31",
+   "archiveSha256": "ef471bac8cb08f765ed9d5c5abc038c421454b9ba2e8fcaa2c4de2b0fdccbafb"
+  },
+  {
+   "id": "c8-newsletter-core",
+   "repository": "benrod3000/newsletter-core",
+   "commit": "bcba9151c5806f8dec42d034a5fe348d17ef49ab",
+   "archiveSha256": "fcea20ed98a8de8607705d5d91fb9f65dc9ffa6bece90213b4094fad940ca596"
+  },
+  {
+   "id": "c8-funes-vault",
+   "repository": "bereciartua/funes-vault",
+   "commit": "85dfa2f3a0257ff6c5bc557d4bd182f5e320a004",
+   "archiveSha256": "babc000bef05a29ea17cfd023fdea82c119546dafa619310245ae21aa356a104"
+  },
+  {
+   "id": "c8-store-writeoff-control",
+   "repository": "beriktassuly/store-writeoff-control",
+   "commit": "510afa3cbdcb15f74a944dc11074ab5342889f70",
+   "archiveSha256": "6d4be0c3f7135a7210363a7ab7c2f7ebe587ff7dde233e8ce04fb503e008e321"
+  },
+  {
+   "id": "c8-nextjs-supabase-scaffold",
+   "repository": "berkaycirak/nextjs-supabase-scaffold",
+   "commit": "7a30bbc5c69dbe0f7f89adf95eece1f1de37019f",
+   "archiveSha256": "a289327163a9f6866bdce38e6309ff02f70d22d88ab876b183bc211f117ac94f"
+  },
+  {
+   "id": "c8-lifemap-next",
+   "repository": "berkaysson/lifemap-next",
+   "commit": "188958a78e960f0ceecdc079f04c4658a01c98f2",
+   "archiveSha256": "352f71a7e9d32aa824a9670e07a12486569303dcfdacac66b2a0fb1dc87d00c2"
+  },
+  {
+   "id": "c8-pluto-app",
+   "repository": "Bernardopog/pluto-app",
+   "commit": "714340288f83ac7b761dcbe7a8b0bfd62cd71c58",
+   "archiveSha256": "d6f03c2faf21aa9ab908a02baa2b8d55b99790233210bcec02771f4e5b20e384"
+  },
+  {
+   "id": "c8-rag-chat-app",
+   "repository": "BhaveshG-22/rag-chat-app",
+   "commit": "bb10cb824b6487e15c58bb90eaf9d100d12eaf65",
+   "archiveSha256": "f9659e00055c10151fe3c9eb2db8d03055b95aeae2e07b87a09b26e0cb476db2"
+  },
+  {
+   "id": "c8-nodebase",
+   "repository": "BhushanLagare7/nodebase",
+   "commit": "a2fe9f991c6f1a70138eb1033787b33a4bccd79b",
+   "archiveSha256": "e89fa28e18e8b2b8bddbef34d6aa1dae0bcb93602c68013f60a61d74162d6b74"
+  },
+  {
+   "id": "c8-rotom",
+   "repository": "Bhuvan-S-prasad/rotom",
+   "commit": "4bdca3bdbad880ecdfc20c2bbd3e793742d6647e",
+   "archiveSha256": "0ecaab98756e4508bebede77761a8fd3b81604c21070416ba6851f4b57124a1c"
+  },
+  {
+   "id": "c8-ai-notes-app",
+   "repository": "bibekkd/ai-notes-app",
+   "commit": "b6be515a9e8cef652fbc6ad7ae29577bac7a799c",
+   "archiveSha256": "eb7635fabf65b21101815a5eb3a0f205b56196aa898162f7a29924045fbee2a3"
+  },
+  {
+   "id": "c8-inspoter",
+   "repository": "biggora/inspoter",
+   "commit": "df19a4725efa1995bb03f533461fc7f9b5875b6e",
+   "archiveSha256": "41252ba11b16a1b30b2b217bd69288c71d75b151951edf4b99d10d8bf375c5ca"
+  },
+  {
+   "id": "c8-bolao-copa",
+   "repository": "biielFranca/bolao-copa",
+   "commit": "a78387362eef456547c7fd6c5bd606550659581d",
+   "archiveSha256": "55edafc64958e1d04aa15267cade7b7ef008a035582fd92109bbf77833d489e6"
+  },
+  {
+   "id": "c8-thailandia-store",
+   "repository": "biielFranca/thailandia_store",
+   "commit": "197797f59e6059007064a337f06a9dac04375110",
+   "archiveSha256": "a93db9ed3a01fba461acacad392b5a42b82681b0975bab8fc33a9f7d045bf96b"
+  },
+  {
+   "id": "c8-aegis",
+   "repository": "binaryshrey/AEGIS",
+   "commit": "a83ba9267779a03258d7d33c07eade27ae65a482",
+   "archiveSha256": "13253ee655616e83ec8c68839a859161b92d4f3799105228a754c9d54866d9ca"
+  },
+  {
+   "id": "c8-liveboard",
+   "repository": "Bishrav/LiveBoard",
+   "commit": "fa5f16af9f42f4c05d4c07de0845f6771f8b17c5",
+   "archiveSha256": "339ad276b24c52d1cc3769e1cf9a4f650efd361b0a18f535175e8aef6863ffc5"
+  },
+  {
+   "id": "c8-hirnli",
+   "repository": "bitbaum/hirnli",
+   "commit": "562eb2f8eaa4354951ff1af8db4ce0769c6d32d8",
+   "archiveSha256": "58a0939e33d52d75bd64250c188cbe709899908a57c27d2c67689470c5751b52"
+  },
+  {
+   "id": "c8-bityo-delta",
+   "repository": "Bityo-Official/BITYO-Delta",
+   "commit": "46ece832be7184bb6488ec5ee7877a4946dbd4f7",
+   "archiveSha256": "8e9cde180bd68765fc29fa94fb637809d9c3e7bee7f8fa9e42390fda8a1a689b"
+  },
+  {
+   "id": "c8-ai-vita",
+   "repository": "biztex/AI_vita",
+   "commit": "cdcb97969d83481bbce69ee63f58d03cb87ce4e4",
+   "archiveSha256": "5f5c63b5d2e89b5788b737b6f80a89af60570fe8695ab9429bc63b14083efbca"
+  },
+  {
+   "id": "c8-tinder-iesgo",
+   "repository": "BJR0drigues/Tinder-IESGO",
+   "commit": "5bcc54ad93dbdb1f19b75b8f62e79bb2a3d786ff",
+   "archiveSha256": "51b9078d347f94fc0bb1c1b047b8fd23644e7621b05a0daa1a4fb7c158442111"
+  },
+  {
+   "id": "c8-relay-account-ledge",
+   "repository": "BlackCateYu/relay-account-ledge",
+   "commit": "49e4c8d88dcdf119367bd55024af1fc7db9d7556",
+   "archiveSha256": "8c3c0fe7572d34e068bf283524dc02fda7eff359033ec988b49c5f96c0ac510e"
+  },
+  {
+   "id": "c8-gridpulse",
+   "repository": "Blizzeq/gridpulse",
+   "commit": "da283da1fc8bab502f52acfd1994fd9856eae6ae",
+   "archiveSha256": "9e613a477aa8253365532b1924e8ecf7df2f91a76fd2053b65fc31af430b39bd"
+  },
+  {
+   "id": "c8-programming-helper-ai",
+   "repository": "Bogdusik/Programming-Helper-AI",
+   "commit": "68d4ee3d30bb8af191f6b96cce446390aa8ad5b8",
+   "archiveSha256": "e010d36b8d647ad3b746d3c5587a274e7d8bbf22204cd49df47a7c1803e515c4"
+  },
+  {
+   "id": "c8-kolo-playground",
+   "repository": "BoretskyVladyslav/kolo-playground",
+   "commit": "a79b2454afe7c35e89f9e0a3d9887aaad7f804fa",
+   "archiveSha256": "72acd469bcdba3d119c0c1a2ab955e09cf84b7982e0e02069fb4cd0efb2079c3"
+  },
+  {
+   "id": "c8-boxitup-web",
+   "repository": "BoxItUp-Official/BoxItUp_Web",
+   "commit": "fe7850c0f65ff3d85aa56c18ff59de743c6e39da",
+   "archiveSha256": "fb566ca9c9003950417f48387818040a311c1aeb58dff701b408478e72a1e5ad"
+  },
+  {
+   "id": "c8-pet-shopping",
+   "repository": "BPhuc246/pet-shopping",
+   "commit": "76239ca34aef2b3eeb5f87a8201829f979bbc20d",
+   "archiveSha256": "12195333db2a5724e73dadfdb6e153f218df539e9fb1e1ebebe2ea9ddf36e5bb"
+  },
+  {
+   "id": "c8-microwave-ai",
+   "repository": "BraaMohammed/microwave-ai",
+   "commit": "8b5432272327d2fcb2bfc2f5c51baa29c9c857fe",
+   "archiveSha256": "ce9d9332bf222df4542094f9ad55fbc304de765a93d9cc8e7c1b7d5007e48509"
+  },
+  {
+   "id": "c8-open-saas-board",
+   "repository": "BraaMohammed/open-saas-board",
+   "commit": "7f5db82f29f1380ee9c68eaa9afec6f9a0f45792",
+   "archiveSha256": "ce6974091390d859a56f3fd4182aaaa690213920133b2202e535bb9a2a14be2f"
+  },
+  {
+   "id": "c8-nexus-builder-engine",
+   "repository": "braderdin/nexus-builder-engine",
+   "commit": "395e3bea95d3b192569523ed21b235598f94747d",
+   "archiveSha256": "d551d0c15ea615e02738288a621bfb9bf9ddea17b567308b25ecada5005bf2b2"
+  },
+  {
+   "id": "c8-calculadora-primeiro-milhao",
+   "repository": "BrenoAfonso/calculadora-primeiro-milhao",
+   "commit": "26f7914c7027e80d0dfbb78fb9ed2b5f99222823",
+   "archiveSha256": "3510218712d0e6344284bcd9302b2b7dc856b866d06f0ee640af1bc1fc07f1af"
+  },
+  {
+   "id": "c8-bitbasis",
+   "repository": "brettwhite-git/bitbasis",
+   "commit": "0a790115e3ad52fa95d9842d1b165d87cd7a36bb",
+   "archiveSha256": "7301f7a413070846e6e58868b77170f985caad1624e2dcc22cc5b1e13a7fce30"
+  },
+  {
+   "id": "c8-forge",
+   "repository": "brighto7700/forge",
+   "commit": "f83e385530277876dcdc513b0b997d6e7e9c5ec9",
+   "archiveSha256": "38d4ba733065474efbf95599ade49b5c23828f5d79ca689d4d60e2c3d196f038"
+  },
+  {
+   "id": "c8-crm",
+   "repository": "britsync07-prog/crm",
+   "commit": "4f9535a94894c354e1084cd749f0e31237307a35",
+   "archiveSha256": "efe3a62d95b7921cb2f09dbbc81f40d456e07458bec27be2339003ef290bd92b"
+  },
+  {
+   "id": "c8-nullvoid-ai",
+   "repository": "bruce12-glitch/Nullvoid.ai",
+   "commit": "1f8bef47a24c655b58a79c0de188cd60dd8b292e",
+   "archiveSha256": "176ecf1eb5aa8e613bf1c18f7723fcff8f4ca9c6832d675d595bfa9522889952"
+  },
+  {
+   "id": "c8-gigeze-app",
+   "repository": "brunsdon/gigeze-app",
+   "commit": "b50a4d1ca5d90f398ed4d8525912e81c9429184b",
+   "archiveSha256": "96b49580e87b5e6addf07357d9d84370acffe60dfe0ed6ea650c7d1bb560ef72"
+  },
+  {
+   "id": "c8-dental-u-care",
+   "repository": "bry-ly/Dental-U-Care",
+   "commit": "bc4cffd22b42029c6304dc4323a46fde54e5c88a",
+   "archiveSha256": "7885a87efe173db39022f44aae880eb99fa3d043c93899c8e7123c6e60a8f418"
+  },
+  {
+   "id": "c8-monivo",
+   "repository": "bucys/monivo",
+   "commit": "e2739cc0aee99a5c2b8a6d527a4b181e2b3e4482",
+   "archiveSha256": "d7db5da70b59454360c454d910228a35ff7ed0585a7e93d871b25f172bb0e529"
+  },
+  {
+   "id": "c8-workspaces",
+   "repository": "buildwitharthur/workspaces",
+   "commit": "68b2d6b4ac0c15a22d1c0e4b1efcccdaf2c5ef76",
+   "archiveSha256": "3b8c354c555c2a681e08d8c8425f93a17e736aeb68c7da71505298ba8044eb8a"
+  },
+  {
+   "id": "c8-corpus-r9",
+   "repository": "buildwithkode/corpus-r9",
+   "commit": "95e8ce3091ffe2578e6e1d700eafd996175d187a",
+   "archiveSha256": "05e88ea4d736ec122b2d0abde04a70bdc46e6617b348d8f86ff269b1aec13d33"
+  },
+  {
+   "id": "c8-assettrack",
+   "repository": "builtbysardor/assettrack",
+   "commit": "322b5607239fcacd5dca4eb8c16fa9afb6f81f9b",
+   "archiveSha256": "de2284e8963df7b6c28077524ef22292833aaea731b3fb28fca4b97e75224623"
+  },
+  {
+   "id": "c8-maintain-help",
+   "repository": "byalex33/maintain.help",
+   "commit": "a85f4225c7c72344d029e26c5d542245231ffd9b",
+   "archiveSha256": "6835e466e039b20b3763d11c0f5b9e913456cc2627153d4f89256089468c8635"
+  },
+  {
+   "id": "c8-nextjs-fast-start",
+   "repository": "byrmch/nextjs-fast-start",
+   "commit": "0ce57497032811dcbb36dcbb935bf7644c707ec6",
+   "archiveSha256": "0dd742b830daad7a440f91996f5be3ce7516121c1822f73e3602850fb650c121"
+  },
+  {
+   "id": "c8-plantasktic",
+   "repository": "byronwall/plantasktic",
+   "commit": "062528e7ce07c77585f661a6ad666640767842be",
+   "archiveSha256": "046397ca46fa38d01286733829b01d448857f707edc5ffb75a0a9d82eb8fab6a"
+  },
+  {
+   "id": "c8-votehost",
+   "repository": "Cableboy1515/VoteHost",
+   "commit": "7052b897548832ca5b5448d6147e2985d20ee201",
+   "archiveSha256": "19c2581ce99a0dcac05f81e10695cf796c67533812b646bc48ae6e469ba639fa"
+  },
+  {
+   "id": "c8-memento-academy",
+   "repository": "CallejaJ/memento-academy",
+   "commit": "82d0218555673d15e8cd1db48ee3186527b4f9ac",
+   "archiveSha256": "76c44292c0883d82fa16081fa7a239ff16f09ac51d6fa0404d0d922fa2142eac"
+  },
+  {
+   "id": "c8-better-chatbot",
+   "repository": "cameronking4/better-chatbot",
+   "commit": "722d65109ccbd791110595fc02b5eafc973d9caa",
+   "archiveSha256": "c1b234004896264ef270cd107dcaeacf03a179ed106fd286d2154bf964b2dd99"
+  },
+  {
+   "id": "c8-supabase-project",
+   "repository": "canberkg67/supabase-project",
+   "commit": "4b5fa887688b86b4ccf7751e6038f0f2160cd990",
+   "archiveSha256": "c8cb1c3be1b4dfa793714a69cded4877f1378b114d3a10c12375bdf5c4001585"
+  },
+  {
+   "id": "c8-kalcetos",
+   "repository": "cancolcri-hub/kalcetos",
+   "commit": "e7faa71c8fe0edbdf2e3dab0cc33ce2d858edfc1",
+   "archiveSha256": "35b003269d6d9de416423630897ff0eaa420b07efa8d64cc28636ddef300ef10"
+  },
+  {
+   "id": "c8-next-ai-build",
+   "repository": "caofanCPU/next-ai-build",
+   "commit": "656fc92819cfb01f5afadfe1b1f1c7514d5e0e9f",
+   "archiveSha256": "a68e9a5411bf2b9c2acfce27ac5a138289b05b2ca7a9c2056aa3954ad99ad75f"
+  },
+  {
+   "id": "c8-tramiflow-ce",
+   "repository": "carlosindriago/tramiflow-ce",
+   "commit": "805049f0223d931886cfbf9cca89df823688e4a8",
+   "archiveSha256": "7b4b25fb7cf79584b7f95319ccab0ec1787146c2e03ab5db555bec22a9813e83"
+  },
+  {
+   "id": "c8-boihub",
+   "repository": "carlosmateowall/boihub",
+   "commit": "52a51b5d73da45622fd57b11353bb4c487ca3a41",
+   "archiveSha256": "ab037077cf4bf7a4fc20217a22275088565bdd81f915a0621cec4f2f4f49c4b1"
+  },
+  {
+   "id": "c8-app-barber",
+   "repository": "Carti011/App-Barber",
+   "commit": "e1a492a96538fe0a94aa12aff095d5054c2249bc",
+   "archiveSha256": "02835ce26034af7e60e6b3b198b0dd2d287478cde81ee4e32902ddbf4ac27663"
+  },
+  {
+   "id": "c8-kapital",
+   "repository": "cauabackend/Kapital",
+   "commit": "0e00f8f66a74d004f99c134a05383d3ff287d143",
+   "archiveSha256": "eb57ac1e34cea8f53f0fb60cb6ce757108b01d83d9aef04da7bc426af52e6149"
+  },
+  {
+   "id": "c8-lingoframe",
+   "repository": "ceyyy427/lingoframe",
+   "commit": "b6bc74a4a5a2819d453cbc4ba6af4635bba26a71",
+   "archiveSha256": "c0fb59f2ff78dc32e4d81b1ca68004d5b025ba0153628d7c84d4561ce558052c"
+  },
+  {
+   "id": "c8-chaeheon-wiki",
+   "repository": "ch0717ch/chaeheon-wiki",
+   "commit": "70972b34a8539812c482660d2f4823e054b600a2",
+   "archiveSha256": "b51befc3c0eb51b814e2f0df676fc4851523df37f18a5071ec4848e3da9fda98"
+  },
+  {
+   "id": "c8-awano",
+   "repository": "chairulakmal/awano",
+   "commit": "6db0dc0d78c8a2ff89db9225e7f038af8f2a7130",
+   "archiveSha256": "81031ac68f268de74fc91f5d40e149db980166405a3566502e01a76f4fd08ecd"
+  },
+  {
+   "id": "c8-dhara-ecosystem",
+   "repository": "chaitra-samant/Dhara-Ecosystem",
+   "commit": "30919a83b5b3797666d7c4659757002f7ce1e81c",
+   "archiveSha256": "be58f3eb6aaac33987b218aa639ec1efb8a9a553d93cf63e9f71705b3f63776f"
+  },
+  {
+   "id": "c8-ragfloe",
+   "repository": "Chakresh7/Ragfloe",
+   "commit": "80e48c01969974f7fc40ff725798589fe091d167",
+   "archiveSha256": "e5d8ae7701d66c5218eb8ab8d9c95758d962c65add7943afc4961625fcb42886"
+  },
+  {
+   "id": "c8-pro-mpt",
+   "repository": "chanhuynguyen-ai/Pro-MPT",
+   "commit": "0f5f56941d974c477e1434455d25628f268c1349",
+   "archiveSha256": "8ee04b7b9b414628f87fc281556e635de18172df2f05305a8131b9d02cfc3e92"
+  },
+  {
+   "id": "c8-h1b-bench",
+   "repository": "charlesrhoward/h1b-bench",
+   "commit": "5300c18b0528665f21121887e5bba96438ed9367",
+   "archiveSha256": "bd00e17bff0113a6ce6b4248dcd319fd26636063c9bcef65e8e516655a81ed0f"
+  },
+  {
+   "id": "c8-laterbox",
+   "repository": "Chaste-Djaziri/laterbox",
+   "commit": "1135a944faf29cf057f9e138e44218ac7f7c982d",
+   "archiveSha256": "ba23a7c8751dc69a7e07727f0e89b6cbe9c6aac8d550a63f4a5eb286480fbc09"
+  },
+  {
+   "id": "c8-evershine-lms",
+   "repository": "chaudhayabdullah786/evershine_lms",
+   "commit": "4533b5125306a5d6fbb858a97047babf612f79c2",
+   "archiveSha256": "c2bd40acffaa8333062007237f8508ea2c475481587468634b57299df43ccdfc"
+  },
+  {
+   "id": "c8-rental-cashflow-analyzer",
+   "repository": "ChenhaoZhang01/rental-cashflow-analyzer",
+   "commit": "8066996bdd6093d6cb2373a4a00b34123a847194",
+   "archiveSha256": "d4e3ea5af3594e53f5169a0907fef293f620cb3e0b1b0c09a42b95552d0f57e9"
+  },
+  {
+   "id": "c8-personal-erp",
+   "repository": "cheon0965/PERSONAL_ERP",
+   "commit": "a0da8a98071109310cbaf09567a798aecc3ae6dc",
+   "archiveSha256": "a291916b6f3c13946c7a96e874010ef6c40cb255607d62d0f01248266cb27539"
+  },
+  {
+   "id": "c8-billow",
+   "repository": "chepetime/billow",
+   "commit": "c5b81bb23586147632ad160ab37dc93bfeb2602f",
+   "archiveSha256": "aebd3232fc136a8cf323f81a8bc992aaecd4ccbe9372178055f14e3cd764fcae"
+  },
+  {
+   "id": "c8-chetan-portfolio",
+   "repository": "chetangadhiya5062/chetan-portfolio",
+   "commit": "cac9dd8566617c29f92befa36a321b4f7dedf30d",
+   "archiveSha256": "d93879633f99c023ee4b031e7399b012f5bf396a7d0137c364e968bb98d88bbb"
+  },
+  {
+   "id": "c8-gratry-snow",
+   "repository": "chienhsiang-hung/gratry-snow",
+   "commit": "8a89facd8515d0c107dae1c97db91a72ddfa7138",
+   "archiveSha256": "9a1db6ca00c79b359788ac5cced0d0bf8a69a50f950391800519f1936cc69fea"
+  },
+  {
+   "id": "c8-finapply-ai",
+   "repository": "chinmaykhatri/FinApply.Ai",
+   "commit": "b3070ad80ebd8f0c791bf5c16a1687611de26868",
+   "archiveSha256": "80dd10aabc78c21f1a3e8f110df2eddab76850d9b325bb0fc9b67d2183376204"
+  },
+  {
+   "id": "c8-cortex-v2",
+   "repository": "chintondutta/cortex-v2",
+   "commit": "b44f7c0b8f7bbdc2de625ff55d788dfe52ac211b",
+   "archiveSha256": "e5509cd743f6c44fbfaaf255c5c3c92a5a79d6109f7cebd8f452de231200ad75"
+  },
+  {
+   "id": "c8-shopnest",
+   "repository": "Chiragj2003/Shopnest",
+   "commit": "a131b978552cc3b51bc23aec3a16a2a874b17798",
+   "archiveSha256": "14d53f5c598cd05fdbbdade7e40652d5b73289fcd6571e515e7d508f9238c69f"
+  },
+  {
+   "id": "c8-lending-diary",
+   "repository": "chiragtyagi01/lending-diary",
+   "commit": "0534ef871d8c37bc7294a3fb2b444dae3a74e743",
+   "archiveSha256": "685842c2769b1e01f28d6ec5fcc8d0481bcf72ba3e88d303404423b5ad241b4f"
+  },
+  {
+   "id": "c8-brats-bavaria",
+   "repository": "chloe-ek/Brats-bavaria",
+   "commit": "b8c262d2d0efd0382a3cfb08873208fb0bbc37c7",
+   "archiveSha256": "30afeff65b5c0a2274f994fe5aa01a9f96cb95a46c5bee4b5762c06fd4fb8b56"
+  },
+  {
+   "id": "c8-portfolio-final",
+   "repository": "chndrwali/portfolio-final",
+   "commit": "545eb51a49f66d83522907718fac8473a8f08ac3",
+   "archiveSha256": "9eabfedf51082656c24c1e84d0147f6dad223ac3f239c5663a72a407c5c58bf2"
+  },
+  {
+   "id": "c8-sitecore-plugin-paywallblueprint",
+   "repository": "Chris1415/Sitecore.Plugin.PaywallBlueprint",
+   "commit": "69167ad838199325bde5f3291be4bc9cf81eb6c7",
+   "archiveSha256": "db1f810dbdcd82e4805a6bca36a428b17e575b89f030f2dccd4dfc0fc855c7c0"
+  },
+  {
+   "id": "c8-bayradar",
+   "repository": "ChrisKariofyllis/BayRadar",
+   "commit": "fe16d7a5f2bcdef83adaf1fa728fc33d8e817f52",
+   "archiveSha256": "24c7743c9aa02c2ec47a6c21480a6d9f8bf561dafb13df560aca738acb3e35a4"
+  },
+  {
+   "id": "c8-studystack-ai",
+   "repository": "chumboooo/studystack-ai",
+   "commit": "b0d747db56d6d0a725392e8c7d3edc1ca90562ad",
+   "archiveSha256": "69dea45278894b3b06efeee05797fe6b0236ec20970c07d1a14415eb37a54f87"
+  },
+  {
+   "id": "c8-ci-treasure-web",
+   "repository": "ci-treasure-hunt/ci-treasure-web",
+   "commit": "a4e19689ee0695e18ad0ac079cb26df01f65b0f2",
+   "archiveSha256": "76df9cf1d78db9c4dec8cbd35b7c5b5a66f45ca6679e12337acc400e6a9d8ca4"
+  },
+  {
+   "id": "c8-rent-tracker",
+   "repository": "citizen204/rent-tracker",
+   "commit": "434562f28ff07e9a5bab68a2041bb213220bd7aa",
+   "archiveSha256": "5b338a57ce63c60dd1b642f84c8ddce9768a7742203aa6804ecc154b966536e1"
+  },
+  {
+   "id": "c8-ai-website-powerhouse",
+   "repository": "cja86104/ai-website-powerhouse",
+   "commit": "b6db4aed3cf9536539a92919a06f017b1269d4fc",
+   "archiveSha256": "8e826111a41d971369725e851e159e83680ab608c2bcccec9377bbf900945f8e"
+  },
+  {
+   "id": "c8-koegairu",
+   "repository": "CL4-Bisk/KoeGaIru",
+   "commit": "5d40bfce5d6d8f5d536edf3820ff8a6aba507742",
+   "archiveSha256": "a63467b1bc6ea1cc5726007ee3c29274b7b649d50bed90b3c4b1398da9122d7a"
+  },
+  {
+   "id": "c8-court-vision",
+   "repository": "codebend3r/court-vision",
+   "commit": "3851be5ec55ab7eccbaee5cfc36a8e88ff90da08",
+   "archiveSha256": "c9da955e4646ff58caeeacaa779b04d0bb2b85fc624e5c5e2f2a8710ff0bcf48"
+  },
+  {
+   "id": "c8-devlaunch-app",
+   "repository": "CodeByPinar/devlaunch-app",
+   "commit": "f50c0b7ad7eaa4d758bd659cabd55eb5cebcb7b9",
+   "archiveSha256": "038601d81ac4c62b6ce98e4f21cd0ec359587df6fdc03f572a3bb5046da8f2cc"
+  },
+  {
+   "id": "c8-ozturk-yapi-web",
+   "repository": "CodeByPinar/ozturk-yapi-web",
+   "commit": "965e83a9f1245c6695703a2dfe92f1acc4b6f144",
+   "archiveSha256": "deb9a7e4d9ab523807babedb2a156a20c546dc7660beaa52386986014bc000dd"
+  },
+  {
+   "id": "c8-forge-2",
+   "repository": "Codename-11/Forge",
+   "commit": "a4886396f1d96cd984a92d5bfb938c825904413a",
+   "archiveSha256": "0ca9311be41756bc6e2ba330611fd4bef0d573529adcf1c2036b151b663fcc13"
+  },
+  {
+   "id": "c8-portfolio-dashboard",
+   "repository": "codenamezaxx/portfolio-dashboard",
+   "commit": "598955167ad0e31b4c517c83deb0659d17fabcce",
+   "archiveSha256": "4428e1ab4671ce1eca43c765dbb99e46858df922e417127b4fca37f881c7d23e"
+  },
+  {
+   "id": "c8-sentraops",
+   "repository": "codenamezaxx/SentraOps",
+   "commit": "0a6ca367eaa193f12f7f386550df8ed262c88e29",
+   "archiveSha256": "791048ec3ce6de94f6acca07e64a9ccf7e76f1908c80f35041d25459eac02d02"
+  },
+  {
+   "id": "c8-nextjs-clerk-supabase-stripe",
+   "repository": "Codeye-Alpha/nextjs-clerk-supabase-stripe",
+   "commit": "b9f0a075bb7d49b053a4be0280c60ece065188e9",
+   "archiveSha256": "77db9b4faf6cbb8f2d80de4ae3886bcd469b81d0d23056670ec858f060b4d440"
+  },
+  {
+   "id": "c8-alumni",
+   "repository": "coding-pundit-nitap/alumni",
+   "commit": "ffbb7710aacac72339aa67f08f7e951dff96ef1b",
+   "archiveSha256": "ddb651a1a558a4f221e538fd39074dbba6ea346c5992cf26681be3b013bac754"
+  },
+  {
+   "id": "c8-js-sensei",
+   "repository": "CodingWCal/JS-Sensei",
+   "commit": "e87bf2eef52576ac596f55fa9a5d4815509bab39",
+   "archiveSha256": "b012732e739cd9c925ed447ca634de7f7a2aff1d6f42012868603df88fd4b744"
+  },
+  {
+   "id": "c8-ai-analytics-platform",
+   "repository": "Cogniform/AI-analytics-platform",
+   "commit": "045e5a87192746b090657a64837c51b5ab6343b1",
+   "archiveSha256": "9fed9ce8491644f0dcc1f56cd1ae273b75c159f265b6a4271258bcb24577a220"
+  },
+  {
+   "id": "c8-bishman-website",
+   "repository": "cole-howard-nz/bishman-website",
+   "commit": "32b07d46ecf49f04fb586990ccdac319dc002a2d",
+   "archiveSha256": "b7c8c214cd72cc3dcfc40b05f4c2360d3fb214e517ef11cab5c65098c79a8aa2"
+  },
+  {
+   "id": "c8-vms",
+   "repository": "conquera99/vms",
+   "commit": "648c11756211adb248977716e5a3f67985f4d79e",
+   "archiveSha256": "1e69562fb1e30001c25d656a23b147bfeb1875a306314a0052afa1b07c869a8d"
+  },
+  {
+   "id": "c8-pollrooms",
+   "repository": "COolAlien35/PollRooms",
+   "commit": "330c0ac3c3b294d11adc1ea45f7e34196ce38679",
+   "archiveSha256": "2c432b5b5faac9a5015258fc7269a249830a0324823adc350070e9a892f6641a"
+  },
+  {
+   "id": "c8-skystyle",
+   "repository": "COOLmanYT/skystyle",
+   "commit": "7539751d1d50e5cf73a2a89c0f60639123ea42e4",
+   "archiveSha256": "540b625435cce13b8cd1317c15fb5a7532ad8b0f13ece7167e90f619ebc4034c"
+  },
+  {
+   "id": "c8-what2sing",
+   "repository": "CPLADRAGON/What2Sing",
+   "commit": "be80b05bab6ac8dbcd100a45e5a5d99cf33f5422",
+   "archiveSha256": "08a0978bc08830acdaaaab0f5c77beb027a73cdd5c9c8b1b5db55a2061648c62"
+  },
+  {
+   "id": "c8-mountcrypto",
+   "repository": "Cr12dev/MountCrypto",
+   "commit": "ca093942a797e9ceda5c24e68dfd8ac8a99f8d90",
+   "archiveSha256": "e30861cdba6b8f5cc7cc4c469683a6824412c69901b9be785b7ff42c5632825e"
+  },
+  {
+   "id": "c8-ecommerce-platform",
+   "repository": "Craftman-dev-create/Ecommerce-Platform",
+   "commit": "5644083fe3edc8a988ac9b30583201da1e587155",
+   "archiveSha256": "52153b8d7b40258633bfe44c6c446b081abb9129ab94c24f2f62a925d2d23c11"
+  },
+  {
+   "id": "c8-plantilla-blog-monetizable",
+   "repository": "creadordesistemas/plantilla-blog-monetizable",
+   "commit": "4f9393e6876924d0fb89820116f9a26b4f7d8842",
+   "archiveSha256": "e23cdd511379c1536feefe7126577e7a401814edf1f250f08181c7eb6f3f411e"
+  },
+  {
+   "id": "c8-college-predictor",
+   "repository": "creatifying/college-predictor",
+   "commit": "c2837e9c58c9907628a5009b3010b0b6a01d7a29",
+   "archiveSha256": "3ceb245fdf34df6e54913ace506f50a1dd737993252273a7b8fd8e8b3dc2f080"
+  },
+  {
+   "id": "c8-industry-visit-platform",
+   "repository": "creativeriser/industry-visit-platform",
+   "commit": "e0852b8462d37156e4f3deffce5c27f8f22b8bb8",
+   "archiveSha256": "924bc4b29eac6be0389b02be07917f6e694bfc49d561c1567f6536e89cbeaae9"
+  },
+  {
+   "id": "c8-pizza-logs",
+   "repository": "CRSD-Lau/Pizza-Logs",
+   "commit": "7ea3fead98ea21a22831966e85d218ea2e429512",
+   "archiveSha256": "55cda80e6d3856f0244797ae66b0c11d71f2cc1cd14b426426a91b600778bfcb"
+  },
+  {
+   "id": "c8-the-dictator",
+   "repository": "cryptomafiaPB/the-dictator",
+   "commit": "12c7eba2d42aee4c57c902a0dad7d15957bf4b36",
+   "archiveSha256": "169a1259ad373c13197bddac55b7257fbc2dd4a65cd4d23056339df972fb7362"
+  },
+  {
+   "id": "c8-promptforge",
+   "repository": "Cryptoteep/promptforge",
+   "commit": "43662d9bbaa9a031a510a7cdd60a853775b338a3",
+   "archiveSha256": "55e6a5f4375ae3df1b52f77417a7300b0b5a904bc1da22fb4b25c27e1459a571"
+  },
+  {
+   "id": "c8-lily-waist-line",
+   "repository": "ctrotech-tutor/lily-waist-line",
+   "commit": "273f403fcfe51e3dcf1f16c1db0960787e61b7bb",
+   "archiveSha256": "f3bfa06e9463dfe3d2ff1d7cf61cab2d128dda372f85978a33db439629185b92"
+  },
+  {
+   "id": "c8-api-backend",
+   "repository": "cuonghoang1103/api-backend",
+   "commit": "ee7016e0926ee4a7eaadd00dbf6cbe7c72b2ca78",
+   "archiveSha256": "854d6ebf0483d03427ded686bc1c8a1a1fd8e9aa2b27c26d9ffd9c97a8388046"
+  },
+  {
+   "id": "c8-vereinsheim",
+   "repository": "cykedev/vereinsheim",
+   "commit": "0cc21d2125ac02ae0e8e3cf1bc9c2eb9b4c4505c",
+   "archiveSha256": "e5e8c5b8fdbd60ce678fb1567f2cd6f9d223fe96ad7ccbb3457b65cde414642b"
+  },
+  {
+   "id": "c8-analytics-dashboard",
+   "repository": "CynthiaNwume/Analytics-Dashboard",
+   "commit": "ab883a4bf4316d1cdfd00dd1d106a69ae1b28798",
+   "archiveSha256": "a475302f60a50f0b6e22c25b6048e549867dcbd6a24c3dd74ce7d8a701ca4506"
+  },
+  {
+   "id": "c8-alias-game",
+   "repository": "Cyrikxxx/alias-game",
+   "commit": "a0606936332b389d0dd90e0f80eab8bc943d9d4d",
+   "archiveSha256": "4bd7e8c91910d6b9587ac25815e3a468c6f572d6bf42372b9ca48c5ac9ecb9a2"
+  },
+  {
+   "id": "c8-igroteka",
+   "repository": "Cyrikxxx/igroteka",
+   "commit": "c980f51718575b981949eecc28777027e31f0433",
+   "archiveSha256": "e7683f2dbf7882d72abcd57214ab0a36325bfc59c753df64ae4037537b7c2124"
+  },
+  {
+   "id": "c8-designarena",
+   "repository": "Czar-16/DesignArena",
+   "commit": "a0fcd7073aeb9ecafa9ade340b6c8da693a631e5",
+   "archiveSha256": "42fbb8688338c4731ecfd80d8ef8de6b50e3f32eed15bb7aa05ce0d2629f7290"
+  },
+  {
+   "id": "c8-orbit",
+   "repository": "Czar-16/orbit",
+   "commit": "6b47c6af5290df4769e93de35f9d77d125ec8b43",
+   "archiveSha256": "de5325161eea1595e0126617702879cb1c9e8510751c73eedfebe3316bf80848"
+  },
+  {
+   "id": "c8-staynest",
+   "repository": "D-L-Narayana/staynest",
+   "commit": "ac88cf1c6ef21650fd4ebca41140d9fac993dbae",
+   "archiveSha256": "1b7667c1f8d7927d7d5e7dce6c6f7426f648c6dd1ae84fb539f32dd031040e84"
+  },
+  {
+   "id": "c8-nebula-view",
+   "repository": "D4RKL0RD-J0571N/nebula-view",
+   "commit": "b689b1344651e0aaae93e697ed933a00766dc056",
+   "archiveSha256": "9faefb1ebedc8cc391dfc6c583a50132bfc30e6428ddc5c46e350239ed186e6f"
+  },
+  {
+   "id": "c8-nba-jp-live",
+   "repository": "daisukehanamura/nba-jp-live",
+   "commit": "3619474042267d9c567b4503b50a0a0c6064cb92",
+   "archiveSha256": "39fa3d0b39e0782d0b4c75580f18e25fe0f291e57b195c54d312f7dee2498c8c"
+  },
+  {
+   "id": "c8-txquince-com",
+   "repository": "dangsayz/txquince.com",
+   "commit": "dcd07fa07c25ed9a085893cd249f4dafd3a020bd",
+   "archiveSha256": "5c140e253b8366b2bd21b2ec44f0c739abbf1a27a7d2a5ccc4136f104c312569"
+  },
+  {
+   "id": "c8-cardly",
+   "repository": "daniel-deniz/cardly",
+   "commit": "f57aef2c9a3f3e679dc04f11bd682950284701eb",
+   "archiveSha256": "4e8f37d6be09bcb00a73dfe41b08bf3c94953fe7994a16dc183ebe76db567bb2"
+  },
+  {
+   "id": "c8-brain-quest",
+   "repository": "Danieldkdao/brain-quest",
+   "commit": "3f153e7f0660c8deffa987a4bd1e634884b6efdc",
+   "archiveSha256": "ff25f35aeacb752c644e935b8ca3eb79447a8d1f7952ea2e82da734d9eb8e25d"
+  },
+  {
+   "id": "c8-dyd",
+   "repository": "daniellp-rubio/DyD",
+   "commit": "7842a6666213214815360bac81a0f821c540aa2f",
+   "archiveSha256": "e56fb738d1ffa2509905f2c182ec0ecf2b97e298726cc53ba5fd563d69c81b38"
+  },
+  {
+   "id": "c8-capstone-project-canadian-army-digital-nexus",
+   "repository": "danielmason89/capstone-project-canadian-army-digital-nexus",
+   "commit": "f8b137114b61a438177870bd36bf78c48827e0c6",
+   "archiveSha256": "3065c34e0c5e263e34e387ab09e4f5abf687d31d44bfd3b94be49c81d163515d"
+  },
+  {
+   "id": "c8-spikers",
+   "repository": "danyangzhao/spikers",
+   "commit": "e9b14167a76461659bc9e9fe7fc1da8a05d4dc7e",
+   "archiveSha256": "752ab6519022ddf2d7b7f339d19d4cb7dfd125f5b53f97a21428823bf89cef41"
+  },
+  {
+   "id": "c8-ember",
+   "repository": "daretodave/ember",
+   "commit": "835db7c1176ece2ea3c8dcf9ebde4fd7e353fa9c",
+   "archiveSha256": "eababfd8c18d17786cc7dc373b26626634b8db2e9bc99428e4926abb64a6c691"
+  },
+  {
+   "id": "c8-pos-fnb",
+   "repository": "datnp1003/pos-fnb",
+   "commit": "4a9b8b95dea7465c9332da1c5583ba830a032fca",
+   "archiveSha256": "72c7a31454418f79da70baa9733f06894c8830804849ce894a6c451efe7b2166"
+  },
+  {
+   "id": "c8-basketball-registration-platform",
+   "repository": "davisernst04/basketball-registration-platform",
+   "commit": "9595ceb023363afa67ebf22221896fa1e5a6534d",
+   "archiveSha256": "57bf92a2d84031a38c3cfa67d8e3786f2306e16f6ed81d77b141ca4302420fc2"
+  },
+  {
+   "id": "c8-curaven",
+   "repository": "DavisStanko/curaven",
+   "commit": "571957ec2798498b19699804be069806d22f3293",
+   "archiveSha256": "f2fc93521b7e22cd3585bbfad97aef4230d169bb63e310c31972470114b4441c"
+  },
+  {
+   "id": "c8-aircanvas",
+   "repository": "dayan-ai/aircanvas",
+   "commit": "f87616051b048817a99a2dc4a903460b4361894a",
+   "archiveSha256": "9d11ae430015bc961869f0d6b79e91947e45e3758ea5b0cc82539236df8340b8"
+  },
+  {
+   "id": "c8-bank-account-du-duck",
+   "repository": "decuyperanthony/bank-account-du-duck",
+   "commit": "e4ac9f76bfaf6535a2cc47494dec1a4b8bff54bd",
+   "archiveSha256": "b85e9fc5c3090f04234f4220eca2260f215dd32c13617ae1141b0f2315803c2d"
+  },
+  {
+   "id": "c8-smart-cab-booking-platform",
+   "repository": "Deeksh870/smart-cab-booking-platform",
+   "commit": "c79b1d66874757b816dacc2da3057272e2c7c72c",
+   "archiveSha256": "27e8f7133fb2a6bd5283322652d759fc9c9115fd2c8737fc7a2bd73e83c21798"
+  },
+  {
+   "id": "c8-project-jilebi",
+   "repository": "deepakpk-dev/project-jilebi",
+   "commit": "58ec91908c6e44b0346917924fddcbe771d0eb64",
+   "archiveSha256": "2b7c71c680c8d587ec5aa976cc8072629a0e1468c69dd47e1f7e6a48c82e0230"
+  },
+  {
+   "id": "c8-frontend-junction",
+   "repository": "deepu0/frontend-junction",
+   "commit": "1e3936cb825bb16d203b02ef7e84d27b59060729",
+   "archiveSha256": "14ca996b4d0421df4a9ff4dfb635ce83bb8a51c160e7b77bdacdf6e5c6341cb2"
+  },
+  {
+   "id": "c8-furubira-kanko-official",
+   "repository": "deervery/furubira-kanko-official",
+   "commit": "35da5b79da01f384845cc7daff1194e8381ba5e4",
+   "archiveSha256": "9981b2cd0e33bbcd3645c822c834fbdf16a6d7abd42040a725f206cbe8035f89"
+  },
+  {
+   "id": "c8-xiaoliji",
+   "repository": "Delk/xiaoliji",
+   "commit": "750ceec98d32bd0882196efa720fc6007f93fe32",
+   "archiveSha256": "7b7ad1ff5969f1aac0fae727b26178e1891068d0f8d534d1cb6b7a47bcc5110c"
+  },
+  {
+   "id": "c8-fastify-tools",
+   "repository": "DellDi/fastify-tools",
+   "commit": "22a69374ef29529242c305db166e38a7fc90893b",
+   "archiveSha256": "a9c65cf7dfe6b17d09a7b2615ef91c6628c12b3404f2cc01d0f42e3c328659ec"
+  },
+  {
+   "id": "c8-the-pulse-news",
+   "repository": "dev-erickydias/the-pulse-news",
+   "commit": "baa03acd9461b8baae89dac6fc3522b07ddc996d",
+   "archiveSha256": "e83bdaebf48daf7155335a4ec81563fcd85dd015a38231592d0e8e00f9554b26"
+  },
+  {
+   "id": "c8-biasly-news",
+   "repository": "dev-nain/biasly-news",
+   "commit": "8be45dc5902a6bdb8c5dff5ec7c3d3d5955102f7",
+   "archiveSha256": "9f765bc7baa90722c412982cf0546a9270e43c3dc640b81b6c8fe18f4bde5633"
+  },
+  {
+   "id": "c8-radar-leads",
+   "repository": "Dev-RaphaelSouza/radar-leads",
+   "commit": "e03ee78cead0611460744193514d743f02b7e30e",
+   "archiveSha256": "66a1e8714b857311f3f235dbf1637fb892ae6d982831271448ff7b3d33760a8f"
+  },
+  {
+   "id": "c8-jantahr",
+   "repository": "devag7/jantahr",
+   "commit": "fc5a330e7b8028b53e4d0647c8aee1580b7fb93e",
+   "archiveSha256": "2d243e0744cce074118262bd5fe89fc7f2e577f6607431487899c45c8d29a906"
+  },
+  {
+   "id": "c8-ai-content-automation-app-google-docs-delivery",
+   "repository": "DevCalebR/ai-content-automation-app-google-docs-delivery",
+   "commit": "a733016bf7ce9f3a22e26a1c87ab7b0b7a7ff34c",
+   "archiveSha256": "b807a9667000e97ab88678a36cd74e039a903c87ba588dad7de8fc5a78f476cb"
+  },
+  {
+   "id": "c8-webhook-dashboard-alerts",
+   "repository": "DevCalebR/webhook-dashboard-alerts",
+   "commit": "d0fcc3416b8e3815dd8a46f991d4cb1a00ad5c74",
+   "archiveSha256": "190e58010f585eb73bf7bc172074704ac17158bf15320435410240470064afd8"
+  },
+  {
+   "id": "c8-sessionly",
+   "repository": "developerdavid2/sessionly",
+   "commit": "85f5ac52315a316860c08b607258402da0cd4330",
+   "archiveSha256": "0269eb107198716ffd21efda06197cecc77868c484e3c14661c9e044cf616ee1"
+  },
+  {
+   "id": "c8-apibolt-web",
+   "repository": "developerHub01/ApiBolt-web",
+   "commit": "d594ac025f86bdbb7c83be22f7c4c4d6c5ac67a1",
+   "archiveSha256": "66bd16f586910d0b5b5e4edcaec46acd39a94af0771da6ffe208fb827c8b0f30"
+  },
+  {
+   "id": "c8-room-reservation-ua-skills",
+   "repository": "Deversatorg/room-reservation-ua-skills",
+   "commit": "9e969c82c74635e33ffb806d522e3e90bcf62180",
+   "archiveSha256": "ddc2794d9196080333761385271fdaba3e9e3b79492d47972fc0d25f6deef239"
+  },
+  {
+   "id": "c8-ruleshift-ai",
+   "repository": "deveshsinghal09/ruleshift-ai",
+   "commit": "9a4944dfd19e286d483f674cec3b27703e542985",
+   "archiveSha256": "a6934c11c7540fe15f7336036269a52265e3fcfbe7c0f3a332d94f60bda92120"
+  },
+  {
+   "id": "c8-cloth-store-admin",
+   "repository": "devjaes/cloth_store_admin",
+   "commit": "32f24f67c64bc6c1e0b226240bed77404e4aa91e",
+   "archiveSha256": "b6c56f1626af1a9e2bd9d03f8602ae96c1988d7b18ada09fce4037f895a352d4"
+  },
+  {
+   "id": "c8-pulse",
+   "repository": "devmello/pulse",
+   "commit": "bca7e0af1225b46336d6909a910365959d322bd2",
+   "archiveSha256": "9d5851770acb9c014add821e1757ea210da81fdad7def77c783a93a6dd1ff85f"
+  },
+  {
+   "id": "c8-wtf-shop",
+   "repository": "devmhimran/wtf-shop",
+   "commit": "bbd026de1132abeb4a7e78b9505ba9a02afbe4d5",
+   "archiveSha256": "002d4200012539440a6a476eb0a4e1dbf7349cebd14f4232f5abc7a9a4324ac4"
+  },
+  {
+   "id": "c8-repfit",
+   "repository": "DevsAgency/repfit",
+   "commit": "2bb9a20858c5dc5922c7d62862a1a0c51d63f4b6",
+   "archiveSha256": "d1a3220ccdbac64d17bbe08bb9a13a060a1aa6596631f2843be0402dc8028e76"
+  },
+  {
+   "id": "c8-kanbantool",
+   "repository": "DevTechMike-Coder/KanbanTool",
+   "commit": "4fa9f2dbac67843d58a1daf2baee605d09187b15",
+   "archiveSha256": "ec2addd3e34daefbf40352b7adcd99316028f7ab4ad29ec01f0f25bff13a512c"
+  },
+  {
+   "id": "c8-mentora",
+   "repository": "devwithjay/mentora",
+   "commit": "eb12851ad2242f28d264b16a5c1d396e870d93b5",
+   "archiveSha256": "268dc5bc6388658cc0416747b7a524c05542652025ccb6f36e2bd14aa564cf2a"
+  },
+  {
+   "id": "c8-eventflow",
+   "repository": "devxbynikhil/EventFlow",
+   "commit": "1b2aef6a9857dd41da0221baa31c62f8de855fe3",
+   "archiveSha256": "07c4576c33b39f0ca1d4bc2e16cf93437dbcbca3e4fa1483049488ac248403ab"
+  },
+  {
+   "id": "c8-ai-interview-platform-nextjs",
+   "repository": "dhanarajrk/ai-interview-platform-nextjs",
+   "commit": "db354d93748d9fcdd17098fbfcd8656de53fc937",
+   "archiveSha256": "9ece5d4b7a353c79a4b7f69c64d71e4b08ae85492a3d12edbb7fd511a54a811d"
+  },
+  {
+   "id": "c8-pebnotes",
+   "repository": "DhanujaAnbalagan/pebNotes",
+   "commit": "4036ba908f93f8a13e46c89382210c1548957e3b",
+   "archiveSha256": "95e8a584712f5e635caadf841d31bfaa6696e0c671ecc3a91f17ffe8319503bb"
+  },
+  {
+   "id": "c8-inventory-reservation-system-2",
+   "repository": "Dhanush-1213/Inventory-Reservation-System",
+   "commit": "ec4cfbeeb746c5b9235171c9a4441ce5190e8e76",
+   "archiveSha256": "d2892afb3bd1825a84fa9cc86e579ab4502544d2d43ba13ba1a188a399d01e7a"
+  },
+  {
+   "id": "c8-cineai",
+   "repository": "diegocarmn/cineai",
+   "commit": "d3e22079330be3d870367d3a7c3d72051e07e8b9",
+   "archiveSha256": "f1840ed3cdebb9c032244e428281e92b82bc6bd7670bef22bc16984503fac1f4"
+  },
+  {
+   "id": "c8-raguette",
+   "repository": "diidouu/RAGuette",
+   "commit": "fc8389d8b3e108569fe86a11c84d97ac6ddc172a",
+   "archiveSha256": "08f46ea14ae67dcc981e79a106584a9dfe4fec6a6c194902483cd2fb85386be2"
+  },
+  {
+   "id": "c8-clickhouse-analytics",
+   "repository": "Dilnazzzz/clickhouse-analytics",
+   "commit": "489b0070ee8ff698b561653be38d7327f76f50f2",
+   "archiveSha256": "01a36d0925fc1676272aaeda2a8873294105aa941384b9f9d442e66e69e53539"
+  },
+  {
+   "id": "c8-family-story-archivist",
+   "repository": "Dilnazzzz/family-story-archivist",
+   "commit": "5484ab0a9725f93f2be97213de3a7e3cdcd0c04c",
+   "archiveSha256": "bc7084a7f039095c38fa9f11bcd1cb7f9d4dc80b06e8f77505fb0aec4af67cd7"
+  },
+  {
+   "id": "c8-website-build",
+   "repository": "dilrukshax/website-build",
+   "commit": "27ee293673f8f83ead257edb3ef47f051ed4b852",
+   "archiveSha256": "4950eb0f9abc09d449f87dc9b4626adff2cc3a29a27336e3fbd2a7790ef333fa"
+  },
+  {
+   "id": "c8-dimah-survey",
+   "repository": "dimah-kz/dimah-survey",
+   "commit": "127387c88060089246bf3a7ea0c32a111d238804",
+   "archiveSha256": "a770909452690c6c47c4f6c706eb719e478759f18a00c0c58aa039462e78edf0"
+  },
+  {
+   "id": "c8-wappr",
+   "repository": "Dinesh99673/wappr",
+   "commit": "33af6b9009e9793bb649da59bdd575d27c4df887",
+   "archiveSha256": "f3381c989806453dfb48f6dde7c0892551134c189b82b156748147fad8adb181"
+  },
+  {
+   "id": "c8-luminaplay",
+   "repository": "Dinhbinh02/luminaplay",
+   "commit": "5da179950f17f7322b1a9c1b77ad8b980f4cdf9e",
+   "archiveSha256": "48a02df8d84f26a04cb6d9d6185a250f0ffc0ffb98260406271380ddb295c460"
+  },
+  {
+   "id": "c8-twitterx",
+   "repository": "DishantBhere/TwitterX",
+   "commit": "7ad5da29b547ab4f74b498bba7a09fab86fffce2",
+   "archiveSha256": "49da396e346a73d02eb0157b01074c4eefde204701872fa64bce218cc277a8ef"
+  },
+  {
+   "id": "c8-dispatcherai",
+   "repository": "DispatcherAI/DispatcherAI",
+   "commit": "745fbba256a0e6143685573b128ff96b25cbf9ef",
+   "archiveSha256": "8b8cb3dd254b9020bf2e3c3f9c820fbf1cd7247b9d50b466cec96aefb809aa98"
+  },
+  {
+   "id": "c8-spec-driven-development",
+   "repository": "divyat2605/spec-driven-development",
+   "commit": "c694c689e60c9204f26b0cb7e57e55c54e9ec59c",
+   "archiveSha256": "e86d95425551b73267a0a879389990d7107549beaad0f230660682b557d68e10"
+  },
+  {
+   "id": "c8-college-discovery-platform",
+   "repository": "diyasharma22/college-discovery-platform",
+   "commit": "1bbca4e560f14664e5d2feb8eb32d254a47af92d",
+   "archiveSha256": "23be0563297e51554d203c2564bacca55c6358e3929637726e62a15729ce643c"
+  },
+  {
+   "id": "c8-dcertvault",
+   "repository": "diyasharma22/dcertvault",
+   "commit": "aa03a858cbc1df78ec0c1042e4c1ffa714e01da8",
+   "archiveSha256": "620ef1442c7e984a15ac9d21b3506c9066eb82f61408814a64417b8bbfe44d9d"
+  },
+  {
+   "id": "c8-handmade-jewelry-store",
+   "repository": "dmitry-malykhin/handmade-jewelry-store",
+   "commit": "b94084138515e6d92dfc638e92368acf38088b01",
+   "archiveSha256": "6dfb447178a9e10268befd181099a5bbac15887c82ed9d37a40e35f78be287ae"
+  },
+  {
+   "id": "c8-reseller-dashboard",
+   "repository": "Dmytro1991ua/reseller_dashboard",
+   "commit": "517ca9fe70ad6220905870363583ee296bb2f17a",
+   "archiveSha256": "5ec0ccd60b8536b0f844e8f460a429969a7c79a79569390003e33a6417a1b74a"
+  },
+  {
+   "id": "c8-repobrief",
+   "repository": "DoganayBalaban/repobrief",
+   "commit": "a79232c6943cd59237c7fe2133792bf3d398719c",
+   "archiveSha256": "f50f6c4ed277f8266b7ec000451a6993dbabd4f5d652250e467455435bf634aa"
+  },
+  {
+   "id": "c8-retouchly",
+   "repository": "DoganayBalaban/Retouchly",
+   "commit": "4f017f4db6b7531fb8882c82002c46354472476b",
+   "archiveSha256": "753aeba275f62b325331cf206b18cb9c372c0b8fdd588b226a0ebdee8450fade"
+  },
+  {
+   "id": "c8-yuva-cms",
+   "repository": "dogukangoker/yuva-cms",
+   "commit": "aadef677c5df8c34bf2f4aa686797ea3924e9593",
+   "archiveSha256": "0b8335e572be16b6e5613fa9217e4a2b90a9de31cb2dd22043499a560bbf29d9"
+  },
+  {
+   "id": "c8-sendit-client",
+   "repository": "Donvine254/sendit-client",
+   "commit": "7fc591ddbfbe5285a8fde65b77c529488eeb02c8",
+   "archiveSha256": "0057ba9fb2e8fc47bb83dbfd5a836a4e41aa8671b82acaa347294a902d5c63d7"
+  },
+  {
+   "id": "c8-ai-booking-platform",
+   "repository": "double-k-3033/ai-booking-platform",
+   "commit": "ad17979c42573a1e7079c6ac8f712123cb9a29e2",
+   "archiveSha256": "6d569fa7a735e28d5bebb8fa927ea42abe7ca193ce4f0b8fe0a56ae14a4d6f52"
+  },
+  {
+   "id": "c8-gavilan-shop",
+   "repository": "dracudev/gavilan-shop",
+   "commit": "39dfd4420c0d108a2c6c5d0b79654dc419f979d6",
+   "archiveSha256": "346a2ae2b038c7dceb329ce24108275f143888cba5153b7a2d783a641add0d88"
+  },
+  {
+   "id": "c8-montra",
+   "repository": "dreamweiver/montra",
+   "commit": "c3e2ebb1e962599ecd844912f30b25905aa0f4aa",
+   "archiveSha256": "6713dd3ebbf927519c4983d3b04a132f0ac18899d899e5207fd22cee0127e434"
+  },
+  {
+   "id": "c8-dproduction",
+   "repository": "dreinst/dproduction",
+   "commit": "bd84a3d5fd225ca51636b0dedb97f9417d658641",
+   "archiveSha256": "f524839468769de8f3b9a8468667051442e33d04a082f92e866a5b2f20df3f2a"
+  },
+  {
+   "id": "c8-reimbursement-tracker",
+   "repository": "driofrio91/reimbursement-tracker",
+   "commit": "40f7907a2ef09ad98b449d3ab1a73d22c4dfc4c9",
+   "archiveSha256": "5ac41b8e91d28e408ee246d24a4bf9af4f6e66440642fab5df6d4d14de3e0270"
+  },
+  {
+   "id": "c8-superdb",
+   "repository": "dris1153/SuperDB",
+   "commit": "a6299620c73a6ce4388229d983e6b198cbaf45e5",
+   "archiveSha256": "b183d5cb37604747adadd451516ccc72f85fffcac2b61ebc432db4be4a34f8f8"
+  },
+  {
+   "id": "c8-thought-filter",
+   "repository": "Drjaickal/thought-filter",
+   "commit": "97283c92e97eea2a08882abc0cc91f1e1d700c4d",
+   "archiveSha256": "a013f84066c6ce615e01e23bcba2c64d66ec64c2cb7cc543f78ad060a94928c3"
+  },
+  {
+   "id": "c8-zotes",
+   "repository": "dropocol/zotes",
+   "commit": "13f9a9b896bfba8150853f326d099e9b93b29750",
+   "archiveSha256": "f356710baa7678e1095da224e9929bf55504072e41f7c121a14f9f26970cfdaf"
+  },
+  {
+   "id": "c8-blog",
+   "repository": "drujbanjo/blog",
+   "commit": "77fb53d771552d873974640415ce3b93aa379823",
+   "archiveSha256": "2f396177fc962c9acc74bb55cefdcf0873de30db2dd16dfdeb455fb1db11c62f"
+  },
+  {
+   "id": "c8-ai-ide",
+   "repository": "drummerviswa/AI-IDE",
+   "commit": "1c1ed0591fa1109f3dd3a2f393b488a7426cdb44",
+   "archiveSha256": "a7db00d7285039c7a5d144f70f388f112782f09989751c9c78c811c3caf9e3f7"
+  },
+  {
+   "id": "c8-finderdallas",
+   "repository": "Dtzul04/FinderDallas",
+   "commit": "7b7e98fdf23a93407cd3f25712fd3c1ad751aa7b",
+   "archiveSha256": "e9756455c44da2455e8927f7afc37d9229c3fe04926698e523901b5b65ce40f0"
+  },
+  {
+   "id": "c8-money-leak-detector",
+   "repository": "dubaipandiyaa-byte/money-leak-detector",
+   "commit": "7ec3c5c11b938365c4854c7869ded040fd3c3395",
+   "archiveSha256": "073e41cbd226d4224a04cccf82c6fbdd02a3d5dd49370801de3142da0a435503"
+  },
+  {
+   "id": "c8-apiverse",
+   "repository": "Dubey411/Apiverse",
+   "commit": "2bb93707a7ad6084b82b88c9b74547e44280ac22",
+   "archiveSha256": "31331fb93a4e5b8a505049ef3ec2d8517318a184f7d72d665eef73b69fc4f34d"
+  },
+  {
+   "id": "c8-my-converso",
+   "repository": "Durga1534/my_converso",
+   "commit": "c792254f29c878c426538aa3e87f9b9064f52659",
+   "archiveSha256": "6f1ff60a57809b72a81e5f0827844b6c1add9b451d1c9eddc8617d4cdfd1c30c"
+  },
+  {
+   "id": "c8-tasksphere",
+   "repository": "durjoybarua5327/TaskSphere",
+   "commit": "0c2da498c5e23fdd16d43b9f4c4bd0af69a0722b",
+   "archiveSha256": "019f1783eedcdd619a35f7abceabe270de859f0f7c09e0628ad804ddca1fd7c6"
+  },
+  {
+   "id": "c8-facebase",
+   "repository": "durjoydutta/facebase",
+   "commit": "03d06bf94182a2ffc832dca8d76f46bf1bb51c12",
+   "archiveSha256": "01434cf9d4160c10a83a9c894993109d9ae9890ea242db9ffa307676c74b90f5"
+  },
+  {
+   "id": "c8-app-web",
+   "repository": "dvduardo/app-web",
+   "commit": "cfbd5a04c25cea87402dc51bdc897e348d7eff18",
+   "archiveSha256": "31e91456d734d7011b22aac5c6beb6585c63b3ad577068cfd7762b2e71d43937"
+  },
+  {
+   "id": "c8-shortener",
+   "repository": "dy-x23/shortener",
+   "commit": "68d9c75118a70ddfad731966d2eec291b5fa26fd",
+   "archiveSha256": "677430370c8647035a8dcc66e73595298ad577fac412d3a4beccad7f3c54dcdd"
+  },
+  {
+   "id": "c8-sea-catering",
+   "repository": "Dynameiz/sea-catering",
+   "commit": "2d924501da30d74e7829de66d5c90b9a7da597ff",
+   "archiveSha256": "cea3d77a433e85f8c7d40468970b96004ba0e03f3ebeab14f96012bce0e5e6c7"
+  },
+  {
+   "id": "c8-poshpoule-erp",
+   "repository": "e-ogugua/poshpoule-erp",
+   "commit": "6c685b930f6290218e416d8ae643f0a7ca682432",
+   "archiveSha256": "55194a81b5650abd62ccac59be32ddb5f53ac87a0a8f92ae59d84c4fec15c70a"
+  },
+  {
+   "id": "c8-task-manager-nextjs",
+   "repository": "Eaglemann/task-manager-nextjs",
+   "commit": "fd47f86aabf8e4862a029378cc2253eb837875ea",
+   "archiveSha256": "2f788760633bcf964162b3e600d069e5f987dc9ef43850dbeb3b23bb3f12182a"
+  },
+  {
+   "id": "c8-business-dashboard",
+   "repository": "Edish1-glitch/business-dashboard",
+   "commit": "3bf47e35aed191f00688672a240d2b3e274916bb",
+   "archiveSha256": "66b4001eb3437e49eda97867e42dad24a0e6667ae98f4c1f73220c971b0ec4ca"
+  },
+  {
+   "id": "c8-studify",
+   "repository": "edsonbrendon/studify",
+   "commit": "571b0b02ef238163b5eb058766ec85b0cb2c45b0",
+   "archiveSha256": "842f79b015cc087571ec00b24e97bdd9e23937cd80f854fc0a671573042a1913"
+  },
+  {
+   "id": "c8-audiodesc",
+   "repository": "EduardoGillung/Audiodesc",
+   "commit": "39fe8c9619d86d6ae5d83fb463563ce5ae92dce1",
+   "archiveSha256": "81f9d53c8b2e90c29a8000fca5ce44f5f778467b2bd9c512226ad067ef2eba5e"
+  },
+  {
+   "id": "c8-rundb",
+   "repository": "eduardotai/rundb",
+   "commit": "0a4b464c2bfab431bcadacdba5ec2307d8d61a1e",
+   "archiveSha256": "2e3bd68c48d6552d9169dcf937526f604f440f912dc468d6778a348e98759ba4"
+  },
+  {
+   "id": "c8-nbac",
+   "repository": "Edwardisaac4/NBAC",
+   "commit": "afbce6221ca1760822440d9510d631ea1bad82e7",
+   "archiveSha256": "b16f342953c37f2bdb7e3ccef2ba64bfc5d5f626e8b13aef0137523e242dc593"
+  },
+  {
+   "id": "c8-caderno-aberto",
+   "repository": "eemtijca/caderno-aberto",
+   "commit": "a9d48fe6c733eb540b764f0107b4f533339225fb",
+   "archiveSha256": "c08e8dc52cc2763748bf007707e6f6ad493cad976d5137b29590ffa4e141709a"
+  },
+  {
+   "id": "c8-frequenciapp",
+   "repository": "eemtijca/frequenciapp",
+   "commit": "e02ebe3f71cb6209af3c3387b2ded597b36c32e7",
+   "archiveSha256": "447c0b9dcef8f13437dad92a161dcb8e38bad96c816a76d2c1468ebdeb5eadd3"
+  },
+  {
+   "id": "c8-vaquita",
+   "repository": "eerginos/vaquita",
+   "commit": "fa0f1465b7e29e545d6709218a80e016965a6ebc",
+   "archiveSha256": "9a6a64bcfdc5906bb6e7999664ad4caefd1fc6f1cd6c40e4748cf808361b21bd"
+  },
+  {
+   "id": "c8-betterstatus",
+   "repository": "EGN-development/BetterStatus",
+   "commit": "904c523c8b3df30f139abe27dce0a97514ea442d",
+   "archiveSha256": "44ff2b5994b6917d19c8a543bea44021b06173006ea01ab550532d65d3a954c7"
+  },
+  {
+   "id": "c8-elahemessenger",
+   "repository": "ehsanking/ElaheMessenger",
+   "commit": "c32bc24cf96b733f9156a4180fdfc771eb943de8",
+   "archiveSha256": "1836ed18f1ed43b1969f9a56b1eb4180bd9d942f100fa6efcc9e4e0938943d1e"
+  },
+  {
+   "id": "c8-lms-saas-app",
+   "repository": "Ekipchirchir/LMS-SaaS-App",
+   "commit": "19ffada8a820683a725376ba1baae6b58ee76d32",
+   "archiveSha256": "8f5644492fd51481e90c6fbe5de65d5ac2f85c78cdfc2a01466f1112ad3504ee"
+  },
+  {
+   "id": "c8-claudprox",
+   "repository": "el-pablos/claudprox",
+   "commit": "65060597670b49d3e2e110f94b8fbac530802d68",
+   "archiveSha256": "8f76dbc697464c0fe31b0120bca513f8efe20acfb1e1d40ae56dc32c7123be95"
+  },
+  {
+   "id": "c8-stock-market",
+   "repository": "eli22443/stock-market",
+   "commit": "cafbef2f839a7ced465a8db4bd0ca9c85c86a526",
+   "archiveSha256": "6e213be52e361e626e42ee0658890ba91d638b9472d08a1e3c14591bdbed107e"
+  },
+  {
+   "id": "c8-fisclink",
+   "repository": "eliazv/fisclink",
+   "commit": "ec53bcd18900170f11789a41c14d25a76b1a4b21",
+   "archiveSha256": "5881d85ea55c7dcad8f4abfea896fe3226b6df70a3d69b0544a3f559cc9c94f7"
+  },
+  {
+   "id": "c8-recipe-book-platform",
+   "repository": "Elli2022/recipe-book-platform",
+   "commit": "d716b1d6abeab35460e96ff137c31a966ddb2c7e",
+   "archiveSha256": "384b974aab0a25e43aa3a366b73d1f5aabe09424829d7fa3392b87493520be4a"
+  },
+  {
+   "id": "c8-greenstock",
+   "repository": "elmarshub/greenstock",
+   "commit": "251995210b24859bd7bfdaa71a197d54ae2a3255",
+   "archiveSha256": "58dfc2aa8ffed8019d4dabd0b9c763ab6641457f4f759a3318349e285fa83871"
+  },
+  {
+   "id": "c8-sussed",
+   "repository": "ElPlaso/sussed",
+   "commit": "308b9c3f3f57d46420eb02d8f31f19b4711b8864",
+   "archiveSha256": "cdb0a5b50efd2238b76dfa60ac50a603a9470187e81238708337bd0b3dc7fca7"
+  },
+  {
+   "id": "c8-cyber",
+   "repository": "Elvira98701/cyber",
+   "commit": "346104cdeddd903356bf2c1fd9c504dd426285a8",
+   "archiveSha256": "ca8e266f872f4fdb221b39474dabcf62a2ffc3ec7c96e7262ebbece675a0af27"
+  },
+  {
+   "id": "c8-vaultbase",
+   "repository": "emi-ran/VaultBase",
+   "commit": "e866fbb94e4a4625e3c9ae251c7e26863717d738",
+   "archiveSha256": "d133bd946aac93f080ce9885a718ef1a35c957c4336c22b2ab3871127c41dd77"
+  },
+  {
+   "id": "c8-porch",
+   "repository": "Emircyn/porch",
+   "commit": "cc8acfc169a1d267891af0562ec1cfea82727007",
+   "archiveSha256": "37c9daa894c727ffc598a493515a0dbe888c929e96809e3ccfab20a04115c378"
+  },
+  {
+   "id": "c8-qr-menu",
+   "repository": "Emiroloji/qr-menu",
+   "commit": "a95075de07b0fa4a6d63c47cc4f66dab83f22fa8",
+   "archiveSha256": "d4554ed06e7940c00ece7ac22c871da6f6a6090098dae0f0a9d14614f2572f72"
+  },
+  {
+   "id": "c8-utn-sec-info-2026",
+   "repository": "EmmaDavezac/utn-sec-info-2026",
+   "commit": "bb52be785c9ed68c8678bb16ba5518815403fa9c",
+   "archiveSha256": "cbe0b9d37ae23a1e2f5ec1b0c72cc0d5d5d88e3de55b0c22f9b053085f584f8b"
+  },
+  {
+   "id": "c8-kiko-ai-app",
+   "repository": "endurance-ai/kiko.ai-app",
+   "commit": "45eb9c7572ebac3cf2add6a12a29b43b52d5b396",
+   "archiveSha256": "980095a118bebb0fe23e6dc0d593ec8796aaca4c60064595acb4b41f017e3949"
+  },
+  {
+   "id": "c8-appointly",
+   "repository": "Eng-Muhammad-Affan/Appointly",
+   "commit": "69f8a9a25da411b9e12c0ef5f9b15abbb7194fde",
+   "archiveSha256": "a511782f5afe7250841ab5a6c35b8e4369bac9487cf79debf1bf5e325e19f64c"
+  },
+  {
+   "id": "c8-workhive",
+   "repository": "Eng-Muhammad-Affan/WorkHive",
+   "commit": "61ef437844758b743ae356ea4d8313db7b7b704d",
+   "archiveSha256": "c6408f29c7b0847836966d3494172bc2079b2a424607572b753ea88c7f571188"
+  },
+  {
+   "id": "c8-lifthouse",
+   "repository": "enjoyerofcoffee/lifthouse",
+   "commit": "b974589861c408a2a3e618f60117639d6445ca77",
+   "archiveSha256": "777c549f6368172484bcf6fb50cf084a7b5701dee2e44a014bb57d821db60212"
+  },
+  {
+   "id": "c8-m-fest",
+   "repository": "EnvoyX/m-fest",
+   "commit": "42e11e684b01065a9c539ef365581029d288c65e",
+   "archiveSha256": "ee20695989d65cc5eefcb72045d3bc25f25ce1e72e8a881f8328eafc3c0a2102"
+  },
+  {
+   "id": "c8-deez-notes",
+   "repository": "EpicNuts/deez-notes",
+   "commit": "55a75ec27b72b9e388ca664506102cd280f15fbd",
+   "archiveSha256": "836fad36e36c31b460f0c23321cf38211715dc1db511f9f76db675c7e8b54d22"
+  },
+  {
+   "id": "c8-strikes-community",
+   "repository": "erarbazansari/strikes-community",
+   "commit": "034efa7947ec7fe96a8b22be2d2d26a6157b5247",
+   "archiveSha256": "6d670468285a501c36da546c7c6dcbe77ff50c1097565cc4575cb93f7dbbc40f"
+  },
+  {
+   "id": "c8-rpg-dos-corujoes",
+   "repository": "ErickRomeiro/rpg-dos-corujoes",
+   "commit": "88dfe2eaa9e2ad1baea8a66ff5f7c2e9ae821719",
+   "archiveSha256": "8bae089e0bd4d3c612f10d9d83ae16bfc320f6aa485bb440cbe08aa94a4c1a3f"
+  },
+  {
+   "id": "c8-site",
+   "repository": "ericsen-tsai/site",
+   "commit": "1f7d6e1ebdc44c5d62ac26ac4489f5ecb3074757",
+   "archiveSha256": "040ceb627e88e29434f508d9b1383a64ec33ae9ca9158ee7a400413b88d0ded0"
+  },
+  {
+   "id": "c8-saas-seo-ai-free",
+   "repository": "ervareza/SaaS_SEO_AI_Free",
+   "commit": "562ca7a4d38908334596d573cc83a18038271fb5",
+   "archiveSha256": "927c5a9615d9a4998480ecf290479bd1beb417d47289f524baac863a442ca6e1"
+  },
+  {
+   "id": "c8-offerpilot-web",
+   "repository": "Erye932/OfferPilot-Web",
+   "commit": "a953998be99f94f00bb227ba9f24f606338376de",
+   "archiveSha256": "5022e54e00b6e447600274aad728cd65cb20692e5c2bb9df9dedd5162bc5dcc2"
+  },
+  {
+   "id": "c8-budget-wallet",
+   "repository": "Eshaan49/budget-wallet",
+   "commit": "fc1d702f051f2b86e3c56b3003d27a4ced972073",
+   "archiveSha256": "aec868a745badbe79dcea97ab42e068d673eb32688fc7a16a2b5498a90dcbcc2"
+  },
+  {
+   "id": "c8-issue-tracker",
+   "repository": "ethan-yz-hao/issue-tracker",
+   "commit": "e322a7fb8f168298681044038278100b1294ec6d",
+   "archiveSha256": "95c68d44b882e9aaab7c623d687dc786a07dbb06fbc676b18e89e971982d3342"
+  },
+  {
+   "id": "c8-nyxus",
+   "repository": "evieffvy/NYXUS",
+   "commit": "7032c1ac42069ef546bcb966d5ed6f29b89a8f2a",
+   "archiveSha256": "6c7e5273adb214a1b2ba0abc0f01ad46cf9b01fc026207bc166988f64b45de38"
+  },
+  {
+   "id": "c8-game-marketplace",
+   "repository": "Evr1kys/game-marketplace",
+   "commit": "0f39776d71a8f5a681e660ec7cdf47266d31be8b",
+   "archiveSha256": "c459caddcc9a6d86126c3f91d646bef50af7ef7c446137862cbe3daeb2d86a59"
+  },
+  {
+   "id": "c8-exepaginasweb",
+   "repository": "ExeDevCentral/ExePaginasweb",
+   "commit": "0b185f9611ebc0970eb6f2491406cc9e99c850a3",
+   "archiveSha256": "8e4f89ebba68f577d8e24199375cc76883c111893ad86eafeaad452ac90ee9d4"
+  },
+  {
+   "id": "c8-atletica-fipp-site",
+   "repository": "F4NT45TIC0/atletica-fipp-site",
+   "commit": "52e85ca6ab298049436871f053720cc268a6eaf0",
+   "archiveSha256": "5a62438181e6207f7a359ca1d6cbba739f8ded4854bcb5cb3a4b8605d1a3dafa"
+  },
+  {
+   "id": "c8-lms-saas",
+   "repository": "fabio-carucci/lms-saas",
+   "commit": "f95edbc8f9c5aded565d8ba5c6d48ab433ddb4fb",
+   "archiveSha256": "f1afec6cefd527d89a86fc11c36d2bbf44fa5f9bba8ce4c957c34e556a303b4a"
+  },
+  {
+   "id": "c8-cartaonline",
+   "repository": "facuperezm/cartaonline",
+   "commit": "2f46689934ff7e77dd1cec051d22fc9e4353c16e",
+   "archiveSha256": "4f0e5c4128c9d2c78750990b07c8a66997e7989a05197535dc2c400a086c46c4"
+  },
+  {
+   "id": "c8-ui-sense-ai",
+   "repository": "Fairy-fly/UI-Sense-AI",
+   "commit": "a6d24d09cf77d5125f56a30a1efc454d8b160619",
+   "archiveSha256": "ecf4b4c598de1083279e7c28dea5b9ca2a42b584a436c2c75cbc7495c0cf3538"
+  },
+  {
+   "id": "c8-mypr",
+   "repository": "faisalahammad/mypr",
+   "commit": "314fc31afc07ee896ad6e3b53d50deebd0c781d3",
+   "archiveSha256": "2ff5e8e2f7d88c7468398cf5d69ff17e13494402a67af6531f89b0c8d2e62124"
+  },
+  {
+   "id": "c8-calend-app",
+   "repository": "fakumax/Calend_App",
+   "commit": "a1e86a37981a5738cac37efa274950e8c1b41635",
+   "archiveSha256": "1142202b17db8ca7dffed056deda265a506a6a3017055dbe384ba3d4ded1be0b"
+  },
+  {
+   "id": "c8-acts",
+   "repository": "faladigo/acts",
+   "commit": "93d77495a2118dae56f2c95409e7151ffd27b2fe",
+   "archiveSha256": "6ffc6538225ac4543e7c26dac3a8e45a5291fcfa279783586e4fe4e15db4a5f6"
+  },
+  {
+   "id": "c8-grabadordepantalla-online",
+   "repository": "falconsoft3d/grabadordepantalla.online",
+   "commit": "dba8c76a9197476fade4cd12071b0b57dcd76801",
+   "archiveSha256": "bf4accbcaf41df8f6908efc18527b2d51fbcd3a0ae82dc88ea4b85efe07c4a31"
+  },
+  {
+   "id": "c8-wemap",
+   "repository": "FalinX/wemap",
+   "commit": "6a268ee563c40de9ea3a827a2c418b442178746f",
+   "archiveSha256": "b98334e21a4d752b5ea0060edcb68e989ab0b523e39380a0bae55cf570adb878"
+  },
+  {
+   "id": "c8-charlseempire-tech-dashboard",
+   "repository": "fanyicharllson/charlseempire-tech-dashboard",
+   "commit": "a73f38a77051ba05a8bcf9cf3fc3215a7bcc0cf6",
+   "archiveSha256": "9d9664f605fb40633db104ca48dfeb27b837b7035fd91e4d7d434cc07dd3449b"
+  },
+  {
+   "id": "c8-aurora-memory-vault",
+   "repository": "FarhanxAi/AURORA-MEMORY-VAULT",
+   "commit": "a9c08fa584ec76b11edb36fa2f814de13e68a4dc",
+   "archiveSha256": "22125f54f3dbbd224d62f01591f9cbe8bb848165967e684c5b93b8573531a2f4"
+  },
+  {
+   "id": "c8-jakbar-explore",
+   "repository": "farishhz/jakbar-explore",
+   "commit": "ca0e036c4b7a8ad0b92563c10015f2d2042ba5bf",
+   "archiveSha256": "0d73d31e8a8459defb7ff67fda0e88a9a032514fb1cb6260fa6388154812bd4f"
+  },
+  {
+   "id": "c8-radiologi-primahusada-v2",
+   "repository": "fatraelkarizm/radiologi-primahusada-v2",
+   "commit": "7c95b7e5dab65f3d2f33460a8a7a9ba5068c6161",
+   "archiveSha256": "97241cf8a022c18be221668d79404ec9fa16ca171896b395cf4d699ce05adf6c"
+  },
+  {
+   "id": "c8-whatsapp-bot",
+   "repository": "fatraelkarizm/whatsapp-bot",
+   "commit": "6b1fe2cf890585371a83ad272b75442975db1d25",
+   "archiveSha256": "4a7dcc126da093357644fed6d2a39e99298894922d794d2dda3539a35acd5edf"
+  },
+  {
+   "id": "c8-libroclaro",
+   "repository": "fcarruitero24/libroclaro",
+   "commit": "6cf056f99e0c9465d3cc9241e377520618b7d239",
+   "archiveSha256": "64f13eba38088fb7547548b76cd10e25937f2be14470a5f8e8673143f39f1a26"
+  },
+  {
+   "id": "c8-stray-tales",
+   "repository": "Felicia-Doumani/stray-tales",
+   "commit": "638c67d6885a66d6b757fe40f4f0fcae7afd13b0",
+   "archiveSha256": "aee113fe0443305a440d49b2385ce55b8a9918d4fa54eb544df492102e74774e"
+  },
+  {
+   "id": "c8-avaliaprudente-com-br",
+   "repository": "felipe-seabra/avaliaprudente.com.br",
+   "commit": "7d1d033c8fb186b71b971e25ebe6fe4fa81d431a",
+   "archiveSha256": "703264bb7b844200969aae5c142ffedf003070aa7d207546c2ad202bfa9dc79f"
+  },
+  {
+   "id": "c8-ponto-glass-next",
+   "repository": "felipeocgusmao/ponto-glass-next",
+   "commit": "b70f289a389a9102ae1f59a5bc85e2be36c378a9",
+   "archiveSha256": "1fe1838c505ed48ad6ce54710e1a049706853ccf243f2410771d156ab1479256"
+  },
+  {
+   "id": "c8-oit",
+   "repository": "felixpalingan/Oit",
+   "commit": "c84455b20f7344d16fb4e7b5e13368924c651101",
+   "archiveSha256": "ce03b8fce8a509c9b749de9db2e358d1adf738f26ef50716b6fa1f6112bd3a88"
+  },
+  {
+   "id": "c8-ai-speech-coach",
+   "repository": "felmonon/ai-speech-coach",
+   "commit": "973b77874a8d8167d481228d4fea2989f80aeca1",
+   "archiveSha256": "40d4fdb183d909cfc96b5c1604fddb113e1e6914d81c37124be12b665e2628e1"
+  },
+  {
+   "id": "c8-cite",
+   "repository": "feRpicoral/cite",
+   "commit": "e024a0cd3cd33ab900572b0ed17408bd4966a960",
+   "archiveSha256": "d0cfa3c454d3d9a87587c7ee9efaea2fc50bd1a69a1093aa31d46a65242b41cd"
+  },
+  {
+   "id": "c8-food-kiosk-app",
+   "repository": "FeyoChavez/food-kiosk-app",
+   "commit": "d56a64773acf4dc9c06e9e62bb06aef3a5d4b72c",
+   "archiveSha256": "69a71473b8b12c1ad7130110c9126b0342a0142507070c39c2687f8670a4ef2d"
+  },
+  {
+   "id": "c8-portfolio-3",
+   "repository": "fezarosa-dev/portfolio",
+   "commit": "017ffcb5c224ddef16bca87675f1f885194c601d",
+   "archiveSha256": "4db0cf116f9cc099310bd5e0d5a5a8fe74a43cc617056d583ef12720661b902a"
+  },
+  {
+   "id": "c8-ai-land-hras",
+   "repository": "finebyme99/AI_Land_HRAS",
+   "commit": "e27e0c79a77ca6fcc623633e64f35f42df23a681",
+   "archiveSha256": "1f39f257cc6f50077b40bfdd91c8215dea7a7e0b8fe58f6afeb79c2be00fd33c"
+  },
+  {
+   "id": "c8-chirkut",
+   "repository": "FireHead90544/Chirkut",
+   "commit": "0c9cf9f3bf056114c7c7724ce0dc0b1bf48c071b",
+   "archiveSha256": "509a613c9dbfb9bb5803bd73969538c7d7b37333a17a236229d8693561f48f31"
+  },
+  {
+   "id": "c8-bookmark-manager",
+   "repository": "firenzehiga/bookmark-manager",
+   "commit": "7c96c48449a4a982386c73864d5484e331a6c624",
+   "archiveSha256": "3ca52067939afe88744660c886987c27a782cce0dea3add017ebaef8c78a1d56"
+  },
+  {
+   "id": "c8-contribution-pulse",
+   "repository": "fishdev20/contribution-pulse",
+   "commit": "cbe9b24056701f3e24af72a28e9289b526470b2a",
+   "archiveSha256": "49e6d944f4b6021b227907d56adace360578caf4245563a341b25545d56c8291"
+  },
+  {
+   "id": "c8-prostore",
+   "repository": "fisheeesh/prostore",
+   "commit": "18fc2064ff1a1f91a34c0f05035f6734905583f7",
+   "archiveSha256": "ebcb41263ef88cd190fd92b0cf49b3bedfc677525cf2711947313b577db9309f"
+  },
+  {
+   "id": "c8-abonelik-sistemi",
+   "repository": "fkfkg/abonelik-sistemi",
+   "commit": "ff4744e1a975f11952df0c2300200e47bcf624dc",
+   "archiveSha256": "6b4bd3602bb00c954d505d87d1d1413142b6ab63eabda8289c5a550666296fdf"
+  },
+  {
+   "id": "c8-sync",
+   "repository": "Flamingo-Client/sync",
+   "commit": "3f7bf8999bd4e12494604862e31390ca3b549c9d",
+   "archiveSha256": "5a8da4084bb1f5ef1f295e97f5a394a2d075ce1dd2383061d7a8165f96466432"
+  },
+  {
+   "id": "c8-twitch-overlay",
+   "repository": "FlamingoLindo/Twitch-Overlay",
+   "commit": "b52575a72988149afa6095ed5e3bc102adc593e1",
+   "archiveSha256": "c90099f5dc4d293a925dff3b25ec3bd7a807f4c61b30a1f37921a36628e293df"
+  },
+  {
+   "id": "c8-hackhoya",
+   "repository": "flxnaf/HackHoya",
+   "commit": "3f000af9776495d6b5bba17364e4d2c3f65272f2",
+   "archiveSha256": "6160fc96c0963424d15895d8b6ed0c5ed2b591743be0f43b13ad8871369cb4f3"
+  },
+  {
+   "id": "c8-phoenixtools",
+   "repository": "formulareddy/PhoenixTools",
+   "commit": "fce52bc0ea8a28cb7f34115d398f907cadaa5c19",
+   "archiveSha256": "99296131507f2bf7725901ff43bba9ba31d7846a0a1e80c24ea1997ada82a9fa"
+  },
+  {
+   "id": "c8-choeur-de-role",
+   "repository": "Forthtilliath/choeur-de-role",
+   "commit": "5fa78428a630d8dd96594f7fb66363e8598e3d6d",
+   "archiveSha256": "f65c39d2c2de23b6d6b25d6dcebbcd403ff96769d8a8c9c9f09b2b31bd79e9cc"
+  },
+  {
+   "id": "c8-boke",
+   "repository": "FUDAHA99/BOKE",
+   "commit": "bc3fb5314cbf98ace9ae307879285de3cc36e8da",
+   "archiveSha256": "adb7bef69d4ca249ac970a01b02338f76c91e0b69022931438e2a9f767d2fd3f"
+  },
+  {
+   "id": "c8-new-aim",
+   "repository": "Funfamm/New-AIM",
+   "commit": "b1e0a3e6f195c8ba6a0a5428d61dafd8f9c570da",
+   "archiveSha256": "fc33880d5d7090eefa3758de93d7c7be54e0c75cf70b405c81e41420926b2ff3"
+  },
+  {
+   "id": "c8-press-note",
+   "repository": "futahei/press-note",
+   "commit": "2717947b16f2e1941c2e85642aa7c8cde21de830",
+   "archiveSha256": "009044c7407c39316ddd31ba843a2d709252f599b272673f75017b6cc6f948bd"
+  },
+  {
+   "id": "c8-structured-ai-pipelines",
+   "repository": "Futreeng/structured-ai-pipelines",
+   "commit": "7791517d4c2f88c08a2e17907233c7317108a203",
+   "archiveSha256": "e4dcd5dca79f670ede2d1c9233496b7eb1a148553fdb155357b0441c03a0b324"
+  },
+  {
+   "id": "c8-transport-hub",
+   "repository": "fyp-solutions-tech/transport-hub",
+   "commit": "d1e0216d6e690baa1ee986d8fb8c02857bea9d7e",
+   "archiveSha256": "3675b55bf9b7d565551caaa8969ece58c10d73e4a483b68dd323fb2246a955c2"
+  },
+  {
+   "id": "c8-stoop",
+   "repository": "g1mliii/Stoop",
+   "commit": "27bb372a60f2905c5e03ee31df39ad11f01c0789",
+   "archiveSha256": "11ec1528f87d9a1b7e94a2b5150a8b052d93e56a4c84e736de68c959a78ec94f"
+  },
+  {
+   "id": "c8-forgekit-platform",
+   "repository": "GabrielHuertasdl/forgekit-platform",
+   "commit": "b5b619839cd4dcde2a17bf3925086c7f6bbd9e00",
+   "archiveSha256": "7e59846aa608c50921632257dda81f31df7f672a05828731f69a97eed5af5f44"
+  },
+  {
+   "id": "c8-desenvolva-tea",
+   "repository": "gabrieltrisi/Desenvolva-TEA",
+   "commit": "27ad596bca79a93c245e88320c322cbf3c5fe51d",
+   "archiveSha256": "0311d46d8852fc771d65f5c32a834eee6abf0cae2776d4e6c315bf4f2ccfbb2b"
+  },
+  {
+   "id": "c8-mirzagalib-portfolio",
+   "repository": "GalibDev/mirzagalib-portfolio",
+   "commit": "0d0fbef6e0ecc67eb922cd912022fec4a006f823",
+   "archiveSha256": "582266e2fc66f013825258ee689df5fbcd991c1cb376f497679d7855b3891d04"
+  },
+  {
+   "id": "c8-galileoff-stockcontrolpanel",
+   "repository": "galile0ff/galileoff-StockControlPanel",
+   "commit": "4b9e8675bfebbd4bf0472c13c4a82f0b2c7fe611",
+   "archiveSha256": "faeda786591c394508e73a4565acadb6ab1764c989e1fede4855aef0c6d82b62"
+  },
+  {
+   "id": "c8-ikitchen",
+   "repository": "galilio2023/ikitchen",
+   "commit": "03db6e8c179529305be7b0cb2f5e4a9389b10ad6",
+   "archiveSha256": "0ba3a86cb48fe116159da9471d4a88e9a9b896145d2dc38a4e9c08cb515c54bf"
+  },
+  {
+   "id": "c8-galladev-workspace",
+   "repository": "GallaGit/GallaDev_workspace",
+   "commit": "a46456eee474ba253c278fae806e79e209744b3c",
+   "archiveSha256": "016eb8f01c7b57c56d79f3bbf1ffb882e5664894be88fe63148d9b0508fe4c29"
+  },
+  {
+   "id": "c8-tomesphere-app",
+   "repository": "Ganeshkatam/tomesphere-app",
+   "commit": "19276287aec90c8e3775337090e856aa6c6f2609",
+   "archiveSha256": "848954be10ec4c7689575cf6a9d82e0f6b59ed24199b15a6e6902a9e7227416d"
+  },
+  {
+   "id": "c8-alex-cinema",
+   "repository": "Gaoc3/alex-cinema",
+   "commit": "0be7c801fb631b25fc97873fe0f157765bd40f65",
+   "archiveSha256": "a4119affd6eda207378852c88899910ed26a8cf694c01ff5af3eda03b9b61356"
+  },
+  {
+   "id": "c8-sudomeet",
+   "repository": "GautamVhavle/SudoMeet",
+   "commit": "09ea68196a744a35bf247c36c1f5d4e28e06ec5e",
+   "archiveSha256": "15dd4838612fdaeee8693fc3256c069be539866bc0d79cf1abd2c567e8713d87"
+  },
+  {
+   "id": "c8-generatedgallery",
+   "repository": "generatedgallerybot/generatedgallery",
+   "commit": "a2cf89f0be7b171cab2e68a8c233274d742775e4",
+   "archiveSha256": "fb004f95a128d935f8e391288b35e8f5ac8927a3020ed674e11d94b1fc727e62"
+  },
+  {
+   "id": "c8-borjie-101",
+   "repository": "GeorgeMwiki/BORJIE-101",
+   "commit": "da7dcc62c7ee6ce96e54d6cc604693e65e330d9e",
+   "archiveSha256": "ada6e74ebb40d15f3936a0c4ba721cc4937d1e1bcc52cded590c8206fc5f4e52"
+  },
+  {
+   "id": "c8-systemprocomputer",
+   "repository": "German2005-png/systemProComputer",
+   "commit": "d9d541bc762e206c616f704356992945d8aeeb69",
+   "archiveSha256": "1720b0ca2998ab72e7869ab1a57ca68b5c9a94ce1085bc119fce716235a1a7a5"
+  },
+  {
+   "id": "c8-instax",
+   "repository": "ggauravky/InstaX",
+   "commit": "0c15aa7a26a8d5f62106a1cf3da999d5613382ff",
+   "archiveSha256": "aa440060c3632f36f69aa5c8543a4c0bed50080ebe8e42373f484b44e1783bcd"
+  },
+  {
+   "id": "c8-focal",
+   "repository": "Ghoti-Naki/Focal",
+   "commit": "dc696e872dcd9e20527219607daa5e010f24d20e",
+   "archiveSha256": "c97513a69a8c0cd159c9e45db485fa9f4adaadb89e646e7fb48c9146464be033"
+  },
+  {
+   "id": "c8-next-bigmeal",
+   "repository": "ginodalsasso/next-bigmeal",
+   "commit": "d93f4f1b09735b0db81a33d6b19a5a035861198a",
+   "archiveSha256": "63578f677e34dc45042ed214723eead31eadaa7615d9794afb5122a9c9279d9e"
+  },
+  {
+   "id": "c8-timesheet",
+   "repository": "Gioixxx/TimeSheet",
+   "commit": "2606bf9ebd566690a7948e5145b3b836bfe6dddc",
+   "archiveSha256": "4b70b7aedb524dc9655974a46cbbc8b59ce7013823a7d719b849e8988f29a1c8"
+  },
+  {
+   "id": "c8-celestia",
+   "repository": "gionut98/celestia",
+   "commit": "7b7b63772cd9d31c5f7f71bbe3e24f1d3f6c55a5",
+   "archiveSha256": "26f28c32ad7be8a32498103d1d2c76bba7f24f867166899f71f6a150af9eea3e"
+  },
+  {
+   "id": "c8-year-in-pixels",
+   "repository": "gionut98/year-in-pixels",
+   "commit": "204897ec8099aff2ea8c5897d95caf39fbb89bf2",
+   "archiveSha256": "3db3db0d39d593300d3eb6501423966f272f1dbeadc9e0416a3204e55697b620"
+  },
+  {
+   "id": "c8-agent-opportunity-tracker",
+   "repository": "girmmy/agent-opportunity-tracker",
+   "commit": "2957878d43ae5430ad9bf840e0ae01e8f31d4de7",
+   "archiveSha256": "c879646623e80a19d4ba3d5d0cfec1c0b8c80f29150581e9ffa01f3383454c12"
+  },
+  {
+   "id": "c8-instagram-saved-posts",
+   "repository": "gitnasr/Instagram-Saved-Posts",
+   "commit": "ac223f34f410cd428a3f93574a8f57aef45e8e3d",
+   "archiveSha256": "619f979b795c611d31e196713b3b20f5c8b1661b13247290701f7673d5539f31"
+  },
+  {
+   "id": "c8-dookdesign",
+   "repository": "GiuGerlo/dookdesign",
+   "commit": "217ee2b7de6dfb56d40c509a627a82b8d57e8917",
+   "archiveSha256": "6c2050f8e676dd9965377769977bf67424d8bdcbbf2a0656d292a3def0cb3b5f"
+  },
+  {
+   "id": "c8-ai-ecommerce-personalization-rules-engine",
+   "repository": "gk155586/AI-Ecommerce-Personalization-Rules-Engine",
+   "commit": "dc2186c10759b24b8a9d2f703dcb35a84b9ead17",
+   "archiveSha256": "bb70d2a670be0e62bdf90f5285f22dc787580ce74111386da38c7608f3c344c4"
+  },
+  {
+   "id": "c8-distop",
+   "repository": "gks1209/Distop",
+   "commit": "0ac2ead6387633d8708f652425f71c3b6636f822",
+   "archiveSha256": "2f286a642f3a17ea7daed3d12af77e0b358d3422b3b88be2504e54963658cb81"
+  },
+  {
+   "id": "c8-codafofo",
+   "repository": "glferreira-devsecops/codafofo",
+   "commit": "425c1274bf9138ac5c156b43cb06f3db8c6e19e9",
+   "archiveSha256": "84873cedd583c5f0919506182e5363de0d06d8d237e78da8ccdb3483e007c50c"
+  },
+  {
+   "id": "c8-jobpilot",
+   "repository": "Gninho-silue/jobpilot",
+   "commit": "9cde4b0abbb2b67520e3402b7582588a4879badb",
+   "archiveSha256": "70c7809f5e3548ada8f0e119389349cb5a38f503e0f2d08930672041c8f7469a"
+  },
+  {
+   "id": "c8-godevlab-hub",
+   "repository": "godevlabproduction/godevlab-hub",
+   "commit": "e3bf6e1137791345a6082845239a8f06aaf4a78c",
+   "archiveSha256": "bbb662bf3435d4e1d256ad7cf01884d4ee6cbe079a4e83a83dcedfd7848fd42d"
+  },
+  {
+   "id": "c8-wedding-photo-upload",
+   "repository": "godevlabproduction/wedding-photo-upload",
+   "commit": "45be939dffb5d9a48b0f0ea1e7b4eae82d824868",
+   "archiveSha256": "706f9672304fed4fcd57146e6961842e48f280dacc06dfca1d310a2bc053a6bb"
+  },
+  {
+   "id": "c8-fitplan",
+   "repository": "GodFaizT/FitPlan",
+   "commit": "f546299abef600bd1d569df5a6d2ad99d456fa2c",
+   "archiveSha256": "5f1220658b408f70e81c285630c163da91ae5ad5340bae2abc925c7a0ec6ef67"
+  },
+  {
+   "id": "c8-taxi-boy",
+   "repository": "GoncaloArnauthSantos/taxi-boy",
+   "commit": "3631a9fa7d708547d6533b55b98fdc784ed721c9",
+   "archiveSha256": "7a4cef4eb3b9675a9818362544320cbe9312c0dcf87c03f2cc67f554edaa561b"
+  },
+  {
+   "id": "c8-capt",
+   "repository": "gotmagnus/capt",
+   "commit": "72866daf7093790be3553ce18182239f373f0a92",
+   "archiveSha256": "da6f5c142820f45ee7ddae3b08417ebd05f288d0aba7f8f0a9a7aaf33626a9ca"
+  },
+  {
+   "id": "c8-ecommerce-store",
+   "repository": "gotneb/ecommerce-store",
+   "commit": "f1345961e364aa73d437f0b5847e0a2cc2d3ea51",
+   "archiveSha256": "23b996be116ae29dfd7aab4ea69282b9ede265a6cd92035ec2838d18a50d2217"
+  },
+  {
+   "id": "c8-peerproducts",
+   "repository": "gouravsahax/PeerProducts",
+   "commit": "6c645f9f090e998ead9fe531a1b74740a375a195",
+   "archiveSha256": "4afb0abb491fa6fbe0026caeefe7fc7bb91518567aec33ab94574a4384131e71"
+  },
+  {
+   "id": "c8-capstack",
+   "repository": "gregoryrhamiltonjr-prog/capstack",
+   "commit": "5f51593110fbee47753dc26afd1a99304c6004ef",
+   "archiveSha256": "f8c669d6b82325641df498f6c88639ce08562d4f6202ed882166aa517c4e54dc"
+  },
+  {
+   "id": "c8-book-swipe",
+   "repository": "gs-imak/book-swipe",
+   "commit": "b908ac39ca472a428cf9d3b091077f17cb253928",
+   "archiveSha256": "61ff0e13fcf35def06d7005564ea262cea627cc7b1ef31362409d0533bc302ea"
+  },
+  {
+   "id": "c8-chartgen",
+   "repository": "gUBII/chartgen",
+   "commit": "38ded6eac01b595081a1874a90d4981c68c24f41",
+   "archiveSha256": "a32ee8cbce6fe664d091c01f05c5920f97937de053156d3c0fd67bb8722cb8df"
+  },
+  {
+   "id": "c8-gud-gaming",
+   "repository": "gudchalmers/gud-gaming",
+   "commit": "e7088462d39eb0d6e221fa46d08695d2c7b28f72",
+   "archiveSha256": "c7c8b108e4654a94f0f22aac86049a3d1c1b73bdefb400b06f7df132278698d7"
+  },
+  {
+   "id": "c8-poke-dex",
+   "repository": "GuilhermeRiguitti/poke-dex",
+   "commit": "be12133e0486d0b1d24687abbbbc4d2b6c5dafc5",
+   "archiveSha256": "8f130603b47ea348fae6caccfdab906025373ce079277a7156c480a5eb989dba"
+  },
+  {
+   "id": "c8-wedding-management-system",
+   "repository": "guiloklex-hub/wedding-management-system",
+   "commit": "b38640745c40f37524852a96464a49c49a683fd1",
+   "archiveSha256": "ed69fa440d0097906f14e95d82f6b63325e5d52a83a800b98874aa8d2fa5b2ad"
+  },
+  {
+   "id": "c8-bigfy",
+   "repository": "guisilva10/bigfy",
+   "commit": "6436f98905a884a77091dc37e2fa4d3c386439dc",
+   "archiveSha256": "0cbb0d537751bb8992cfb02e50b6787f051668907a21c668600fec8651956149"
+  },
+  {
+   "id": "c8-cliplink",
+   "repository": "gurwindersingh777/clipLink",
+   "commit": "2268a1d49248857cd9c2499894d0ee63995ff3d3",
+   "archiveSha256": "a50250b0348d55775e0000a0e6fcb60a02d9456f0eb22a0a39867ebedbb5129b"
+  },
+  {
+   "id": "c8-burger-wiki",
+   "repository": "GWjun/burger-wiki",
+   "commit": "61b6ade74e5900219aa6e1d760bb3db2b71073de",
+   "archiveSha256": "37cf3fd2805366a66dc93fa7abd53326e10b7a15cb8bd1aeedf20882d58b4da8"
+  },
+  {
+   "id": "c8-volta",
+   "repository": "gxcsoccer/volta",
+   "commit": "97d255d98de6e24c8ae4fe91ea777424f7f09540",
+   "archiveSha256": "85edc5cd6882e2d75665de8f6282d7a54fb940627fe62ff893b70488a32be8af"
+  },
+  {
+   "id": "c8-bueboka-website",
+   "repository": "haakonhelmenrusas/Bueboka-website",
+   "commit": "060b8e0a6558b198caf53a526aa749093f9438ef",
+   "archiveSha256": "9b9bdb4be92371bd9cf261c2d906d948d555a356949353ec5dd4c7b06800aaa5"
+  },
+  {
+   "id": "c8-jini-prompter",
+   "repository": "hackwithayush/jini_prompter",
+   "commit": "0bff6c00eea397f6e42f371d65c8015424cbf018",
+   "archiveSha256": "b8b8de63a1fa3e3c5d5f95af8e6788f5327e33ebd9b94ce74bfde27dd0c2b148"
+  },
+  {
+   "id": "c8-identity-security-lab",
+   "repository": "hadimouter/identity-security-lab",
+   "commit": "3a33985089d620735cdebb8c26120651189f0da3",
+   "archiveSha256": "dbe13a9bb72427ec82cdd9749bc4e1a803f33fdccc071d46491805d33c92bd39"
+  },
+  {
+   "id": "c8-heard-patient-advocacy",
+   "repository": "halifrieri/heard-patient-advocacy",
+   "commit": "cecfc2e48660e69e688f1fa4f9e474ffbcef3050",
+   "archiveSha256": "e4a37092e2cdd1376b4230cd035c4c7bef642a2f880ba3e55d83670588be4666"
+  },
+  {
+   "id": "c8-forzadj",
+   "repository": "hamidkazimov777-cmd/forzadj",
+   "commit": "817390a51897f36248bc6792b0ae53c7a73d5626",
+   "archiveSha256": "b37b3484f505985a39357b6ef25f9c0dd5b5233f2ff6aa6db4b754b1c89f086b"
+  },
+  {
+   "id": "c8-resumme",
+   "repository": "hamidkazimov777-cmd/resumme",
+   "commit": "650afb6a5324c30e52b2f5b77cefcd2ddf543334",
+   "archiveSha256": "acce115abe117420da8ad3b3593fd93cf94cafef702133e83db7c188cf3cf101"
+  },
+  {
+   "id": "c8-chatify",
+   "repository": "HamzaDevelops42/chatify",
+   "commit": "69565a562495a22d8499008f5a0558865fd83f8b",
+   "archiveSha256": "d8fd78cc2a6f5772481062ba9c0cbc80fdcbb402c61027abbc50aca3ad534284"
+  },
+  {
+   "id": "c8-asal-ya-nakli",
+   "repository": "HamzaKhanBUIC/asal-ya-nakli",
+   "commit": "a8cf8288607313ac91ebfe6810eac750279a108c",
+   "archiveSha256": "e4d5a80830fb91c1c2565f5aa382d6516927aaec211a982b5f360453e86d144d"
+  },
+  {
+   "id": "c8-meal4moodv2",
+   "repository": "hao-phamdev/Meal4Moodv2",
+   "commit": "1b0646e31e65a8189f2d86aeef1150ee0ca4fe3c",
+   "archiveSha256": "9b9305bef74d83950c03f45840befa419940aa043d8cb747b1ecc48f3cace323"
+  },
+  {
+   "id": "c8-folio-store",
+   "repository": "HariYenuganti/folio-store",
+   "commit": "df6b752b2cff2d95a8f6ffe845dd6dcbd2e11ec9",
+   "archiveSha256": "721095f9c6ef71185ddd48149700f13735b214b371a085a9588c5c869feb6251"
+  },
+  {
+   "id": "c8-blog-platform",
+   "repository": "Harsh-GitHup/blog-platform",
+   "commit": "76043f168b5b381fee55a55e8bf7be5d74dc5172",
+   "archiveSha256": "5d901339f14f1a893206d42da806b4638ffae5312f22c4c46f79e80a07b2a573"
+  },
+  {
+   "id": "c8-next-read",
+   "repository": "harsh-raj-singh/next-read",
+   "commit": "e51a991e662afbc64104941a569b5e238a67bd1e",
+   "archiveSha256": "b35bb510c7a7e357cc2170ea96082c9ca0598654dece93645c50c9f92daf8b11"
+  },
+  {
+   "id": "c8-tradeos",
+   "repository": "HARSH2413/tradeos",
+   "commit": "b27b8e0efd3c6f9dfd9be0b59b42a5a224a2b18a",
+   "archiveSha256": "427b2574b5d1e0625b6edcbe745255153821c73849214deeb0b18fce6b332fe0"
+  },
+  {
+   "id": "c8-guardrail-auditor",
+   "repository": "Harsh7115/guardrail-auditor",
+   "commit": "742dd157ca26a5181fc950acf29cb3cd7a34baaa",
+   "archiveSha256": "378c3d699f0c9abb1ff8c0fafd67567055fea1b923452e56e945bcdc66ace08b"
+  },
+  {
+   "id": "c8-voice-ai",
+   "repository": "harshmriduhash/Voice-AI",
+   "commit": "566913d4026cbbf46d9e0f1c3fba136012886cec",
+   "archiveSha256": "6901e786febead0edffac4b9afd6799e382c5c9eee4d6dcdcf47740d0df883e4"
+  },
+  {
+   "id": "c8-thread-county-github",
+   "repository": "HarshuBuilds/Thread-County-GitHub",
+   "commit": "ff232fd6e5e2ee8f9d67cf2bc6c078799181f74d",
+   "archiveSha256": "2cdf25a5824e26cb39879abe27f9df2ba5644ccb11409dcaef695f52853433a3"
+  },
+  {
+   "id": "c8-fit-hcmute",
+   "repository": "HCMUTE-RTIC/fit-hcmute",
+   "commit": "c44e5331f1c4aeba5d8c91fa6da4c98e2b075778",
+   "archiveSha256": "3c5010f78c732e36e2a582fe5b140f1e7ccb498165127972314e83baedc8b0d4"
+  },
+  {
+   "id": "c8-shff-notes",
+   "repository": "Heisenberg4441/shff-notes",
+   "commit": "31cf119e26435dc043b732ece348faa4176785e9",
+   "archiveSha256": "7b6d17dacded300d91ffc07c6c6d69723a7b8ab36c234064bcf0ac497df926d4"
+  },
+  {
+   "id": "c8-pulse-2",
+   "repository": "Henok-Aragaw/Pulse",
+   "commit": "5c002210fb2519dd194a00d24797942c0d0e74e9",
+   "archiveSha256": "e2e650e7a45e3600b1792f2cd048c2dde62514924685722e4209a5ba8f846e7e"
+  },
+  {
+   "id": "c8-coffee-buddy",
+   "repository": "henrykaus/coffee-buddy",
+   "commit": "9d790aec670fd4096f9b355c6cac8ba87fa323eb",
+   "archiveSha256": "de940ab2b4077133e6b12795274d6b252c6e42fa07d8b84da62920ac887ab352"
+  },
+  {
+   "id": "c8-echoboard",
+   "repository": "heyitsadityaa/echoboard",
+   "commit": "d7ba8f1be63311cf611ae01a3c5ca18833251c8b",
+   "archiveSha256": "39d5a0d7cb9b1fcd96956b55e56ecfed82fe5e94a9ef2a7553aa4f76b9cee7ec"
+  },
+  {
+   "id": "c8-dealping",
+   "repository": "hf5296/dealping",
+   "commit": "02df174831738749c2b377d962dc2bc5ba36ba97",
+   "archiveSha256": "17463686b7109e66d4ddb1447957e38b6f3c0fc90ceb01306dc6da7c202d97be"
+  },
+  {
+   "id": "c8-word-monument",
+   "repository": "Hiberius/word-monument",
+   "commit": "8fcce00507d1fc70b1e9ca8c3dcd14347b8e7b86",
+   "archiveSha256": "bca7656296fc5015d9ae94e07080d73f95238ec226ec4f27adb3e64fea491ce6"
+  },
+  {
+   "id": "c8-anime-watchlist",
+   "repository": "hidatara-ds/Anime-Watchlist",
+   "commit": "55a381fdb2de3988f2e946070bb594e6db55f068",
+   "archiveSha256": "22f079e94b1d60c1b63bc2f8f6b2a97cabac6db71084e6599f928234a620ea44"
+  },
+  {
+   "id": "c8-nextstart",
+   "repository": "Hikkywannafly/NextStart",
+   "commit": "18942f1126661ad83fb244f73dbdd9dc4c996e08",
+   "archiveSha256": "3fe297e4f24fa6cf431b71539ca2a07ffae69a7709ff2e5982e7c1420358d104"
+  },
+  {
+   "id": "c8-virtual-business-tickets",
+   "repository": "HiramPeru/virtual-business-tickets",
+   "commit": "486e9de1c18cc52333189080540bba454acea943",
+   "archiveSha256": "d8d2c43a30442087f43deba39afe60cbe156543b5472c5f43c24c262f3f4a62b"
+  },
+  {
+   "id": "c8-colombo-build-live",
+   "repository": "hisshanzzz/colombo-build-live",
+   "commit": "74e162ef1da7523d672547696628927c1f4064a9",
+   "archiveSha256": "fa8ff2167501febc3ecbc393c7c7616e807d2d8e534ea58c681a7707229fd3a2"
+  },
+  {
+   "id": "c8-telecast",
+   "repository": "hitoriiiiiiii/TeleCast",
+   "commit": "94462026ab9a4605225be6a6fbd040998395af4d",
+   "archiveSha256": "eda0dd3562b0924c4d07b28eb0d3fe24f1b6380c2eb67b74bda3102309ebc0c6"
+  },
+  {
+   "id": "c8-hodl",
+   "repository": "hodl-board/HODL",
+   "commit": "c534efb258aa36aa7fff897eaabed68dbb0754a2",
+   "archiveSha256": "5d8c3dd2204ba22577d962fbdfc9f3f91d656e18b3bf38f37a37e7fe2978f08a"
+  },
+  {
+   "id": "c8-smart-pantry",
+   "repository": "HpatricioH/smart-pantry",
+   "commit": "ee0b37408e0e55039704591e08f45dc4d23aa7ec",
+   "archiveSha256": "8ecd05b6c7ed2f92348bc29df61cf90e953a3a7f850f8a3ca30e741410c36522"
+  },
+  {
+   "id": "c8-ielts-prep",
+   "repository": "Hqzdev/ielts-prep",
+   "commit": "8ba167ef10a15e14882aaec618aa0140b4e6209f",
+   "archiveSha256": "e3461c6ae5221580b02e7d10e2bd2cba844b922965a392a541c5334e3357a449"
+  },
+  {
+   "id": "c8-slate",
+   "repository": "Hqzdev/Slate",
+   "commit": "34ba2ab1acdac8b74942b6dd93bc52781716d34d",
+   "archiveSha256": "56c6fa4dac94204acaabf4c795b743cb3a9ba1c4d4ee4bc181b73cb1f83f647c"
+  },
+  {
+   "id": "c8-task-queue",
+   "repository": "HrushiBorhade/task-queue",
+   "commit": "3baa9b19466094d32aa68efbab4e4d2a8963d852",
+   "archiveSha256": "68f6ca69aa1c4aa8a0dd8ff5319039453e6497385bc22395d74d6659b78044f6"
+  },
+  {
+   "id": "c8-agentic-coliseum",
+   "repository": "hseghetti/agentic-coliseum",
+   "commit": "fb3c02c4ef4806e52a16ecb620e3d8500bfe7340",
+   "archiveSha256": "f390736f3f3943e7e55a3d27a4c362e700127bc41f22fea942d2a3fa7808689b"
+  },
+  {
+   "id": "c8-undocx",
+   "repository": "htmujahid/undocx",
+   "commit": "8c67d38309367de2e9b03194b9b45e5f6e15435e",
+   "archiveSha256": "16b9f807072ea93dd5eb280a4ad0009c39fde67e21c4a309edc01dc78409736c"
+  },
+  {
+   "id": "c8-boloyun-com",
+   "repository": "huseyinemanet/boloyun.com",
+   "commit": "f038e71175a2aab362227105aaa8432d6c1d3bcf",
+   "archiveSha256": "054fd9a66eb60a2f0f421a5f4f304181e64027191aecd04300a5eee1e728d300"
+  },
+  {
+   "id": "c8-intellipdf",
+   "repository": "Hussain-7/IntelliPDF",
+   "commit": "b20f06c48e54647b570026c23fc914f49eef02b6",
+   "archiveSha256": "3616738668de98c15e9ab333ace207ae3f661acc16835ef73a1e68d2007c094a"
+  },
+  {
+   "id": "c8-stackgate",
+   "repository": "hxrish04/stackgate",
+   "commit": "e5e12b97d9af8c4c7021e6927e3aa9c8ef272cf8",
+   "archiveSha256": "f4dfa817b08bd7d17b61eedc3ff4244d65135fb0a6c50f475302205612aced26"
+  },
+  {
+   "id": "c8-maqro",
+   "repository": "hyp3rd/maqro",
+   "commit": "47df270182c139953bf5a76e63847440528fed22",
+   "archiveSha256": "b41cf7c81b6fe3df29033f5529c319ed361e6fbedf18c1ee01623cfdae601dac"
+  },
+  {
+   "id": "c8-akb-studio",
+   "repository": "i-akb25/akb-studio",
+   "commit": "f7b1ba4f9b4d70eecda27e50744fb6cf25f08aa9",
+   "archiveSha256": "6c452219ac666ba4ab65e221ad677eaa52160e24b4e8940d880043d19a4ea974"
+  },
+  {
+   "id": "c8-summize",
+   "repository": "iaadi4/Summize",
+   "commit": "45cce2ca779c291fc8380eaaba5bb4dac4d3eaf4",
+   "archiveSha256": "9bc40490aa31b9a20f401c0c7103770657c882af9d7bafb11613e2aa16c9d718"
+  },
+  {
+   "id": "c8-hubforge",
+   "repository": "IagoPL/HUBFORGE",
+   "commit": "c1bd3fc06296d297b669e1dbbf5f6b7d23d35469",
+   "archiveSha256": "8d2892f082af56c88a92746aeaf0da6500c149953bd23c850c4292f92510fea8"
+  },
+  {
+   "id": "c8-bhukkad",
+   "repository": "iamadarsha/Bhukkad",
+   "commit": "7fcec6b259320756f9d04568a58769f3a53f0828",
+   "archiveSha256": "3b3e2c7f9624298cb8119d014c00852a1cf6723d9d60ac4c2283592ad01950a5"
+  },
+  {
+   "id": "c8-dineflow-restaurant",
+   "repository": "IamRishiraj1/Dineflow_Restaurant",
+   "commit": "d916813d1465ef1b5a3e2d7488945e8aa32e93d5",
+   "archiveSha256": "45e104f76bd31d22609027f0bbbd97a8a69aab520e9892687c4cdc9817d2455a"
+  },
+  {
+   "id": "c8-medusa-e-ecommerce",
+   "repository": "iamzubair6/medusa-e-ecommerce",
+   "commit": "749743274cc0480c60b0ff359b6646440d5e5851",
+   "archiveSha256": "611dec046797b5c7bbae8155bef54b1f5594ee0ad001a5891fd0d3e0de398690"
+  },
+  {
+   "id": "c8-clinic-management-system",
+   "repository": "iarisaldy/clinic-management-system",
+   "commit": "6539f20f1afa92a6749ba31caec25167b4b0eb61",
+   "archiveSha256": "c6538923811aa6d1f915e15519031aa1d7ce1448fedff612bde219cce390a1d1"
+  },
+  {
+   "id": "c8-planwiki-app",
+   "repository": "Ibradl3673/planwiki-app",
+   "commit": "2c533fa3ddc0ebb88dedc7897b79524423c35d1b",
+   "archiveSha256": "9be02666ed929f834eeb2f43396ff561887b3123c07065471adb2da5df312cc9"
+  },
+  {
+   "id": "c8-cleopatra-beauty-web",
+   "repository": "ibraheem9900/cleopatra-beauty-web",
+   "commit": "fb8e0b84335353109573f3c4ce69bf7a49399c6e",
+   "archiveSha256": "c53e3dca9e9d74cae4a87ba234605f856b21cd306c26af176347eeb50f7261f7"
+  },
+  {
+   "id": "c8-rotundaspreita-web",
+   "repository": "iDarkQ/rotundaspreita-web",
+   "commit": "56da134e44a128c417da8a74bb9d1fba75b331a1",
+   "archiveSha256": "52829e1df4a978f7c932cccd439886b49797256b6c3112a2cdedc30c07ad5f66"
+  },
+  {
+   "id": "c8-trip-planner",
+   "repository": "idean3885/trip-planner",
+   "commit": "21ae8e0434de48c47ec9327e49049b926d482051",
+   "archiveSha256": "d30f4e8ecc7e94f5f517ad0e101ee583e9f2801e8ac6817083d962d31c9b6192"
+  },
+  {
+   "id": "c8-voiceflow",
+   "repository": "iFralex/VoiceFlow",
+   "commit": "a6be4be0827f78661605d54523389f3ba011bfd0",
+   "archiveSha256": "d02f6554254f8e0793dda77a33ca05c5b4705733639b45e289c325551f3f3d85"
+  },
+  {
+   "id": "c8-auraspear-platform",
+   "repository": "ihabkhaled/auraspear-platform",
+   "commit": "82a0953c141f860066bc5cf3b50901f7e1ab6083",
+   "archiveSha256": "303b5a67d18e48cb5630559761557cde9a60c3ad2af907433a8993fd94d26a36"
+  },
+  {
+   "id": "c8-ihsanmuh",
+   "repository": "ihsnmuh/ihsanmuh",
+   "commit": "58bdcd7cd380e16ca5ee1c49bb2889fb7a25382e",
+   "archiveSha256": "72b66fd53534ecbda16ef9b194e75241a88f920f6d22f33162a5eab1455a9edb"
+  },
+  {
+   "id": "c8-gerai-bkmt",
+   "repository": "ihyaabrar/Gerai_BKMT",
+   "commit": "802b79aac18fe1969894d781f88c4b1daed6f27a",
+   "archiveSha256": "c2390e871de41830c082f33cf65429f40cd73b792c37a2e0de69cd8c073a2784"
+  },
+  {
+   "id": "c8-crmautomationtool",
+   "repository": "Iliassmalki/CRMautomationtool",
+   "commit": "1120ec008de4b7c30e29c73237e2cef2312042be",
+   "archiveSha256": "ae8e3a7e38412056f1e5ae4970b655ed0416f9d31c9150c048cb33b15fdf7cdf"
+  },
+  {
+   "id": "c8-neloo",
+   "repository": "Imd11/neloo",
+   "commit": "78101013f6d91bb94fca1eabc87e844f90a96a3b",
+   "archiveSha256": "a06f89d789064ecf29f0b58341908f5910e9d2c89f1ae181d02e332369b68ea1"
+  },
+  {
+   "id": "c8-jings-finance-app",
+   "repository": "IndexDuo/Jings-Finance-App",
+   "commit": "3c2dd04349cdc2e9da24a409c65481f3393a2823",
+   "archiveSha256": "029a9a5ffdbc124fe2e69af162b640bd03be8b4ce8e417507b14fdfad46ff7df"
+  }
+ ],
+ "labels": []
+}
