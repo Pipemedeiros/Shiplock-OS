@@ -371,6 +371,17 @@ export function looksSynthetic(match: string, line: string): boolean {
   return false;
 }
 
+/**
+ * Whether a vendor-shaped match is only its prefix and one repeated character
+ * (E5: AKIA then sixteen X's in a docs sample). Issued keys are random, so a
+ * filler body is a shape on any path, not a credential; unlike the markers in
+ * looksSynthetic, this one holds in shipped code too.
+ */
+function isFillerKey(match: string): boolean {
+  const body = match.replace(/^(AKIA|sb_secret_|sk-)/, "").replace(/[^A-Za-z0-9]/g, "");
+  return body.length >= 8 && new Set(body.toLowerCase()).size === 1;
+}
+
 /** Six or more consecutive letters in alphabetical order — abcdef, AbCdEf. */
 function hasAlphabeticRun(text: string): boolean {
   const letters = text.toLowerCase().replace(/[^a-z]/g, "");
@@ -446,8 +457,11 @@ export function scanSecrets(files: RepoFile[]): GithubFinding[] {
       /\.env\.(test|spec|ci)$/i.test(file.path);
 
     for (const pat of SECRET_PATTERNS) {
-      const match = pat.re.exec(file.content);
-      if (!match) continue;
+      // The first match that is not filler: a docs sample's AKIA plus sixteen
+      // X's must neither report nor hide a real key later in the same file.
+      const match = [...file.content.matchAll(new RegExp(pat.re.source, pat.re.flags + "g"))]
+        .find((m) => !isFillerKey(m[0]));
+      if (!match || match.index === undefined) continue;
       if (pat.id === "private_key" && !hasParseablePrivateKey(file.content)) continue;
 
       // A fixture value in a test file is scaffolding, not a leak. Both

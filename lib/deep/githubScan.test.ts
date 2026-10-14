@@ -234,6 +234,20 @@ describe("fixtures are not leaks", () => {
     expect(findings[0].severity).toBe("CRITICAL");
   });
 
+  it("does not report a key whose body is one repeated character, even in shipped code", () => {
+    // E5, release attempt 5: a docs page's env sample read AKIA then sixteen
+    // X's, beside "your_aws_secret_access_key", and was reported CRITICAL.
+    // A filler run is a shape, not a credential; a real key beside it still reports.
+    const filler = "AKIA" + "X".repeat(16);
+    expect(scanSecrets([
+      { path: "frontend/app/(docs)/docs/page.tsx", content: `<CodeBlock>{\`AWS_ACCESS_KEY_ID=${filler}\`}</CodeBlock>` },
+      { path: "app/api/x/route.ts", content: `const k = "sk-${"0".repeat(24)}";` },
+    ])).toHaveLength(0);
+    expect(scanSecrets([
+      { path: "frontend/app/(docs)/docs/page.tsx", content: `const a = "${filler}";\nconst b = "AKIA2OGYBAH6QJX7WQ4M";` },
+    ])).toHaveLength(1);
+  });
+
   it("recognises the shapes of test scaffolding", () => {
     for (const p of [
       "lib/x.test.ts", "lib/x.spec.tsx", "__tests__/x.ts", "test/helpers.ts",
