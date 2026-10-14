@@ -1597,8 +1597,16 @@ export function analyzeRouteFile(
   };
 }
 
+// E3 (release attempt 4): a directory before app/ or pages/ that names an
+// example, demo, sample, template, starter or playground holds code the
+// project ships for others to copy, not its own deployed endpoints.
+const EXAMPLE_DIR_RE = /(^|\/)(examples?|demos?|samples?|templates?|starters?|playgrounds?)\//i;
+const APP_ROOT_RE = /(^|\/)(?:src\/)?(?:app|pages)\//;
+
 /** True for files that define an HTTP endpoint. */
 export function isRouteFile(path: string): boolean {
+  const root = APP_ROOT_RE.exec(path);
+  if (root && EXAMPLE_DIR_RE.test(path.slice(0, root.index + root[1].length))) return false;
   if (PAGES_API_RE.test(path)) return true;
   if (!ROUTE_FILE_RE.test(path)) return false;
   // Under an app/ directory anywhere, so a monorepo workspace still counts. A

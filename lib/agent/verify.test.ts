@@ -161,3 +161,12 @@ describe("VERIFY_SYSTEM and data scope", () => {
     expect(VERIFY_SYSTEM).toMatch(/already returns the same fields/i);
   });
 });
+
+// Release attempt 4 (2026-10-14, both labelers partly accurate): the
+// statement said "ShipLock's host" sends the attacker's email; it is the
+// customer's own app. The founder's sentence names the app, never ShipLock.
+describe("VERIFY_SYSTEM and who acts", () => {
+  it("names the app as the actor, never ShipLock", () => {
+    expect(VERIFY_SYSTEM).toMatch(/the app, never ShipLock/i);
+  });
+});

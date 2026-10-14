@@ -579,3 +579,23 @@ export default async function handler(req: any, res: any) { res.json(await listP
     expect(fact).toMatchObject({ authenticated: false, identityReadable: true });
   });
 });
+
+// E3 (release attempt 4, 2026-10-14, both labelers): a starter kit's
+// examples/with-prisma/app/api/users/route.ts was reported as the deployed
+// app's open user list. A route under an examples, demo, sample, template,
+// starter or playground directory is not the app's own endpoint; the same
+// word as a route segment inside app/ still is.
+describe("routes under example and demo directories", () => {
+  it("are not the app's endpoints", () => {
+    expect(isRouteFile("examples/with-prisma/app/api/users/route.ts")).toBe(false);
+    expect(isRouteFile("packages/demo/src/app/api/x/route.ts")).toBe(false);
+    expect(isRouteFile("templates/saas/pages/api/user.ts")).toBe(false);
+    expect(isRouteFile("apps/playground/app/api/x/route.ts")).toBe(false);
+  });
+  it("still count where the word is a route segment or the workspace is the app", () => {
+    expect(isRouteFile("app/api/templates/route.ts")).toBe(true);
+    expect(isRouteFile("src/app/demo/api/route.ts")).toBe(true);
+    expect(isRouteFile("apps/web/src/app/api/x/route.ts")).toBe(true);
+    expect(isRouteFile("pages/api/examples.ts")).toBe(true);
+  });
+});
