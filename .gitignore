@@ -51,7 +51,6 @@ mcp/node_modules/
 # copies (218MB) and the 21MB witness dump are reproducible from the pinned
 # archives pinned in docs/CORPUS.json; retired prose is recoverable in Git history.
 docs/audit/source/
-docs/audit/gate-census-witnesses.json
 
 # Reacquirable checksum-verified evaluation archives and raw per-run inputs.
 .cache/shiplock-corpus/
