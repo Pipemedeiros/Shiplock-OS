@@ -14,7 +14,13 @@ export type ServerActionEntry = { file: string; name: string; importedBy: string
 
 const IGNORED = /(^|\/)(node_modules|\.next|dist|build|vendor)\/|\.(test|spec)\.[cm]?[jt]sx?$/;
 const CODE = /\.[cm]?[jt]sx?$/;
-const USE_SERVER = /(^|\n)\s*["']use server["'];?\s*(\n|$)/;
+/** A module directive comes before any statement; comments may precede it
+ * (R2: an inline "use server" inside a page's function marks that function,
+ * not the file). */
+function isServerModule(content: string): boolean {
+  const head = content.replace(/^#![^\n]*\n/, "").replace(/^(\s+|\/\/[^\n]*\n?|\/\*[\s\S]*?\*\/)*/, "");
+  return /^["']use server["']/.test(head);
+}
 const USE_CLIENT = /(^|\n)\s*["']use client["'];?\s*(\n|$)/;
 const EXPORTED = /export\s+(?:async\s+)?(?:function\s+(\w+)|const\s+(\w+)\s*=)/g;
 const NAMED_IMPORT = /import\s*(?:type\s+)?\{([^}]*)\}\s*from\s*["']([^"']+)["']/g;
@@ -35,7 +41,7 @@ function clientReach(code: RepoFile[], byPath: Map<string, RepoFile>): Set<strin
     if (reached.has(path)) continue;
     reached.add(path);
     const file = byPath.get(path);
-    if (!file || USE_SERVER.test(file.content)) continue;
+    if (!file || isServerModule(file.content)) continue;
     for (const [, spec, dynamic] of file.content.matchAll(ANY_IMPORT)) {
       const target = resolveImport(path, spec ?? dynamic, byPath) ?? resolveViaTsconfigPaths(path, spec ?? dynamic, byPath);
       if (target && !reached.has(target)) queue.push(target);
@@ -63,13 +69,13 @@ export function findServerActionEntries(files: RepoFile[]): ServerActionEntry[] 
   const byPath = new Map(files.map((f) => [f.path, f]));
   const actions = new Map<string, Set<string>>();
   for (const file of code) {
-    if (!USE_SERVER.test(file.content)) continue;
+    if (!isServerModule(file.content)) continue;
     actions.set(file.path, new Set([...file.content.matchAll(EXPORTED)].map((m) => m[1] ?? m[2])));
   }
   const client = clientReach(code, byPath);
   const importers = new Map<string, Set<string>>(); // "file#name" -> importing UI files
   for (const file of code) {
-    if (USE_SERVER.test(file.content) || !isUi(file)) continue;
+    if (isServerModule(file.content) || !isUi(file)) continue;
     for (const [, names, spec] of file.content.matchAll(NAMED_IMPORT)) {
       const target = resolveImport(file.path, spec, byPath) ?? resolveViaTsconfigPaths(file.path, spec, byPath);
       const exported = target ? actions.get(target) : undefined;

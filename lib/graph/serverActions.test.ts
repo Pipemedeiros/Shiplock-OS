@@ -90,4 +90,25 @@ describe("findServerActionEntries", () => {
       f("app/a.test.tsx", 'import { a } from "../node_modules/x/a";'),
     ])).toEqual([]);
   });
+
+  // R2: an inline "use server" inside a function body marks that function,
+  // not the file. A page with one is still a page that can hand an imported
+  // action to the browser, and its own exports are not actions.
+  it("reads a page with an inline server action as a page, not an actions module", () => {
+    const entries = findServerActionEntries([
+      f("app/actions/notes.ts", '"use server";\nexport async function deleteNote(id) {}'),
+      f("app/notes/page.tsx", 'import { deleteNote } from "../actions/notes";\nexport const dynamic = "force-dynamic";\nexport default function Page() {\n  async function rename(form) {\n    "use server";\n    await db.note.update(form);\n  }\n  return <form action={deleteNote}><button formAction={rename} /></form>;\n}'),
+      f("components/Panel.tsx", '"use client";\nimport { dynamic } from "@/app/notes/page";'),
+    ]);
+    expect(entries).toEqual([{ file: "app/actions/notes.ts", name: "deleteNote", importedBy: ["app/notes/page.tsx"] }]);
+  });
+
+  it("still reads a module directive after a leading comment", () => {
+    const entries = findServerActionEntries([
+      f("app/actions/a.ts", '// Server actions for notes.\n/* shared */\n"use server";\nexport async function save() {}'),
+      f("components/A.tsx", '"use client";\nimport { save } from "@/app/actions/a";'),
+    ]);
+    expect(entries).toEqual([{ file: "app/actions/a.ts", name: "save", importedBy: ["components/A.tsx"] }]);
+  });
 });
+
