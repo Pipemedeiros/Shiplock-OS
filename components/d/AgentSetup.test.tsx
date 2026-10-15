@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { AgentSetupView, setupCommand } from "./AgentSetup";
+import { AgentSetupView, httpCommand, setupCommand } from "./AgentSetup";
 
 const base = { tokens: [], fresh: null, busy: false, error: "", onGenerate: vi.fn(), onRevoke: vi.fn(), published: true };
 const html = (props: Partial<Parameters<typeof AgentSetupView>[0]> & { host: Parameters<typeof AgentSetupView>[0]["host"] }) =>
@@ -22,15 +22,27 @@ describe("AgentSetup (MCP for every account)", () => {
 
   it("is honest about what a connected agent does and does not do", () => {
     const out = html({ host: "codex" });
+    expect(html({ host: "claude-code", published: false })).toContain("cannot start your agent");
     expect(out).toContain("when you run it");
     expect(out).toContain("cannot start your agent");
     expect(out).toContain("never merges");
     expect(out).not.toMatch(/applies the fixes|automatically fix/i);
   });
 
-  it("offers no token or command until shiplock-mcp is published", () => {
-    const out = html({ host: "claude-code", published: false });
-    expect(out).toContain("opens once the ShipLock MCP package is published");
+  // G1: the hosted endpoint (app/api/mcp/server) needs no npm package, so
+  // Claude Code connects today; Codex waits for the package, which it needs.
+  it("connects Claude Code over HTTP with no package, and the token in a header", () => {
+    expect(httpCommand("https://shiplock.dev", "tok")).toBe('claude mcp add --transport http shiplock https://shiplock.dev/api/mcp/server --header "Authorization: Bearer tok"');
+    const out = html({ host: "claude-code", published: false, fresh: "tok", origin: "https://shiplock.dev" });
+    expect(out).toContain("Create a token");
+    expect(out).toContain("claude mcp add --transport http shiplock https://shiplock.dev/api/mcp/server");
+    expect(out).not.toContain("npx");
+  });
+
+  it("keeps Codex waiting for the package and points to Claude Code today", () => {
+    const out = html({ host: "codex", published: false });
+    expect(out).toContain("Codex setup opens once the ShipLock MCP package is published");
+    expect(out).toContain("Claude Code can connect today");
     expect(out).not.toContain("Create a token");
     expect(out).not.toContain("npx");
   });

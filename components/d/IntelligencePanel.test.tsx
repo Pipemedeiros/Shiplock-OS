@@ -28,8 +28,9 @@ describe("IntelligencePanel (10B-2b)", () => {
     const out = html();
     expect(out).toContain("your agent spends its own allowance");
     // Every account can connect its own agent over MCP (Felipe 2026-09-23).
-    // Until shiplock-mcp is published the panel says so instead of offering setup.
-    expect(out).toContain("opens once the ShipLock MCP package is published");
+    // Until shiplock-mcp is published, Claude Code connects to the hosted
+    // endpoint (G1) and nothing names the unpublished package.
+    expect(out).toContain("Create a token");
     expect(out).not.toContain("npx");
   });
 

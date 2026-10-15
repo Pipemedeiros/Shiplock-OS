@@ -9,7 +9,8 @@ import { useEffect, useState } from "react";
 import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
 
 /** Flip to true in the same change that publishes `shiplock-mcp` to npm.
- * Until then the panel must not hand out a command for a missing package. */
+ * Until then no command names the package; Claude Code connects to the hosted
+ * endpoint instead (httpCommand), which needs no package. */
 export const MCP_PACKAGE_PUBLISHED = false;
 
 export interface TokenMeta { id: string; name: string; created_at: string; last_used_at: string | null }
@@ -20,21 +21,27 @@ export function setupCommand(host: "claude-code" | "codex", token: string): stri
   return `[mcp_servers.shiplock]\ncommand = "npx"\nargs = ["-y", "shiplock-mcp"]\nenv = { SHIPLOCK_TOKEN = "${token}" }`;
 }
 
+/** Claude Code to ShipLock's hosted MCP endpoint (app/api/mcp/server): no package. */
+export function httpCommand(origin: string, token: string): string {
+  return `claude mcp add --transport http shiplock ${origin.replace(/\/+$/, "")}/api/mcp/server --header "Authorization: Bearer ${token}"`;
+}
+
 const pre = { margin: "6px 0 0", fontSize: 12, lineHeight: 1.5, overflow: "auto" as const, whiteSpace: "pre" as const,
   background: "var(--paper)", border: "1px solid var(--line)", borderRadius: 6, padding: "10px 12px", userSelect: "all" as const };
 const note = { fontSize: 13, color: "var(--muted)", margin: "0 0 10px", maxWidth: 700 } as const;
 
-export function AgentSetupView({ host, tokens, fresh, busy, error, onGenerate, onRevoke, published = MCP_PACKAGE_PUBLISHED }: {
+export function AgentSetupView({ host, tokens, fresh, busy, error, onGenerate, onRevoke, published = MCP_PACKAGE_PUBLISHED, origin = "https://shiplock.dev" }: {
   host: Host; tokens: TokenMeta[]; fresh: string | null; busy: boolean; error: string;
-  onGenerate: () => void; onRevoke: (id: string) => void; published?: boolean;
+  onGenerate: () => void; onRevoke: (id: string) => void; published?: boolean; origin?: string;
 }) {
   if (host === "chatgpt") {
     return <p style={note}>ChatGPT connection is not available yet. Choose Claude Code or Codex to connect an agent today.</p>;
   }
-  if (!published) {
-    return <p style={note}>Agent setup opens once the ShipLock MCP package is published. Your approval here is saved and applies as soon as your agent is connected.</p>;
+  if (!published && host === "codex") {
+    return <p style={note}>Codex setup opens once the ShipLock MCP package is published. Claude Code can connect today. Your approval here is saved and applies as soon as your agent is connected.</p>;
   }
   const where = host === "claude-code" ? "Run this in your terminal:" : "Add this to ~/.codex/config.toml:";
+  const command = (token: string) => (published ? setupCommand(host, token) : httpCommand(origin, token));
   return (
     <div style={{ marginBottom: 12 }}>
       <p style={note}>
@@ -49,7 +56,7 @@ export function AgentSetupView({ host, tokens, fresh, busy, error, onGenerate, o
       {fresh ? (
         <div style={{ marginTop: 10 }}>
           <p style={{ ...note, color: "var(--ink)" }}>Copy it now: this token is shown only once. {where}</p>
-          <pre style={pre}>{setupCommand(host, fresh)}</pre>
+          <pre style={pre}>{command(fresh)}</pre>
         </div>
       ) : null}
       {tokens.length > 0 ? (
@@ -104,5 +111,6 @@ export function AgentSetup({ host }: { host: Host }) {
     finally { setBusy(false); }
   }
 
-  return <AgentSetupView host={host} tokens={tokens} fresh={fresh} busy={busy} error={error} onGenerate={generate} onRevoke={revoke} />;
+  const origin = typeof window === "undefined" ? undefined : window.location.origin;
+  return <AgentSetupView host={host} tokens={tokens} fresh={fresh} busy={busy} error={error} onGenerate={generate} onRevoke={revoke} origin={origin} />;
 }
