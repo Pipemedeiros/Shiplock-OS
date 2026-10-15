@@ -1,3 +1,4 @@
+import { PROBE_KINDS } from "@/lib/traffic/probe";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { ingestTrafficEvent } from "@/lib/traffic/ingest";
@@ -23,6 +24,9 @@ const bodySchema = z.object({
   ua: z.string().max(512).nullable().optional(),
   session_id: z.string().min(1).max(64).nullable().optional(),
   t: z.number().optional(),
+  // A category the snippet classified locally (lib/traffic/probe.ts); an
+  // unknown value is dropped, never stored or echoed.
+  probe: z.enum(PROBE_KINDS).nullable().optional().catch(null),
 });
 
 export async function POST(req: NextRequest) {
@@ -60,6 +64,7 @@ export async function POST(req: NextRequest) {
         ua: b.ua ?? null,
         session_id: b.session_id ?? null,
         t: b.t ?? Date.now(),
+        probe: b.probe ?? null,
       },
     });
 

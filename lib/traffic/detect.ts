@@ -1,4 +1,10 @@
 import type { Decision } from "@/lib/types";
+import type { ProbeKind } from "./probe";
+
+const PROBE_WORDS: Record<ProbeKind, string> = {
+  sqli: "SQL injection", traversal: "path traversal", xss: "script injection",
+  ssrf: "server-side request forgery", cmdi: "command injection", nosql: "NoSQL operator injection",
+};
 
 // Pure, deterministic traffic detection — no I/O, no Claude (same doctrine as
 // lib/monitoring/findings.ts: background/hot-path logic must be cheap and
@@ -107,6 +113,9 @@ export interface TrafficSignals {
   // The route this source read the most different record ids on, inside
   // SCAN_WINDOW_MS (P4). Null when no path named an id.
   idWalk?: { pattern: string; distinct: number } | null;
+  // The attack pattern the customer's snippet classified in THIS request
+  // (lib/traffic/probe.ts); never the query itself.
+  probe?: { kind: ProbeKind; path: string } | null;
 }
 
 // Pure: rows are this source's recent events (any order). `capped` says the
@@ -184,6 +193,15 @@ export function detect(signals: TrafficSignals): Decision {
     return {
       action: "alert",
       reason: `Possible session hijack: one session used from ${signals.distinctSourcesForSession} sources in ${SESSION_WINDOW_MS / 60000}m`,
+      severity: "WARNING",
+      ttlMs: 0,
+    };
+  }
+
+  if (signals.probe) {
+    return {
+      action: "alert",
+      reason: `Attack probe: ${PROBE_WORDS[signals.probe.kind]} pattern on ${signals.probe.path}`,
       severity: "WARNING",
       ttlMs: 0,
     };

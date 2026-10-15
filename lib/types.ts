@@ -72,6 +72,8 @@ export interface TrafficEvent {
   // from many sources).
   session_id?: string | null;
   t: number; // client-side epoch ms, advisory only — server uses created_at
+  /** The attack pattern the customer's snippet classified locally, if any. */
+  probe?: "sqli" | "traversal" | "xss" | "ssrf" | "cmdi" | "nosql" | null;
 }
 
 export type TrafficAction = "block" | "alert" | "none";

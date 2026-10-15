@@ -10,9 +10,9 @@ vi.mock("@/lib/traffic/ingestLimit", () => ({ ingestLimiter: { allow: () => true
 
 import { POST } from "./route";
 
-const req = () => new Request("https://shiplock.dev/api/traffic/ingest", { method: "POST",
+const req = (extra: Record<string, unknown> = {}) => new Request("https://shiplock.dev/api/traffic/ingest", { method: "POST",
   headers: { "content-type": "application/json", "x-site": "11111111-1111-4111-8111-111111111111" },
-  body: JSON.stringify({ source_id: "s", path: "/login", method: "POST" }) }) as unknown as NextRequest;
+  body: JSON.stringify({ source_id: "s", path: "/login", method: "POST", ...extra }) }) as unknown as NextRequest;
 
 beforeEach(() => { vi.clearAllMocks(); mocks.ingest.mockResolvedValue({ action: "none" }); });
 
@@ -28,4 +28,15 @@ describe("traffic ingest binds site traffic to its repository (2F-2a)", () => {
     await POST(req());
     expect(mocks.ingest).toHaveBeenCalledWith(expect.objectContaining({ siteId: null, repositoryId: null }));
   });
+
+  // In-app probes: only a known category reaches detection; anything else
+  // (a query string smuggled in, an unknown label) is dropped, not stored.
+  it("passes a known probe category and drops anything else", async () => {
+    mocks.resolve.mockResolvedValue({ userId: "u1", email: null, siteId: "s1", repositoryId: "r1" });
+    await POST(req({ probe: "sqli" }));
+    expect(mocks.ingest.mock.calls[0][0].event.probe).toBe("sqli");
+    await POST(req({ probe: "id=1' OR '1'='1" }));
+    expect(mocks.ingest.mock.calls[1][0].event.probe).toBeNull();
+  });
 });
+

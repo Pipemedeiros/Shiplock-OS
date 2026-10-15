@@ -74,7 +74,8 @@ export async function ingestTrafficEvent(params: {
       distinctSourcesForSession = new Set((sessRows ?? []).map((r) => r.source_id as string)).size;
     }
 
-    const decision = detect(computeSignals(rows, Date.now(), capped, distinctSourcesForSession));
+    const signals = computeSignals(rows, Date.now(), capped, distinctSourcesForSession);
+    const decision = detect(event.probe ? { ...signals, probe: { kind: event.probe, path: event.path } } : signals);
 
     if (decision.action === "block") {
       const now = Date.now();

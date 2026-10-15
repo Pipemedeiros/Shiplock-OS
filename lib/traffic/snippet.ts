@@ -1,6 +1,8 @@
+import { probeSnippetSource } from "./probe";
+
 // Generates the fail-open middleware the customer pastes into their Next.js
 // app. Delivered as text on the dashboard today (copy-paste); PR-delivered
-// once the GitHub App exists. This is NOT ShipLock's own middleware — it runs
+// once the GitHub App exists. This is NOT ShipLock's own middleware: it runs
 // in the customer's compute and must fail open: our being down can never take
 // their app down or add latency to their hot path.
 //
@@ -10,16 +12,20 @@
 // source_id is salted with the site token (stable per-site, so a block stays
 // valid across its whole TTL, and unlinkable across different sites).
 export function buildSnippet(ingestToken: string, origin: string): string {
-  return `// ShipLock edge traffic protection — fail-open. Safe to remove anytime.
+  return `// ShipLock edge traffic protection: fail-open. Safe to remove anytime.
 // Our being unreachable never blocks or slows your app.
 import { NextRequest, NextResponse, NextFetchEvent } from "next/server";
 
 const SHIPLOCK_ORIGIN = ${JSON.stringify(origin)};
-const SHIPLOCK_SITE = ${JSON.stringify(ingestToken)}; // your site key — treat like a password
+const SHIPLOCK_SITE = ${JSON.stringify(ingestToken)}; // your site key: treat like a password
 
 let blocklist = new Set<string>();
 let fetchedAt = 0;
 const REFRESH_MS = 30_000;
+
+// Attack probes, classified here in your server. Only the category (for
+// example "sqli") is sent to ShipLock, never the query string.
+${probeSnippetSource()}
 
 export async function middleware(req: NextRequest, ev: NextFetchEvent) {
   const ip =
@@ -28,12 +34,12 @@ export async function middleware(req: NextRequest, ev: NextFetchEvent) {
     "anonymous";
   const id = await sourceId(ip);
 
-  // 1) ENFORCE — synchronous in-memory lookup. Empty set (cold start) = allow.
+  // 1) ENFORCE: synchronous in-memory lookup. Empty set (cold start) = allow.
   if (blocklist.has(id)) {
     return new NextResponse("Too many requests", { status: 429 });
   }
 
-  // 2) MIRROR — after the response ships; never blocks or slows the request.
+  // 2) MIRROR: after the response ships; never blocks or slows the request.
   //    Include a salted hash of the session (never the raw token) so ShipLock
   //    can spot one session used from many places at once (session theft).
   const sess = await sessionId(req);
@@ -53,7 +59,8 @@ async function sendEvent(id: string, sess: string | null, req: NextRequest) {
       body: JSON.stringify({
         source_id: id,
         session_id: sess, // hashed session, or null when signed-out
-        path: new URL(req.url).pathname, // pathname only — never the query string
+        path: new URL(req.url).pathname, // pathname only, never the query string
+        probe: probeKind(new URL(req.url).pathname + new URL(req.url).search), // a category or null, never the query
         method: req.method,
         ua: req.headers.get("user-agent") || null,
         t: Date.now(),
@@ -61,11 +68,11 @@ async function sendEvent(id: string, sess: string | null, req: NextRequest) {
       signal: AbortSignal.timeout(2000),
     });
   } catch {
-    /* fire-and-forget — drop, never throw */
+    /* fire-and-forget: drop, never throw */
   }
 }
 
-// Hash of the Supabase auth cookie, if present — identifies "the same session"
+// Hash of the Supabase auth cookie, if present: identifies "the same session"
 // across requests without ever sending us the raw token. Returns null when the
 // request carries no auth cookie (anonymous).
 async function sessionId(req: NextRequest): Promise<string | null> {
@@ -86,7 +93,7 @@ async function refreshBlocklist() {
     blocklist = new Set(body.hashes);
     fetchedAt = Date.now();
   } catch {
-    /* keep serving the stale list — never throw */
+    /* keep serving the stale list: never throw */
   }
 }
 
@@ -96,27 +103,31 @@ async function sourceId(ip: string): Promise<string> {
   return btoa(String.fromCharCode(...new Uint8Array(digest))).slice(0, 22);
 }
 
-// Only watch auth + API routes — where attacks land, and keeps volume bounded.
+// Only watch auth + API routes: where attacks land, and keeps volume bounded.
 export const config = {
   matcher: ["/api/:path*", "/login", "/signin", "/sign-in", "/register", "/auth/:path*"],
 };
 `;
 }
 
-// Web-standard (Request/Response + Web Crypto) variant — for any server/edge
+// Web-standard (Request/Response + Web Crypto) variant: for any server/edge
 // framework that isn't Next.js: Hono, Cloudflare Workers, Deno, Bun, SvelteKit
 // hooks, Remix/React Router loaders. Same fail-open guarantees. Exposes a
 // `shiplockGuard(request)` you call at the top of your handler.
 export function buildWebSnippet(ingestToken: string, origin: string): string {
-  return `// ShipLock edge traffic protection (Web-standard) — fail-open. Safe to remove.
+  return `// ShipLock edge traffic protection (Web-standard): fail-open. Safe to remove.
 // Runs server-side; the key stays out of the browser. Our being unreachable
 // never blocks or slows your app.
 const SHIPLOCK_ORIGIN = ${JSON.stringify(origin)};
-const SHIPLOCK_SITE = ${JSON.stringify(ingestToken)}; // your site key — treat like a password
+const SHIPLOCK_SITE = ${JSON.stringify(ingestToken)}; // your site key: treat like a password
 
 let blocklist = new Set();
 let fetchedAt = 0;
 const REFRESH_MS = 30_000;
+
+// Attack probes, classified here in your server. Only the category (for
+// example "sqli") is sent to ShipLock, never the query string.
+${probeSnippetSource()}
 
 // Returns a 429 Response if the caller is blocked, otherwise null (allow).
 // Usage (Hono):  app.use(async (c, next) => { const b = await shiplockGuard(c.req.raw); if (b) return b; await next(); })
@@ -134,19 +145,19 @@ export async function shiplockGuard(request) {
   if (blocklist.has(id)) return new Response("Too many requests", { status: 429 });
 
   const sess = await sessionHash(request);
-  // fire-and-forget — do not await; never let this block the response
-  void mirror(id, sess, url.pathname, request);
+  // fire-and-forget: do not await; never let this block the response
+  void mirror(id, sess, url.pathname, probeKind(url.pathname + url.search), request);
   if (Date.now() - fetchedAt > REFRESH_MS) void refresh();
   return null;
 }
 
-async function mirror(id, sess, path, request) {
+async function mirror(id, sess, path, probe, request) {
   try {
     await fetch(SHIPLOCK_ORIGIN + "/api/traffic/ingest", {
       method: "POST",
       headers: { "content-type": "application/json", "x-site": SHIPLOCK_SITE },
       body: JSON.stringify({
-        source_id: id, session_id: sess, path,
+        source_id: id, session_id: sess, path, probe,
         method: request.method, ua: request.headers.get("user-agent") || null, t: Date.now(),
       }),
       signal: AbortSignal.timeout(2000),
@@ -177,20 +188,24 @@ async function hash(input) {
 `;
 }
 
-// Express / Connect variant — for traditional Node servers (Express, Fastify
+// Express / Connect variant: for traditional Node servers (Express, Fastify
 // via middie, etc.). Same fail-open guarantees; uses node:crypto.
 export function buildExpressSnippet(ingestToken: string, origin: string): string {
-  return `// ShipLock edge traffic protection (Express) — fail-open. Safe to remove.
-// app.use(shiplock)  — mount before your routes.
+  return `// ShipLock edge traffic protection (Express): fail-open. Safe to remove.
+// app.use(shiplock) : mount before your routes.
 const crypto = require("crypto");
 
 const SHIPLOCK_ORIGIN = ${JSON.stringify(origin)};
-const SHIPLOCK_SITE = ${JSON.stringify(ingestToken)}; // your site key — treat like a password
+const SHIPLOCK_SITE = ${JSON.stringify(ingestToken)}; // your site key: treat like a password
 
 let blocklist = new Set();
 let fetchedAt = 0;
 const REFRESH_MS = 30_000;
 const hash = (s) => crypto.createHash("sha256").update(s).digest("base64").replace(/=+$/, "").slice(0, 22);
+
+// Attack probes, classified here in your server. Only the category (for
+// example "sqli") is sent to ShipLock, never the query string.
+${probeSnippetSource()}
 
 function shiplock(req, res, next) {
   if (!/^\\/(api|login|signin|sign-in|register|auth)(\\/|$)/.test(req.path)) return next();
@@ -202,11 +217,11 @@ function shiplock(req, res, next) {
   const m = (req.headers.cookie || "").match(/sb-[^=;]*-auth-token(?:\\.\\d+)?=([^;]+)/);
   const sess = m ? hash(m[1] + ":s:" + SHIPLOCK_SITE) : null;
 
-  // fire-and-forget — never blocks the response
+  // fire-and-forget: never blocks the response
   fetch(SHIPLOCK_ORIGIN + "/api/traffic/ingest", {
     method: "POST",
     headers: { "content-type": "application/json", "x-site": SHIPLOCK_SITE },
-    body: JSON.stringify({ source_id: id, session_id: sess, path: req.path, method: req.method, ua: req.headers["user-agent"] || null, t: Date.now() }),
+    body: JSON.stringify({ source_id: id, session_id: sess, path: req.path, probe: probeKind(req.originalUrl || req.url), method: req.method, ua: req.headers["user-agent"] || null, t: Date.now() }),
     signal: AbortSignal.timeout(2000),
   }).catch(() => {});
 

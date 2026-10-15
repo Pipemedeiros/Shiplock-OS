@@ -200,3 +200,18 @@ describe("reasons are customer copy", () => {
     }
   });
 });
+
+// In-app probes (lib/traffic/probe.ts): the customer's snippet classified an
+// attack pattern in the request line. One probe is an alert naming the attack
+// and the route; it never blocks on its own (a real user's odd query must not
+// earn a 429), and every block rule still wins.
+describe("attack probes", () => {
+  it("alerts on a probe with the attack and the route in plain words", () => {
+    expect(detect(signals({ probe: { kind: "sqli", path: "/api/products" } }))).toEqual({ action: "alert", severity: "WARNING", ttlMs: 0,
+      reason: "Attack probe: SQL injection pattern on /api/products" });
+    expect(detect(signals({ probe: { kind: "ssrf", path: "/api/preview" } })).reason).toBe("Attack probe: server-side request forgery pattern on /api/preview");
+  });
+  it("still blocks a scanner that also sends probes", () => {
+    expect(detect(signals({ distinctScanPaths: SCAN_DISTINCT_THRESHOLD, probe: { kind: "xss", path: "/a" } })).action).toBe("block");
+  });
+});
