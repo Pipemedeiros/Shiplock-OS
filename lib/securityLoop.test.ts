@@ -10,7 +10,7 @@ const base: LoopInput = {
   agent: { available: true, paused: null, pending: 0, answered: 0 },
   map: { routes: 38, exposed: 0 },
   fix: { open: 0, withPr: 0 },
-  watch: { prChecks: 3, blockedPrs: 0, trafficSites: 0, hotRoutes: 0, providersRead: 0, providersConnected: 0 },
+  watch: { prChecks: 3, blockedPrs: 0, trafficSites: 0, hotRoutes: 0, hotWithIssue: 0, hotWithReview: 0, providersRead: 0, providersConnected: 0 },
 };
 const stage = (input: LoopInput, key: string) => securityLoop(input).find((s) => s.key === key)!;
 
@@ -92,6 +92,15 @@ describe("security loop", () => {
     expect(s).toMatchObject({ state: "attention", headline: "2 routes hit hard" });
     expect(s.detail).toMatch(/traffic from 1 site/);
     expect(s.detail).toMatch(/1 provider read live/);
+  });
+
+  it("watches with the attack's context: a route under attack that has an open issue leads (P4)", () => {
+    const one = stage({ ...base, watch: { ...base.watch, trafficSites: 1, hotRoutes: 2, hotWithIssue: 1 } }, "watch");
+    expect(one).toMatchObject({ state: "attention", headline: "1 route under attack has an open issue", action: "View issues", href: "/dashboard/risks" });
+    const two = stage({ ...base, watch: { ...base.watch, trafficSites: 1, hotRoutes: 3, hotWithIssue: 2 } }, "watch");
+    expect(two.headline).toBe("2 routes under attack have an open issue");
+    const review = stage({ ...base, watch: { ...base.watch, trafficSites: 1, hotRoutes: 1, hotWithReview: 1 } }, "watch");
+    expect(review).toMatchObject({ headline: "1 route under attack has a finding to review", action: "Review first" });
   });
 
   it("never says secure and never uses a dash", () => {

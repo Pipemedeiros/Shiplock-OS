@@ -43,8 +43,8 @@ export async function sendThreatAlert(
     {
       to: email,
       subject: blocked
-        ? "ShipLock — malicious traffic blocked"
-        : "ShipLock — suspicious traffic detected",
+        ? "ShipLock: malicious traffic blocked"
+        : "ShipLock: suspicious traffic detected",
       text: blocked
         ? `ShipLock blocked a source on your app.\n\nReason: ${decision.reason}\nThe block lifts automatically after a cooldown. Sign in to ShipLock to review live traffic protection.`
         : `ShipLock flagged suspicious traffic on your app (not blocked).\n\nReason: ${decision.reason}\nSign in to ShipLock to review live traffic protection.`,

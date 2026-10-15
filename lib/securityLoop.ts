@@ -19,7 +19,7 @@ export type LoopInput = {
   agent: { available: boolean; paused: AiPause; pending: number; answered: number };
   map: { routes: number; exposed: number } | null;
   fix: { open: number; withPr: number };
-  watch: { prChecks: number; blockedPrs: number; trafficSites: number; hotRoutes: number; providersRead: number; providersConnected: number };
+  watch: { prChecks: number; blockedPrs: number; trafficSites: number; hotRoutes: number; hotWithIssue: number; hotWithReview: number; providersRead: number; providersConnected: number };
 };
 
 const n = (count: number, one: string, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
@@ -75,6 +75,17 @@ function watch({ finished, watch: w }: LoopInput): LoopStage {
     w.providersRead > 0 ? `${n(w.providersRead, "provider")} read live` : w.providersConnected > 0 ? "providers connected, not read yet" : "no provider connected",
   ];
   const attention = w.hotRoutes > 0 || w.blockedPrs > 0;
+  // P4: watched with the attack's context. A route under attack that the
+  // audit found an issue on leads, and points at the issue.
+  if (w.hotWithIssue > 0) {
+    return { key: "watch", title: "Watch", href: "/dashboard/risks", state: "attention", action: "View issues",
+      headline: `${n(w.hotWithIssue, "route")} under attack ${w.hotWithIssue === 1 ? "has" : "have"} an open issue`, detail: parts.join(" · ") };
+  }
+  // A candidate is not an issue, but traffic on it is a reason to review it first.
+  if (w.hotWithReview > 0) {
+    return { key: "watch", title: "Watch", href: "/dashboard/risks", state: "attention", action: "Review first",
+      headline: `${n(w.hotWithReview, "route")} under attack ${w.hotWithReview === 1 ? "has" : "have"} a finding to review`, detail: parts.join(" · ") };
+  }
   return { ...at, state: attention ? "attention" : "done",
     headline: w.hotRoutes > 0 ? `${n(w.hotRoutes, "route")} hit hard` : "Watching pull requests", detail: parts.join(" · ") };
 }

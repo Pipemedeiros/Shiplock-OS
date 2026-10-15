@@ -24,6 +24,11 @@ export const FLOOD_THRESHOLD = 100; // total hits/window from ONE source -> bloc
 export const SESSION_WINDOW_MS = 600_000; // session-hijack window (10m)
 export const SESSION_SOURCE_THRESHOLD = 4; // one session from >= N distinct sources -> alert
 
+// P4: one source reading this many different record ids on one route inside
+// SCAN_WINDOW_MS is walking ids (enumeration). Alert only: a person paging
+// through their own records is possible, and blocking them would be wrong.
+export const ID_WALK_THRESHOLD = 30;
+
 export const BLOCK_TTL_LONG_MS = 60 * 60_000; // 1h — brute-force / scanner
 export const BLOCK_TTL_SHORT_MS = 15 * 60_000; // 15m — flood
 
@@ -67,6 +72,23 @@ export function isSuspiciousPath(path: string): boolean {
   return SUSPICIOUS_PATH_RES.some((re) => re.test(path));
 }
 
+const ID_SEGMENT = [
+  /^\d+$/,
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+  /^[0-9a-f]{16,}$/i,
+];
+const isId = (seg: string) => ID_SEGMENT.some((re) => re.test(seg))
+  || (/^[A-Za-z0-9_-]{16,}$/.test(seg) && /\d/.test(seg) && /[A-Za-z]/.test(seg));
+
+/** A path with its record ids replaced by `:id`, and the ids it named; null
+ * when no segment is an id. Words such as "new" or "settings" are not ids. */
+export function idRoute(path: string): { pattern: string; id: string } | null {
+  const segs = path.split("?")[0].split("/");
+  const ids = segs.filter((seg) => seg && isId(seg));
+  if (ids.length === 0) return null;
+  return { pattern: segs.map((seg) => (seg && isId(seg) ? ":id" : seg)).join("/"), id: ids.join("/") };
+}
+
 // ── Signal extraction ──────────────────────────────────────────────────────
 export interface EventRow {
   path: string;
@@ -82,6 +104,9 @@ export interface TrafficSignals {
   // SESSION_WINDOW_MS. Computed by a separate per-session query (not from this
   // source's rows), so it's passed in. 0 for anonymous requests.
   distinctSourcesForSession: number;
+  // The route this source read the most different record ids on, inside
+  // SCAN_WINDOW_MS (P4). Null when no path named an id.
+  idWalk?: { pattern: string; distinct: number } | null;
 }
 
 // Pure: rows are this source's recent events (any order). `capped` says the
@@ -100,6 +125,7 @@ export function computeSignals(
   let authCount = 0;
   let totalCount = 0;
   const scanPaths = new Set<string>();
+  const idsByPattern = new Map<string, Set<string>>();
 
   for (const row of rows) {
     const ts = Date.parse(row.created_at);
@@ -107,9 +133,15 @@ export function computeSignals(
     if (ts >= floodCutoff) totalCount++;
     if (ts >= authCutoff && isAuthPath(row.path)) authCount++;
     if (ts >= scanCutoff && isSuspiciousPath(row.path)) scanPaths.add(row.path);
+    const walked = ts >= scanCutoff ? idRoute(row.path) : null;
+    if (walked) idsByPattern.set(walked.pattern, (idsByPattern.get(walked.pattern) ?? new Set()).add(walked.id));
   }
 
-  return { authCount, distinctScanPaths: scanPaths.size, totalCount, capped, distinctSourcesForSession };
+  let idWalk: TrafficSignals["idWalk"] = null;
+  for (const [pattern, ids] of idsByPattern) {
+    if (ids.size > 1 && (!idWalk || ids.size > idWalk.distinct)) idWalk = { pattern, distinct: ids.size };
+  }
+  return { authCount, distinctScanPaths: scanPaths.size, totalCount, capped, distinctSourcesForSession, idWalk };
 }
 
 // ── Decision (pure) ────────────────────────────────────────────────────────
@@ -119,7 +151,7 @@ export function detect(signals: TrafficSignals): Decision {
   if (signals.distinctScanPaths >= SCAN_DISTINCT_THRESHOLD) {
     return {
       action: "block",
-      reason: `Vulnerability scanning — probed ${signals.distinctScanPaths} sensitive paths`,
+      reason: `Vulnerability scanning: probed ${signals.distinctScanPaths} sensitive paths`,
       severity: "CRITICAL",
       ttlMs: BLOCK_TTL_LONG_MS,
     };
@@ -128,7 +160,7 @@ export function detect(signals: TrafficSignals): Decision {
   if (signals.authCount >= AUTH_BLOCK_THRESHOLD) {
     return {
       action: "block",
-      reason: `Credential stuffing — ${signals.authCount} auth attempts in ${AUTH_WINDOW_MS / 1000}s`,
+      reason: `Credential stuffing: ${signals.authCount} auth attempts in ${AUTH_WINDOW_MS / 1000}s`,
       severity: "CRITICAL",
       ttlMs: BLOCK_TTL_LONG_MS,
     };
@@ -138,7 +170,7 @@ export function detect(signals: TrafficSignals): Decision {
     const n = signals.capped ? `${FETCH_ROW_CAP}+` : `${signals.totalCount}`;
     return {
       action: "block",
-      reason: `Request flood — ${n} requests in ${FLOOD_WINDOW_MS / 1000}s`,
+      reason: `Request flood: ${n} requests in ${FLOOD_WINDOW_MS / 1000}s`,
       severity: "CRITICAL",
       ttlMs: BLOCK_TTL_SHORT_MS,
     };
@@ -151,7 +183,16 @@ export function detect(signals: TrafficSignals): Decision {
   if (signals.distinctSourcesForSession >= SESSION_SOURCE_THRESHOLD) {
     return {
       action: "alert",
-      reason: `Possible session hijack — one session used from ${signals.distinctSourcesForSession} sources in ${SESSION_WINDOW_MS / 60000}m`,
+      reason: `Possible session hijack: one session used from ${signals.distinctSourcesForSession} sources in ${SESSION_WINDOW_MS / 60000}m`,
+      severity: "WARNING",
+      ttlMs: 0,
+    };
+  }
+
+  if (signals.idWalk && signals.idWalk.distinct >= ID_WALK_THRESHOLD) {
+    return {
+      action: "alert",
+      reason: `Walking record ids: ${signals.idWalk.distinct} different ids on ${signals.idWalk.pattern} in ${SCAN_WINDOW_MS / 60000} minutes`,
       severity: "WARNING",
       ttlMs: 0,
     };
@@ -160,7 +201,7 @@ export function detect(signals: TrafficSignals): Decision {
   if (signals.authCount >= AUTH_ALERT_THRESHOLD) {
     return {
       action: "alert",
-      reason: `Elevated auth traffic — ${signals.authCount} attempts in ${AUTH_WINDOW_MS / 1000}s`,
+      reason: `Elevated auth traffic: ${signals.authCount} attempts in ${AUTH_WINDOW_MS / 1000}s`,
       severity: "WARNING",
       ttlMs: 0,
     };

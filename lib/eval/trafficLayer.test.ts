@@ -43,6 +43,7 @@ vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({
 const { syncSnippetObservations } = await import("@/lib/traffic/snippetObservations");
 const { getHotRoutes } = await import("@/lib/traffic/hotRoutes");
 const { collectTrafficFacts } = await import("@/lib/traffic/graphFacts");
+const { computeSignals, detect } = await import("@/lib/traffic/detect");
 
 const now = () => new Date().toISOString();
 const event = (path: string, source_id: string, repository_id = "r1") =>
@@ -88,4 +89,15 @@ describe("traffic: the snippet reaches the rate-limit offer", () => {
     expect(await collectTrafficFacts("u1", "r1")).toEqual([
       { path: "/api/login", suspiciousRequests: 45 }, { path: "/api/orders/7", suspiciousRequests: 1 }]);
   });
+
+  it("an id walk judged at ingest becomes the hot route on the file the audit read (P4)", async () => {
+    const walk = Array.from({ length: 35 }, (_, i) => event(`/api/orders/${i + 100}`, "walker"));
+    db.rows.traffic_events!.push(...walk);
+    const decision = detect(computeSignals(walk.map((e) => ({ path: e.path, created_at: e.created_at })), Date.now()));
+    expect(decision).toMatchObject({ action: "alert", reason: "Walking record ids: 35 different ids on /api/orders/:id in 5 minutes" });
+    db.rows.traffic_alert_log!.push({ user_id: "u1", source_id: "walker", alerted_at: now(), reason: decision.reason, action: decision.action });
+    await syncSnippetObservations("u1", "r1");
+    expect((await getHotRoutes("u1")).r1).toContainEqual({ file: "app/api/orders/[id]/route.ts", pattern: "/api/orders/:id", suspiciousRequests: 36 });
+  });
 });
+

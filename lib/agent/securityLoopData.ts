@@ -10,11 +10,18 @@ import type { LoopInput } from "@/lib/securityLoop";
 /** The loop's input from rows the dashboard already reads (pure, tested). */
 export function loopInputOf(input: {
   runs: DashboardRun[]; ai: AiActivity; map: { routes: number; exposed: number } | null;
-  findings: DashboardFinding[]; reviews: PullRequestReviewView[]; trafficSites: number; hotRoutes: number;
+  findings: DashboardFinding[]; reviews: PullRequestReviewView[]; trafficSites: number;
+  /** Hot routes per repository (overviewMap), joined with open findings by file. */
+  hot: Record<string, { file: string }[]>;
   providers: { available: boolean; items: ProviderCoverageItem[] };
 }): LoopInput {
   const { current, finished } = auditState(input.runs);
   const checks = input.ai.available ? input.ai.checks : [];
+  const hot = Object.entries(input.hot).flatMap(([repositoryId, routes]) => routes.map((r) => ({ repositoryId, file: r.file })));
+  const on = (h: { repositoryId: string; file: string }, confirmed: boolean) =>
+    input.findings.some((f) => f.repositoryId === h.repositoryId && f.file === h.file && Boolean(f.confirmed) === confirmed);
+  const hotWithIssue = hot.filter((h) => on(h, true)).length;
+  const hotWithReview = hot.filter((h) => !on(h, true) && on(h, false)).length;
   return {
     current: current ? { status: current.status as "queued" | "running", step: current.trace.at(-1)?.label ?? null } : null,
     finished: finished ? { status: finished.status as "complete" | "failed", filesRead: finished.filesRead ?? 0,
@@ -25,7 +32,7 @@ export function loopInputOf(input: {
     map: finished ? input.map : null,
     fix: { open: input.findings.length, withPr: input.findings.filter((f) => f.fixPrUrl).length },
     watch: { prChecks: input.reviews.length, blockedPrs: input.reviews.filter((r) => r.verdict === "block").length,
-      trafficSites: input.trafficSites, hotRoutes: input.hotRoutes,
+      trafficSites: input.trafficSites, hotRoutes: hot.length, hotWithIssue, hotWithReview,
       providersRead: input.providers.items.filter((p) => p.state === "complete" || p.state === "partial").length,
       providersConnected: input.providers.items.length },
   };
@@ -41,6 +48,5 @@ export async function loadSecurityLoopInput(userId: string): Promise<LoopInput> 
   const { finished } = auditState(runs);
   const overview = repos.length > 0 ? await loadOverviewMap({ userId, runs, latest: finished, repos, findings }) : null;
   return loopInputOf({ runs, ai, map: overview?.map ? mapCounts(overview.map) : null, findings, reviews,
-    trafficSites: sites.length, hotRoutes: Object.values(overview?.hot ?? {}).reduce((sum, list) => sum + list.length, 0),
-    providers });
+    trafficSites: sites.length, hot: overview?.hot ?? {}, providers });
 }

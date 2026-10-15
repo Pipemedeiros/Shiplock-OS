@@ -1,4 +1,5 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { idRoute } from "./detect";
 
 // The traffic collector's contribution to the graph.
 //
@@ -99,9 +100,16 @@ async function snippetCounts(userId: string, repositoryId?: string): Promise<Map
       .gte("created_at", since)
       .in("source_id", [...suspicious])
       .limit(MAX_EVENTS);
+    // Paths that differ only in a record id are one route (P4): an id walk
+    // spreads over many paths of one request each, and ranking raw paths
+    // would undercount it or drop it below MAX_PATHS. The first path seen
+    // stands for the route, so route matching still reads a concrete path.
+    const standsFor = new Map<string, string>();
     for (const row of (events ?? []) as { path?: unknown }[]) {
       if (typeof row.path !== "string") continue;
-      counts.set(row.path, (counts.get(row.path) ?? 0) + 1);
+      const pattern = idRoute(row.path)?.pattern;
+      const key = pattern ? (standsFor.get(pattern) ?? standsFor.set(pattern, row.path).get(pattern)!) : row.path;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
     }
   }
   return counts;

@@ -9,6 +9,9 @@ import {
   SCAN_DISTINCT_THRESHOLD,
   FLOOD_THRESHOLD,
   SESSION_SOURCE_THRESHOLD,
+  ID_WALK_THRESHOLD,
+  SCAN_WINDOW_MS,
+  idRoute,
   BLOCK_TTL_LONG_MS,
   BLOCK_TTL_SHORT_MS,
   type EventRow,
@@ -146,5 +149,54 @@ describe("detect", () => {
       })
     );
     expect(d.action).not.toBe("block");
+  });
+});
+
+// P4 (the watch uses the attack's context; Cloudflare's per-endpoint and
+// Aikido Zen's in-app ideas, on metadata only): one source walking many record
+// ids on one route is enumeration, the attack behind an id-only finding.
+describe("id walking", () => {
+  it("reads a record id out of a path, and leaves words alone", () => {
+    expect(idRoute("/api/orders/7")).toEqual({ pattern: "/api/orders/:id", id: "7" });
+    expect(idRoute("/api/users/3f2b8c1e-9a4d-4c2b-8e1f-0a1b2c3d4e5f/files")).toEqual({ pattern: "/api/users/:id/files", id: "3f2b8c1e-9a4d-4c2b-8e1f-0a1b2c3d4e5f" });
+    expect(idRoute("/api/docs/clx9w2k3h0000qz8r5v6t7y8u")).toEqual({ pattern: "/api/docs/:id", id: "clx9w2k3h0000qz8r5v6t7y8u" });
+    expect(idRoute("/api/orders/new")).toBeNull();
+    expect(idRoute("/api/settings/notifications")).toBeNull();
+  });
+
+  const now = Date.parse("2026-10-14T12:00:00Z");
+  const at = (path: string, msAgo: number): EventRow => ({ path, created_at: new Date(now - msAgo).toISOString() });
+
+  it("counts distinct ids per route inside the scan window", () => {
+    const rows = [
+      ...Array.from({ length: 25 }, (_, i) => at(`/api/orders/${i + 1}`, 1000 * i)),
+      ...Array.from({ length: 50 }, () => at("/api/projects/9", 500)),
+      at("/api/orders/999", SCAN_WINDOW_MS + 1000),
+    ];
+    expect(computeSignals(rows, now).idWalk).toEqual({ pattern: "/api/orders/:id", distinct: 25 });
+  });
+
+  it("is null when one record is fetched many times", () => {
+    expect(computeSignals(Array.from({ length: 60 }, () => at("/api/projects/9", 100)), now).idWalk).toBeNull();
+  });
+
+  it("alerts, never blocks, at the threshold, and says what it saw in plain words", () => {
+    const d = detect(signals({ idWalk: { pattern: "/api/orders/:id", distinct: ID_WALK_THRESHOLD } }));
+    expect(d).toEqual({ action: "alert", severity: "WARNING", ttlMs: 0,
+      reason: `Walking record ids: ${ID_WALK_THRESHOLD} different ids on /api/orders/:id in 5 minutes` });
+    expect(detect(signals({ idWalk: { pattern: "/api/orders/:id", distinct: ID_WALK_THRESHOLD - 1 } })).action).toBe("none");
+  });
+
+  it("still blocks a scanner that also walks ids", () => {
+    expect(detect(signals({ distinctScanPaths: SCAN_DISTINCT_THRESHOLD, idWalk: { pattern: "/a/:id", distinct: 99 } })).action).toBe("block");
+  });
+});
+
+describe("reasons are customer copy", () => {
+  it("contain no dashes", () => {
+    for (const s of [signals({ distinctScanPaths: 9 }), signals({ authCount: 99 }), signals({ totalCount: 999 }),
+      signals({ distinctSourcesForSession: 9 }), signals({ authCount: AUTH_ALERT_THRESHOLD })]) {
+      expect(detect(s).reason).not.toMatch(/[–—]/);
+    }
   });
 });
