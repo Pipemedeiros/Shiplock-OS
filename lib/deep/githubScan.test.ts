@@ -480,7 +480,35 @@ describe("a committed env finding describes its values without showing them", ()
   it("puts the shapes in the finding and never a value", () => {
     const f = scanSecrets([{ path: "app/.env.production", content }]).find((x) => x.id.startsWith("github:committed_env"))!;
     expect(f.severity).toBe("CRITICAL");
-    expect(f.consequence).toContain("What it holds, without values: DATABASE_URL (a connection URL with a password, to a remote host), SESSION_SECRET (64 random-looking characters).");
+    expect(f.consequence).toContain("Its credentials, described without their values: DATABASE_URL (a connection URL with a password, to a remote host), SESSION_SECRET (64 random-looking characters). The file has 3 entries in all.");
     for (const part of [pw, secret.slice(0, 8), "acme-prod"]) expect(f.consequence).not.toContain(part);
   });
 });
+
+// Release attempt 6 (q2): both labelers judged a committed .env finding only
+// partly accurate: "and 2 more" read as the file's total when it held about
+// twenty entries, and FIREBASE_AUTH_DOMAIN, a hostname, was called random.
+describe("committed env shapes say exactly what they count", () => {
+  const pw = "Zq8vN2kLp4Rt7wXy";
+  const many = [`DATABASE_URL=mongodb+srv://app:${pw}@cluster0.abcde.mongodb.net/app`, "FIREBASE_AUTH_DOMAIN=acme-app.firebaseapp.com",
+    ...Array.from({ length: 5 }, (_, i) => `SECRET_${i}_KEY=${["9f3a7c1e5b2d8f4a6c0e9b7d5f3a1c8e", "x"][0]}${i}`),
+    "NEXT_PUBLIC_SITE=https://acme.com", "PORT=3000"].join("\n");
+
+  it("does not take a hostname for a credential, whatever its name", () => {
+    expect(envValueShapes(many).map((s) => s.name)).not.toContain("FIREBASE_AUTH_DOMAIN");
+  });
+
+  it("names the rest as other credentials, and gives the file's entry count", () => {
+    const f = scanSecrets([{ path: "app/.env.production", content: many }]).find((x) => x.id.startsWith("github:committed_env"))!;
+    expect(f.consequence).toContain("Its credentials, described without their values: DATABASE_URL (a connection URL with a password, to a remote host)");
+    expect(f.consequence).toMatch(/, and 2 other credentials\. The file has 9 entries in all\./);
+    expect(f.consequence).not.toContain(pw);
+  });
+
+  it("still counts a signed token, whose dotted segments are longer than any hostname label", () => {
+    const seg = (n: number) => Array.from({ length: n }, (_, i) => "abcdefghijKLMNOPQRstuv"[(i * 7) % 22]).join("");
+    const jwt = `${seg(70)}.${seg(90)}.${seg(80)}xyz`;
+    expect(envValueShapes(`SESSION_SECRET=${jwt}`).map((x) => x.name)).toEqual(["SESSION_SECRET"]);
+  });
+});
+

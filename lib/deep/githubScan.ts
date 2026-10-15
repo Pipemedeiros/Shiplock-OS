@@ -246,6 +246,10 @@ function envSecretValues(content: string): string[] {
     // A shouty-snake placeholder restating its key, and a bare URL with no
     // credentials in it, are not secrets either.
     if (ENV_PLACEHOLDER_VALUE.test(value) || ENV_URL_VALUE.test(value)) continue;
+    // A bare hostname is configuration, whatever its key says: attempt 6 called
+    // FIREBASE_AUTH_DOMAIN (acme-app.firebaseapp.com) a random credential.
+    // DNS labels are at most 63 characters, so a JWT's segments never match.
+    if (/^["']?[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+["']?$/i.test(value) && /\.[a-z]{2,}["']?$/i.test(value)) continue;
     if (ENV_FILLED_VALUE.test(value)) values.push(value);
   }
   return values;
@@ -295,7 +299,10 @@ function describeShapes(content: string): string {
   const shapes = envValueShapes(content);
   if (shapes.length === 0) return "";
   const listed = shapes.slice(0, 4).map((s) => `${s.name} (${s.shape})`).join(", ");
-  return ` What it holds, without values: ${listed}${shapes.length > 4 ? `, and ${shapes.length - 4} more` : ""}.`;
+  const rest = shapes.length - 4;
+  // Attempt 6: "and 2 more" read as the file's total; say what is counted.
+  const entries = content.split("\n").filter((line) => /^\s*[A-Za-z0-9_]+\s*=/.test(line)).length;
+  return ` Its credentials, described without their values: ${listed}${rest > 0 ? `, and ${rest} other credential${rest === 1 ? "" : "s"}` : ""}. The file has ${entries} entries in all.`;
 }
 
 export function envFileHasSecret(content: string): boolean {
