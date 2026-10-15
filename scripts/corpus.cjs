@@ -860,6 +860,64 @@ async function extractAll(outArg) {
   console.log(`${extracted} repositories extracted, ${manifest.repositories.length - extracted} already present, under ${out}`);
 }
 
+// P7: JEV as a second judge, measured on labeled findings. Paid (Felipe's
+// TypeSafe key, TYPESAFE_API_KEY) and refused without --confirm-paid and a
+// --max-usd cap. Evidence per packet is what the labelers start from: the
+// cited file, root middleware, the Prisma schema and the README, read from
+// an --extract directory of unpacked repositories.
+async function jevMeasure(args) {
+  if (!args.includes("--confirm-paid")) throw new Error("Refusing: JEV is a paid call on Felipe's key. Re-run with --confirm-paid.");
+  const cap = Number(args[args.indexOf("--max-usd") + 1]);
+  if (!(cap > 0) || !args.includes("--max-usd")) throw new Error("Refusing: give a dollar cap with --max-usd <amount>.");
+  const extract = args.includes("--extract") ? path.resolve(root, args[args.indexOf("--extract") + 1]) : null;
+  if (!extract) throw new Error("Give --extract <dir> holding the unpacked repositories.");
+  const key = process.env.TYPESAFE_API_KEY;
+  if (!key) throw new Error("TYPESAFE_API_KEY is not set in this shell.");
+  const flags = new Set(["--confirm-paid", "--max-usd", "--extract"]);
+  const rest = args.filter((a, i) => !flags.has(a) && !flags.has(args[i - 1]));
+  const [outArg, ...dirs] = rest;
+  if (!outArg || dirs.length === 0) throw new Error("Usage: corpus.cjs jev <out.json> --extract <dir> --confirm-paid --max-usd <n> <run dir>...");
+  loadProductModules(); // installs the .ts loader the two requires below need
+  const { jevRequest, jevVerdict } = require("../lib/judge/jev.ts");
+  const { systemOne, JEV_USD_PER_INPUT_TOKEN } = require("./jevClient.ts");
+  const read = (repo, rel) => { try { return fs.readFileSync(path.join(extract, repo, rel), "utf8"); } catch { return null; } };
+  const rows = [];
+  let spent = 0;
+  for (const dir of dirs) {
+    const pack = readJson(path.join(dir, "pack.json")).packets;
+    const answers = fs.readdirSync(dir).filter((n) => /^answers-.+\.json$/.test(n)).sort().map((n) => readJson(path.join(dir, n)).answers);
+    const { labels } = mergeAnswers(pack, answers);
+    for (const [i, packet] of pack.entries()) {
+      const vs = labels[i].labelers;
+      const yes = vs.filter((v) => v.accurate === "yes" && v.real === "yes").length;
+      const label = vs.length >= 3 ? yes >= 2 : vs.length >= 2 && yes === vs.length;
+      const files = [packet.file, "middleware.ts", "src/middleware.ts", "proxy.ts", "src/proxy.ts", "prisma/schema.prisma", "README.md"]
+        .filter((p, j, all) => p && all.indexOf(p) === j).map((p) => ({ path: p, content: read(packet.repo, p) })).filter((f) => f.content !== null);
+      const request = jevRequest({ statement: packet.statement, files });
+      const estimate = Buffer.byteLength(JSON.stringify(request)) / 3 * JEV_USD_PER_INPUT_TOKEN;
+      if (spent + estimate > cap) { console.log(`Cap reached at $${spent.toFixed(4)}; stopping.`); break; }
+      try {
+        const response = await systemOne(request, key);
+        spent += (response.usage?.input_tokens ?? 0) * JEV_USD_PER_INPUT_TOKEN;
+        rows.push({ run: path.basename(dir), key: packet.key, label, ...jevVerdict(response, { keepAtLeast: 0.5 }) });
+      } catch (err) {
+        rows.push({ run: path.basename(dir), key: packet.key, label, error: err instanceof Error ? err.message : "failed" });
+      }
+    }
+  }
+  const scored = rows.filter((r) => typeof r.p === "number");
+  const tp = scored.filter((r) => r.label), fp = scored.filter((r) => !r.label);
+  let auc = null;
+  if (tp.length && fp.length) { let s = 0; for (const a of tp) for (const b of fp) s += a.p > b.p ? 1 : a.p === b.p ? 0.5 : 0; auc = s / (tp.length * fp.length); }
+  const cuts = Object.fromEntries([0.3, 0.5, 0.7].map((t) => {
+    const kt = tp.filter((r) => r.p >= t).length, kf = fp.filter((r) => r.p >= t).length;
+    return [t, { trueKept: kt, falseKept: kf, precision: kt + kf ? kt / (kt + kf) : null }];
+  }));
+  await fsp.writeFile(path.resolve(root, outArg), JSON.stringify({ experiment: "jev-judge", runs: dirs, spentUsd: spent, scored: scored.length,
+    errors: rows.length - scored.length, true: tp.length, false: fp.length, auc, cuts, rows }, null, 2) + "\n", { flag: "wx" });
+  console.log(`JEV judged ${scored.length} (${rows.length - scored.length} errors), AUC ${auc === null ? "unavailable" : auc.toFixed(3)}, spent $${spent.toFixed(4)}. ${outArg}`);
+}
+
 async function main() {
   validateManifest();
   if (process.argv[2] === "acquire") {
@@ -872,6 +930,8 @@ async function main() {
     await shown();
   } else if (process.argv[2] === "gate-total" && process.argv[3] && process.argv[4]) {
     await gateTotal(process.argv[3], process.argv.slice(4));
+  } else if (process.argv[2] === "jev") {
+    await jevMeasure(process.argv.slice(3));
   } else if (process.argv[2] === "extract" && process.argv[3]) {
     await extractAll(process.argv[3]);
   } else if (process.argv[2] === "agent-tasks") {
