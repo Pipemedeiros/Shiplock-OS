@@ -1,0 +1,17 @@
+{
+  "experiment": "jev-standin-judge",
+  "recordedAt": "2026-10-15",
+  "question": "Does a fast, typed second judge (JEV's role) separate true from false status-setting findings better than the verifier's own confidence?",
+  "standIn": "claude-haiku-4-5-20251001 (JEV is waitlist only; no TypeSafe key). Developer measurement on Felipe's Anthropic key (2026-10-15: 'If the Anthropic key works for that, sure, run it'); never product code. Temperature 0, typed JSON {p_accurate, p_real}, system asks for calibrated probabilities.",
+  "input": "Each labeled finding's statement and its cited file (up to 24,000 characters), the same file the labelers start from; not the rest of the repository.",
+  "population": "Every labeled finding of release attempts 3, 4 and 5 (docs/evaluation/runs): 371 judged, 334 strictly true, 37 false.",
+  "spentUsd": 0.84,
+  "results": {
+    "meanTrue": { "p_accurate": 0.824, "p_real": 0.639 },
+    "meanFalse": { "p_accurate": 0.878, "p_real": 0.688 },
+    "auc": { "p_accurate": 0.442, "p_real": 0.464, "product": 0.464 },
+    "basePrecision": 0.900,
+    "cuts": { "0.5": 0.894, "0.6": 0.895, "0.7": 0.893, "0.75": 0.898, "0.8": 0.908 }
+  },
+  "conclusion": "Worse than chance (AUC below 0.5): the false findings left are judgment errors that need the whole repository (a README declaring a demo, middleware, whether an id is ever exposed), and a fast judge given only the cited file cannot see them. A calibrated judge helps only if it reads the evidence the labelers read; JEV's value is not established and nothing is gated on this stand-in."
+}
