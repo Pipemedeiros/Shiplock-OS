@@ -4,6 +4,12 @@ import type { RouteFact } from "@/lib/graph/routeInventory";
 import type { AttackClass, Hypothesis } from "./attackGuard";
 import { renderPossessionGate, type PossessionGate } from "./possessionGate";
 import type { StackReport } from "./stack";
+import type { OpenByDesign } from "./signIn";
+
+/** The claim that keeps a finding in an app open by design as To review
+ * (P3, D1); `isConfirmed` reads it. */
+export const OPEN_BY_DESIGN = "This app signs no one in by design";
+const OPEN_CLASSES = new Set(["missing_authentication", "missing_authorization", "mass_assignment"]);
 
 /**
  * Turns admitted hypotheses and deterministic hits into the findings a customer
@@ -215,6 +221,8 @@ export interface BuildFindingsInput {
   /** Anonymous routes whose only way in is a random-minted request id
    * (possessionGate.ts `oneIdAccess`); such findings cap at WARNING (Q21). */
   oneIdAccess?: ReadonlyMap<string, PossessionGate>;
+  /** Where an app with no sign-in says it is open by design (signIn.ts). */
+  openByDesign?: OpenByDesign | null;
 }
 
 export function buildFindings(input: BuildFindingsInput): AgentFinding[] {
@@ -328,6 +336,17 @@ export function buildFindings(input: BuildFindingsInput): AgentFinding[] {
           "We did not read your row policies, so one of them may still be narrowing this query. Connect your database to settle it.",
         origin: "schema",
         verified: false,
+      });
+    }
+
+    // P3 (D1): no other account to reach, and openness is the founder's call.
+    // The finding and its proof stay; it is To review, never an issue.
+    if (input.openByDesign && OPEN_CLASSES.has(h.attackClass)) {
+      const o = input.openByDesign;
+      claims.push({
+        claim: `${OPEN_BY_DESIGN} (${o.file}:${o.line} ${o.reason}), so there is no other account to reach. Anyone who can reach it can do this; whether it should be open is your call.`,
+        origin: "routes",
+        verified: true,
       });
     }
 

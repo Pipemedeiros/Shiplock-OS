@@ -106,6 +106,7 @@ function loadProductModules() {
     ...require("../lib/agent/findings.ts"),
     ...require("../lib/eval/benchmark.ts"),
     ...require("../lib/agent/confirmed.ts"),
+    ...require("../lib/agent/signIn.ts"),
     ...require("../lib/eval/plant.ts"),
     // The harness's own model calls; the product makes none (Felipe, 2026-10-01).
     ...require("./corpusModel.ts"),
@@ -618,11 +619,12 @@ async function agentContexts(product) {
   const out = [];
   for (const pin of manifest.repositories) {
     if (await fileHash(archivePath(pin)) !== pin.archiveSha256) throw new Error(`${pin.id}: archive checksum mismatch`);
-    const { routes, stack, tables, domain, files, reasoned } = await analyzePin(product, pin);
+    const { archive, routes, stack, tables, domain, files, reasoned } = await analyzePin(product, pin);
     // Production pages the route inventory (lib/intelligence/reasoning.ts);
     // the harness asks the agent about every page, as production does.
     const pages = product.reasoningPages({ routes: reasoned, stack, tables, domain, files: [...files.keys()], liveFacts: [],
-      possessionGates: product.possessionGates(routes, files), oneIdAccess: product.oneIdAccess(routes, files), hasDatabase: false });
+      possessionGates: product.possessionGates(routes, files), oneIdAccess: product.oneIdAccess(routes, files), hasDatabase: false,
+      openByDesign: product.openByDesign({ routes, stack, tables, archive }) });
     out.push({ pin, pages, files });
   }
   return out;
@@ -689,11 +691,12 @@ async function agentShown(dirArg) {
   const records = [];
   const totals = { confirmed: 0, refuted: 0, unverified: 0, agentFindings: 0, unanswered: 0 };
   for (const { pin, pages, files } of await agentContexts(product)) {
-    const { archive, routes, stack } = await analyzePin(product, pin);
+    const { archive, routes, stack, tables } = await analyzePin(product, pin);
     const deterministic = product.buildFindings({
       admitted: [], deterministic: product.deterministicFindings(archive.files.map((f) => ({ path: f.path, content: f.content }))),
       routes, stack, repositoryId: pin.id, hasDatabase: false, liveFacts: [],
       possessionGates: product.possessionGates(routes, files), oneIdAccess: product.oneIdAccess(routes, files),
+      openByDesign: product.openByDesign({ routes, stack, tables, archive }),
     });
     const agent = [];
     const ownVerify = new RegExp(`^${pin.id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\.p\\d+)?\\.verify-\\d+\\.state\\.json$`);

@@ -5,6 +5,7 @@ import { buildPrompt, MAX_PROMPT_ROUTES, rankRoutes, SYSTEM, type AgentInput } f
 import { guardHypotheses, safeVerdictWording, type AttackClass, type Hypothesis } from "@/lib/agent/attackGuard";
 import { buildFindings } from "@/lib/agent/findings";
 import type { PossessionGate } from "@/lib/agent/possessionGate";
+import type { OpenByDesign } from "@/lib/agent/signIn";
 import { routeAnalysisSupport, type StackReport } from "@/lib/agent/stack";
 import { applyVerdicts, checkVerdicts, VERIFY_SYSTEM, type RawVerdict, type VerifyItem } from "@/lib/agent/verify";
 import type { RouteFact } from "@/lib/graph/routeInventory";
@@ -40,6 +41,8 @@ export type ReasoningContext = {
   version: 1; system: string; prompt: string; routes: RouteFact[]; files: string[]; tables: string[];
   liveFacts: { id: string; statement: string }[]; possessionGates: [string, Gate][]; oneIdAccess: [string, Gate][];
   stack: StackReport; hasDatabase: boolean;
+  /** P3: where an app with no sign-in says it is open by design. */
+  openByDesign?: OpenByDesign;
 };
 type VerificationContext = { version: 1; hypotheses: (Hypothesis & { attackClass: AttackClass })[]; items: VerifyItem[] };
 
@@ -59,7 +62,7 @@ export const MAX_REASONING_PAGES = 20;
 type ContextInput = {
   routes: RouteFact[]; stack: StackReport; tables: string[]; files: string[]; domain?: AgentInput["domain"];
   liveFacts: { id: string; statement: string }[]; possessionGates: ReadonlyMap<string, Gate>;
-  oneIdAccess: ReadonlyMap<string, Gate>; hasDatabase: boolean;
+  oneIdAccess: ReadonlyMap<string, Gate>; hasDatabase: boolean; openByDesign?: OpenByDesign | null;
 };
 
 export function reasoningPages(input: ContextInput): ReasoningContext[] {
@@ -80,6 +83,7 @@ export function reasoningPages(input: ContextInput): ReasoningContext[] {
       routes, files, tables: input.tables.slice(0, 400), liveFacts: input.liveFacts.slice(0, 20),
       possessionGates: pick(input.possessionGates), oneIdAccess: pick(input.oneIdAccess),
       stack: input.stack, hasDatabase: input.hasDatabase,
+      ...(input.openByDesign ? { openByDesign: input.openByDesign } : {}),
     };
   };
   const pages: ReasoningContext[] = [];
@@ -194,7 +198,8 @@ export type ReasoningTask = {
 const contextSchema = z.object({ version: z.literal(1), system: z.string(), prompt: z.string(), routes: z.array(z.any()),
   files: z.array(z.string()), tables: z.array(z.string()), liveFacts: z.array(z.object({ id: z.string(), statement: z.string() })),
   possessionGates: z.array(z.tuple([z.string(), z.any()])), oneIdAccess: z.array(z.tuple([z.string(), z.any()])),
-  stack: z.any(), hasDatabase: z.boolean() });
+  stack: z.any(), hasDatabase: z.boolean(),
+  openByDesign: z.object({ file: z.string().max(1024), line: z.number().int().positive(), reason: z.string().max(200) }).optional() });
 const verificationContextSchema = z.object({ version: z.literal(1), hypotheses: z.array(z.any()), items: z.array(z.any()) });
 
 /** What the agent reads for a reasoning or verification task. */
@@ -415,7 +420,7 @@ export async function submitVerificationResult(userId: string, task: ReasoningTa
   const findings = buildFindings({
     admitted: applied.kept, deterministic: [], routes: context.routes, stack: context.stack, repositoryId: task.repository_id,
     hasDatabase: context.hasDatabase, liveFacts: context.liveFacts, possessionGates: new Map(context.possessionGates),
-    oneIdAccess: new Map(context.oneIdAccess),
+    oneIdAccess: new Map(context.oneIdAccess), openByDesign: context.openByDesign,
   }).filter((f) => f.attackClass !== "permission_gap" && f.attackClass !== "committed_secret");
   const stored = { status: "proposed", model: result.model, usage: result.usage,
     verdicts: verdicts.map((v) => ({ id: v.id, verdict: v.verdict, citationProblem: v.citationProblem })),

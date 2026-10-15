@@ -12,6 +12,7 @@ import { buildFindings, type AgentFinding } from "./findings";
 import { deterministicFindings } from "./deterministicFindings";
 import { compactRouteFacts } from "@/lib/routeMap";
 import { oneIdAccess, possessionGates } from "./possessionGate";
+import { openByDesign } from "./signIn";
 import { extractTables, extractColumns } from "./schema";
 import { inferDomain } from "./domain";
 import { loadLiveFacts } from "./liveFacts";
@@ -475,6 +476,8 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
     const gates = possessionGates(routes, byPath);
     // Q21: anonymous routes whose only way in is a random-minted id cap at WARNING.
     const oneId = oneIdAccess(routes, byPath);
+    // P3: an app with no sign-in whose code says it is open by design.
+    const open = openByDesign({ routes, stack, tables, archive });
 
     const findings = buildFindings({
       admitted: [],
@@ -486,6 +489,7 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       liveFacts,
       possessionGates: gates,
       oneIdAccess: oneId,
+      openByDesign: open,
     });
 
     for (const finding of findings.filter((f) => f.severity === "CRITICAL")) {
@@ -496,7 +500,7 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
     // so Coverage points to its AI check instead of offering a connection.
     const pages = reasoningPages({ routes: routes.filter((r) => !notes.some((n) => n.path === r.path)), stack, tables, domain,
       files: archive.files.map((f) => f.path), liveFacts, possessionGates: gates, oneIdAccess: oneId,
-      hasDatabase: options.hasDatabase ?? false });
+      hasDatabase: options.hasDatabase ?? false, openByDesign: open });
     const reasoning = pages[0] ?? null;
     // Routes that reach the agent on some page, plus those reported as
     // cross-tenant notes instead; pages are consecutive slices of the ranking.

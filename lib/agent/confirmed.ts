@@ -1,4 +1,4 @@
-import type { Claim, Confidence } from "./findings";
+import { OPEN_BY_DESIGN, type Claim, type Confidence } from "./findings";
 import type { Severity } from "@/lib/types";
 
 /**
@@ -11,8 +11,12 @@ import type { Severity } from "@/lib/types";
  * Confirmed: a replica proof, a live provider fact, quoted-line proof from the
  * agent (a verified agent claim), or a committed live credential (direct
  * evidence, CRITICAL only after the live-credential rule).
+ *
+ * Not confirmed: an open-access finding in an app whose own code says it signs
+ * no one in by design (P3, D1). It stays, with its proof, as To review.
  */
 export function isConfirmed(f: { severity: Severity; confidence: Confidence; attackClass: string; claims: readonly Claim[] }): boolean {
+  if (f.attackClass !== "committed_secret" && f.claims.some((c) => c.origin === "routes" && c.claim.startsWith(OPEN_BY_DESIGN))) return false;
   if (f.confidence === "proven") return true;
   if (f.claims.some((c) => c.verified && (c.origin === "agent" || c.origin === "live"))) return true;
   return f.attackClass === "committed_secret" && f.severity === "CRITICAL";

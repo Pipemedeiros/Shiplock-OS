@@ -58,7 +58,7 @@ export function admitVerified(context: ReasoningContext, task: Pick<Verification
   const findings = buildFindings({
     admitted: applied.kept, deterministic: [], routes: context.routes, stack: context.stack, repositoryId,
     hasDatabase: context.hasDatabase, liveFacts: context.liveFacts, possessionGates: new Map(context.possessionGates),
-    oneIdAccess: new Map(context.oneIdAccess),
+    oneIdAccess: new Map(context.oneIdAccess), openByDesign: context.openByDesign,
   }).filter((f) => f.attackClass !== "permission_gap" && f.attackClass !== "committed_secret");
   return { findings, confirmed: applied.kept.length, refuted: applied.refuted, unverified: applied.unverified };
 }
