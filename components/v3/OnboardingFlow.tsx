@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, Check, GitPullRequest, Loader2, LockKeyhole, ShieldCheck } from "lucide-react";
 import { startAndWaitForAudit } from "./auditClient";
 import { IntelligencePanel } from "@/components/d/IntelligencePanel";
+import { AppUrlPanel } from "@/components/d/AppUrlPanel";
 
 /**
  * Onboarding: connect GitHub, choose repositories, see the stack we read, run
@@ -450,6 +451,13 @@ function StackStep({
           </p>
         </div>
       ) : null}
+
+      {/* G3: optional. The outside view reads what the app serves to anyone,
+          at an address the founder confirms; GitHub's homepage is offered. */}
+      <div className="v3-tile">
+        <strong style={{ fontWeight: 500, fontSize: 14.5 }}>Your app, read from the outside (optional)</strong>
+        <div style={{ marginTop: 10 }}><AppUrlPanel /></div>
+      </div>
 
       <div className="v3-row">
         <button className="v3-btn v3-primary" onClick={onContinue}>

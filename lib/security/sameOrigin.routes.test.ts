@@ -31,6 +31,7 @@ const routes: [string, () => Promise<object>][] = [
   ["fix/rate-limit", () => import("@/app/api/fix/rate-limit/route")],
   ["fix/preview", () => import("@/app/api/fix/preview/route")],
   ["auth/welcome", () => import("@/app/api/auth/welcome/route")],
+  ["app-url", () => import("@/app/api/app-url/route")],
 ];
 
 describe("cookie-authenticated mutations refuse cross-site requests first", () => {

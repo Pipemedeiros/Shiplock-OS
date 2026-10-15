@@ -8,6 +8,7 @@ import { PostgresPanel } from "@/components/d/PostgresPanel";
 import { VerifiedPanel } from "@/components/d/VerifiedPanel";
 import { IntelligencePanel } from "@/components/d/IntelligencePanel";
 import { TrafficSites } from "@/components/d/TrafficSites";
+import { AppUrlPanel } from "@/components/d/AppUrlPanel";
 import { BILLING_ENABLED } from "@/lib/access";
 import { BillingActions } from "@/components/v3/BillingActions";
 import { SignOutButton } from "@/components/sign-out-button";
@@ -92,6 +93,16 @@ export default async function SettingsPage() {
         <div className="v3-card">
           <div className="v3-hd"><h2 className="v3-eyebrow">Your AI</h2></div>
           <div className="v3-card-p"><IntelligencePanel /></div>
+        </div>
+
+        {/* The outside view (G3): what the app serves to anyone, read at an
+            address the founder confirms. GitHub's homepage is suggested. */}
+        <div className="v3-card">
+          <div className="v3-hd">
+            <h2 className="v3-eyebrow">Your app</h2>
+            <span className={`v3-tag ${profile?.monitored_app_url ? "ok" : ""}`}>{profile?.monitored_app_url ? "read" : "no address"}</span>
+          </div>
+          <div className="v3-card-p"><AppUrlPanel /></div>
         </div>
 
         {/* Traffic bound to a repository through a site (2F-2b). Enabled mirrors
