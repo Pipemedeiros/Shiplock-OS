@@ -37,3 +37,17 @@ describe("RisksBoard candidates and proof", () => {
     expect(html).toContain("Proved");
   });
 });
+
+// Strix's proof per finding, run by the founder: one harmless request against
+// their own preview app, offered only where one anonymous request shows the gap.
+describe("RisksBoard self-check", () => {
+  it("offers the request on a route with no sign-in check", () => {
+    const open = { ...finding, attackClass: "missing_authentication", entry: "/api/orders/[id]" };
+    const html = renderToStaticMarkup(<RisksBoard findings={[open]} />);
+    expect(html).toContain("Check it yourself");
+    expect(html).toContain("/api/orders/00000000-0000-4000-8000-000000000000");
+  });
+  it("offers nothing where one request cannot show the gap", () => {
+    expect(renderToStaticMarkup(<RisksBoard findings={[finding]} />)).not.toContain("Check it yourself");
+  });
+});

@@ -11,6 +11,7 @@ import { Chain, Claims, Conf, Sev } from "./FindingParts";
 import { repairMessage, waitForRepair } from "@/lib/repairReceiptClient";
 import type { ProofOffer } from "@/lib/proving/proofStatus";
 import { ProofPanel } from "./ProofButton";
+import { selfCheck } from "@/lib/proof/selfCheck";
 import { AgentHandoff } from "./AgentHandoff";
 import { HitHard, type TrafficHit } from "./HitHard";
 
@@ -144,6 +145,7 @@ function Inspector({ finding, proof }: { finding: DashboardFinding; proof: Proof
 
       <div className="v3-card-p">
         {tab === "why" ? <Claims claims={finding.claims} /> : null}
+        {tab === "why" ? <SelfCheckBlock key={finding.rowId} finding={finding} /> : null}
         {tab === "why" && proof ? (
           <div style={{ marginTop: 16 }}>
             <ProofPanel key={finding.rowId} repositoryId={proof.repositoryId} findingId={proof.findingId} table={proof.table} view={proof.view} />
@@ -208,5 +210,28 @@ function Inspector({ finding, proof }: { finding: DashboardFinding; proof: Proof
         ) : null}
       </div>
     </aside>
+  );
+}
+
+/** One harmless request the founder runs against their own preview app
+ * (lib/proof/selfCheck.ts). ShipLock never sends it. */
+function SelfCheckBlock({ finding }: { finding: DashboardFinding }) {
+  const [copied, setCopied] = useState<"yes" | "no" | null>(null);
+  const check = finding.entry ? selfCheck({ entry: finding.entry, attackClass: finding.attackClass }) : null;
+  if (!check) return null;
+  return (
+    <div style={{ marginTop: 16 }}>
+      <b style={{ fontWeight: 500 }}>Check it yourself</b>
+      <p className="v3-small" style={{ marginTop: 4 }}>{check.reading}</p>
+      <pre className="v3-trace" style={{ marginTop: 8, whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontSize: 12.5 }}>{check.curl}</pre>
+      <div className="v3-row" style={{ gap: 10, marginTop: 8 }}>
+        <button className="v3-btn v3-btn-sm v3-ghost" onClick={async () => {
+          try { await navigator.clipboard.writeText(check.curl); setCopied("yes"); } catch { setCopied("no"); }
+        }}>Copy request</button>
+        <span role="status" className="v3-small">
+          {copied === "yes" ? "Copied." : copied === "no" ? "Copy failed. Select the text above instead." : ""}
+        </span>
+      </div>
+    </div>
   );
 }
