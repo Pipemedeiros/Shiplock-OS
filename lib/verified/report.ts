@@ -1,4 +1,5 @@
 import { isConfirmed } from "@/lib/agent/confirmed";
+import { isLiveSource, liveEvidence } from "@/lib/agent/liveFindings";
 import type { Claim, Confidence } from "@/lib/agent/findings";
 import type { Severity } from "@/lib/types";
 import { getSupabaseAdmin } from "@/lib/supabase";
@@ -191,10 +192,14 @@ export function buildVerifiedReport(d: VerifiedReportData): VerifiedReport {
  * token space cannot be enumerated.
  */
 /** Open counts as the dashboard status counts them: confirmed issues only (A1). */
-export function confirmedCounts(rows: { severity: unknown; confidence: unknown; attack_class: unknown; claims: unknown }[]):
+export function confirmedCounts(rows: { severity: unknown; confidence: unknown; attack_class: unknown; claims: unknown; source?: unknown; finding_id?: unknown }[]):
   { openCritical: number; openTotal: number } {
-  const confirmed = rows.filter((r) => isConfirmed({ severity: r.severity as Severity, confidence: (r.confidence as Confidence) ?? "inferred",
-    attackClass: String(r.attack_class ?? ""), claims: Array.isArray(r.claims) ? (r.claims as Claim[]) : [] }));
+  const confirmed = rows.filter((r) => {
+    // W3: a live row's evidence is where it was read, as on the dashboard.
+    const live = isLiveSource(String(r.source)) ? liveEvidence({ source: String(r.source), finding_id: String(r.finding_id) }) : null;
+    return isConfirmed({ severity: r.severity as Severity, confidence: live?.confidence ?? (r.confidence as Confidence) ?? "inferred",
+      attackClass: live?.attackClass ?? String(r.attack_class ?? ""), claims: live?.claims ?? (Array.isArray(r.claims) ? (r.claims as Claim[]) : []) });
+  });
   return { openCritical: confirmed.filter((r) => r.severity === "CRITICAL").length, openTotal: confirmed.length };
 }
 
@@ -222,12 +227,12 @@ export async function getVerifiedReport(token: string): Promise<VerifiedReport |
       .maybeSingle(),
     admin
       .from("deep_findings")
-      .select("severity, confidence, attack_class, claims")
+      .select("source, finding_id, severity, confidence, attack_class, claims")
       .eq("user_id", userId)
       .is("archived_at", null)
       .limit(2000),
   ]);
-  const counts = confirmedCounts((openRes.data ?? []) as { severity: unknown; confidence: unknown; attack_class: unknown; claims: unknown }[]);
+  const counts = confirmedCounts((openRes.data ?? []) as Parameters<typeof confirmedCounts>[0]);
 
   const row = runRes.data as Record<string, unknown> | null;
 

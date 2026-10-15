@@ -1,5 +1,6 @@
 import type { AttackTask } from "./attackFeed";
 import { isConfirmed } from "./confirmed";
+import { isLiveSource, LIVE_SOURCES, liveEvidence } from "./liveFindings";
 import { cache } from "react";
 import { parseRouteFacts, type MapRoute } from "@/lib/routeMap";
 import { getSupabaseAdmin } from "@/lib/supabase";
@@ -84,10 +85,12 @@ export const getOpenFindings = cache(async (userId: string): Promise<DashboardFi
   const { data } = await admin
     .from("deep_findings")
     .select(
-      "id, finding_id, title, consequence, severity, confidence, attack_class, entry, file, blast_radius, fix_kind, claims, detected_at, fix_pr_url, fix_pr_number, repository_id, repositories(full_name)",
+      "id, finding_id, source, title, consequence, severity, confidence, attack_class, entry, file, blast_radius, fix_kind, claims, detected_at, fix_pr_url, fix_pr_number, repository_id, repositories(full_name)",
     )
     .eq("user_id", userId)
-    .eq("source", "agent")
+    // W3: what ShipLock observed outside the repository (a replica proof, the
+    // shipped bundle, the connected database) is shown with the agent's.
+    .in("source", ["agent", ...LIVE_SOURCES])
     .is("archived_at", null)
     .order("detected_at", { ascending: false });
 
@@ -96,6 +99,8 @@ export const getOpenFindings = cache(async (userId: string): Promise<DashboardFi
   return rows
     .map((row) => {
       const repo = row.repositories as { full_name?: string } | null;
+      // A live row carries no claims of its own; its evidence is where it was read.
+      const live = isLiveSource(String(row.source)) ? liveEvidence({ source: String(row.source), finding_id: String(row.finding_id) }) : null;
       return {
         rowId: String(row.id),
         id: String(row.finding_id),
@@ -104,13 +109,13 @@ export const getOpenFindings = cache(async (userId: string): Promise<DashboardFi
         severity: (row.severity as Severity) ?? "WARNING",
         // A missing confidence is `inferred`, never the flattering default. An
         // older row that predates the column has not been proven of anything.
-        confidence: (row.confidence as Confidence) ?? "inferred",
-        attackClass: String(row.attack_class ?? "unknown"),
+        confidence: live?.confidence ?? (row.confidence as Confidence) ?? "inferred",
+        attackClass: live?.attackClass ?? String(row.attack_class ?? "unknown"),
         entry: (row.entry as string) ?? null,
         file: (row.file as string) ?? null,
         blastRadius: (row.blast_radius as string) ?? null,
         fixKind: (row.fix_kind as FixKind) ?? "manual",
-        claims: Array.isArray(row.claims) ? (row.claims as Claim[]) : [],
+        claims: live?.claims ?? (Array.isArray(row.claims) ? (row.claims as Claim[]) : []),
         repository: repo?.full_name ?? null,
         repositoryId: (row.repository_id as string) ?? null,
         detectedAt: String(row.detected_at),
