@@ -14,6 +14,8 @@ describe("welcome and cancelled pages", () => {
     expect(metadata.title).toBe("You are set up");
     expect(html).toMatch(/Thank you/);
     for (const href of ["/dashboard", "/dashboard/risks", "/dashboard/settings"]) expect(html).toContain(`href="${href}"`);
+    // Felipe 2026-10-14: the founder presses a button and starts watching.
+    expect(html).toMatch(/<a class="[^"]*v3-primary[^"]*" href="\/dashboard\/activity">Watch it run</);
     expect(text(html)).not.toMatch(/[–—]/);
   });
 
@@ -28,6 +30,6 @@ describe("welcome and cancelled pages", () => {
   });
 
   it("onboarding ends on the welcome page", () => {
-    expect(readFileSync("components/v3/OnboardingFlow.tsx", "utf8")).toMatch(/onDone=\{\(\) => router\.push\("\/welcome"\)\}/);
+    expect(readFileSync("components/v3/OnboardingFlow.tsx", "utf8")).toMatch(/router\.push\("\/welcome"\)/);
   });
 });

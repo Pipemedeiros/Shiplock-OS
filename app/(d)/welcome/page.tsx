@@ -15,11 +15,13 @@ export default async function Welcome() {
   return (
     <StatusPage eyebrow="Setup complete" title="Thank you. ShipLock is watching your repository.">
       <p className="v3-sub" style={{ fontSize: 16.5, maxWidth: 580 }}>
-        Pull requests on the repositories you selected now get a ShipLock check, and changes are rechecked.
+        Activity shows each stage as it happens: the read, the attacks your agent proposes and how each was checked,
+        the map, fixes and the watch. Pull requests on the repositories you selected now get a ShipLock check, and changes are rechecked.
         Nothing is merged or deployed without your click.
       </p>
       <div className="v3-row" style={{ gap: 12, marginTop: 28 }}>
-        <Link href="/dashboard" className="v3-btn v3-primary">Open your dashboard</Link>
+        <Link href="/dashboard/activity" className="v3-btn v3-primary">Watch it run</Link>
+        <Link href="/dashboard" className="v3-btn v3-ghost">Open your dashboard</Link>
       </div>
       <section aria-labelledby="next" style={{ marginTop: 48 }}>
         <h2 id="next" className="v3-small v3-mono" style={{ textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>

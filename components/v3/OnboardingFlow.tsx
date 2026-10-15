@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { CONNECTION_CATEGORIES } from "@/lib/connections/categories";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Check, GitPullRequest, LockKeyhole, ShieldCheck } from "lucide-react";
+import { ArrowRight, Check, GitPullRequest, Loader2, LockKeyhole, ShieldCheck } from "lucide-react";
 import { startAndWaitForAudit } from "./auditClient";
 import { IntelligencePanel } from "@/components/d/IntelligencePanel";
 
@@ -71,6 +71,7 @@ export function OnboardingFlow({
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(listError);
+  const [leaving, startLeaving] = useTransition();
 
   // The list is rendered from the server on first paint. This only re-reads it
   // when the customer asks, after changing which repositories the installation
@@ -134,7 +135,7 @@ export function OnboardingFlow({
         <FirstAudit repository={picked[0]} onDone={() => setStep("ai")} />
       ) : null}
 
-      {step === "ai" ? <AiStep onDone={() => router.push("/welcome")} /> : null}
+      {step === "ai" ? <AiStep pending={leaving} onDone={() => startLeaving(() => router.push("/welcome"))} /> : null}
     </div>
   );
 }
@@ -161,7 +162,28 @@ function Stepper({ step }: { step: Step }) {
   );
 }
 
+/** A wait the founder can see: a moving indicator and a live status line. */
+export function Working({ children }: { children: ReactNode }) {
+  return (
+    <div role="status" aria-live="polite" className="v3-empty v3-row" style={{ gap: 8, justifyContent: "center" }}>
+      <Loader2 size={15} className="v3-spin" aria-hidden="true" />
+      <span>{children}</span>
+    </div>
+  );
+}
+
+/** The install link leaves for GitHub, which can take a moment; it says so at once. */
+export function InstallGitHubLink({ opening, onOpen }: { opening: boolean; onOpen: () => void }) {
+  return (
+    <a href="/api/deep/github/connect" className="v3-btn v3-primary" style={{ marginTop: 16 }} onClick={onOpen}
+      {...(opening ? { "aria-busy": true, "aria-disabled": true } : {})}>
+      {opening ? <><Loader2 size={15} className="v3-spin" aria-hidden="true" /> Opening GitHub</> : <>Install the GitHub App <ArrowRight size={15} /></>}
+    </a>
+  );
+}
+
 function Connect() {
+  const [opening, setOpening] = useState(false);
   return (
     <div className="v3-stack">
       <div>
@@ -199,9 +221,7 @@ function Connect() {
           <p className="v3-small" style={{ marginTop: 16 }}>
             We never push to your default branch. Disconnecting stops future repository reads.
           </p>
-          <a href="/api/deep/github/connect" className="v3-btn v3-primary" style={{ marginTop: 16 }}>
-            Install the GitHub App <ArrowRight size={15} />
-          </a>
+          <InstallGitHubLink opening={opening} onOpen={() => setOpening(true)} />
         </div>
       </div>
     </div>
@@ -235,7 +255,7 @@ function RepoPicker({
       {error ? <div role="alert" className="v3-card v3-card-p" style={{ borderColor: "var(--crit)" }}>{error}</div> : null}
 
       {loading && repos.length === 0 ? (
-        <div className="v3-empty">Reading your repositories…</div>
+        <Working>Reading your repositories</Working>
       ) : repos.length === 0 ? (
         <div className="v3-empty">
           <p>No repositories are visible to the installation.</p>
@@ -381,7 +401,7 @@ function StackStep({
       ) : null}
 
       {tools === null && !error ? (
-        <div className="v3-empty">Reading the repository...</div>
+        <Working>Reading the repository</Working>
       ) : null}
 
       {tools !== null && groups.length === 0 && !error ? (
@@ -492,7 +512,7 @@ function FirstAudit({ repository, onDone }: { repository: string | undefined; on
         </div>
         <div ref={scrollRef} className="v3-card-p" style={{ maxHeight: 340, overflowY: "auto" }}>
           {trace.length === 0 ? (
-            <p className="v3-small">Cloning and reading the repository…</p>
+            <Working>Cloning and reading the repository</Working>
           ) : (
             <div className="v3-trace">
               {trace.map((s, i) => (
@@ -533,7 +553,7 @@ function FirstAudit({ repository, onDone }: { repository: string | undefined; on
 /** MVP (2026-09-29): ShipLock pays for no model call. The first audit runs every
  * check that needs no AI; attack reasoning runs on the customer's own AI.
  * Asked after the audit, never before it, and skippable. */
-export function AiStep({ onDone }: { onDone: () => void }) {
+export function AiStep({ onDone, pending = false }: { onDone: () => void; pending?: boolean }) {
   return (
     <div className="v3-stack">
       <div>
@@ -548,7 +568,9 @@ export function AiStep({ onDone }: { onDone: () => void }) {
       <div className="v3-card"><div className="v3-card-p"><IntelligencePanel /></div></div>
       <div className="v3-card v3-card-p v3-between">
         <p className="v3-small">Skip for now if you like. You can change this any time in Settings.</p>
-        <button className="v3-btn v3-primary" onClick={onDone}>Open the results</button>
+        <button className="v3-btn v3-primary" onClick={onDone} disabled={pending} aria-busy={pending || undefined}>
+          {pending ? <><Loader2 size={15} className="v3-spin" aria-hidden="true" /> Opening</> : "Open the results"}
+        </button>
       </div>
     </div>
   );
