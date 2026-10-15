@@ -424,3 +424,14 @@ describe("ranking and structure", () => {
     expect(findAttackPaths({})).toEqual([]);
   });
 });
+
+// Customer copy has no dashes (AGENTS.md). Graph paths now show in Issues as
+// findings to review (X3), so every sentence they render is held to it.
+describe("graph path copy", () => {
+  it("renders no dashes in any title or consequence", async () => {
+    const { readFileSync } = await import("node:fs");
+    const rendered = readFileSync("lib/graph/attackPaths.ts", "utf8").split("\n").filter((line) => /^\s*(`|title:|consequence:)/.test(line));
+    expect(rendered.length).toBeGreaterThan(5);
+    expect(rendered.filter((line) => /[–—]/.test(line))).toEqual([]);
+  });
+});

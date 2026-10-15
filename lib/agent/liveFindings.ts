@@ -15,7 +15,7 @@ import type { Claim, Confidence } from "./findings";
  * that weakens a layer (email authentication, an edge in front, an extension),
  * read live but not a way in: To review.
  */
-export const LIVE_SOURCES = ["proven", "policy", "postgres-direct", "exposed-path", "vercel", "runtime"] as const;
+export const LIVE_SOURCES = ["proven", "policy", "postgres-direct", "exposed-path", "vercel", "runtime", "graph"] as const;
 export type LiveSource = (typeof LIVE_SOURCES)[number];
 
 const WHERE: Record<LiveSource, string> = {
@@ -25,6 +25,9 @@ const WHERE: Record<LiveSource, string> = {
   "exposed-path": "Observed from the public internet: ShipLock fetched this from your app's URL without signing in.",
   vercel: "Read live from your Vercel project's settings.",
   runtime: "Observed in your auth logs.",
+  // X3: graph paths need two layers (lib/graph/attackPaths.ts), but the route
+  // half is code reading alone, so they stay To review.
+  graph: "Joined from your code and your connected database. It becomes an issue once your agent proves it with quoted lines or a replica reproduces it.",
 };
 
 // What a collector can only report after seeing the exposure itself: a

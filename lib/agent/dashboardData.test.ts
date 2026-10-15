@@ -51,7 +51,7 @@ describe("dashboard reads", () => {
     rows = [live("proof:rls:orders", "proven"), live("bundle:shipped_secret:supabase_service_role_jwt", "exposed-path"),
       live("email_auth:dmarc_missing", "exposed-path", "WARNING")];
     const open = await data.getOpenFindings("u1");
-    expect(calls).toContainEqual({ method: "in", args: ["source", ["agent", "proven", "policy", "postgres-direct", "exposed-path", "vercel", "runtime"]] });
+    expect(calls).toContainEqual({ method: "in", args: ["source", ["agent", "proven", "policy", "postgres-direct", "exposed-path", "vercel", "runtime", "graph"]] });
     expect(open.map((f) => [f.id, f.confirmed, f.confidence])).toEqual([
       ["proof:rls:orders", true, "proven"],
       ["bundle:shipped_secret:supabase_service_role_jwt", true, "corroborated"],

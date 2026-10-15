@@ -158,7 +158,7 @@ export function findAttackPaths(input: GraphInput): AttackPath[] {
           title: `Anyone on the internet can read ${table.qualified} through ${route.path}`,
           consequence:
             `${route.path} does not identify who is calling it, and it queries ${table.qualified}, where ${why}. ` +
-            `Those two facts are each unremarkable on their own — plenty of endpoints are public, and plenty of tables are meant to be readable. Together they mean the contents of ${table.qualified} are available to anyone who sends a request, with no account, no token and no clue left in your logs that it was not a normal user. ` +
+            `Those two facts are each unremarkable on their own: plenty of endpoints are public, and plenty of tables are meant to be readable. Together they mean the contents of ${table.qualified} are available to anyone who sends a request, with no account, no token and no clue left in your logs that it was not a normal user. ` +
             `Fix either half and the path closes: require a session in ${route.file}, or ${words.ownershipRemedy(table.qualified)}. Doing both is better, because each is a single edit away from being wrong again.`,
           evidence: [
             { collector: "source", fact: `${route.path} (${route.file}) resolves no caller identity` },
@@ -194,7 +194,7 @@ export function findAttackPaths(input: GraphInput): AttackPath[] {
             ? `Anyone can sign up and read every row of ${table.qualified}`
             : `Any signed-in user can read every row of ${table.qualified}`,
           consequence:
-            `${route.path} does check that the caller is signed in, which is why this looks safe in review — but it never narrows the query to the caller, and ${table.qualified} has no rule that would narrow it either. ` +
+            `${route.path} does check that the caller is signed in, which is why this looks safe in review, but it never narrows the query to the caller, and ${table.qualified} has no rule that would narrow it either. ` +
             `So the endpoint returns every row to every user, not just their own. ` +
             (amplified
               ? `Sign-ups are open on this project, so the credential needed is a free account anyone can create${posture.autoConfirm ? " with an address they never have to confirm" : ""}. That reduces this from "a customer could" to "anyone could".`
@@ -239,7 +239,7 @@ export function findAttackPaths(input: GraphInput): AttackPath[] {
           consequence:
             `${route.path} ${words.bypassNote.replace("the table", table.qualified)}. ` +
             `That is a legitimate thing to do, but it moves the entire burden of deciding who may see which rows into ${route.file}, and we could not find a filter there scoping the query to the caller. ` +
-            `If that filter is genuinely missing, this endpoint returns other people's data. If it is applied in a way we cannot see, this is worth confirming rather than assuming — the store will not catch a mistake here, because you have told it not to.`,
+            `If that filter is genuinely missing, this endpoint returns other people's data. If it is applied in a way we cannot see, this is worth confirming rather than assuming: the store will not catch a mistake here, because you have told it not to.`,
           evidence: [
             {
               collector: "source",
@@ -263,7 +263,7 @@ export function findAttackPaths(input: GraphInput): AttackPath[] {
           severity: "WARNING",
           title: `${route.path} is public and reads ${table.qualified}`,
           consequence:
-            `${route.path} takes no credentials and queries ${table.qualified}, which looks like it holds personal data. Whether that is safe depends entirely on the access rules on that table, and we have not been able to read them — connect your database and we will check, and either close this or escalate it. ` +
+            `${route.path} takes no credentials and queries ${table.qualified}, which looks like it holds personal data. Whether that is safe depends entirely on the access rules on that table, and we have not been able to read them. Connect your database and we will check, and either close this or escalate it. ` +
             `We are telling you now rather than after, because a public endpoint over personal data is worth a look even before we can confirm the store side.`,
           evidence: [
             { collector: "source", fact: `${route.path} resolves no caller identity` },
@@ -294,7 +294,7 @@ export function findAttackPaths(input: GraphInput): AttackPath[] {
         fact: `${busiest.suspiciousRequests} suspicious requests to ${busiest.path} in the last 48h`,
       });
       path.consequence +=
-        ` We are also seeing ${busiest.suspiciousRequests} suspicious requests to ${busiest.path} in the last 48 hours. That does not mean this specific path has been used, and we are not claiming a breach — but it does mean the account-creation and login surface is under active automated attention, so this is worth doing today rather than this month.`;
+        ` We are also seeing ${busiest.suspiciousRequests} suspicious requests to ${busiest.path} in the last 48 hours. That does not mean this specific path has been used, and we are not claiming a breach, but it does mean the account-creation and login surface is under active automated attention, so this is worth doing today rather than this month.`;
     }
   }
 

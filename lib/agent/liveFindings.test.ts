@@ -15,7 +15,7 @@ const confirmed = (r: ReturnType<typeof row>) => {
 
 describe("live findings", () => {
   it("reads every collector that observes outside the repository", () => {
-    expect([...LIVE_SOURCES].sort()).toEqual(["exposed-path", "policy", "postgres-direct", "proven", "runtime", "vercel"]);
+    expect([...LIVE_SOURCES].sort()).toEqual(["exposed-path", "graph", "policy", "postgres-direct", "proven", "runtime", "vercel"]);
   });
 
   it("confirms a replica proof as proven", () => {
@@ -57,4 +57,14 @@ describe("live findings", () => {
     expect(liveEvidence(row("exposed-path", "exposed:git_exposed")).claims[0].claim)
       .toBe("Observed from the public internet: ShipLock fetched this from your app's URL without signing in.");
   });
+
+  // X3: a path the graph joined from code and a bound database shows in
+  // Issues, but as one to review: the route half is code reading alone.
+  it("shows a graph path as To review, naming the layers that agree", () => {
+    const e = liveEvidence({ source: "graph", finding_id: "path:anon_read:/api/orders:public.orders" });
+    expect(e.claims).toEqual([{ origin: "live", verified: false,
+      claim: "Joined from your code and your connected database. It becomes an issue once your agent proves it with quoted lines or a replica reproduces it." }]);
+    expect(isConfirmed({ severity: "CRITICAL", ...e })).toBe(false);
+  });
 });
+
