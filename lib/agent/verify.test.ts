@@ -170,3 +170,34 @@ describe("VERIFY_SYSTEM and who acts", () => {
     expect(VERIFY_SYSTEM).toMatch(/the app, never ShipLock/i);
   });
 });
+
+// W2 (JEV's idea, answered by the customer's own agent): a typed question
+// with a bounded answer, checked by code. Release attempt 5 kept a delete the
+// schema's restrict relations block; nothing asked the narrow question.
+describe("typed checks", () => {
+  const cites: RawVerdict["citations"] = [
+    { role: "reach", path: "app/api/invoices/[id]/route.ts", line: 3, quote: "export async function GET(req, { params }) {" },
+    { role: "data", path: "app/api/invoices/[id]/route.ts", line: 4, quote: 'db.from("invoices").select("*").eq("id", params.id)' },
+  ];
+  const withChecks = (checks: RawVerdict["checks"]) => checkVerdicts([{ ...confirmed(cites), checks }], [item], files, shown)[0];
+
+  it("keeps a confirmed verdict whose effect holds, and one from an older host that sent no checks", () => {
+    expect(withChecks({ effectHolds: "yes", confidence: 0.9 }).verdict).toBe("confirmed");
+    expect(withChecks(undefined).verdict).toBe("confirmed");
+  });
+  it("downgrades a confirmed verdict whose own check says the effect does not hold", () => {
+    expect(withChecks({ effectHolds: "no", confidence: 0.8 })).toMatchObject({ verdict: "unverified",
+      citationProblem: "the verifier's check says the stated effect does not hold" });
+  });
+  it("keeps an unsure answer confirmed: only a no moves a finding", () => {
+    expect(withChecks({ effectHolds: "unsure", confidence: 0.5 }).verdict).toBe("confirmed");
+  });
+  it("asks the narrow question, never whether other accounts are reached, and requires checks in the schema", () => {
+    expect(VERIFY_SYSTEM).toMatch(/effectHolds/);
+    expect(VERIFY_SYSTEM).toMatch(/onDelete Restrict/);
+    expect(VERIFY_SYSTEM).not.toMatch(/otherAccounts|single operator/);
+    const verdictSchema = VERIFY_SCHEMA.properties.verdicts.items;
+    expect(verdictSchema.required).toContain("checks");
+    expect(verdictSchema.properties.checks.properties.confidence).toEqual({ type: "number", minimum: 0, maximum: 1 });
+  });
+});

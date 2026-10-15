@@ -185,6 +185,7 @@ export const verificationResultSchema = z.discriminatedUnion("status", [
   z.object({ ...answered, status: z.literal("proposed"), verdicts: z.array(z.object({
     id: z.string().max(10), verdict: z.enum(["confirmed", "refuted", "unverified"]), severity: z.enum(["critical", "high", "medium"]),
     statement: z.string().max(600), title: z.string().max(160).optional(), reason: z.string().max(1_000), citations: z.array(citation).max(12),
+    checks: z.object({ effectHolds: z.enum(["yes", "no", "unsure"]), confidence: z.number().min(0).max(1) }).strict().optional(),
   }).strict()).max(VERIFY_BATCH) }).strict(),
   z.object({ ...answered, status: z.literal("unavailable"), reason: z.enum(["host_offline", "quota_exhausted", "unsupported", "cancelled"]) }).strict(),
 ]);
@@ -423,7 +424,9 @@ export async function submitVerificationResult(userId: string, task: ReasoningTa
     oneIdAccess: new Map(context.oneIdAccess), openByDesign: context.openByDesign,
   }).filter((f) => f.attackClass !== "permission_gap" && f.attackClass !== "committed_secret");
   const stored = { status: "proposed", model: result.model, usage: result.usage,
-    verdicts: verdicts.map((v) => ({ id: v.id, verdict: v.verdict, citationProblem: v.citationProblem })),
+    // W2: the typed answers are kept with the task so their calibration can be
+    // measured before any threshold is set on confidence.
+    verdicts: verdicts.map((v) => ({ id: v.id, verdict: v.verdict, citationProblem: v.citationProblem, ...(v.checks ? { checks: v.checks } : {}) })),
     confirmed: applied.kept.length, refuted: applied.refuted, unverified: applied.unverified };
   const outcome = await admit("proposal_received", stored, findings);
   return { taskId: task.id, status: "proposal_received" as const, outcome, confirmed: applied.kept.length, refuted: applied.refuted,

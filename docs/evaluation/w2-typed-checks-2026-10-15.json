@@ -1,0 +1,19 @@
+{
+  "experiment": "w2-typed-checks",
+  "recordedAt": "2026-10-15",
+  "population": "Release attempt 5's 58 verification tasks (CORPUS-8 61 to 300; development data since attempt 5 closed), reasoning answers unchanged, verification re-run by blind subagents with the W2 verifier brief; scored against attempt 5's existing labels (docs/evaluation/runs/attempt5-2026-10).",
+  "codeUnderTest": "P3 (open by design), E5 (filler keys), W1, W3 and the W2 verifier: an effectHolds check (yes, no or unsure) and a 0 to 1 confidence on every verdict; a confirmed verdict whose effectHolds is no is not admitted.",
+  "withdrawn": "A first version also asked otherAccounts. On 3 of the first batches it moved corpus-r6's three findings (both labelers: real) to unverified because the app has a single operator. Removed and every batch re-run with the final brief.",
+  "labeledFindings": { "trueKept": 88, "falseKept": 4, "trueLost": 7, "falseDropped": 5, "keptPrecision": 0.957 },
+  "attempt5Baseline": { "true": 95, "labeled": 104, "precision": 0.913 },
+  "newUnlabeled": 12,
+  "effectHoldsGate": "Never fired: no confirmed verdict answered effectHolds no. Its effect was the wording: c8-lovr's delete now states the restrict relations that block it.",
+  "trueLost": "All 7 were verifier variance (unverified with unsure), not the gate: c8-crm 5, c8-memento-academy 2, c8-lovr 1.",
+  "confidenceCalibration": {
+    "confirmedLabeled": 94,
+    "meanTrue": 0.727, "meanFalse": 0.683,
+    "thresholds": { "0.6": { "trueKept": 83, "falseKept": 6 }, "0.7": { "trueKept": 73, "falseKept": 3 }, "0.8": { "trueKept": 24, "falseKept": 0 } },
+    "decision": "The agent's own confidence barely separates true from false; no threshold is set on it. Recorded on every verification task for calibration; a calibrated judge (JEV) is the candidate to close this."
+  },
+  "notARelease": "Development data on an attempt already seen. Only a fresh frozen run (attempt 6) is a release number."
+}
