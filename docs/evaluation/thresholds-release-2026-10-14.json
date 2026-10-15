@@ -1,0 +1,44 @@
+{
+  "experiment": "release-precision-thresholds",
+  "recordedAt": "2026-10-14",
+  "supersedes": "thresholds-release-2026-10-12.json (97% observed)",
+  "recordedBefore": "release attempt 6, which is not yet declared. Set after attempts 4 (93.5%) and 5 (91.3%) were seen, so neither counts as passing it; it applies only to a fresh frozen run declared after this file.",
+  "status": "Claude's call under Felipe's grant (2026-10-14: 'Have the freedom to have the highest precision you want, in a way that's good enough'). Reasons: commercial SAST precision is commonly reported at 18 to 36%, a 2025 open-source study found 180 of 2,116 flags real, tuned deployments reach 80 to 90%; at about 0.3 status-setting findings per repository, 95% is about one false Exposed in 60 audits. 97% stays reported as a stretch figure.",
+  "scope": "Everything that sets a founder's status (Exposed or At risk): deterministic findings and the customer agent's admitted findings, as rendered, on a held-out set frozen before the change being measured. INFO facts are reported, not gated.",
+  "definitions": {
+    "truePositive": "both blind labelers agree the statement as written is accurate AND the issue is real against the deployed app",
+    "falsePositive": "anything else, including partly accurate and contested (disagreement counts against us)",
+    "precision": "TP / (TP + FP), with a one-sided 95% Clopper-Pearson lower bound",
+    "zeroDenominator": "unavailable, never 100%",
+    "tieBreak": "From release attempt 4 (Felipe authorized 2026-10-13, recorded before the attempt runs): when the two blind labelers split on a finding (one strict yes, one not), a third blind labeler answers it, and the finding is true when a majority of the three says accurate and real. Two labelers who agree are final. Attempts 1 to 3 are scored without it."
+  },
+  "gates": {
+    "statusSetting": {
+      "observedPrecisionAtLeast": 0.95,
+      "lowerBound95AtLeast": 0.88,
+      "minimumLabeledFindings": 100,
+      "note": "With 100 labeled findings, 95% observed means at most 5 false; the one-sided 95% lower bound is then about 89.7%."
+    },
+    "statusCorrectness": {
+      "repositoriesWithCorrectStatusAtLeast": 0.9,
+      "note": "Exposed or At risk is right when at least one issue setting it is a true positive; No open issues is reported with what was unread."
+    },
+    "severity": {
+      "criticalSeverityFitsAtLeast": 0.9
+    },
+    "noFalseMissingCheck": {
+      "falseFindingsClaimingAMissingCheckTheCodeHas": 0,
+      "note": "Reported by the labelers' reasons; checked by hand at close until the harness counts it."
+    }
+  },
+  "stretch": {
+    "observedPrecisionAtLeast": 0.97,
+    "note": "reported, not gated"
+  },
+  "reportedNotGated": [
+    "recall on named known vulnerabilities (misses listed by name)",
+    "unread and partial coverage",
+    "run-to-run variance across two passes",
+    "INFO fact accuracy"
+  ]
+}

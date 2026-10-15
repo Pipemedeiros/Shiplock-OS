@@ -3,7 +3,7 @@
  * only launch when 90%+ precision"). Findings as a founder sees them, labels
  * from two blind labelers, and the recorded gate in; counts, bounds, status
  * correctness and a verdict out. It never decides a threshold: the gate comes
- * from docs/evaluation/thresholds-release-2026-10-12.json (97% observed, Felipe 2026-10-12), recorded before any
+ * from docs/evaluation/thresholds-release-2026-10-14.json (95% observed, Claude under Felipe's grant 2026-10-14), recorded before any
  * release benchmark. Pure: no I/O.
  */
 export type Severity = "CRITICAL" | "WARNING" | "INFO";

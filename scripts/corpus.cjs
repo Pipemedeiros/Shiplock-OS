@@ -555,7 +555,7 @@ function benchInputs(shownFile, packFile, answerFiles) {
 }
 
 function releaseGate() {
-  const g = JSON.parse(fs.readFileSync(path.join(root, "docs/evaluation/thresholds-release-2026-10-12.json"), "utf8")).gates;
+  const g = JSON.parse(fs.readFileSync(path.join(root, "docs/evaluation/thresholds-release-2026-10-14.json"), "utf8")).gates;
   return { observedPrecisionAtLeast: g.statusSetting.observedPrecisionAtLeast, lowerBound95AtLeast: g.statusSetting.lowerBound95AtLeast,
     minimumLabeledFindings: g.statusSetting.minimumLabeledFindings, repositoriesWithCorrectStatusAtLeast: g.statusCorrectness.repositoriesWithCorrectStatusAtLeast };
 }
@@ -574,7 +574,7 @@ async function gateTotal(outArg, dirs) {
   });
   const { findings, labels, duplicates } = product.combineBatches(batches);
   const report = product.scoreBenchmark(findings, labels, releaseGate());
-  await fsp.writeFile(path.resolve(root, outArg), JSON.stringify({ batches: dirs, thresholds: "docs/evaluation/thresholds-release-2026-10-12.json",
+  await fsp.writeFile(path.resolve(root, outArg), JSON.stringify({ batches: dirs, thresholds: "docs/evaluation/thresholds-release-2026-10-14.json",
     duplicates, report }, null, 2) + "\n", { flag: "wx" });
   const s = report.statusSetting;
   console.log(`Running total over ${dirs.length} runs: ${s.labeled} labeled, ${s.tp} true, precision ${s.precision === null ? "unavailable" : (s.precision * 100).toFixed(1) + "%"}`
@@ -588,7 +588,7 @@ async function bench(shownFile, packFile, answerFiles) {
   const product = loadProductModules();
   const report = product.scoreBenchmark(findings, labels, gate);
   const out = path.join(path.dirname(path.resolve(root, shownFile)), `bench-${crypto.randomUUID()}.json`);
-  await fsp.writeFile(out, JSON.stringify({ shown: shownFile, pack: packFile, answers: answerFiles, thresholds: "docs/evaluation/thresholds-release-2026-10-12.json",
+  await fsp.writeFile(out, JSON.stringify({ shown: shownFile, pack: packFile, answers: answerFiles, thresholds: "docs/evaluation/thresholds-release-2026-10-14.json",
     unknownKeys, report }, null, 2) + "\n", { flag: "wx" });
   const s = report.statusSetting;
   console.log(`Status-setting findings: ${s.n}; labeled ${s.labeled}; true ${s.tp}; precision ${s.precision === null ? "unavailable" : (s.precision * 100).toFixed(1) + "%"}` +
