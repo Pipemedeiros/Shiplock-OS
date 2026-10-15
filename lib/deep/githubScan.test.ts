@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { generateKeyPairSync } from "node:crypto";
 import {
+  envValueShapes,
   scanSecrets,
   looksSynthetic,
   isTestPath,
@@ -451,5 +452,35 @@ describe("a key in OpenAI's format names the format, not the vendor", () => {
     expect(f).toBeDefined();
     expect(`${f!.title} ${f!.consequence}`).not.toMatch(/an OpenAI API key/);
     expect(f!.title).toMatch(/OpenAI's format/);
+  });
+});
+
+// W1 (release attempt 5, q9): neither labeler could open a committed app/.env,
+// and an engineer challenging the finding should not have to either. The
+// finding says what each credential holds, by kind, never by value.
+describe("a committed env finding describes its values without showing them", () => {
+  const pw = "Zq8vN2kLp4Rt7wXy";
+  const secret = "9f3a7c1e5b2d8f4a6c0e9b7d5f3a1c8e2b4d6f8a0c2e4b6d8f0a2c4e6b8d0f2a";
+  const content = [`DATABASE_URL=postgresql://app:${pw}@db.acme-prod.internal:5432/app`, `SESSION_SECRET=${secret}`,
+    "NEXT_PUBLIC_SITE=https://acme.com"].join("\n");
+
+  it("names each credential and its kind", () => {
+    expect(envValueShapes(content)).toEqual([
+      { name: "DATABASE_URL", shape: "a connection URL with a password, to a remote host" },
+      { name: "SESSION_SECRET", shape: "64 random-looking characters" },
+    ]);
+  });
+
+  it("names a vendor's key format, and leaves out a local default it does not count as a secret", () => {
+    expect(envValueShapes(`STRIPE_SECRET_KEY=${["sk", "live", "Xk9Qw2Lm7Rt4Vb8Nz3Hy6Jp1Ws5Qd0"].join("_")}\nDATABASE_URL=postgres://u:${pw}@localhost:5432/d`)).toEqual([
+      { name: "STRIPE_SECRET_KEY", shape: "a Stripe live secret key" },
+    ]);
+  });
+
+  it("puts the shapes in the finding and never a value", () => {
+    const f = scanSecrets([{ path: "app/.env.production", content }]).find((x) => x.id.startsWith("github:committed_env"))!;
+    expect(f.severity).toBe("CRITICAL");
+    expect(f.consequence).toContain("What it holds, without values: DATABASE_URL (a connection URL with a password, to a remote host), SESSION_SECRET (64 random-looking characters).");
+    for (const part of [pw, secret.slice(0, 8), "acme-prod"]) expect(f.consequence).not.toContain(part);
   });
 });

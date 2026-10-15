@@ -251,6 +251,53 @@ function envSecretValues(content: string): string[] {
   return values;
 }
 
+const VENDOR_NAMES: [RegExp, string][] = [
+  [/^["']?sk_live_/, "a Stripe live secret key"], [/^["']?rk_live_/, "a Stripe live restricted key"],
+  [/^["']?sb_secret_/, "a Supabase secret key"], [/^["']?sk-ant-/, "an Anthropic API key"],
+  [/^["']?sk-(proj-)?[A-Za-z0-9_-]{20,}/, "an API key in OpenAI's format"], [/^["']?AKIA[0-9A-Z]{16}/, "an AWS access key id"],
+  [/^["']?(gh[pousr]_|github_pat_)/, "a GitHub token"], [/^["']?xox[abprs]-/, "a Slack token"],
+  [/-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----/, "a private key"],
+];
+
+/** Shannon bits per character. */
+function entropy(value: string): number {
+  const counts = new Map<string, number>();
+  for (const c of value) counts.set(c, (counts.get(c) ?? 0) + 1);
+  let bits = 0;
+  for (const n of counts.values()) bits -= (n / value.length) * Math.log2(n / value.length);
+  return bits;
+}
+
+/**
+ * What each credential in a committed env file holds, by kind and never by
+ * value (W1): an engineer or a labeler can challenge the finding without
+ * opening the file. Hosts are named only as local, a template's, or remote.
+ */
+export function envValueShapes(content: string): { name: string; shape: string }[] {
+  const secret = new Set(envSecretValues(content));
+  const shapes: { name: string; shape: string }[] = [];
+  for (const line of content.split("\n")) {
+    const match = /^\s*([A-Za-z0-9_]+)\s*=\s*(.*)$/.exec(line);
+    if (!match || !secret.has(match[2].trim())) continue;
+    const value = match[2].trim();
+    const bare = value.replace(/^["']|["']$/g, "");
+    const vendor = VENDOR_NAMES.find(([re]) => re.test(value))?.[1];
+    const shape = ENV_URL_WITH_CREDENTIALS.test(value)
+      ? `a connection URL with a password, to ${PLACEHOLDER_HOST_RE.test(value) ? "a template's host" : LOCAL_HOST_RE.test(value) ? "a local host" : "a remote host"}`
+      : vendor ?? `${bare.length} ${entropy(bare) >= 3.5 ? "random-looking " : ""}characters`;
+    shapes.push({ name: match[1], shape });
+  }
+  return shapes;
+}
+
+/** The shapes as a sentence for a finding, capped so a long file stays readable. */
+function describeShapes(content: string): string {
+  const shapes = envValueShapes(content);
+  if (shapes.length === 0) return "";
+  const listed = shapes.slice(0, 4).map((s) => `${s.name} (${s.shape})`).join(", ");
+  return ` What it holds, without values: ${listed}${shapes.length > 4 ? `, and ${shapes.length - 4} more` : ""}.`;
+}
+
 export function envFileHasSecret(content: string): boolean {
   return envSecretValues(content).length > 0;
 }
@@ -434,11 +481,11 @@ export function scanSecrets(files: RepoFile[]): GithubFinding[] {
           severity,
           title: `Environment file committed to the repo (${file.path})`,
           consequence: severity === "CRITICAL"
-            ? `${file.path} is committed to source control and holds a value shaped like a live credential. Anyone with repository access, and anyone at all if it ever goes public, can read it. Remove the file, add it to .gitignore, and rotate every value in it.`
+            ? `${file.path} is committed to source control and holds a value shaped like a live credential. Anyone with repository access, and anyone at all if it ever goes public, can read it. Remove the file, add it to .gitignore, and rotate every value in it.${describeShapes(file.content)}`
             : live
-              ? `${file.path} sits under a test or example path but holds a value shaped like a live credential. If it is real, anyone with repository access can read it. Rotate it and keep test values synthetic.`
+              ? `${file.path} sits under a test or example path but holds a value shaped like a live credential. If it is real, anyone with repository access can read it. Rotate it and keep test values synthetic.${describeShapes(file.content)}`
               : hasSecret
-                ? `${file.path} is committed to source control and holds values under credential names. We could not tell whether they are live: they read like local or development defaults. If any is real, rotate it and add the file to .gitignore.`
+                ? `${file.path} is committed to source control and holds values under credential names. We could not tell whether they are live: they read like local or development defaults. If any is real, rotate it and add the file to .gitignore.${describeShapes(file.content)}`
                 : `${file.path} is committed to source control. Its values are either placeholders or public by design, such as a NEXT_PUBLIC_ variable or a Supabase anon key, so nothing private is exposed here. Add it to .gitignore before something real is pasted into it.`,
           packageName: null, version: null, vulnId: null, cveId: null,
         });

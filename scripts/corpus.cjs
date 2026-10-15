@@ -843,6 +843,23 @@ async function recall(dirArg) {
     + `Funnel: facts flag ${report.funnel.factsFlag}, reasoning task ${report.funnel.reasoningTask}, proposed ${report.funnel.proposed}, admitted ${report.funnel.admitted}, shown ${report.funnel.shownAtEntry}, confirmed ${k}. ${out}`);
 }
 
+// W1: every repository in the manifest, unpacked for the blind labelers.
+// Release attempt 5's batch script unpacked only repositories with reasoning
+// tasks, so a packet from the deterministic checks alone pointed at no code.
+async function extractAll(outArg) {
+  const out = path.resolve(root, outArg);
+  let extracted = 0;
+  for (const pin of manifest.repositories) {
+    if (await fileHash(archivePath(pin)) !== pin.archiveSha256) throw new Error(`${pin.id}: archive checksum mismatch`);
+    const dir = path.join(out, pin.id);
+    if (fs.existsSync(dir)) continue;
+    await fsp.mkdir(dir, { recursive: true });
+    execFileSync("tar", ["-xzf", archivePath(pin), "-C", dir, "--strip-components", "1"]);
+    extracted++;
+  }
+  console.log(`${extracted} repositories extracted, ${manifest.repositories.length - extracted} already present, under ${out}`);
+}
+
 async function main() {
   validateManifest();
   if (process.argv[2] === "acquire") {
@@ -855,6 +872,8 @@ async function main() {
     await shown();
   } else if (process.argv[2] === "gate-total" && process.argv[3] && process.argv[4]) {
     await gateTotal(process.argv[3], process.argv.slice(4));
+  } else if (process.argv[2] === "extract" && process.argv[3]) {
+    await extractAll(process.argv[3]);
   } else if (process.argv[2] === "agent-tasks") {
     await agentTasks(process.argv[3]);
   } else if (process.argv[2] === "agent-admit" && process.argv[3]) {
@@ -884,7 +903,7 @@ async function main() {
   } else if (process.argv[2] === "render" && process.argv[3]) {
     await render(process.argv[3]);
   } else {
-    throw new Error("Usage: node scripts/corpus.cjs acquire|evaluate|shown|agent-tasks [dir]|agent-admit <dir>|agent-shown <dir>|label-pack <shown.json> <pack.json>|plant <out.json> [max]|plant-extract <dir>|recall <run dir>|gate-total <out.json> <run dir>...|bench <shown.json> <pack.json> <answers.json>...|holdout <labels.json>|render <paid run dir>|paid --confirm-paid --max-usd <usd> --price <model=in,out>... [--model claude-sonnet-5] [--only <id>]");
+    throw new Error("Usage: node scripts/corpus.cjs acquire|evaluate|shown|extract <dir>|agent-tasks [dir]|agent-admit <dir>|agent-shown <dir>|label-pack <shown.json> <pack.json>|plant <out.json> [max]|plant-extract <dir>|recall <run dir>|gate-total <out.json> <run dir>...|bench <shown.json> <pack.json> <answers.json>...|holdout <labels.json>|render <paid run dir>|paid --confirm-paid --max-usd <usd> --price <model=in,out>... [--model claude-sonnet-5] [--only <id>]");
   }
 }
 
