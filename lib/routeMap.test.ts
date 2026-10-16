@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildRouteMap, compactRouteFacts, exposureOf, parseRouteFacts, simulateRequest, type MapRoute, type RouteMap } from "./routeMap";
+import { buildRouteMap, compactRouteFacts, exposureOf, parseRouteFacts, simulateRequest, withSources, type MapRoute, type RouteMap } from "./routeMap";
 
 const route = (path: string, tables: string[], over: Partial<MapRoute> = {}): MapRoute =>
   ({ path, file: `app${path}/route.ts`, tables, authenticated: true, ownershipFiltered: true, machineGated: false, ...over });
@@ -175,5 +175,35 @@ describe("route levels", () => {
     ] });
     expect(["/confirmed", "/candidate", "/open", "/unscoped", "/safe", "/unread"].map((p) => level(map, p)))
       .toEqual(["red", "yellow", "yellow", "yellow", null, null]);
+  });
+});
+
+// Traffic page (Felipe 2026-10-16): flagged traffic sources on the map, with
+// an attack edge to each route they hit; nothing invented.
+describe("withSources: who attacked which route, on the map", () => {
+  const base = buildRouteMap(input);
+  const sources = [
+    { alias: "Source a1b2", kinds: ["Walking record ids"], requests: 31, status: "flagged" as const,
+      routes: [{ file: "app/api/health/route.ts" }] },
+    { alias: "Source ffee", kinds: ["Vulnerability scanning"], requests: 6, status: "blocked" as const, routes: [] },
+  ];
+  const map = withSources(base, sources);
+
+  it("adds a source node with an attack edge to each route it hit, and marks that route attacked", () => {
+    expect(map.nodes.find((n) => n.id === "source:Source a1b2")).toMatchObject({ kind: "source", label: "Source a1b2" });
+    expect(edge(map, "source:Source a1b2", "route:/api/health")).toMatchObject({ kind: "attack" });
+    expect(map.nodes.find((n) => n.id === "route:/api/health")?.attacked).toBe(true);
+  });
+
+  it("leaves off a source that hit no route on the map (the page lists it), and leaves the base map untouched", () => {
+    expect(map.nodes.some((n) => n.id === "source:Source ffee")).toBe(false);
+    expect(base.nodes.some((n) => n.kind === "source")).toBe(false);
+    expect(base.nodes.find((n) => n.id === "route:/api/health")?.attacked).toBeUndefined();
+  });
+
+  it("says what the source did in plain words, with no dashes", () => {
+    const detail = map.nodes.find((n) => n.id === "source:Source a1b2")!.detail;
+    expect(detail).toBe("Walking record ids. 31 requests in the last 48 hours. Flagged, not blocked.");
+    expect(detail).not.toMatch(/[–—]| - /);
   });
 });

@@ -24,7 +24,7 @@ export function Metric({ label, value, href, link, tone }: { label: string; valu
   return (
     <Link href={href} className={`v3-metric${tone && value > 0 ? ` tone-${tone}` : ""}`}>
       <span className="v3-metric-label">{label}</span>
-      <b className="v3-metric-value">{value}</b>
+      <b className="v3-metric-value">{value.toLocaleString("en-US")}</b>
       <span className="v3-metric-link">{link}</span>
     </Link>
   );

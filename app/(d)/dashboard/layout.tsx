@@ -61,6 +61,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                 icon: "prs",
                 count: findings.filter((f) => f.fixPrUrl).length,
               },
+              { href: "/dashboard/traffic", label: "Traffic", icon: "traffic" },
               { href: "/dashboard/stack", label: "Stack", icon: "stack" },
               { href: "/dashboard/activity", label: "Activity", icon: "activity" },
               { href: "/dashboard/coverage", label: "Coverage", icon: "coverage" },

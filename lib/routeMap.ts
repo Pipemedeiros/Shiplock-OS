@@ -25,7 +25,8 @@ export type MapFinding = { entry: string | null; severity: "CRITICAL" | "WARNING
 export type Exposure = "open" | "unscoped" | "scoped" | "secret" | "unknown" | "none";
 export type Risk = "open" | "unknown" | "unscoped" | "guarded";
 /** guard: route into a control; flow: data reaching a table (with its risk); shared: code; store: table to its database. */
-export type MapEdge = { from: string; to: string; kind: "guard" | "flow" | "shared" | "store"; risk?: Risk };
+/** attack: a flagged traffic source to a route it requested (withSources). */
+export type MapEdge = { from: string; to: string; kind: "guard" | "flow" | "shared" | "store" | "attack"; risk?: Risk };
 
 /** What a route exposes, from the controls the audit read (never guessed). */
 export function exposureOf(r: MapRoute): Exposure {
@@ -39,12 +40,14 @@ export function exposureOf(r: MapRoute): Exposure {
 
 export type MapNode = {
   id: string;
-  kind: "route" | "table" | "provider" | "helper" | "control";
+  kind: "route" | "table" | "provider" | "helper" | "control" | "source";
   label: string;
   detail: string;
   file?: string;
   finding?: MapFinding["severity"];
   hot?: boolean;
+  /** A flagged traffic source requested this route (withSources). */
+  attacked?: boolean;
   connection?: "available" | "coming_soon";
   /** Route nodes carry their facts so the map can simulate a request. */
   fact?: MapRoute;
@@ -236,4 +239,34 @@ export function placeLabels(boxes: LabelBox[]): Set<string> {
   const order = [...boxes].sort((a, b) => Number(!!b.force) - Number(!!a.force) || b.priority - a.priority);
   for (const box of order) if (box.force || !placed.some((p) => hit(p, box))) placed.push(box);
   return new Set(placed.map((p) => p.id));
+}
+
+/** A flagged traffic source, as the Traffic page has it (lib/traffic/attackView.ts). */
+export type MapSource = { alias: string; kinds: string[]; requests: number; status: "blocked" | "flagged"; routes: { file: string }[] };
+const MAX_SOURCES = 8;
+
+/**
+ * The map with flagged traffic sources on it: one node per source and an
+ * attack edge to each route it requested, joined by the route's file. A
+ * source that hit no route on the map is left to the page's list, never
+ * pinned on a guessed route. Returns a new map; the base is not changed.
+ */
+export function withSources(map: RouteMap, sources: readonly MapSource[]): RouteMap {
+  const routeByFile = new Map(map.nodes.filter((n) => n.kind === "route" && n.file).map((n) => [n.file!, n.id]));
+  const nodes = map.nodes.map((n) => ({ ...n }));
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const edges = [...map.edges];
+  for (const source of sources.slice(0, MAX_SOURCES)) {
+    const targets = [...new Set(source.routes.map((r) => routeByFile.get(r.file)).filter((id): id is string => Boolean(id)))];
+    if (targets.length === 0) continue;
+    const id = `source:${source.alias}`;
+    nodes.push({ id, kind: "source", label: source.alias,
+      detail: `${source.kinds.join(", ")}. ${source.requests} ${source.requests === 1 ? "request" : "requests"} in the last 48 hours. `
+        + (source.status === "blocked" ? "Blocked by your snippet." : "Flagged, not blocked.") });
+    for (const target of targets) {
+      edges.push({ from: id, to: target, kind: "attack" });
+      byId.get(target)!.attacked = true;
+    }
+  }
+  return { ...map, nodes, edges };
 }

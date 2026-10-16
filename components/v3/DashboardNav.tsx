@@ -2,12 +2,13 @@
 
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, GitPullRequest, Layers, LayoutDashboard, Boxes, Route, Settings } from "lucide-react";
+import { Activity, GitPullRequest, Layers, LayoutDashboard, Boxes, Radar, Route, Settings } from "lucide-react";
 
 const ICONS = {
   overview: LayoutDashboard,
   risks: Route,
   activity: Activity,
+  traffic: Radar,
   coverage: Layers,
   stack: Boxes,
   prs: GitPullRequest,

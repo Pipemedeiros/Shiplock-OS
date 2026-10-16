@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { buildRouteMap, simulateRequest } from "@/lib/routeMap";
+import { buildRouteMap, simulateRequest, withSources } from "@/lib/routeMap";
 import { MapList, RouteMap, simulationPath } from "./RouteMap";
 
 const map = buildRouteMap({
@@ -95,3 +95,36 @@ describe("RouteMap, the Obsidian-style graph", () => {
     expect(out).not.toMatch(/secure|safe/i);
   });
 });
+
+// Traffic page (Felipe 2026-10-16): the sources that attacked a route, on the graph.
+describe("RouteMap with flagged traffic sources", () => {
+  const attacked = withSources(map, [{ alias: "Source a1b2", kinds: ["Walking record ids"], requests: 31, status: "flagged",
+    routes: [{ file: "app/api/invoices/route.ts" }] }]);
+  const html = renderToStaticMarkup(<RouteMap map={attacked} />);
+
+  it("draws a source as a labelled control, by shape, with its attack edge and a legend entry", () => {
+    expect(html).toContain('aria-label="traffic source Source a1b2"');
+    expect(html).toContain('data-edge="attack"');
+    expect(html).toContain("Traffic source");
+    expect(html).toContain("Attack request");
+  });
+
+  it("lists sources and the routes they hit in the List view", () => {
+    const visible = new Set(attacked.nodes.map((n) => n.id));
+    const list = renderToStaticMarkup(<MapList map={attacked} visible={visible} selected="" onSelect={() => {}} />);
+    expect(list).toContain("Traffic sources");
+    expect(list).toContain("Source a1b2");
+    expect(list).toContain("/api/invoices");
+  });
+
+  it("shows an attacked route even when the audit read nothing wrong on it", () => {
+    const quiet = buildRouteMap({ routes: [{ path: "/api/me", file: "app/api/me/route.ts", tables: ["invoices"], authenticated: true, ownershipFiltered: true, machineGated: false }],
+      tools: [], findings: [], hotFiles: [] });
+    const out = renderToStaticMarkup(<RouteMap map={withSources(quiet, [{ alias: "Source ffee", kinds: ["Request flood"], requests: 140,
+      status: "blocked", routes: [{ file: "app/api/me/route.ts" }] }])} />);
+    expect(out).not.toContain("No route with an issue");
+    expect(out).toContain('aria-label="traffic source Source ffee"');
+    expect(out).toContain('aria-label="route /api/me, Scoped to the caller, attacked"');
+  });
+});
+

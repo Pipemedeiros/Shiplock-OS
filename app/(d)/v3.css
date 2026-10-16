@@ -651,3 +651,9 @@
 .v3-prrow > summary b { font-weight: 500; font-size: 14px; min-width: 0; overflow-wrap: anywhere; }
 .v3-prrow > summary .v3-small { margin-left: auto; }
 .v3-prrow-body { padding: 0 0 14px; }
+
+/* Traffic page: request volume and the latest requests. */
+.v3-traffic-bars { display: block; width: 100%; height: 120px; }
+.v3-traffic-bars rect { fill: var(--navy); opacity: .78; }
+.v3-traffic-latest { list-style: none; margin: 0; display: grid; gap: 6px; font-size: 13px; }
+.v3-traffic-latest .route { overflow-wrap: anywhere; }
