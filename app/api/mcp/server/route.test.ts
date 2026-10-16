@@ -23,7 +23,8 @@ vi.mock("@/app/api/mcp/intelligence/tasks/[id]/route", () => ({ GET: reply("task
 vi.mock("@/app/api/mcp/intelligence/tasks/[id]/result/route", () => ({ POST: reply("result", { outcome: "accepted" }) }));
 vi.mock("@/app/api/mcp/brief/route", () => ({ GET: reply("brief", { markdown: "# Brief" }) }));
 vi.mock("@/app/api/mcp/posture/route", () => ({ GET: reply("posture", { open: 0 }) }));
-vi.mock("@/app/api/mcp/fix/pr/route", () => ({ POST: () => { throw new Error("never reachable"); } }));
+vi.mock("@/app/api/mcp/fix/pr/route", () => ({ POST: reply("fixPr", { receiptId: "r", status: "queued" }, 202) }));
+vi.mock("@/app/api/mcp/fix/receipts/[id]/route", () => ({ GET: reply("receipt", { status: "opened" }) }));
 vi.mock("@/app/api/mcp/scan/route", () => ({ POST: () => { throw new Error("never reachable"); } }));
 
 import { GET, POST } from "./route";
@@ -49,12 +50,26 @@ describe("/api/mcp/server", () => {
     expect(res.status).toBe(202);
   });
 
-  it("lists exactly the local package's tools: reads, task polling and proposals, never scan, write, merge or PR", async () => {
+  // 103 (Felipe 2026-10-15): one PR request tool, refused by the route unless
+  // the customer turned agent pull requests on; still no scan, write or merge.
+  it("lists exactly the local package's tools: reads, task polling, proposals and the fix PR request, never scan, write or merge", async () => {
     const local = [...readFileSync("mcp/index.mjs", "utf8").matchAll(/name: "([a-z_]+)",\n\s+description/g)].map((m) => m[1]);
     const { tools } = (await (await rpc({ jsonrpc: "2.0", id: 3, method: "tools/list" })).json()).result;
-    expect(tools.map((t: { name: string }) => t.name)).toEqual(local);
-    expect(local).toHaveLength(7);
-    expect(tools.map((t: { name: string }) => t.name).join(" ")).not.toMatch(/scan|merge|write|pull|pr\b/);
+    const names = tools.map((t: { name: string }) => t.name);
+    expect(names).toEqual(local);
+    expect(local).toHaveLength(9);
+    expect(names.filter((n: string) => /pull|pr\b/.test(n))).toEqual(["open_fix_pull_request", "get_fix_pull_request"]);
+    expect(names.join(" ")).not.toMatch(/scan|merge|write/);
+  });
+
+  it("sends the PR request to the guarded route with only the finding id", async () => {
+    await call("open_fix_pull_request", { findingId: "agent:x", content: "ignored" });
+    await call("get_fix_pull_request", { receiptId: TASK });
+    expect(seen.calls.map((c) => [c.route, c.url, c.body])).toEqual([
+      ["fixPr", "https://shiplock.dev/api/mcp/fix/pr", JSON.stringify({ findingId: "agent:x" })],
+      ["receipt", `https://shiplock.dev/api/mcp/fix/receipts/${TASK}`, null],
+    ]);
+    expect(await call("get_fix_pull_request", { receiptId: "../x" })).toMatchObject({ isError: true });
   });
 
   it("runs a tool through the existing route with the caller's token", async () => {

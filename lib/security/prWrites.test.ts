@@ -52,4 +52,16 @@ describe("pull requests are opened only behind a customer click", () => {
     expect(code).not.toMatch(/export (async )?function runLane/);
     expect(code).not.toMatch(/\bopenPullRequest\(|\bputFile\(|\bcreateBranch\(/);
   });
+
+  // 103 (Felipe 2026-10-15): the customer may let their own agent request the
+  // click's PR. Only the cookie route on ShipLock's page grants that right, so
+  // a token (an agent) can never grant it to itself; only the MCP route asks.
+  it("only the dashboard grants agent pull requests, and only the MCP route uses the grant", () => {
+    const calling = (pattern: RegExp) => all.filter((file) => pattern.test(readFileSync(file, "utf8"))).sort();
+    expect(calling(/"grant_agent_prs"/)).toEqual(["app/api/intelligence/agent-prs/route.ts"]);
+    expect(calling(/"request_agent_repair_action"/)).toEqual(["lib/jobs/repairAction.ts"]);
+    expect(calling(/\brequestAgentRepairAction\(/)).toEqual(["app/api/mcp/fix/pr/route.ts", "lib/jobs/repairAction.ts"]);
+    expect(readFileSync("app/api/intelligence/agent-prs/route.ts", "utf8")).toMatch(/crossSiteRefusal\(request\)[\s\S]*requireProUser\(\)/);
+    expect(readFileSync("app/api/intelligence/agent-prs/route.ts", "utf8")).not.toMatch(/authMcp|resolveApiToken/);
+  });
 });

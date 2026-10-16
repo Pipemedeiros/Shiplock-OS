@@ -6,6 +6,8 @@ import { GET as guardrails } from "@/app/api/mcp/guardrails/route";
 import { GET as tasks } from "@/app/api/mcp/intelligence/tasks/route";
 import { GET as task } from "@/app/api/mcp/intelligence/tasks/[id]/route";
 import { POST as taskResult } from "@/app/api/mcp/intelligence/tasks/[id]/result/route";
+import { POST as fixPr } from "@/app/api/mcp/fix/pr/route";
+import { GET as fixReceipt } from "@/app/api/mcp/fix/receipts/[id]/route";
 import { GET as brief } from "@/app/api/mcp/brief/route";
 import { GET as posture } from "@/app/api/mcp/posture/route";
 import { MCP_RESOURCES, MCP_TOOLS } from "@/lib/mcpTools";
@@ -14,10 +16,11 @@ import { MCP_RESOURCES, MCP_TOOLS } from "@/lib/mcpTools";
 // their own agent with one command and no npm package,
 //   claude mcp add --transport http shiplock https://shiplock.dev/api/mcp/server --header "Authorization: Bearer <token>"
 // Stateless JSON-RPC over POST; no server stream. The tools are exactly the
-// local package's (mcp/index.mjs): reads, task polling and proposal
-// submission. Each call runs the existing /api/mcp route in process with the
-// caller's own Authorization header, so its token, two-step sign-in and
-// access checks apply unchanged. No scan, write, merge or PR tool exists.
+// local package's (mcp/index.mjs): reads, task polling, proposal submission,
+// and a fix PR request that works only where the customer turned agent pull
+// requests on (103). Each call runs the existing /api/mcp route in process
+// with the caller's own Authorization header, so its token, two-step sign-in
+// and access checks apply unchanged. No scan, file write or merge tool exists.
 const PROTOCOL = "2025-06-18";
 const SUPPORTED = new Set(["2025-06-18", "2025-03-26", "2024-11-05"]);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -42,10 +45,11 @@ async function route(origin: string, auth: string, handler: Handler, path: strin
   return data;
 }
 
-function taskId(value: unknown): string {
-  if (typeof value !== "string" || !UUID.test(value)) throw new Error("taskId must be a task UUID");
+function uuid(value: unknown, message: string): string {
+  if (typeof value !== "string" || !UUID.test(value)) throw new Error(message);
   return value;
 }
+const taskId = (value: unknown) => uuid(value, "taskId must be a task UUID");
 
 const repoQuery = (args: Record<string, unknown>) =>
   typeof args.repository === "string" && args.repository ? `?repository=${encodeURIComponent(args.repository)}` : "";
@@ -61,6 +65,12 @@ async function callTool(origin: string, auth: string, name: unknown, args: Recor
     case "submit_intelligence_result": {
       const id = taskId(args.taskId);
       return route(origin, auth, taskResult as Handler, `/api/mcp/intelligence/tasks/${id}/result`, { id, body: { result: args.result } });
+    }
+    case "open_fix_pull_request":
+      return route(origin, auth, fixPr as Handler, "/api/mcp/fix/pr", { body: { findingId: args.findingId } });
+    case "get_fix_pull_request": {
+      const id = uuid(args.receiptId, "receiptId must be a UUID");
+      return route(origin, auth, fixReceipt as Handler, `/api/mcp/fix/receipts/${id}`, { id });
     }
     default: throw new Error(`Unknown tool: ${String(name)}`);
   }

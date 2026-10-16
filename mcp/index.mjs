@@ -5,8 +5,9 @@
 // (SHIPLOCK_TOKEN). Read tools, plus polling ShipLock intelligence tasks and
 // submitting a proposal for one (AGENTS.md, approved 2026-09-23). ShipLock
 // verifies every proposal against GitHub and only stores it. This server cannot
-// initiate a scan, write a file, merge, or open a PR; every PR still needs the
-// customer's own click in the dashboard.
+// initiate a scan, write a file or merge. It can ask ShipLock for a finding's
+// fix PR only where the customer turned agent pull requests on for that
+// repository in the dashboard (103, Felipe 2026-10-15); ShipLock never merges.
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -78,6 +79,18 @@ const TOOLS = [
       additionalProperties: false,
     },
   },
+  {
+    name: "open_fix_pull_request",
+    description:
+      "Ask ShipLock to open the fix pull request for one open finding, by the id get_security_context returns. Works only where the customer turned agent pull requests on for that repository in ShipLock (Settings, Agent pull requests) after reading the risks; otherwise it says so and opens nothing. ShipLock builds the change from its own records (you send no content), opens it on a new branch so the customer's CI runs, and never merges. Findings about who may see what (fixKind manual) get no pull request. Returns a receiptId.",
+    inputSchema: { type: "object", properties: { findingId: { type: "string" } }, required: ["findingId"], additionalProperties: false },
+  },
+  {
+    name: "get_fix_pull_request",
+    description:
+      "Read the outcome of a fix pull request you asked for: status queued, opened (with its url), failed or uncertain (with the reason), and mergedAt once the customer merges it.",
+    inputSchema: { type: "object", properties: { receiptId: { type: "string" } }, required: ["receiptId"], additionalProperties: false },
+  },
 ];
 
 // Task ids are UUIDs. Refuse anything else before building a request path.
@@ -85,6 +98,11 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function taskPath(taskId) {
   if (typeof taskId !== "string" || !UUID.test(taskId)) throw new Error("taskId must be a task UUID");
   return `/api/mcp/intelligence/tasks/${taskId}`;
+}
+
+function receiptPath(receiptId) {
+  if (typeof receiptId !== "string" || !UUID.test(receiptId)) throw new Error("receiptId must be a UUID");
+  return `/api/mcp/fix/receipts/${receiptId}`;
 }
 
 const RESOURCES = [
@@ -129,6 +147,10 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
       result = await api(taskPath(args.taskId));
     } else if (name === "submit_intelligence_result") {
       result = await api(`${taskPath(args.taskId)}/result`, { method: "POST", body: JSON.stringify({ result: args.result }) });
+    } else if (name === "open_fix_pull_request") {
+      result = await api("/api/mcp/fix/pr", { method: "POST", body: JSON.stringify({ findingId: args.findingId }) });
+    } else if (name === "get_fix_pull_request") {
+      result = await api(receiptPath(args.receiptId));
     } else {
       throw new Error(`Unknown tool: ${name}`);
     }

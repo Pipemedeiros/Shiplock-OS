@@ -7,6 +7,7 @@ import { SupabasePanel } from "@/components/d/SupabasePanel";
 import { PostgresPanel } from "@/components/d/PostgresPanel";
 import { VerifiedPanel } from "@/components/d/VerifiedPanel";
 import { IntelligencePanel } from "@/components/d/IntelligencePanel";
+import { AgentPrsPanel } from "@/components/d/AgentPrsPanel";
 import { TrafficSites } from "@/components/d/TrafficSites";
 import { AppUrlPanel } from "@/components/d/AppUrlPanel";
 import { BILLING_ENABLED } from "@/lib/access";
@@ -27,7 +28,7 @@ export default async function SettingsPage() {
   const { userId, email } = await requireDashboardSession();
   const admin = getSupabaseAdmin();
 
-  const [{ data: profile }, repos] = await Promise.all([
+  const [{ data: profile }, repos, { data: grants }] = await Promise.all([
     admin
       .from("user_profiles")
       .select(
@@ -36,7 +37,9 @@ export default async function SettingsPage() {
       .eq("id", userId)
       .single(),
     getRepositories(userId),
+    admin.from("agent_pr_grants").select("repository_id, granted_at").eq("user_id", userId).is("revoked_at", null),
   ]);
+  const grantedAt = new Map(((grants ?? []) as { repository_id: string; granted_at: string }[]).map((g) => [g.repository_id, g.granted_at]));
 
   const githubConnected = Boolean(profile?.github_installation_id);
   const supabaseConnected = Boolean(profile?.supabase_mgmt_token_encrypted);
@@ -93,6 +96,13 @@ export default async function SettingsPage() {
         <div className="v3-card">
           <div className="v3-hd"><h2 className="v3-eyebrow">Your AI</h2></div>
           <div className="v3-card-p"><IntelligencePanel /></div>
+        </div>
+
+        <div className="v3-card">
+          <div className="v3-hd"><h2 className="v3-eyebrow">Agent pull requests</h2></div>
+          <div className="v3-card-p">
+            <AgentPrsPanel repositories={repos.map((r) => ({ id: r.id, fullName: r.fullName, since: grantedAt.get(r.id) ?? null }))} />
+          </div>
         </div>
 
         {/* The outside view (G3): what the app serves to anyone, read at an

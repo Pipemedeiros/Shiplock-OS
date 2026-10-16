@@ -23,8 +23,10 @@ describe("GET /api/mcp/context", () => {
       stack: { tools: [{ id: "supabase", name: "Supabase", kind: "database" }] },
       coverage: [{ name: "12 files we did not read", why: "size", effect: "not checked" }] }]);
     s.findings.mockReset().mockResolvedValue([
-      { repositoryId: "r1", title: "Signed-in callers are not limited to their own rows", severity: "WARNING", entry: "/api/orders",
-        file: "app/api/orders/route.ts", consequence: "Any user reads every order.", confidence: "inferred" },
+      { id: "agent:own", repositoryId: "r1", title: "Signed-in callers are not limited to their own rows", severity: "WARNING", entry: "/api/orders",
+        file: "app/api/orders/route.ts", consequence: "Any user reads every order.", confidence: "inferred", attackClass: "missing_ownership", fixKind: "manual" },
+      { id: "agent:open", repositoryId: "r1", title: "Anyone can read an order by id", severity: "CRITICAL", entry: "/api/orders/[id]",
+        file: "app/api/orders/[id]/route.ts", consequence: "Anyone reads any order.", confidence: "proven", attackClass: "missing_authentication", fixKind: "pr", confirmed: true },
       { repositoryId: "other", title: "not this repo", severity: "CRITICAL", entry: null, file: null, consequence: "", confidence: "x" }]);
     s.source.mockReset().mockResolvedValue({ repositoryId: "r1", routes: [route] });
     s.loop.mockReset().mockResolvedValue({ current: null, finished: null, agent: { available: true, paused: "not_connected", pending: 0, answered: 0 },
@@ -60,8 +62,15 @@ describe("GET /api/mcp/context", () => {
     expect(body.repository).toBe("acme/app");
     expect(body.stack).toEqual([{ name: "Supabase", kind: "database" }]);
     expect(body.guardrails.rules.map((r: { kind: string }) => r.kind)).toEqual(["requires_signed_in_caller"]);
-    expect(body.openFindings).toEqual([{ title: "Signed-in callers are not limited to their own rows", severity: "WARNING",
-      route: "/api/orders", file: "app/api/orders/route.ts", consequence: "Any user reads every order.", confirmed: false }]);
+    expect(body.openFindings).toEqual([
+      { id: "agent:own", title: "Signed-in callers are not limited to their own rows", severity: "WARNING", route: "/api/orders",
+        file: "app/api/orders/route.ts", consequence: "Any user reads every order.", confirmed: false, fixKind: "manual", selfCheck: null },
+      // The id and fix kind feed open_fix_pull_request; the self-check is one harmless request for a preview app.
+      { id: "agent:open", title: "Anyone can read an order by id", severity: "CRITICAL", route: "/api/orders/[id]",
+        file: "app/api/orders/[id]/route.ts", consequence: "Anyone reads any order.", confirmed: true, fixKind: "pr",
+        selfCheck: 'curl -i -X GET "$APP_URL/api/orders/00000000-0000-4000-8000-000000000000"' },
+    ]);
+    expect(body.howToUse).toMatch(/open_fix_pull_request/);
     expect(body.notRead).toEqual(["12 files we did not read: not checked"]);
     expect(body.howToUse).toMatch(/not known to be safe/);
   });

@@ -25,14 +25,39 @@ export interface RepairRequest {
  * open two PRs; a changed edit is a new request.
  */
 export async function requestRepairAction(request: RepairRequest): Promise<string> {
-  const edit = createHash("sha256").update(request.editedContent ?? "").digest("hex").slice(0, 16);
-  const minute = new Date().toISOString().slice(0, 16);
   const { data, error } = await getSupabaseAdmin().rpc("request_repair_action", {
     p_user: request.userId, p_repository: request.repositoryId, p_action: request.action,
     p_finding: request.findingId, p_edited: request.editedContent, p_review: request.reviewId ?? null,
-    p_task: request.taskId ?? null,
-    p_key: `${request.action}:${request.findingId ?? request.repositoryId}:${edit}:${minute}`.slice(0, 200),
+    p_task: request.taskId ?? null, p_key: repairKey(request),
   });
+  return admitted(data, error);
+}
+
+/** Thrown when the customer has not let their agent open pull requests. */
+export const AGENT_PRS_OFF = "agent_prs_off";
+
+/**
+ * The customer's own agent asking for the same fix PR a click would open
+ * (103, Felipe 2026-10-15). Refused unless the customer turned agent pull
+ * requests on for this repository in the dashboard; otherwise exactly the
+ * click's queue, cap and key, with the grant named on the receipt.
+ */
+export async function requestAgentRepairAction(request: { userId: string; repositoryId: string; findingId: string }): Promise<string> {
+  const { data, error } = await getSupabaseAdmin().rpc("request_agent_repair_action", {
+    p_user: request.userId, p_repository: request.repositoryId, p_finding: request.findingId,
+    p_key: repairKey({ action: "risk-fix-pr", findingId: request.findingId, repositoryId: request.repositoryId, editedContent: null }),
+  });
+  if (error && /agent pull requests off/.test(error.message)) throw new Error(AGENT_PRS_OFF);
+  return admitted(data, error);
+}
+
+function repairKey(request: Pick<RepairRequest, "action" | "findingId" | "repositoryId" | "editedContent">): string {
+  const edit = createHash("sha256").update(request.editedContent ?? "").digest("hex").slice(0, 16);
+  const minute = new Date().toISOString().slice(0, 16);
+  return `${request.action}:${request.findingId ?? request.repositoryId}:${edit}:${minute}`.slice(0, 200);
+}
+
+function admitted(data: unknown, error: { message: string } | null): string {
   const receiptId = z.uuid().safeParse(data);
   if (error) throw new Error(quotaCode(error.message) ?? "The fix could not be queued");
   if (!receiptId.success) throw new Error("The fix could not be queued");

@@ -1486,5 +1486,41 @@ try {
     }
     await db.query("delete from public.traffic_route_observations where user_id=$1 and repository_id=$2",[u1,r1]);
   });
+  // 103 (Felipe 2026-10-15): the customer may let their own agent request
+  // fix PRs for one repository, after acknowledging the risks. Same queue,
+  // same receipt and cap; the receipt names the grant.
+  await check("agent pull requests need an active grant, carry it on the receipt, and stop on revoke (103)", async () => {
+    await db.exec("reset role");
+    await db.exec(await readFile(new URL("../supabase/migrations/103_agent_pr_grants.sql", import.meta.url), "utf8"));
+    await db.query("update public.repair_action_receipts set requested_at=now()-interval '2 days' where user_id=$1",[u1]);
+    await db.exec("set role service_role");
+    const ask=(key,finding="agent:f-103",user=u1,repo=r1)=>db.query("select public.request_agent_repair_action($1,$2,$3,$4) as id",[user,repo,finding,key]).then((x)=>x.rows[0].id);
+    const grant=(user=u1,repo=r1,ack="agent-prs-v1")=>db.query("select public.grant_agent_prs($1,$2,$3) as id",[user,repo,ack]).then((x)=>x.rows[0].id);
+    await assert.rejects(ask("ag-1"), /agent pull requests off/);
+    await assert.rejects(grant(u1,r1,"anything"));
+    await assert.rejects(grant(u2,r1));
+    const g=await grant();
+    assert.equal(await grant(),g,"granting twice keeps one active grant");
+    const receipt=await ask("ag-1");
+    assert.equal(await ask("ag-1"),receipt,"the same key shares a receipt");
+    await db.exec("reset role");
+    assert.deepEqual((await db.query("select action, agent_grant_id from public.repair_action_receipts where id=$1",[receipt])).rows[0],{action:"risk-fix-pr",agent_grant_id:g});
+    // A click keeps no grant on its receipt.
+    await db.exec("set role service_role");
+    const click=(await db.query("select public.request_repair_action($1,$2,'risk-fix-pr','agent:f-click',null,'ag-click') as id",[u1,r1])).rows[0].id;
+    await db.exec("reset role");
+    assert.equal((await db.query("select agent_grant_id from public.repair_action_receipts where id=$1",[click])).rows[0].agent_grant_id,null);
+    await db.exec("set role service_role");
+    await assert.rejects(ask("ag-2","agent:f-103",u2), /agent pull requests off/);
+    await db.query("select public.revoke_agent_prs($1,$2)",[u1,r1]);
+    await assert.rejects(ask("ag-3"), /agent pull requests off/);
+    await db.exec("reset role");
+    for (const role of ["anon", "authenticated"]) {
+      for (const fn of ["grant_agent_prs(uuid,uuid,text)","revoke_agent_prs(uuid,uuid)","request_agent_repair_action(uuid,uuid,text,text)"]) {
+        assert.equal((await db.query("select has_function_privilege($1,$2,'execute') ok",[role,`public.${fn}`])).rows[0].ok,false,`${role} ${fn}`);
+      }
+      assert.equal((await db.query("select has_table_privilege($1,'public.agent_pr_grants','select') ok",[role])).rows[0].ok,false,`${role} reads no grant`);
+    }
+  });
   console.log(`${checks} SQL checks passed. Single-connection PostgreSQL WASM; multi-session contention and hosted Supabase remain unverified.`);
 } finally { await db.close(); }

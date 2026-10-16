@@ -92,7 +92,7 @@
       },
       "testFile": "lib/security/prWrites.test.ts",
       "testName": "each PR module is imported only by the receipted repair path",
-      "assertionDigest": "72259da8a81526bff136d397239052e50eec193e35f78e2e4125337d7d304c94",
+      "assertionDigest": "e52901ef065a87ac33268b8b5386560b3bc479c1c337ba7e5f45b481c250bf74",
       "sourcePins": {
         "lib/deep/github.ts": "0efbe4b5b78a61cf1c5b84940612d7eeb60009f461f5165e46119ce016b14814",
         "lib/deep/githubFixRun.ts": "62bf494b3a55b2415d4da5b55b6b6c02711bd6cbd7295815f4d77a27138c207d",
@@ -323,7 +323,7 @@
       },
       "check": "migration-loads",
       "sourcePins": {
-        "scripts/test-foundation-sql.mjs": "bb361f2b45ae0a99bc835a1d2581b820c13bacbc701dad1bcfb9be2a2641f92a"
+        "scripts/test-foundation-sql.mjs": "1b43e03d5c2469ebdc7d7bda3f94f4e3ee2dd88c9c3846863db17d72ad1e1732"
       }
     },
     {

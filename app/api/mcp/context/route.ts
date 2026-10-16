@@ -1,3 +1,4 @@
+import { selfCheck } from "@/lib/proof/selfCheck";
 import { NextRequest, NextResponse } from "next/server";
 import { authMcp } from "@/lib/mcpAuth";
 import { getOpenFindings, getRepositories, getRuns } from "@/lib/agent/dashboardData";
@@ -39,8 +40,11 @@ export async function GET(req: NextRequest) {
     guardrails: source.routes ? deriveGuardrails(source.routes, { repository: repo.fullName, commit: null }) : null,
     openFindings: findings.filter((f) => f.repositoryId === repo.id).slice(0, 50)
       // confirmed: an issue proven by the agent, a replica or a live fact; false is a candidate to review (A1).
-      .map((f) => ({ title: f.title, severity: f.severity, route: f.entry, file: f.file, consequence: f.consequence, confirmed: f.confirmed === true })),
+      // id and fixKind feed open_fix_pull_request (manual gets none); selfCheck is one harmless request to run on a local or preview app.
+      .map((f) => ({ id: f.id, title: f.title, severity: f.severity, route: f.entry, file: f.file, consequence: f.consequence,
+        confirmed: f.confirmed === true, fixKind: f.fixKind,
+        selfCheck: f.entry ? selfCheck({ entry: f.entry, attackClass: f.attackClass })?.curl ?? null : null })),
     notRead: (run?.coverage ?? []).map((c) => `${c.name}: ${c.effect}`),
-    howToUse: "Keep every guardrail when you edit. Fix open findings only with the change they describe; a finding with confirmed false is a candidate to verify, not a proven issue. Anything under notRead, and any route without a rule, is not known to be safe. ShipLock's pull request check re-checks your change.",
+    howToUse: "Keep every guardrail when you edit. Fix open findings only with the change they describe; a finding with confirmed false is a candidate to verify, not a proven issue. Anything under notRead, and any route without a rule, is not known to be safe. ShipLock's pull request check re-checks your change. To fix one, call open_fix_pull_request with its id where the customer turned agent pull requests on, or make the change in your own checkout and open the pull request yourself.",
   });
 }

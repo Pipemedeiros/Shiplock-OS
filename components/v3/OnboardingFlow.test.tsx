@@ -17,7 +17,7 @@ describe("onboarding asks for the customer's AI after the first audit (10B-2b)",
     const html = renderToStaticMarkup(<AiStep onDone={() => {}} />);
     expect(html).toContain("Connect the AI you already use to reason about attack paths");
     expect(html).toContain("Skip for now");
-    expect(html).toContain("Every pull request still needs your click");
+    expect(html).toContain("Pull requests need your click unless you");
   });
 });
 

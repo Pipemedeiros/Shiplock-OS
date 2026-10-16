@@ -50,6 +50,18 @@ export const MCP_TOOLS = [
       additionalProperties: false,
     },
   },
+  {
+    name: "open_fix_pull_request",
+    description:
+      "Ask ShipLock to open the fix pull request for one open finding, by the id get_security_context returns. Works only where the customer turned agent pull requests on for that repository in ShipLock (Settings, Agent pull requests) after reading the risks; otherwise it says so and opens nothing. ShipLock builds the change from its own records (you send no content), opens it on a new branch so the customer's CI runs, and never merges. Findings about who may see what (fixKind manual) get no pull request. Returns a receiptId.",
+    inputSchema: { type: "object", properties: { findingId: { type: "string" } }, required: ["findingId"], additionalProperties: false },
+  },
+  {
+    name: "get_fix_pull_request",
+    description:
+      "Read the outcome of a fix pull request you asked for: status queued, opened (with its url), failed or uncertain (with the reason), and mergedAt once the customer merges it.",
+    inputSchema: { type: "object", properties: { receiptId: { type: "string" } }, required: ["receiptId"], additionalProperties: false },
+  },
 ];
 
 export const MCP_RESOURCES = [

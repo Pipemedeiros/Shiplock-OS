@@ -5,7 +5,7 @@ vi.mock("next/server", async (original) => ({ ...(await original<typeof import("
 vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ rpc: mocks.rpc }) }));
 vi.mock("./repairWorker", () => ({ runNextRepairJob: mocks.run }));
 
-import { requestRepairAction } from "./repairAction";
+import { AGENT_PRS_OFF, requestAgentRepairAction, requestRepairAction } from "./repairAction";
 
 const receiptId = "66666666-6666-4666-8666-666666666666";
 beforeEach(() => {
@@ -58,6 +58,26 @@ describe("requestRepairAction (3F-C2d-3)", () => {
   it("binds an AI-fix click to its intelligence task (10B-3b)", async () => {
     await requestRepairAction({ userId: "u1", repositoryId: "r1", action: "ai-fix-pr", findingId: "task-1", editedContent: null, taskId: "task-1" });
     expect(mocks.rpc.mock.calls[0][1]).toMatchObject({ p_action: "ai-fix-pr", p_task: "task-1", p_finding: "task-1", p_review: null });
+    vi.useRealTimers();
+  });
+});
+
+// 103 (Felipe 2026-10-15): the customer's own agent asks for the click's PR.
+describe("requestAgentRepairAction", () => {
+  it("uses the click's key, so an agent and a click in the same minute share one receipt", async () => {
+    await requestAgentRepairAction({ userId: "u1", repositoryId: "r1", findingId: "agent:x" });
+    await requestRepairAction({ userId: "u1", repositoryId: "r1", action: "risk-fix-pr", findingId: "agent:x", editedContent: null });
+    const [[name, agent], [, click]] = mocks.rpc.mock.calls;
+    expect(name).toBe("request_agent_repair_action");
+    expect(agent).toEqual({ p_user: "u1", p_repository: "r1", p_finding: "agent:x", p_key: click.p_key });
+    expect(mocks.after).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
+
+  it("says plainly when the customer has not turned agent pull requests on", async () => {
+    mocks.rpc.mockResolvedValue({ data: null, error: { message: "agent pull requests off" } });
+    await expect(requestAgentRepairAction({ userId: "u1", repositoryId: "r1", findingId: "agent:x" })).rejects.toThrow(AGENT_PRS_OFF);
+    expect(mocks.after).not.toHaveBeenCalled();
     vi.useRealTimers();
   });
 });

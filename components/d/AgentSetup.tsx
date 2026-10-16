@@ -47,7 +47,7 @@ export function AgentSetupView({ host, tokens, fresh, busy, error, onGenerate, o
       <p style={note}>
         Connect your agent so it can read your findings and pick up approved checks when you run it. ShipLock
         cannot start your agent. Your agent sends back findings and suggested fixes; ShipLock checks each one
-        against GitHub, every pull request still needs your click, and ShipLock never merges.
+        against GitHub, a pull request needs your click unless you let your agent open them, and ShipLock never merges.
       </p>
       <button type="button" className="v3-btn v3-btn-sm v3-ghost" onClick={onGenerate} disabled={busy}>
         {busy ? "Creating…" : "Create a token"}

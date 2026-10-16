@@ -10,7 +10,7 @@ const html = (props: Partial<Parameters<typeof IntelligenceApprovalView>[0]> = {
   IntelligenceApprovalView({ connection: { state: "none" }, draft: defaultDraft, busy: false, error: "", ...handlers(), ...props }));
 
 describe("IntelligencePanel (10B-2b)", () => {
-  it("offers every approved host and cadence and says PRs always need a click", () => {
+  it("offers every approved host and cadence and says PRs need a click unless agent pull requests are on", () => {
     const out = html();
     for (const label of ["Claude Code", "Codex", "ChatGPT", "Every PR", "Every 2 days", "Daily"]) {
       expect(out).toContain(label);
@@ -18,7 +18,7 @@ describe("IntelligencePanel (10B-2b)", () => {
     // ShipLock runs no model (Felipe, 2026-10-01): an API key is not a host.
     expect(out).not.toContain("API key");
     expect(out).not.toContain('type="password"');
-    expect(out).toContain("Every pull request still needs your click");
+    expect(out).toContain("Pull requests need your click unless you");
     expect(out).toContain("not connected");
     // PR scans are tied to PRs; there is no per-deploy cadence.
     expect(out).not.toContain("per_deploy");

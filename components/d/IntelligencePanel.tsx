@@ -82,8 +82,8 @@ export function IntelligenceApprovalView({ connection, draft, busy, error, onCha
         <AgentSetup host={draft.host} />
         <label style={{ ...note, display: "flex", gap: 8, alignItems: "flex-start", color: "var(--ink)" }}>
           <input type="checkbox" checked={draft.allowProposals} onChange={(e) => set("allowProposals", e.target.checked)} />
-          <span>Let my AI send findings and suggested fixes on this schedule. Every pull request still needs your click,
-            and we never merge or deploy.</span>
+          <span>Let my AI send findings and suggested fixes on this schedule. Pull requests need your click unless you
+            let your agent open them in Settings, and we never merge or deploy.</span>
         </label>
 
         {error && <p role="alert" style={{ ...note, color: "var(--crit)" }}>{error}</p>}

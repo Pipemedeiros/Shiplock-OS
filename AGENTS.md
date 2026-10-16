@@ -44,7 +44,7 @@ traffic hits. Repository-only scanning is table stakes, not the product.
 | Attack safely | Sandbox only: the agent reading code and disposable replicas. Production is never attacked; no destructive, persistence or availability tests; no third-party targets |
 | External tools | Strix-style agents and scanners run on the customer's side; their claims are admitted only after ShipLock re-reads the cited code |
 | Any stack | Every inferred provider is named; a live connection is offered only where a collector exists, otherwise "Live connection coming soon" |
-| Every write is a click | Each branch or PR write needs its own customer click and receipt; a standing opt-in is not enough. A code PR also needs an allowlisted mechanical change, current evidence, and tests or CI (else an explicit unverified label). A suggestion is not proof it cannot break production. ShipLock never merges or deploys |
+| Every write is a click, or the customer's agent | Each branch or PR write needs its own customer click and receipt, except where the customer turned on agent pull requests for that repository in the dashboard after acknowledging the risks (Felipe 2026-10-15): then their own agent may request the same allowlisted fix over MCP, with the same queue, cap and receipt naming the grant. Only the dashboard grants it, never a token. A code PR also needs an allowlisted mechanical change, current evidence, and tests or CI (else an explicit unverified label). A suggestion is not proof it cannot break production. ShipLock never merges or deploys |
 | Packaging | Free and Pro, unpriced; billing stays off until Felipe sets a price. Free: inventory, deterministic findings, bounded rechecks. Pro: provider connections, cross-layer proof, traffic, email alerts on a meaningful new state only. Never buy a customer or provider plan to make a claim |
 
 **Customer agent as transport.** A passive MCP server cannot wake a dormant
@@ -142,7 +142,7 @@ and environment. Paid runs need Felipe's approval.
 | `lib/monitoring/`, `lib/graph/` | Provider collectors, scoped facts, bound correlation |
 | `lib/agent/{prCheck,diffScan}.ts`, `lib/fixes/prRun.ts` | PR verdicts (partial never green); clicked, receipted PRs |
 | `lib/traffic/`, `/api/traffic/*` | Customer-side metadata observation |
-| `mcp/`, `/api/mcp/*` | Read tools, task polling, proposal submission; no scan, write, merge or PR tool |
+| `mcp/`, `/api/mcp/*` | Read tools, task polling, proposal submission, and a fix PR request that works only under the customer's agent pull request grant; no scan, file write or merge tool |
 | `scripts/corpus.cjs`, `scripts/corpusModel.ts`, `lib/eval/` | Developer harness; the only place model calls exist, never product code |
 | `supabase/migrations/` | Schema and RLS source; released only with Felipe's OK, md5-verified |
 
@@ -157,7 +157,7 @@ worker, UI and consumer before claiming a capability.
 | Central access gate; billing off does not open source access | `lib/access.ts` |
 | aal2 for any user with a verified factor; factors from the auth server; unreadable fails closed | `lib/mfa.test.ts`, `lib/dashboard.session.test.ts`, `lib/deep/proGate.test.ts`, `app/api/tokens/route.test.ts` |
 | No model SDK, host or key in product code | `lib/security/modelFunding.test.ts` |
-| Every PR needs a clicked receipt | `lib/security/prWrites.test.ts` |
+| Every PR needs a receipt from a click or the customer's dashboard grant; only the dashboard grants | `lib/security/prWrites.test.ts`, `app/api/mcp/approvalBoundary.test.ts` |
 | Proofs need their own authorization and run only on the replica | `lib/proving/embeddedHost.test.ts` |
 | Cookie mutations refuse cross-site requests | `lib/security/sameOrigin.routes.test.ts` |
 | Email off while the switch is off | `lib/monitoring/emailKillSwitch.test.ts` |
