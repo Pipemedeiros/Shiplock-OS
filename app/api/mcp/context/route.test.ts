@@ -4,11 +4,12 @@ import { NextRequest } from "next/server";
 // Felipe (2026-09-30): the customer's own agent should have ShipLock's context
 // before it edits: stack, guardrails, open findings, and what was NOT read.
 // Read only, PAT authenticated, selected repositories only; no model call.
-const s = vi.hoisted(() => ({ auth: vi.fn(), repos: vi.fn(), runs: vi.fn(), findings: vi.fn(), source: vi.fn(), loop: vi.fn() }));
+const s = vi.hoisted(() => ({ auth: vi.fn(), repos: vi.fn(), runs: vi.fn(), findings: vi.fn(), source: vi.fn(), loop: vi.fn(), hot: vi.fn() }));
 vi.mock("@/lib/mcpAuth", () => ({ authMcp: s.auth }));
 vi.mock("@/lib/agent/dashboardData", () => ({ getRepositories: s.repos, getRuns: s.runs, getOpenFindings: s.findings }));
 vi.mock("@/lib/graph/repositorySource", () => ({ loadRepositoryGraphSource: s.source }));
 vi.mock("@/lib/agent/securityLoopData", () => ({ loadSecurityLoopInput: s.loop }));
+vi.mock("@/lib/traffic/hotRoutes", () => ({ getHotRoutes: s.hot }));
 const { GET } = await import("./route");
 const get = (q = "") => GET(new NextRequest(`https://shiplock.dev/api/mcp/context${q}`));
 const route = { path: "/api/orders", file: "app/api/orders/route.ts", methods: ["GET"], tables: ["orders"], authenticated: true,
@@ -31,6 +32,7 @@ describe("GET /api/mcp/context", () => {
     s.source.mockReset().mockResolvedValue({ repositoryId: "r1", routes: [route] });
     s.loop.mockReset().mockResolvedValue({ current: null, finished: null, agent: { available: true, paused: "not_connected", pending: 0, answered: 0 },
       map: null, fix: { open: 0, withPr: 0 }, watch: { prChecks: 0, blockedPrs: 0, trafficSites: 0, hotRoutes: 0, providersRead: 0, providersConnected: 0 } });
+    s.hot.mockReset().mockResolvedValue({});
   });
 
   // Felipe 2026-10-06: the agent sees the same loop and progress as the
@@ -62,17 +64,39 @@ describe("GET /api/mcp/context", () => {
     expect(body.repository).toBe("acme/app");
     expect(body.stack).toEqual([{ name: "Supabase", kind: "database" }]);
     expect(body.guardrails.rules.map((r: { kind: string }) => r.kind)).toEqual(["requires_signed_in_caller"]);
-    expect(body.openFindings).toEqual([
-      { id: "agent:own", title: "Signed-in callers are not limited to their own rows", severity: "WARNING", route: "/api/orders",
-        file: "app/api/orders/route.ts", consequence: "Any user reads every order.", confirmed: false, fixKind: "manual", selfCheck: null },
+    // Critical and confirmed first (the evidence chain's order); the chain itself is checked below.
+    const withoutChain = (f: Record<string, unknown>) => Object.fromEntries(Object.entries(f).filter(([k]) => k !== "chain"));
+    expect(body.openFindings.map(withoutChain)).toEqual([
       // The id and fix kind feed open_fix_pull_request; the self-check is one harmless request for a preview app.
       { id: "agent:open", title: "Anyone can read an order by id", severity: "CRITICAL", route: "/api/orders/[id]",
         file: "app/api/orders/[id]/route.ts", consequence: "Anyone reads any order.", confirmed: true, fixKind: "pr",
         selfCheck: 'curl -i -X GET "$APP_URL/api/orders/00000000-0000-4000-8000-000000000000"' },
+      { id: "agent:own", title: "Signed-in callers are not limited to their own rows", severity: "WARNING", route: "/api/orders",
+        file: "app/api/orders/route.ts", consequence: "Any user reads every order.", confirmed: false, fixKind: "manual", selfCheck: null },
     ]);
     expect(body.howToUse).toMatch(/open_fix_pull_request/);
     expect(body.notRead).toEqual(["12 files we did not read: not checked"]);
     expect(body.howToUse).toMatch(/not known to be safe/);
+  });
+
+  // The evidence chain: each finding tells the agent which layers back it and the next safe step.
+  it("gives each finding its evidence chain: reach from stored route facts, pressure from attack traffic", async () => {
+    s.runs.mockResolvedValue([{ fullName: "acme/app", startedAt: "2026-09-30T00:00:00Z", status: "complete", stack: null, coverage: [],
+      routeFacts: [{ path: "/api/orders/[id]", file: "app/api/orders/[id]/route.ts", tables: [], authenticated: false, ownershipFiltered: false,
+        machineGated: false, calledBy: ["components/OrderView.tsx"] }] }]);
+    s.loop.mockResolvedValue({ current: null, finished: null, agent: { available: true, paused: "not_connected", pending: 0, answered: 0 },
+      map: null, fix: { open: 0, withPr: 0 }, watch: { prChecks: 0, blockedPrs: 0, trafficSites: 1, hotRoutes: 1, providersRead: 0, providersConnected: 0 } });
+    s.hot.mockResolvedValue({ r1: [{ file: "app/api/orders/[id]/route.ts", pattern: "/api/orders/:id", suspiciousRequests: 31 }] });
+    const body = await (await get("?repository=acme/app")).json();
+    const open = body.openFindings.find((f: { id: string }) => f.id === "agent:open");
+    expect(open.chain.links.map((l: { link: string; state: string }) => `${l.link}:${l.state}`))
+      .toEqual(["reach:met", "gap:met", "proof:met", "pressure:met"]);
+    expect(open.chain.links[0].evidence).toContain("components/OrderView.tsx");
+    expect(open.chain.next).toBeNull();
+    const own = body.openFindings.find((f: { id: string }) => f.id === "agent:own");
+    expect(own.chain.links.map((l: { link: string; state: string }) => `${l.link}:${l.state}`))
+      .toEqual(["reach:unknown", "gap:open", "proof:unknown", "pressure:open"]);
+    expect(own.chain.next).toMatch(/quoted lines/);
   });
 
   it("does not serve an unselected repository and says unknown before any audit", async () => {

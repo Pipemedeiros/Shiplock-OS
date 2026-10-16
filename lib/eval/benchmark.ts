@@ -51,7 +51,7 @@ export function clopperPearsonLower(k: number, n: number, alpha = 0.05): number 
  * third blind labeler decides by majority (tie-break, Felipe 2026-10-13,
  * recorded before release attempt 4). */
 const strictYes = (v: BenchLabel["labelers"][number]) => v.accurate === "yes" && v.real === "yes";
-const isTrue = (l: BenchLabel) => {
+export const labelIsTrue = (l: BenchLabel) => {
   const yes = l.labelers.filter(strictYes).length;
   return l.labelers.length === 2 ? yes === 2 : l.labelers.length >= 3 && yes * 2 > l.labelers.length;
 };
@@ -62,7 +62,7 @@ function tally(findings: BenchFinding[], labels: Map<string, BenchLabel>): Tally
     const l = labels.get(`${f.repo}\u0000${f.id}`);
     if (!l || l.labelers.length === 0) continue;
     labeled++;
-    if (isTrue(l)) tp++;
+    if (labelIsTrue(l)) tp++;
     if (l.labelers.every((v) => v.accurate === "yes" && v.real === "yes")) provisionalTp++;
   }
   const fp = labeled - tp;
@@ -83,7 +83,7 @@ export function scoreBenchmark(findings: BenchFinding[], labels: BenchLabel[], g
     // Right when a true issue of the severity that sets it exists.
     const setters = own.filter((f) => (status === "exposed" ? f.severity === "CRITICAL" : f.severity === "WARNING"));
     const judged = setters.map((f) => byKey.get(`${f.repo}\u0000${f.id}`)).filter((l): l is BenchLabel => Boolean(l && l.labelers.length));
-    return { repo, status, correct: judged.length === 0 ? null : judged.some(isTrue) };
+    return { repo, status, correct: judged.length === 0 ? null : judged.some(labelIsTrue) };
   });
   const judged = repositories.filter((r) => r.correct !== null);
   const statusCorrect = { judged: judged.length, correct: judged.filter((r) => r.correct).length,

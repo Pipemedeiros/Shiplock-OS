@@ -583,6 +583,93 @@ async function gateTotal(outArg, dirs) {
     + `${duplicates.length} duplicate findings folded. Gate: ${report.gate.result}. Report: ${outArg}`);
 }
 
+// Evidence chain, first link (docs/evaluation/thresholds-reach-2026-10-16.json,
+// recorded before any reach value was computed): do findings on entries the
+// app's own pages and components never call turn out false more often? The
+// development runs decide; the held-out run is asked once, through
+// Thresholdout, only if development passes. Prints aggregates only.
+async function reachExperiment(outArg) {
+  const product = loadProductModules();
+  const { buildReachIndex, reachOf } = require("../lib/graph/clientReach.ts");
+  const { createThresholdout } = require("../lib/eval/thresholdout.ts");
+  const { labelIsTrue } = require("../lib/eval/benchmark.ts");
+  const { scoreRule, developmentVerdict } = require("../lib/eval/ratchet.ts");
+  const plan = readJson(path.join(root, "docs/evaluation/thresholds-reach-2026-10-16.json"));
+  const pins = new Map();
+  for (const name of fs.readdirSync(path.join(root, "docs")).filter((n) => /^CORPUS(-\d+)?\.json$/.test(n))) {
+    for (const pin of readJson(path.join(root, "docs", name)).repositories ?? []) if (!pins.has(pin.id)) pins.set(pin.id, pin);
+  }
+  const repos = new Map();
+  async function repoFacts(repoId) {
+    if (repos.has(repoId)) return repos.get(repoId);
+    const pin = pins.get(repoId);
+    let facts = null;
+    if (pin && fs.existsSync(archivePath(pin))) {
+      global.fetch = async (url) => {
+        if (url !== endpoint(pin)) throw new Error(`Network forbidden during evaluation: ${url}`);
+        return new Response(Readable.toWeb(fs.createReadStream(archivePath(pin))));
+      };
+      const archive = await product.fetchRepoArchive("offline-placeholder", pin.repository, pin.commit);
+      facts = { index: buildReachIndex(archive.files), routes: product.applicationEntries(archive.files).routes };
+    }
+    repos.set(repoId, facts);
+    return facts;
+  }
+  async function rowsOf(dirs) {
+    const batches = [];
+    for (const run of dirs) {
+      for (const name of fs.readdirSync(path.resolve(root, run)).sort()) {
+        const dir = path.resolve(root, run, name);
+        if (!fs.existsSync(path.join(dir, "pack.json"))) continue;
+        const answers = fs.readdirSync(dir).filter((n) => /^answers-.+\.json$/.test(n)).sort().map((n) => path.join(dir, n));
+        if (answers.length < 2) continue;
+        const { findings, labels } = benchInputs(path.join(dir, "shown.json"), path.join(dir, "pack.json"), answers);
+        batches.push({ name: dir, findings, labels });
+      }
+    }
+    const { findings, labels } = product.combineBatches(batches);
+    const byKey = new Map(labels.map((l) => [`${l.repo}\u0000${l.id}`, l]));
+    const rows = [];
+    const skipped = { unparsed: 0, unread: 0 };
+    for (const f of findings) {
+      const label = byKey.get(`${f.repo}\u0000${f.id}`);
+      if (!label || label.labelers.length === 0) continue;
+      const truth = labelIsTrue(label);
+      const m = /^agent:[a-z_]+:(.+)$/.exec(f.id);
+      // The rule changes nothing it cannot read: unparsed and unread stay kept.
+      if (!m) { skipped.unparsed++; rows.push({ truth, moved: false }); continue; }
+      const facts = await repoFacts(f.repo);
+      if (!facts) { skipped.unread++; rows.push({ truth, moved: false }); continue; }
+      const route = facts.routes.find((r) => r.path === m[1]);
+      const reach = reachOf(route ? { path: route.path, file: route.file, via: route.via } : { path: m[1], file: "" }, facts.index);
+      rows.push({ truth, moved: !reach.reached });
+    }
+    return { rows, skipped };
+  }
+  const dev = await rowsOf(plan.data.development);
+  const development = { ...scoreRule(dev.rows), ...dev.skipped };
+  const verdict = developmentVerdict(development, plan.keepIf);
+  let holdout = null;
+  if (verdict.passes) {
+    const h = scoreRule((await rowsOf(plan.data.holdout)).rows);
+    const gate = createThresholdout({ threshold: 0.03, sigma: 0.01, budget: 1, seed: 20261016 });
+    const answer = gate.ask({ development: development.keptPrecision, holdout: h.keptPrecision });
+    // Only the gate's answer and the baseline are reported for the holdout.
+    holdout = { keptPrecisionThroughThresholdout: answer.value, usedHoldout: answer.usedHoldout, baselinePrecision: h.baselinePrecision,
+      passes: answer.value >= h.baselinePrecision };
+  }
+  const result = verdict.passes && holdout?.passes ? "keep" : "reject";
+  const report = { plan: "docs/evaluation/thresholds-reach-2026-10-16.json", ranAt: new Date().toISOString(), development,
+    developmentGain: verdict.gain, developmentTrueMovedShare: verdict.trueMovedShare, developmentPasses: verdict.passes, holdout, result };
+  await fsp.writeFile(path.resolve(root, outArg), JSON.stringify(report, null, 2) + "\n", { flag: "wx" });
+  const pct = (x) => (x === null ? "unavailable" : `${(x * 100).toFixed(1)}%`);
+  console.log(`Development: ${development.labeled} labeled, baseline ${pct(development.baselinePrecision)}; ${development.moved} not reached `
+    + `(${development.movedTp} of them true, ${pct(development.movedPrecision)}); kept ${pct(development.keptPrecision)}; `
+    + `unparsed ${development.unparsed}, unread ${development.unread}. Development ${verdict.passes ? "passes" : "fails"}.`);
+  if (holdout) console.log(`Holdout through Thresholdout: kept ${pct(holdout.keptPrecisionThroughThresholdout)} vs baseline ${pct(holdout.baselinePrecision)}.`);
+  console.log(`Result: ${result}. Report: ${outArg}`);
+}
+
 async function bench(shownFile, packFile, answerFiles) {
   const { findings, labels, unknownKeys } = benchInputs(shownFile, packFile, answerFiles);
   const gate = releaseGate();
@@ -944,6 +1031,8 @@ async function main() {
     const records = JSON.parse(fs.readFileSync(path.resolve(root, process.argv[3]), "utf8")).records;
     await fsp.writeFile(path.resolve(root, process.argv[4]), JSON.stringify({ shown: process.argv[3], packets: labelPack(records) }, null, 2) + "\n", { flag: "wx" });
     console.log(`${labelPack(records).length} packets written to ${process.argv[4]}`);
+  } else if (process.argv[2] === "reach" && process.argv[3]) {
+    await reachExperiment(process.argv[3]);
   } else if (process.argv[2] === "bench" && process.argv[5]) {
     await bench(process.argv[3], process.argv[4], process.argv.slice(5));
   } else if (process.argv[2] === "plant" && process.argv[3]) {

@@ -1,0 +1,22 @@
+{
+  "plan": "docs/evaluation/thresholds-reach-2026-10-16.json",
+  "ranAt": "2026-10-16T21:40:59.760Z",
+  "development": {
+    "labeled": 274,
+    "tp": 253,
+    "moved": 41,
+    "movedTp": 35,
+    "kept": 233,
+    "keptTp": 218,
+    "baselinePrecision": 0.9233576642335767,
+    "keptPrecision": 0.9356223175965666,
+    "movedPrecision": 0.8536585365853658,
+    "unparsed": 3,
+    "unread": 0
+  },
+  "developmentGain": 0.012264653362989875,
+  "developmentTrueMovedShare": 0.1383399209486166,
+  "developmentPasses": false,
+  "holdout": null,
+  "result": "reject"
+}

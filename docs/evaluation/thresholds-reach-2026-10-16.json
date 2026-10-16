@@ -1,0 +1,19 @@
+{
+  "experiment": "evidence-chain-reach",
+  "recordedAt": "2026-10-16",
+  "recordedBefore": "any reach value was computed on any labeled finding; written before lib/graph/clientReach.ts was run on the corpus",
+  "hypothesis": "A confirmed finding whose entry nothing in the app's own pages or components calls (reachFromCode reached=false) is false more often than one that is called; moving the uncalled ones to To review raises status precision without losing real issues.",
+  "rule": "Among status-setting findings, those with reached=false go to To review (never dropped). Entries the reach reader cannot parse count as reached (no change).",
+  "data": {
+    "development": ["docs/evaluation/runs/attempt4-2026-10", "docs/evaluation/runs/attempt5-2026-10", "docs/evaluation/runs/a8-corpus6-2026-10"],
+    "holdout": ["docs/evaluation/runs/attempt6-2026-10"],
+    "truth": "lib/eval/benchmark.ts strict rule: both labelers accurate and real; a split goes to the third labeler's majority",
+    "holdoutAccess": "lib/eval/thresholdout.ts, threshold 0.03, sigma 0.01, budget 1, seed 20261016; one query: precision of the kept set"
+  },
+  "keepIf": {
+    "developmentPrecisionGainAtLeast": 0.015,
+    "developmentTrueMovedToReviewAtMost": 0.03,
+    "holdoutPrecisionThroughThresholdoutNotBelowBaseline": true,
+    "note": "Both development conditions, then the one holdout query. A rule that fails stays out of the status and is reported as measured, not tuned."
+  }
+}

@@ -11,6 +11,7 @@ import { detectStack, routeAnalysisSupport, type StackReport } from "./stack";
 import { buildFindings, type AgentFinding } from "./findings";
 import { deterministicFindings } from "./deterministicFindings";
 import { compactRouteFacts } from "@/lib/routeMap";
+import { withReach } from "@/lib/graph/clientReach";
 import { oneIdAccess, possessionGates } from "./possessionGate";
 import { openByDesign } from "./signIn";
 import { extractTables, extractColumns } from "./schema";
@@ -599,7 +600,7 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
     // separate from completion, so a database without migration 096 still
     // completes the run; the map then falls back to the source snapshot.
     const { error: factsError } = await admin.from("audit_runs")
-      .update({ route_facts: compactRouteFacts(routes) }).eq("id", runId);
+      .update({ route_facts: compactRouteFacts(withReach(routes, archive.files)) }).eq("id", runId);
     if (factsError) console.warn(`[audit] route facts not stored for ${runId}: ${factsError.message}`);
 
     // Ask the customer's approved agent to reason over this audit
