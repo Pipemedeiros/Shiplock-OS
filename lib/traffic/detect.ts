@@ -1,5 +1,6 @@
 import type { Decision } from "@/lib/types";
 import type { ProbeKind } from "./probe";
+import { CRS_RESTRICTED_FILES, CRS_SCANNER_AGENTS } from "./crs/rules";
 
 const PROBE_WORDS: Record<ProbeKind, string> = {
   sqli: "SQL injection", traversal: "path traversal", xss: "script injection",
@@ -74,8 +75,21 @@ export function isAuthPath(path: string): boolean {
   return AUTH_PATH_RE.test(path);
 }
 
+const RESTRICTED = CRS_RESTRICTED_FILES.map((s) => s.toLowerCase());
+const AGENTS = CRS_SCANNER_AGENTS.map((s) => [s, s.toLowerCase()] as const);
+
+/** A path no app of this kind serves: the rules above, or a CRS 930130 phrase anywhere in it. */
 export function isSuspiciousPath(path: string): boolean {
-  return SUSPICIOUS_PATH_RES.some((re) => re.test(path));
+  if (SUSPICIOUS_PATH_RES.some((re) => re.test(path))) return true;
+  const p = path.split("?")[0].toLowerCase();
+  return RESTRICTED.some((s) => p.includes(s));
+}
+
+/** The scanner a User-Agent names (CRS 913100), or null. Browsers and plain HTTP clients are not on the list. */
+export function scannerAgent(ua: string | null | undefined): string | null {
+  if (!ua) return null;
+  const u = ua.toLowerCase();
+  return AGENTS.find(([, lower]) => u.includes(lower))?.[0] ?? null;
 }
 
 const ID_SEGMENT = [
@@ -116,6 +130,8 @@ export interface TrafficSignals {
   // The attack pattern the customer's snippet classified in THIS request
   // (lib/traffic/probe.ts); never the query itself.
   probe?: { kind: ProbeKind; path: string } | null;
+  // A security scanner named in THIS request's User-Agent (CRS 913100).
+  agent?: { name: string; path: string } | null;
 }
 
 // Pure: rows are this source's recent events (any order). `capped` says the
@@ -202,6 +218,17 @@ export function detect(signals: TrafficSignals): Decision {
     return {
       action: "alert",
       reason: `Attack probe: ${PROBE_WORDS[signals.probe.kind]} pattern on ${signals.probe.path}`,
+      severity: "WARNING",
+      ttlMs: 0,
+    };
+  }
+
+  // A scanner that names itself: alert only. Founders run nuclei or ZAP on
+  // their own app, and blocking their own scan for an hour would be wrong.
+  if (signals.agent) {
+    return {
+      action: "alert",
+      reason: `Scanner tool: ${signals.agent.name} on ${signals.agent.path}`,
       severity: "WARNING",
       ttlMs: 0,
     };

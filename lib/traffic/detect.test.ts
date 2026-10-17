@@ -16,6 +16,7 @@ import {
   BLOCK_TTL_SHORT_MS,
   type EventRow,
   type TrafficSignals,
+  scannerAgent,
 } from "./detect";
 
 const signals = (over: Partial<TrafficSignals> = {}): TrafficSignals => ({
@@ -55,9 +56,38 @@ describe("isSuspiciousPath", () => {
     }
   });
   it("leaves normal paths alone", () => {
-    for (const p of ["/", "/environment", "/git-history", "/admin", "/api/users"]) {
+    for (const p of ["/", "/environment", "/git-history", "/admin", "/api/users", "/api/config", "/api/process/1",
+      "/api/procurement", "/api/sys-status", "/api/orders/42", "/sitemap.xml", "/robots.txt", "/.well-known/security.txt"]) {
       expect(isSuspiciousPath(p)).toBe(false);
     }
+  });
+  // OWASP CRS 930130 (lib/traffic/crs/rules.ts): secrets, configs, backups,
+  // /proc. Matched like CRS @pm, case insensitive and anywhere in the path.
+  it("flags the files CRS says an app never serves", () => {
+    for (const p of ["/.env.local", "/app/.git/HEAD", "/proc/self/environ", "/package.json", "/config/secrets.yml",
+      "/wp-config.php.bak", "/.DS_Store", "/static/.htpasswd", "/Dockerfile", "/api/../../etc/.bashrc", "/vercel.json"]) {
+      expect(isSuspiciousPath(p)).toBe(true);
+    }
+  });
+});
+
+// OWASP CRS 913100: scanners that name themselves.
+describe("scannerAgent", () => {
+  it("names a self identified scanner", () => {
+    expect(scannerAgent("sqlmap/1.7.2#stable (https://sqlmap.org)")).toBe("sqlmap");
+    expect(scannerAgent("Mozilla/5.0 (compatible; Nuclei - Open-source project (github.com/projectdiscovery/nuclei))")).toBe("nuclei");
+    expect(scannerAgent("Mozilla/5.00 (Nikto/2.5.0) (Evasions:None) (Test:000001)")).toBe("nikto");
+  });
+  it("leaves browsers, plain clients and empty agents alone", () => {
+    for (const ua of ["Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/141.0 Safari/537.36",
+      "curl/8.7.1", "python-requests/2.32", "node", "", null, undefined]) {
+      expect(scannerAgent(ua)).toBeNull();
+    }
+  });
+  it("alerts, never blocks, on a scanner tool: a founder may be scanning their own app", () => {
+    const d = detect({ authCount: 0, distinctScanPaths: 0, totalCount: 1, capped: false, distinctSourcesForSession: 0,
+      agent: { name: "sqlmap", path: "/api/search" } });
+    expect(d).toMatchObject({ action: "alert", reason: "Scanner tool: sqlmap on /api/search" });
   });
 });
 

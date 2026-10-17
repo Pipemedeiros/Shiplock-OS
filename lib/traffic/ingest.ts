@@ -6,6 +6,7 @@ import {
   LOOKBACK_MS,
   FETCH_ROW_CAP,
   SESSION_WINDOW_MS,
+  scannerAgent,
   type EventRow,
 } from "./detect";
 import { sendThreatAlert } from "./alerts";
@@ -78,7 +79,10 @@ export async function ingestTrafficEvent(params: {
     }
 
     const signals = computeSignals(rows, Date.now(), capped, distinctSourcesForSession);
-    const decision = detect(event.probe ? { ...signals, probe: { kind: event.probe, path: event.path } } : signals);
+    const agent = scannerAgent(event.ua);
+    const decision = detect({ ...signals,
+      ...(event.probe ? { probe: { kind: event.probe, path: event.path } } : {}),
+      ...(agent ? { agent: { name: agent, path: event.path } } : {}) });
 
     if (decision.action === "block") {
       const now = Date.now();

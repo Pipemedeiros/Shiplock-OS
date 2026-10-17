@@ -111,4 +111,33 @@ describe("snippet builders", () => {
       expect(sentBody![1]).not.toMatch(/status/);
     });
   });
+
+  // A scanner asks for /.env or /wp-login.php, never /api. The snippets used
+  // to watch only /api and sign-in paths, so the scanning rule could not fire
+  // for a snippet site. Now every variant also mirrors the paths scanners ask
+  // for, and still skips pages, assets and Next.js internals.
+  describe("watch the paths scanners ask for, and nothing else new", () => {
+    const watched = ["/api/orders/1", "/login", "/auth/callback", "/.env", "/.git/config", "/app/.env.local", "/wp-login.php",
+      "/wp-admin/setup-config.php", "/phpmyadmin/index.php", "/xmlrpc.php", "/backup.sql", "/config.php", "/web.config", "/server.log"];
+    const skipped = ["/", "/dashboard", "/blog/hello-world", "/_next/static/chunks/main.js", "/_next/image", "/favicon.ico",
+      "/images/logo.png", "/sitemap.xml", "/robots.txt", "/manifest.json", "/fonts/inter.woff2",
+      "/.well-known/security.txt", "/.well-known/apple-app-site-association"];
+
+    it("in the Next.js proxy matcher, checked with Next's own matcher", async () => {
+      const { unstable_doesMiddlewareMatch } = await import("next/experimental/testing/server");
+      const src = buildSnippet(TOKEN, ORIGIN);
+      const matcher = JSON.parse(src.match(/matcher: (\[[\s\S]*?\]),\n/)![1]);
+      const hit = (p: string) => unstable_doesMiddlewareMatch({ config: { matcher }, url: p });
+      for (const p of watched) expect(hit(p), p).toBe(true);
+      for (const p of skipped) expect(hit(p), p).toBe(false);
+    });
+
+    it("in the Web standard and Express filters", () => {
+      for (const src of [buildWebSnippet(TOKEN, ORIGIN), buildExpressSnippet(TOKEN, ORIGIN)]) {
+        const re = new Function(`${src.match(/const WATCH = (\/.*\/[a-z]*);/)![0]}\nreturn WATCH;`)() as RegExp;
+        for (const p of watched) expect(re.test(p), p).toBe(true);
+        for (const p of skipped) expect(re.test(p), p).toBe(false);
+      }
+    });
+  });
 });

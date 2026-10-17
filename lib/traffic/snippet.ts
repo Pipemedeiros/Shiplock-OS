@@ -1,5 +1,20 @@
 import { probeSnippetSource } from "./probe";
 
+// What every snippet mirrors: API and sign-in paths, where attacks on the app
+// land, and the paths scanners ask for (dotfiles, WordPress and PHP admin,
+// backups, configs, logs), which a Next.js app never serves. Pages, assets
+// and Next.js internals stay out, so volume stays bounded.
+export const WATCH_RE =
+  /^\/(api|login|signin|sign-in|register|auth)(\/|$)|(^|\/)\.(?!well-known\/)[^/]|^\/(wp-admin|wp-login\.php|wp-content|wp-includes|xmlrpc\.php|phpmyadmin|cgi-bin)(\/|$)|\.(php\d?|aspx?|jsp|cgi|sql|bak|old|swp|ini|log|config|ya?ml|toml|env)$/i;
+// The same scope as a Next.js matcher (checked against WATCH_RE in tests with
+// Next's own matcher).
+export const NEXT_MATCHER = [
+  "/api/:path*", "/login", "/signin", "/sign-in", "/register", "/auth/:path*",
+  "/((?!\\.well-known/)\\..*)", "/(.*/\\..*)",
+  "/(wp-admin|wp-content|wp-includes|phpmyadmin|cgi-bin)/:path*", "/(wp-login\\.php|xmlrpc\\.php)",
+  "/(.*\\.(?:php\\d?|aspx?|jsp|cgi|sql|bak|old|swp|ini|log|config|ya?ml|toml|env))",
+];
+
 // Generates the fail-open middleware the customer pastes into their Next.js
 // app. Delivered as text on the dashboard today (copy-paste); PR-delivered
 // once the GitHub App exists. This is NOT ShipLock's own middleware: it runs
@@ -105,9 +120,10 @@ async function sourceId(ip: string): Promise<string> {
   return btoa(String.fromCharCode(...new Uint8Array(digest))).slice(0, 22);
 }
 
-// Only watch auth + API routes: where attacks land, and keeps volume bounded.
+// Watch API and sign-in routes, where attacks land, and the paths scanners
+// ask for (dotfiles, PHP and WordPress admin, backups). Pages and assets stay out.
 export const config = {
-  matcher: ["/api/:path*", "/login", "/signin", "/sign-in", "/register", "/auth/:path*"],
+  matcher: ${JSON.stringify(NEXT_MATCHER)},
 };
 `;
 }
@@ -126,6 +142,8 @@ const SHIPLOCK_SITE = ${JSON.stringify(ingestToken)}; // your site key: treat li
 let blocklist = new Set();
 let fetchedAt = 0;
 const REFRESH_MS = 30_000;
+// API and sign-in paths, and the paths scanners ask for; pages and assets are skipped.
+const WATCH = ${WATCH_RE};
 
 // Attack probes, classified here in your server. Only the category (for
 // example "sqli") is sent to ShipLock, never the query string.
@@ -136,7 +154,7 @@ ${probeSnippetSource()}
 // Usage (Workers): const b = await shiplockGuard(request); if (b) return b;
 export async function shiplockGuard(request) {
   const url = new URL(request.url);
-  if (!/^\\/(api|login|signin|sign-in|register|auth)(\\/|$)/.test(url.pathname)) return null;
+  if (!WATCH.test(url.pathname)) return null;
 
   const ip =
     request.headers.get("x-forwarded-for")?.split(",").pop()?.trim() ||
@@ -160,7 +178,7 @@ export async function shiplockGuard(request) {
 export function withShiplock(handler) {
   return async (request, ...rest) => {
     const url = new URL(request.url);
-    if (!/^\\/(api|login|signin|sign-in|register|auth)(\\/|$)/.test(url.pathname)) return handler(request, ...rest);
+    if (!WATCH.test(url.pathname)) return handler(request, ...rest);
     const ip =
       request.headers.get("x-forwarded-for")?.split(",").pop()?.trim() ||
       request.headers.get("x-real-ip") ||
@@ -235,6 +253,8 @@ const SHIPLOCK_SITE = ${JSON.stringify(ingestToken)}; // your site key: treat li
 let blocklist = new Set();
 let fetchedAt = 0;
 const REFRESH_MS = 30_000;
+// API and sign-in paths, and the paths scanners ask for; pages and assets are skipped.
+const WATCH = ${WATCH_RE};
 const hash = (s) => crypto.createHash("sha256").update(s).digest("base64").replace(/=+$/, "").slice(0, 22);
 
 // Attack probes, classified here in your server. Only the category (for
@@ -242,7 +262,7 @@ const hash = (s) => crypto.createHash("sha256").update(s).digest("base64").repla
 ${probeSnippetSource()}
 
 function shiplock(req, res, next) {
-  if (!/^\\/(api|login|signin|sign-in|register|auth)(\\/|$)/.test(req.path)) return next();
+  if (!WATCH.test(req.path)) return next();
 
   const ip = (req.headers["x-forwarded-for"] || "").split(",").pop().trim() || req.socket.remoteAddress || "anonymous";
   const id = hash(ip + ":" + SHIPLOCK_SITE);
