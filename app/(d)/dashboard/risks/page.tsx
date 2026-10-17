@@ -1,5 +1,7 @@
 import { requireDashboardSession } from "@/lib/dashboard";
-import { getOpenFindings } from "@/lib/agent/dashboardData";
+import { getOpenFindings, getRepositories, getRuns } from "@/lib/agent/dashboardData";
+import { listTrafficSites } from "@/lib/traffic/sites";
+import { withChains } from "@/lib/chain/findingChains";
 import { RisksBoard } from "@/components/v3/RisksBoard";
 import { getProofViews, proofOffers, provingEnabled } from "@/lib/proving/proofStatus";
 import { getHotRoutes } from "@/lib/traffic/hotRoutes";
@@ -9,10 +11,12 @@ export const metadata = { title: "Issues" };
 
 export default async function Risks() {
   const { userId } = await requireDashboardSession();
-  const [open, enabled, views, hot] = await Promise.all([getOpenFindings(userId), provingEnabled(userId), getProofViews(userId),
-    getHotRoutes(userId).catch(() => ({}))]);
-  // Traffic orders what to look at first; it never changes a severity.
-  const findings = withTraffic(open, hot);
+  const [open, enabled, views, hot, runs, repos, sites] = await Promise.all([getOpenFindings(userId), provingEnabled(userId), getProofViews(userId),
+    getHotRoutes(userId).catch(() => ({})), getRuns(userId).catch(() => []), getRepositories(userId).catch(() => []),
+    listTrafficSites(userId).catch(() => null)]);
+  // Traffic orders what to look at first; it never changes a severity. The
+  // evidence chain explains each issue; an unread input leaves its link unknown.
+  const findings = withChains(withTraffic(open, hot), { runs, repos, trafficConnected: (sites?.length ?? 0) > 0 });
   const proofs = proofOffers(findings, enabled, views);
 
   return (

@@ -14,6 +14,8 @@ import { ProofPanel } from "./ProofButton";
 import { selfCheck } from "@/lib/proof/selfCheck";
 import { AgentHandoff } from "./AgentHandoff";
 import { HitHard, type TrafficHit } from "./HitHard";
+import { EvidenceLinks } from "./EvidenceLinks";
+import type { Chain as EvidenceChain } from "@/lib/chain/evidenceChain";
 
 /**
  * The list and the inspector, side by side.
@@ -30,7 +32,7 @@ const FIX_NOTE: Record<FixKind, string> = {
   manual: "This is a decision about your architecture, not a mechanical change. The call is yours.",
 };
 
-export function RisksBoard({ findings, proofs = {} }: { findings: (DashboardFinding & { hitHard?: TrafficHit | null })[]; proofs?: Record<string, ProofOffer> }) {
+export function RisksBoard({ findings, proofs = {} }: { findings: (DashboardFinding & { hitHard?: TrafficHit | null; chain?: EvidenceChain })[]; proofs?: Record<string, ProofOffer> }) {
   const [severity, setSeverity] = useState<Severity | "all">("all");
   const [confidence, setConfidence] = useState<Confidence | "all">("all");
   const [selectedId, setSelectedId] = useState<string>(findings[0]?.rowId ?? "");
@@ -114,7 +116,7 @@ export function RisksBoard({ findings, proofs = {} }: { findings: (DashboardFind
   );
 }
 
-function Inspector({ finding, proof }: { finding: DashboardFinding; proof: ProofOffer | null }) {
+function Inspector({ finding, proof }: { finding: DashboardFinding & { chain?: EvidenceChain }; proof: ProofOffer | null }) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("why");
   const [busy, setBusy] = useState(false);
@@ -144,6 +146,7 @@ function Inspector({ finding, proof }: { finding: DashboardFinding; proof: Proof
       </div>
 
       <div className="v3-card-p">
+        {tab === "why" && finding.chain ? <EvidenceLinks chain={finding.chain} /> : null}
         {tab === "why" ? <Claims claims={finding.claims} /> : null}
         {tab === "why" ? <SelfCheckBlock key={finding.rowId} finding={finding} /> : null}
         {tab === "why" && proof ? (
