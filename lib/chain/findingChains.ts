@@ -1,6 +1,7 @@
 import { liveCaller } from "@/lib/security/shippedCalls";
 import { evidenceChain, type Chain, type ChainFinding } from "./evidenceChain";
 import type { LiveReach } from "./liveReach";
+import type { SelfCheckReport } from "@/lib/proof/selfCheckReports";
 
 /**
  * Each open finding's evidence chain for the dashboard, the same one the
@@ -15,8 +16,9 @@ type Run = { fullName: string; routeFacts: { path: string; calledBy?: string[] }
 type Repo = { id: string; fullName: string };
 type Hit = { pattern: string; suspiciousRequests: number } | null | undefined;
 
-export function withChains<F extends ChainFinding & { repositoryId: string | null; hitHard?: Hit }>(
-  findings: readonly F[], input: { runs: readonly Run[]; repos: readonly Repo[]; trafficConnected: boolean; live?: LiveReach | null },
+export function withChains<F extends ChainFinding & { repositoryId: string | null; rowId?: string; hitHard?: Hit }>(
+  findings: readonly F[], input: { runs: readonly Run[]; repos: readonly Repo[]; trafficConnected: boolean; live?: LiveReach | null;
+    reports?: ReadonlyMap<string, SelfCheckReport> },
 ): (F & { chain: Chain })[] {
   const nameOf = new Map(input.repos.map((r) => [r.id, r.fullName]));
   const reach = new Map<string, Map<string, string[]>>();
@@ -28,6 +30,7 @@ export function withChains<F extends ChainFinding & { repositoryId: string | nul
     const facts = f.repositoryId ? reach.get(nameOf.get(f.repositoryId) ?? "") : undefined;
     return { ...f, chain: evidenceChain(f, {
       calledBy: f.entry ? facts?.get(f.entry) : undefined, live: liveContext(f, input.live),
+      selfCheck: (f.rowId && input.reports?.get(f.rowId)) || null,
       trafficConnected: input.trafficConnected, hitHard: f.hitHard ?? null,
     }) };
   });

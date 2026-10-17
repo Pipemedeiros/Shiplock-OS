@@ -26,6 +26,14 @@ describe("withChains", () => {
     expect(f.chain.links.map((l) => `${l.id}:${l.state}`)).toEqual(["reach:unknown", "gap:met", "proof:met", "pressure:unknown"]);
   });
 
+  it("shows the agent's reported self-check for that finding's row only", () => {
+    const reports = new Map([["row-1", { status: 404, host: "localhost:3000", reportedAt: null }]]);
+    const [mine, other] = withChains([{ ...base, confidence: "corroborated" as const, repositoryId: "r1", rowId: "row-1", hitHard: null },
+      { ...base, confidence: "corroborated" as const, repositoryId: "r1", rowId: "row-2", hitHard: null }], { runs, repos, trafficConnected: false, reports });
+    expect(mine.chain.links[2].evidence).toContain("reported 404");
+    expect(other.chain.links[2].evidence).not.toContain("reported");
+  });
+
   // P5: live reach joins only the repository the founder bound the address to.
   it("joins what the live site calls only to the bound repository's findings", () => {
     const live = { repositoryId: "r1", host: "app.acme.com", observedAt: "2026-10-17T10:00:00.000Z", paths: ["/api/notes/"] };

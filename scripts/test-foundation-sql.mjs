@@ -1586,5 +1586,30 @@ try {
       assert.equal((await db.query("select has_function_privilege($1,'public.persist_provider_monitor_result(uuid,uuid,uuid,text,text,jsonb,jsonb,boolean,jsonb,jsonb)','execute') ok",[role])).rows[0].ok,false,`${role} cannot commit`);
     }
   });
+  // 107: the agent's self-check report, one per open finding of its own user.
+  await check("self-check reports need the user's own open finding and stay service only (107)", async () => {
+    await db.exec("reset role");
+    await db.exec(await readFile(new URL("../supabase/migrations/107_self_check_reports.sql", import.meta.url), "utf8"));
+    const f=(await db.query("insert into public.deep_findings(user_id,repository_id,source,finding_id,severity,title,consequence) values($1,$2,'agent','sc-107','CRITICAL','t','c') returning id",[u1,r1])).rows[0].id;
+    await db.exec("set role service_role");
+    const report=(user,row,status,host="preview-abc.vercel.app")=>db.query("select public.record_self_check($1,$2,'GET','/api/notes/00000000-0000-4000-8000-000000000000',$3,$4)",[user,row,status,host]);
+    await report(u1,f,404);
+    await report(u1,f,401,"localhost:3000");
+    await assert.rejects(report(u2,f,200), /finding unavailable/);
+    await assert.rejects(report(u1,f,99));
+    await assert.rejects(report(u1,f,200,"https://evil.example/x"));
+    await db.exec("reset role");
+    assert.deepEqual((await db.query("select status,target_host from public.self_check_reports where finding_row_id=$1",[f])).rows,[{status:401,target_host:"localhost:3000"}]);
+    await db.query("update public.deep_findings set archived_at=now() where id=$1",[f]);
+    await db.exec("set role service_role");
+    await assert.rejects(report(u1,f,200), /finding unavailable/);
+    await db.exec("reset role");
+    for (const role of ["anon", "authenticated"]) {
+      assert.equal((await db.query("select has_function_privilege($1,'public.record_self_check(uuid,uuid,text,text,integer,text)','execute') ok",[role])).rows[0].ok,false,`${role} cannot report`);
+      assert.equal((await db.query("select has_table_privilege($1,'public.self_check_reports','select') ok",[role])).rows[0].ok,false,`${role} reads no report`);
+    }
+    await db.query("delete from public.deep_findings where id=$1",[f]);
+    assert.equal((await db.query("select count(*)::int n from public.self_check_reports where finding_row_id=$1",[f])).rows[0].n,0);
+  });
   console.log(`${checks} SQL checks passed. Single-connection PostgreSQL WASM; multi-session contention and hosted Supabase remain unverified.`);
 } finally { await db.close(); }

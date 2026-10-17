@@ -1,5 +1,5 @@
 import type { Claim, Confidence } from "@/lib/agent/findings";
-import { selfCheck } from "@/lib/proof/selfCheck";
+import { readSelfCheck, selfCheck } from "@/lib/proof/selfCheck";
 import type { Severity } from "@/lib/types";
 
 /**
@@ -33,6 +33,8 @@ export type ChainContext = {
   live?: { host: string; path: string; observedAt: string | null } | null;
   /** A traffic snippet reports for this account. */
   trafficConnected: boolean;
+  /** The self-check the customer's agent ran and reported (migration 107). */
+  selfCheck?: { status: number; host: string; reportedAt: string | null } | null;
   /** Attack traffic on the finding's route (lib/traffic/findingTraffic.ts). */
   hitHard?: { pattern: string; suspiciousRequests: number } | null;
 };
@@ -70,9 +72,16 @@ function gap(f: ChainFinding): Link {
   return { id: "gap", title, state: "met", evidence: source };
 }
 
-function proof(f: ChainFinding): Link {
+function proof(f: ChainFinding, ctx: ChainContext): Link {
   const title = "It was reproduced";
   if (f.confidence === "proven") return { id: "proof", title, state: "met", evidence: "Reproduced on a disposable replica with synthetic data, never your production database." };
+  // A test the agent ran is reported, not observed: the link stays open.
+  if (ctx.selfCheck) {
+    const { status, host, reportedAt } = ctx.selfCheck;
+    const on = reportedAt ? ` on ${reportedAt.slice(0, 10)}` : "";
+    return { id: "proof", title, state: "open",
+      evidence: `Your agent ran the check on ${host}${on} and reported ${status}: ${readSelfCheck(status).meaning}. Reported by your agent; ShipLock did not send it.` };
+  }
   const check = f.entry ? selfCheck({ entry: f.entry, attackClass: f.attackClass }) : null;
   if (check) return { id: "proof", title, state: "open", evidence: `Not yet. One harmless request against your preview app shows it: ${check.curl}` };
   return { id: "proof", title, state: "unknown", evidence: "No safe one-request check exists for this kind of issue; it needs a second account or a replica." };
@@ -89,12 +98,15 @@ function pressure(ctx: ChainContext): Link {
 }
 
 export function evidenceChain(f: ChainFinding, ctx: ChainContext): Chain {
-  const links = [reach(f, ctx), gap(f), proof(f), pressure(ctx)];
+  const links = [reach(f, ctx), gap(f), proof(f, ctx), pressure(ctx)];
   const met = links.filter((l) => l.state === "met").length;
   const g = links[1], p = links[2];
+  const outcome = ctx.selfCheck && f.confidence !== "proven" ? readSelfCheck(ctx.selfCheck.status).outcome : null;
   const next = g.state !== "met" ? "Ask your agent to prove or refute it with quoted lines."
-    : p.state === "open" ? "Run the one harmless request on your preview app, or ask your agent to, and compare the status."
-      : null;
+    : outcome === "reached" ? "Fix it: the check your agent ran reached the data layer without a sign-in check."
+      : outcome === "check_ran" ? "Your agent's check met a sign-in check there. Ask it to re-verify the quoted lines against that build."
+        : p.state === "open" ? "Run the one harmless request on your preview app, or ask your agent to, and compare the status."
+          : null;
   return { links, met, next };
 }
 

@@ -62,6 +62,14 @@ export const MCP_TOOLS = [
       "Read the outcome of a fix pull request you asked for: status queued, opened (with its url), failed or uncertain (with the reason), and mergedAt once the customer merges it.",
     inputSchema: { type: "object", properties: { receiptId: { type: "string" } }, required: ["receiptId"], additionalProperties: false },
   },
+  {
+    name: "report_self_check",
+    description:
+      "Report what one self-check showed. get_security_context gives some findings a selfCheck: one harmless curl with an id that cannot exist, so it reads and changes nothing. Run it yourself against the customer's local or preview app, never production, then send the finding id, the HTTP status you got, and the host you ran it against (for example localhost:3000). ShipLock records its own method and path for that finding, refuses the production address, and shows your report on the finding as a test your agent ran, never as proof; it changes no status. Pass repository as owner/name when the id is open in more than one repository.",
+    inputSchema: { type: "object", properties: { findingId: { type: "string" }, status: { type: "integer", minimum: 100, maximum: 599 },
+      host: { type: "string", description: "host:port you ran it against, never production" }, repository: { type: "string", description: "owner/name, when the id is ambiguous" } },
+      required: ["findingId", "status", "host"], additionalProperties: false },
+  },
 ];
 
 export const MCP_RESOURCES = [

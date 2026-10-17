@@ -4,13 +4,14 @@ import { NextRequest } from "next/server";
 // Felipe (2026-09-30): the customer's own agent should have ShipLock's context
 // before it edits: stack, guardrails, open findings, and what was NOT read.
 // Read only, PAT authenticated, selected repositories only; no model call.
-const s = vi.hoisted(() => ({ auth: vi.fn(), repos: vi.fn(), runs: vi.fn(), findings: vi.fn(), source: vi.fn(), loop: vi.fn(), hot: vi.fn(), live: vi.fn() }));
+const s = vi.hoisted(() => ({ auth: vi.fn(), repos: vi.fn(), runs: vi.fn(), findings: vi.fn(), source: vi.fn(), loop: vi.fn(), hot: vi.fn(), live: vi.fn(), reports: vi.fn() }));
 vi.mock("@/lib/mcpAuth", () => ({ authMcp: s.auth }));
 vi.mock("@/lib/agent/dashboardData", () => ({ getRepositories: s.repos, getRuns: s.runs, getOpenFindings: s.findings }));
 vi.mock("@/lib/graph/repositorySource", () => ({ loadRepositoryGraphSource: s.source }));
 vi.mock("@/lib/agent/securityLoopData", () => ({ loadSecurityLoopInput: s.loop }));
 vi.mock("@/lib/traffic/hotRoutes", () => ({ getHotRoutes: s.hot }));
 vi.mock("@/lib/chain/liveReach", () => ({ loadLiveReach: s.live }));
+vi.mock("@/lib/proof/selfCheckReports", () => ({ loadSelfCheckReports: s.reports }));
 const { GET } = await import("./route");
 const get = (q = "") => GET(new NextRequest(`https://shiplock.dev/api/mcp/context${q}`));
 const route = { path: "/api/orders", file: "app/api/orders/route.ts", methods: ["GET"], tables: ["orders"], authenticated: true,
@@ -35,6 +36,7 @@ describe("GET /api/mcp/context", () => {
       map: null, fix: { open: 0, withPr: 0 }, watch: { prChecks: 0, blockedPrs: 0, trafficSites: 0, hotRoutes: 0, providersRead: 0, providersConnected: 0 } });
     s.hot.mockReset().mockResolvedValue({});
     s.live.mockReset().mockResolvedValue(null);
+    s.reports.mockReset().mockResolvedValue(new Map());
   });
 
   // Felipe 2026-10-06: the agent sees the same loop and progress as the
@@ -113,6 +115,18 @@ describe("GET /api/mcp/context", () => {
     expect(other.chain.links[0].state).toBe("unknown");
     s.live.mockRejectedValue(new Error("down"));
     expect((await get("?repository=acme/app")).status).toBe(200);
+  });
+
+  // 107: the agent sees its own reported self-check on the finding, and the next step it implies.
+  it("returns the agent's reported self-check on the finding's proof link", async () => {
+    s.findings.mockResolvedValue([{ id: "agent:notes", rowId: "row-1", repositoryId: "r1", title: "t", severity: "CRITICAL", entry: "/api/notes/[id]",
+      file: "app/api/notes/[id]/route.ts", consequence: "c", confidence: "corroborated", attackClass: "missing_authentication", fixKind: "pr", confirmed: true,
+      claims: [{ claim: "quoted", origin: "agent", verified: true }] }]);
+    s.reports.mockResolvedValue(new Map([["row-1", { status: 404, host: "localhost:3000", reportedAt: "2026-10-17T12:00:00.000Z" }]]));
+    const [f] = (await (await get("?repository=acme/app")).json()).openFindings;
+    expect(f.chain.links[2]).toMatchObject({ link: "proof", state: "open" });
+    expect(f.chain.links[2].evidence).toContain("reported 404");
+    expect(f.chain.next).toMatch(/Fix it/);
   });
 
   it("does not serve an unselected repository and says unknown before any audit", async () => {

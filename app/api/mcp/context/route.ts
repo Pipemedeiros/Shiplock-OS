@@ -11,6 +11,7 @@ import { getHotRoutes } from "@/lib/traffic/hotRoutes";
 import { evidenceChain, orderByChain, type ChainContext } from "@/lib/chain/evidenceChain";
 import { liveContext } from "@/lib/chain/findingChains";
 import { loadLiveReach } from "@/lib/chain/liveReach";
+import { loadSelfCheckReports } from "@/lib/proof/selfCheckReports";
 
 // MCP `get_security_context` (Felipe 2026-09-30): what the customer's own
 // agent should know before it edits a selected repository, from ShipLock's
@@ -28,9 +29,9 @@ export async function GET(req: NextRequest) {
       : NextResponse.json({ error: "Name a repository.", repositories: repos.map((r) => r.fullName) }, { status: 400 });
   }
 
-  const [runs, findings, source, loop, hot, live] = await Promise.all([getRuns(ctx.userId, 20), getOpenFindings(ctx.userId),
+  const [runs, findings, source, loop, hot, live, reports] = await Promise.all([getRuns(ctx.userId, 20), getOpenFindings(ctx.userId),
     loadRepositoryGraphSource(ctx.userId, repo.id), loadSecurityLoopInput(ctx.userId), getHotRoutes(ctx.userId).catch(() => ({})),
-    loadLiveReach(ctx.userId).catch(() => null)]);
+    loadLiveReach(ctx.userId).catch(() => null), loadSelfCheckReports(ctx.userId).catch(() => new Map())]);
   // The last FINISHED audit of this repository; one still running has read
   // nothing yet and is reported as in progress, never as nothing unread.
   const { current, finished: run } = auditState(runs.filter((r) => r.fullName === repo.fullName));
@@ -39,7 +40,8 @@ export async function GET(req: NextRequest) {
   // traffic on the finding's route.
   const calledBy = new Map((run?.routeFacts ?? []).map((r) => [r.path, r.calledBy ?? []]));
   const repoHot = (hot as Record<string, { file: string; pattern: string; suspiciousRequests: number }[]>)[repo.id] ?? [];
-  const chainContext = (f: { entry: string | null; file: string | null }): ChainContext => ({
+  const chainContext = (f: { entry: string | null; file: string | null; rowId?: string }): ChainContext => ({
+    selfCheck: (f.rowId && reports.get(f.rowId)) || null,
     calledBy: f.entry ? calledBy.get(f.entry) : undefined, live: liveContext({ repositoryId: repo.id, entry: f.entry }, live),
     trafficConnected: loop.watch.trafficSites > 0,
     hitHard: (f.file && repoHot.find((h) => h.file === f.file)) || null,
@@ -64,6 +66,6 @@ export async function GET(req: NextRequest) {
         chain: (({ links, next }) => ({ links: links.map((l) => ({ link: l.id, state: l.state, evidence: l.evidence })), next }))(
           evidenceChain(f, chainContext(f))) })),
     notRead: (run?.coverage ?? []).map((c) => `${c.name}: ${c.effect}`),
-    howToUse: "Keep every guardrail when you edit. Fix open findings only with the change they describe; a finding with confirmed false is a candidate to verify, not a proven issue. Anything under notRead, and any route without a rule, is not known to be safe. ShipLock's pull request check re-checks your change. To fix one, call open_fix_pull_request with its id where the customer turned agent pull requests on, or make the change in your own checkout and open the pull request yourself. Each finding's chain says which layers back it (reach, gap, proof, pressure) and its next safe step; an unknown link was not read, never cleared.",
+    howToUse: "Keep every guardrail when you edit. Fix open findings only with the change they describe; a finding with confirmed false is a candidate to verify, not a proven issue. Anything under notRead, and any route without a rule, is not known to be safe. ShipLock's pull request check re-checks your change. To fix one, call open_fix_pull_request with its id where the customer turned agent pull requests on, or make the change in your own checkout and open the pull request yourself. Each finding's chain says which layers back it (reach, gap, proof, pressure) and its next safe step; an unknown link was not read, never cleared. Where a finding has a selfCheck, run it on a local or preview app, never production, and call report_self_check with the status you got; it is shown as a test you ran, never as proof.",
   });
 }

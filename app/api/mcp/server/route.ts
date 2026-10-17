@@ -8,6 +8,7 @@ import { GET as task } from "@/app/api/mcp/intelligence/tasks/[id]/route";
 import { POST as taskResult } from "@/app/api/mcp/intelligence/tasks/[id]/result/route";
 import { POST as fixPr } from "@/app/api/mcp/fix/pr/route";
 import { GET as fixReceipt } from "@/app/api/mcp/fix/receipts/[id]/route";
+import { POST as selfCheckReport } from "@/app/api/mcp/self-check/route";
 import { GET as brief } from "@/app/api/mcp/brief/route";
 import { GET as posture } from "@/app/api/mcp/posture/route";
 import { MCP_RESOURCES, MCP_TOOLS } from "@/lib/mcpTools";
@@ -18,7 +19,8 @@ import { MCP_RESOURCES, MCP_TOOLS } from "@/lib/mcpTools";
 // Stateless JSON-RPC over POST; no server stream. The tools are exactly the
 // local package's (mcp/index.mjs): reads, task polling, proposal submission,
 // and a fix PR request that works only where the customer turned agent pull
-// requests on (103). Each call runs the existing /api/mcp route in process
+// requests on (103), and the agent's report of a self-check it ran on a local
+// or preview app (107). Each call runs the existing /api/mcp route in process
 // with the caller's own Authorization header, so its token, two-step sign-in
 // and access checks apply unchanged. No scan, file write or merge tool exists.
 const PROTOCOL = "2025-06-18";
@@ -72,6 +74,9 @@ async function callTool(origin: string, auth: string, name: unknown, args: Recor
       const id = uuid(args.receiptId, "receiptId must be a UUID");
       return route(origin, auth, fixReceipt as Handler, `/api/mcp/fix/receipts/${id}`, { id });
     }
+    case "report_self_check":
+      return route(origin, auth, selfCheckReport as Handler, "/api/mcp/self-check",
+        { body: { findingId: args.findingId, status: args.status, host: args.host, repository: args.repository } });
     default: throw new Error(`Unknown tool: ${String(name)}`);
   }
 }

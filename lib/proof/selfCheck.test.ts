@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { NO_SUCH_ID, selfCheck } from "./selfCheck";
+import { NO_SUCH_ID, selfCheck, readSelfCheck } from "./selfCheck";
 
 // Strix's idea (proof per finding), rebuilt so ShipLock never sends attack
 // traffic: the founder or their agent runs one request against their own
@@ -32,5 +32,24 @@ describe("selfCheck", () => {
 
   it("speaks without dashes", () => {
     expect(selfCheck(finding("/api/orders/[id]"))!.reading).not.toMatch(/[–—]/);
+  });
+});
+
+// The customer's agent reports the status it got (MCP report_self_check).
+// Untrusted agent output: it says what the test showed, never that it proved.
+describe("readSelfCheck", () => {
+  it.each([
+    [401, "check_ran"], [403, "check_ran"], [302, "redirected"], [307, "redirected"],
+    [404, "reached"], [200, "reached"], [204, "reached"], [405, "wrong_method"], [500, "inconclusive"], [429, "inconclusive"],
+  ] as const)("reads %i as %s", (status, outcome) => {
+    expect(readSelfCheck(status).outcome).toBe(outcome);
+  });
+
+  it("says each reading in plain words, without dashes, and never claims proof", () => {
+    for (const status of [401, 302, 404, 405, 500]) {
+      const { meaning } = readSelfCheck(status);
+      expect(meaning).not.toMatch(/[–—]/);
+      expect(meaning).not.toMatch(/proven|proved|confirmed/i);
+    }
   });
 });

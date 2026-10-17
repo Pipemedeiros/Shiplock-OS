@@ -25,6 +25,7 @@ vi.mock("@/app/api/mcp/brief/route", () => ({ GET: reply("brief", { markdown: "#
 vi.mock("@/app/api/mcp/posture/route", () => ({ GET: reply("posture", { open: 0 }) }));
 vi.mock("@/app/api/mcp/fix/pr/route", () => ({ POST: reply("fixPr", { receiptId: "r", status: "queued" }, 202) }));
 vi.mock("@/app/api/mcp/fix/receipts/[id]/route", () => ({ GET: reply("receipt", { status: "opened" }) }));
+vi.mock("@/app/api/mcp/self-check/route", () => ({ POST: reply("selfCheck", { recorded: true }) }));
 vi.mock("@/app/api/mcp/scan/route", () => ({ POST: () => { throw new Error("never reachable"); } }));
 
 import { GET, POST } from "./route";
@@ -57,9 +58,16 @@ describe("/api/mcp/server", () => {
     const { tools } = (await (await rpc({ jsonrpc: "2.0", id: 3, method: "tools/list" })).json()).result;
     const names = tools.map((t: { name: string }) => t.name);
     expect(names).toEqual(local);
-    expect(local).toHaveLength(9);
+    expect(local).toHaveLength(10);
     expect(names.filter((n: string) => /pull|pr\b/.test(n))).toEqual(["open_fix_pull_request", "get_fix_pull_request"]);
     expect(names.join(" ")).not.toMatch(/scan|merge|write/);
+  });
+
+  it("sends a self-check report with only the finding, status, host and repository", async () => {
+    await call("report_self_check", { findingId: "agent:x", status: 404, host: "localhost:3000", method: "DELETE", path: "/admin" });
+    expect(seen.calls.map((c) => [c.route, c.url, c.body])).toEqual([
+      ["selfCheck", "https://shiplock.dev/api/mcp/self-check", JSON.stringify({ findingId: "agent:x", status: 404, host: "localhost:3000" })],
+    ]);
   });
 
   it("sends the PR request to the guarded route with only the finding id", async () => {

@@ -53,6 +53,23 @@ describe("the evidence chain: what joins the layers for one finding", () => {
     expect(link(evidenceChain({ ...quoted, attackClass: "missing_authorization" }, { trafficConnected: false }), "proof").state).toBe("unknown");
   });
 
+  // 107: the customer's agent ran the self-check and reported the status.
+  // Untrusted agent output: the link stays open (never met, never proof),
+  // the evidence says what was reported, and a 401 asks for a re-verify.
+  it("shows the agent's reported self-check on the proof link, never as proof", () => {
+    const reached = evidenceChain(quoted, { trafficConnected: false,
+      selfCheck: { status: 404, host: "localhost:3000", reportedAt: "2026-10-17T12:00:00.000Z" } });
+    expect(link(reached, "proof")).toEqual({ id: "proof", title: "It was reproduced", state: "open",
+      evidence: "Your agent ran the check on localhost:3000 on 2026-10-17 and reported 404: the route reached the data layer without a sign-in check. Reported by your agent; ShipLock did not send it." });
+    expect(reached.next).toMatch(/Fix it/);
+    const refused = evidenceChain(quoted, { trafficConnected: false,
+      selfCheck: { status: 401, host: "preview.acme.dev", reportedAt: "2026-10-17T12:00:00.000Z" } });
+    expect(link(refused, "proof").state).toBe("open");
+    expect(refused.next).toMatch(/re-verify/);
+    // A proven finding keeps its replica proof; a report never replaces it.
+    expect(link(evidenceChain(proven, { trafficConnected: false, selfCheck: { status: 401, host: "localhost", reportedAt: null } }), "proof").state).toBe("met");
+  });
+
   it("reads pressure from traffic: attempts seen, watched and quiet, or not connected", () => {
     expect(link(evidenceChain(quoted, { trafficConnected: true, hitHard: { pattern: "/api/notes/:id", suspiciousRequests: 42 } }), "pressure"))
       .toMatchObject({ state: "met" });

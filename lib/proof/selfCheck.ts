@@ -27,3 +27,30 @@ export function selfCheck(finding: { entry: string; attackClass: string; methods
   const path = finding.entry.replace(PARAM, NO_SUCH_ID);
   return { method, path, curl: `curl -i -X ${method} "$APP_URL${path}"`, reading: READING };
 }
+
+/**
+ * What a reported status means, for a self-check the customer's agent ran
+ * and reported over MCP (report_self_check, migration 107). Agent output is
+ * untrusted: this is "the test ran and the agent says it got N", never
+ * proof and never a status change (only lib/proving earns proven).
+ */
+export type SelfCheckOutcome = "check_ran" | "redirected" | "reached" | "wrong_method" | "inconclusive";
+
+export function readSelfCheck(status: number): { outcome: SelfCheckOutcome; meaning: string } {
+  if (status === 401 || status === 403) return { outcome: "check_ran", meaning: "a sign-in check ran before the route reached data, so the gap may not hold there" };
+  if (status >= 300 && status < 400) return { outcome: "redirected", meaning: "a redirect, often to sign in; the Location header says where" };
+  if (status === 404 || (status >= 200 && status < 300)) return { outcome: "reached", meaning: "the route reached the data layer without a sign-in check" };
+  if (status === 405) return { outcome: "wrong_method", meaning: "the route has no handler for that method, so the check did not test it" };
+  return { outcome: "inconclusive", meaning: "this status does not show either way" };
+}
+
+const HOST = /^[a-z0-9.-]{1,253}(:[0-9]{1,5})?$/;
+
+/** The host:port an agent ran against, from a URL or a bare host, or null. */
+export function reportedHost(value: string): string | null {
+  try {
+    const url = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(value) ? value : `http://${value}`);
+    if (url.username || url.password || !/^https?:$/.test(url.protocol)) return null;
+    return HOST.test(url.host) ? url.host : null;
+  } catch { return null; }
+}
