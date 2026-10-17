@@ -25,6 +25,17 @@ describe("EvidenceLinks", () => {
     expect(html).not.toContain("curl");
   });
 
+  // 107: the founder sees what their agent reported, labeled as reported,
+  // never hidden behind "Not yet" and never shown as met.
+  it("shows the agent's reported self-check in full, labeled Reported", () => {
+    const reported = renderToStaticMarkup(<EvidenceLinks chain={evidenceChain(finding, { trafficConnected: false,
+      selfCheck: { status: 404, host: "localhost:3000", reportedAt: "2026-10-17T12:00:00.000Z" } })} />).replace(/<[^>]+>/g, " ");
+    expect(reported).toContain("Your agent ran the check on localhost:3000");
+    expect(reported).toContain("Reported");
+    expect(reported).not.toContain("The harmless request below shows it");
+    expect(reported).not.toContain("Not yet");
+  });
+
   it("names the next safe step and carries no dashes", () => {
     const candidate = renderToStaticMarkup(<EvidenceLinks chain={evidenceChain({ ...finding, confirmed: false }, { trafficConnected: true })} />);
     expect(candidate.replace(/<[^>]+>/g, "")).toMatch(/Next: Ask your agent to prove or refute it/);

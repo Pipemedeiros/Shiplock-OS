@@ -59,7 +59,7 @@ describe("the evidence chain: what joins the layers for one finding", () => {
   it("shows the agent's reported self-check on the proof link, never as proof", () => {
     const reached = evidenceChain(quoted, { trafficConnected: false,
       selfCheck: { status: 404, host: "localhost:3000", reportedAt: "2026-10-17T12:00:00.000Z" } });
-    expect(link(reached, "proof")).toEqual({ id: "proof", title: "It was reproduced", state: "open",
+    expect(link(reached, "proof")).toEqual({ id: "proof", title: "It was reproduced", state: "open", reported: true,
       evidence: "Your agent ran the check on localhost:3000 on 2026-10-17 and reported 404: the route reached the data layer without a sign-in check. Reported by your agent; ShipLock did not send it." });
     expect(reached.next).toMatch(/Fix it/);
     const refused = evidenceChain(quoted, { trafficConnected: false,

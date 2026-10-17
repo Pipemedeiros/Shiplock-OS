@@ -41,7 +41,8 @@ export type ChainContext = {
   hitHard?: { pattern: string; suspiciousRequests: number } | null;
 };
 export type LinkId = "reach" | "gap" | "proof" | "pressure";
-export type Link = { id: LinkId; title: string; state: "met" | "open" | "unknown"; evidence: string };
+/** reported: the evidence is the customer's agent's own report (still open). */
+export type Link = { id: LinkId; title: string; state: "met" | "open" | "unknown"; evidence: string; reported?: true };
 export type Chain = { links: Link[]; met: number; next: string | null };
 
 const RANK: Record<string, number> = { CRITICAL: 0, WARNING: 1, INFO: 2 };
@@ -81,7 +82,7 @@ function proof(f: ChainFinding, ctx: ChainContext): Link {
   if (ctx.selfCheck) {
     const { status, host, reportedAt } = ctx.selfCheck;
     const on = reportedAt ? ` on ${reportedAt.slice(0, 10)}` : "";
-    return { id: "proof", title, state: "open",
+    return { id: "proof", title, state: "open", reported: true,
       evidence: `Your agent ran the check on ${host}${on} and reported ${status}: ${readSelfCheck(status).meaning}. Reported by your agent; ShipLock did not send it.` };
   }
   const check = f.entry ? selfCheck({ entry: f.entry, attackClass: f.attackClass, methods: f.methods ? [...f.methods] : undefined }) : null;

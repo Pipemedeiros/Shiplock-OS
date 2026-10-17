@@ -14,9 +14,13 @@ const STATE: Record<Link["state"], { label: string; tone: string }> = {
 
 function evidence(link: Link) {
   // The self-check request is shown in full just below; do not repeat it here.
-  if (link.id === "proof" && link.state === "open") return "Not yet. The harmless request below shows it on your preview app.";
+  // An agent's report is shown in full: it is what the founder came to read.
+  if (link.id === "proof" && link.state === "open" && !link.reported) return "Not yet. The harmless request below shows it on your preview app.";
   return link.evidence;
 }
+
+// A report is the agent's word, not ShipLock's observation: its own label.
+const label = (link: Link) => (link.reported ? { label: "Reported", tone: " warn" } : STATE[link.state]);
 
 export function EvidenceLinks({ chain }: { chain: Chain }) {
   return (
@@ -30,7 +34,7 @@ export function EvidenceLinks({ chain }: { chain: Chain }) {
           <li key={link.id} style={{ padding: "8px 0", borderTop: "1px solid var(--line)" }}>
             <div className="v3-between" style={{ gap: 8 }}>
               <span>{link.title}</span>
-              <span className={`v3-tag${STATE[link.state].tone}`}>{STATE[link.state].label}</span>
+              <span className={`v3-tag${label(link).tone}`}>{label(link).label}</span>
             </div>
             <p className="v3-small" style={{ marginTop: 4, overflowWrap: "anywhere" }}>{evidence(link)}</p>
           </li>
