@@ -1554,5 +1554,37 @@ try {
     }
     await db.query("delete from public.traffic_route_observations where user_id=$1 and repository_id=$2",[u1,r1]);
   });
+  // 106 (P5): the live site's called paths, a runtime fact under its own key,
+  // joined to a repository only through the founder's confirmed binding.
+  await check("app-surface writes only its own runtime fact, and the binding is tenant bound (106)", async () => {
+    await db.exec("reset role");
+    await db.exec(await readFile(new URL("../supabase/migrations/106_app_surface_reach.sql", import.meta.url), "utf8"));
+    const lr = "77777777-7777-4777-8777-777777777777";
+    await db.query("insert into public.repositories(id,user_id,full_name,selected) values($1,$2,'legacy/app',true)",[lr,legacy]);
+    await db.exec("set role service_role");
+    const job = await monitorJob("106-facts");
+    const persistProvider = (job, transport, identity, facts, findings, retire) => db.query(
+      "select public.persist_provider_monitor_result($1,$2,$3,$4,$5,$6,$7,$8,'[]'::jsonb,$9) as created",
+      [legacy, job.id, job.token, transport, identity, JSON.stringify(facts), JSON.stringify(findings), retire, JSON.stringify({scope:"app.example.com",failed:[]})]);
+    const surface = { url: "https://app.example.com", scriptsSeen: 3, scriptsRead: 3, paths: ["/api/orders/"] };
+    await persistProvider(job,"app-surface","https://app.example.com",{appSurface:surface},[],false);
+    await assert.rejects(persistProvider(job,"app-surface","https://app.example.com",{envVars:[]},[],false));
+    await assert.rejects(persistProvider(job,"app-surface","https://app.example.com",{appSurface:surface,providersRead:["x"]},[],false));
+    await assert.rejects(persistProvider(job,"app-surface","https://other.example.com",{appSurface:surface},[],false));
+    await db.exec("reset role");
+    const facts=(await db.query("select facts from public.graph_facts where user_id=$1 and collector='runtime'",[legacy])).rows[0].facts;
+    assert.deepEqual(facts.appSurface,surface);
+    assert.ok(facts._evidence.fields.appSurface.recordedAt);
+    // The binding: own selected repository only, with the address it was confirmed for.
+    await db.query("update public.user_profiles set monitored_app_repository_id=$2,monitored_app_bound_url='https://app.example.com' where id=$1",[legacy,lr]);
+    await assert.rejects(db.query("update public.user_profiles set monitored_app_repository_id=$2 where id=$1",[legacy,r1]));
+    await assert.rejects(db.query("update public.user_profiles set monitored_app_bound_url=null where id=$1",[legacy]));
+    await db.query("delete from public.repositories where id=$1",[lr]);
+    assert.equal((await db.query("select monitored_app_repository_id r from public.user_profiles where id=$1",[legacy])).rows[0].r,null);
+    await db.query("update public.user_profiles set monitored_app_bound_url=null where id=$1",[legacy]);
+    for (const role of ["anon", "authenticated"]) {
+      assert.equal((await db.query("select has_function_privilege($1,'public.persist_provider_monitor_result(uuid,uuid,uuid,text,text,jsonb,jsonb,boolean,jsonb,jsonb)','execute') ok",[role])).rows[0].ok,false,`${role} cannot commit`);
+    }
+  });
   console.log(`${checks} SQL checks passed. Single-connection PostgreSQL WASM; multi-session contention and hosted Supabase remain unverified.`);
 } finally { await db.close(); }

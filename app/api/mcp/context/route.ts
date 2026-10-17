@@ -9,6 +9,8 @@ import { securityLoop } from "@/lib/securityLoop";
 import { auditState } from "@/lib/verdict";
 import { getHotRoutes } from "@/lib/traffic/hotRoutes";
 import { evidenceChain, orderByChain, type ChainContext } from "@/lib/chain/evidenceChain";
+import { liveContext } from "@/lib/chain/findingChains";
+import { loadLiveReach } from "@/lib/chain/liveReach";
 
 // MCP `get_security_context` (Felipe 2026-09-30): what the customer's own
 // agent should know before it edits a selected repository, from ShipLock's
@@ -26,17 +28,20 @@ export async function GET(req: NextRequest) {
       : NextResponse.json({ error: "Name a repository.", repositories: repos.map((r) => r.fullName) }, { status: 400 });
   }
 
-  const [runs, findings, source, loop, hot] = await Promise.all([getRuns(ctx.userId, 20), getOpenFindings(ctx.userId),
-    loadRepositoryGraphSource(ctx.userId, repo.id), loadSecurityLoopInput(ctx.userId), getHotRoutes(ctx.userId).catch(() => ({}))]);
+  const [runs, findings, source, loop, hot, live] = await Promise.all([getRuns(ctx.userId, 20), getOpenFindings(ctx.userId),
+    loadRepositoryGraphSource(ctx.userId, repo.id), loadSecurityLoopInput(ctx.userId), getHotRoutes(ctx.userId).catch(() => ({})),
+    loadLiveReach(ctx.userId).catch(() => null)]);
   // The last FINISHED audit of this repository; one still running has read
   // nothing yet and is reported as in progress, never as nothing unread.
   const { current, finished: run } = auditState(runs.filter((r) => r.fullName === repo.fullName));
-  // The evidence chain per finding (lib/chain): reach from the audit's route
-  // facts, pressure from attack traffic on the finding's route.
+  // The evidence chain per finding (lib/chain): reach from the live site under
+  // the founder's binding or the audit's route facts, pressure from attack
+  // traffic on the finding's route.
   const calledBy = new Map((run?.routeFacts ?? []).map((r) => [r.path, r.calledBy ?? []]));
   const repoHot = (hot as Record<string, { file: string; pattern: string; suspiciousRequests: number }[]>)[repo.id] ?? [];
   const chainContext = (f: { entry: string | null; file: string | null }): ChainContext => ({
-    calledBy: f.entry ? calledBy.get(f.entry) : undefined, trafficConnected: loop.watch.trafficSites > 0,
+    calledBy: f.entry ? calledBy.get(f.entry) : undefined, live: liveContext({ repositoryId: repo.id, entry: f.entry }, live),
+    trafficConnected: loop.watch.trafficSites > 0,
     hitHard: (f.file && repoHot.find((h) => h.file === f.file)) || null,
   });
   const repoFindings = orderByChain(findings.filter((f) => f.repositoryId === repo.id).map((f) => ({ ...f, claims: f.claims ?? [] })), chainContext);

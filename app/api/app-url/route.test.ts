@@ -30,8 +30,19 @@ describe("/api/app-url", () => {
     const res = await POST(req("POST", { url: "https://acme.com/login" }));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ url: "https://acme.com", recheck: "job1" });
-    expect(mocks.set).toHaveBeenCalledWith("u1", "https://acme.com/login");
+    expect(mocks.set).toHaveBeenCalledWith("u1", "https://acme.com/login", null);
     expect(mocks.recheck).toHaveBeenCalledWith("u1", "app-surface");
+  });
+
+  it("passes the repository the founder confirmed the address for, and refuses one not selected", async () => {
+    mocks.set.mockResolvedValue("https://acme.com");
+    expect((await POST(req("POST", { url: "https://acme.com", repository: "acme/app" }))).status).toBe(200);
+    expect(mocks.set).toHaveBeenCalledWith("u1", "https://acme.com", "acme/app");
+    mocks.set.mockRejectedValue(new Error("invalid_repository"));
+    const res = await POST(req("POST", { url: "https://acme.com", repository: "evil/other" }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("Choose one of the repositories you selected in ShipLock.");
+    expect((await POST(req("POST", { url: "https://acme.com", repository: 7 }))).status).toBe(400);
   });
 
   it("keeps the address when the recheck cannot be queued, and says so", async () => {

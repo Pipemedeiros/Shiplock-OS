@@ -41,7 +41,7 @@ export function buildReachIndex(files: readonly RepoFile[]): ReachIndex {
   return { literals, trpcCalls };
 }
 
-function routeMatcher(path: string): ((text: string) => boolean) | null {
+export function routeMatcher(path: string): ((text: string) => boolean) | null {
   // A duplicated route is named "<app root or file>:/path" (routeInventory).
   const bare = path.startsWith("/") ? path : path.slice(path.indexOf(":/") + 1);
   const segments = bare.split("/").filter(Boolean);

@@ -34,7 +34,7 @@ describe("runExposedPathScan", () => {
   it("runs every probe against the app URL with a shared unread list", async () => {
     await run();
     expect(probeMock).toHaveBeenCalledWith(url, undefined, expect.any(Array));
-    expect(auditMock).toHaveBeenCalledWith(url, undefined, expect.any(Array));
+    expect(auditMock).toHaveBeenCalledWith(url, undefined, expect.any(Array), expect.any(Object));
     expect(emailMock).toHaveBeenCalledWith(url, expect.anything(), expect.any(Array));
   });
 
@@ -79,6 +79,24 @@ describe("runExposedPathScan", () => {
     expect(sentIds()).toEqual(["exposed:npmrc_exposed"]);
   });
 
+  // P5: the paths the live site's JavaScript calls, as a runtime fact under
+  // the address it was read from, only when the page itself was read.
+  it("sends the paths the live site calls as its own fact when the page was read", async () => {
+    auditMock.mockImplementation(async (_u: string, _s: unknown, _unread: string[], shipped: { pageRead: boolean; scriptsSeen: number; scriptsRead: number; paths: Set<string> }) => {
+      Object.assign(shipped, { pageRead: true, scriptsSeen: 9, scriptsRead: 8 });
+      shipped.paths.add("/api/orders/").add("/api/me");
+      return [];
+    });
+    await run();
+    expect(sent().facts).toEqual({ appSurface: { url, scriptsSeen: 9, scriptsRead: 8, paths: ["/api/me", "/api/orders/"] } });
+  });
+
+  it("sends no fact when the page could not be read, so an old one is never replaced by nothing", async () => {
+    auditMock.mockRejectedValue(new Error("network"));
+    await run();
+    expect(sent()).not.toHaveProperty("facts");
+  });
+
   it("propagates a fenced rejection so the collector fails", async () => {
     commitMock.mockRejectedValue(new Error("Provider result was not committed"));
     await expect(run()).rejects.toThrow("not committed");
@@ -94,7 +112,7 @@ describe("runExposedPathScan — 3F-C2b-2 cancellation", () => {
     });
     await expect(run({ signal: controller.signal })).rejects.toThrow("collector timed out");
     expect(probeMock).toHaveBeenCalledWith(url, controller.signal, expect.any(Array));
-    expect(auditMock).toHaveBeenCalledWith(url, controller.signal, expect.any(Array));
+    expect(auditMock).toHaveBeenCalledWith(url, controller.signal, expect.any(Array), expect.any(Object));
     expect(commitMock).not.toHaveBeenCalled();
   });
 });

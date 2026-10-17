@@ -7,7 +7,8 @@ import type { Severity } from "@/lib/types";
  * (reconnaissance, the weakness, exploitation, and someone actually trying),
  * with each link taken from a different layer ShipLock already reads.
  *
- *   reach     can a stranger get to it: the app's own code calls the entry
+ *   reach     can a stranger get to it: the live site's JavaScript names it
+ *             (lib/chain/liveReach.ts), the app's own code calls the entry
  *             (lib/graph/clientReach.ts), or it was fetched from the public URL
  *   gap       the weakness is confirmed: quoted lines the verifier accepted,
  *             a live fact, or a replica (lib/agent/confirmed.ts)
@@ -28,6 +29,8 @@ export type ChainFinding = {
 export type ChainContext = {
   /** Shipped files that call the entry, from the audit's stored route facts. */
   calledBy?: readonly string[];
+  /** The live site's JavaScript names the entry, under the founder's binding. */
+  live?: { host: string; path: string; observedAt: string | null } | null;
   /** A traffic snippet reports for this account. */
   trafficConnected: boolean;
   /** Attack traffic on the finding's route (lib/traffic/findingTraffic.ts). */
@@ -43,6 +46,11 @@ function reach(f: ChainFinding, ctx: ChainContext): Link {
   const title = "A stranger can reach it";
   if (f.attackClass === "live:exposed-path") {
     return { id: "reach", title, state: "met", evidence: "ShipLock fetched it from your public URL without signing in." };
+  }
+  if (ctx.live) {
+    const on = ctx.live.observedAt ? ` on ${ctx.live.observedAt.slice(0, 10)}` : "";
+    return { id: "reach", title, state: "met",
+      evidence: `Your live site at ${ctx.live.host} ships JavaScript that names ${ctx.live.path}, so its address reaches every visitor. ShipLock read it without signing in${on}.` };
   }
   if (ctx.calledBy && ctx.calledBy.length > 0) {
     return { id: "reach", title, state: "met", evidence: `Your app calls it from ${ctx.calledBy.slice(0, 3).join(", ")}, so its address ships to every visitor.` };

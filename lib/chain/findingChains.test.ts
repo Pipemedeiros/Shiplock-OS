@@ -25,4 +25,14 @@ describe("withChains", () => {
     const [f] = withChains([{ ...base, repositoryId: "other", hitHard: null }], { runs, repos, trafficConnected: false });
     expect(f.chain.links.map((l) => `${l.id}:${l.state}`)).toEqual(["reach:unknown", "gap:met", "proof:met", "pressure:unknown"]);
   });
+
+  // P5: live reach joins only the repository the founder bound the address to.
+  it("joins what the live site calls only to the bound repository's findings", () => {
+    const live = { repositoryId: "r1", host: "app.acme.com", observedAt: "2026-10-17T10:00:00.000Z", paths: ["/api/notes/"] };
+    const [bound, other] = withChains([{ ...base, repositoryId: "r1", hitHard: null }, { ...base, repositoryId: "r2", hitHard: null }],
+      { runs: [], repos: [...repos, { id: "r2", fullName: "acme/other" }], trafficConnected: false, live });
+    expect(bound.chain.links[0]).toMatchObject({ state: "met" });
+    expect(bound.chain.links[0].evidence).toContain("app.acme.com");
+    expect(other.chain.links[0].state).toBe("unknown");
+  });
 });

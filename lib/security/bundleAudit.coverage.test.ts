@@ -55,3 +55,24 @@ describe("auditShippedBundle readability", () => {
     expect(unread).toEqual([]);
   });
 });
+
+// P5: the same scripts say which paths the live site calls, and how many of
+// them were read, so a partial read is never mistaken for the whole bundle.
+describe("auditShippedBundle called paths", () => {
+  it("records the paths the page and each read chunk name, with what was read", async () => {
+    guarded.mockImplementation(async (url: string) =>
+      url.endsWith("c0.js") ? ok('fetch("/api/orders/"+id)') : url.endsWith("c1.js") ? ok("", 502)
+        : ok(page(2).replace("</html>", '<script>fetch("/api/me")</script></html>')));
+    const shipped = { pageRead: false, scriptsSeen: 0, scriptsRead: 0, paths: new Set<string>() };
+    await auditShippedBundle("https://app.example.com", undefined, [], shipped);
+    expect({ ...shipped, paths: [...shipped.paths].sort() }).toEqual({ pageRead: true, scriptsSeen: 2, scriptsRead: 1,
+      paths: ["/api/me", "/api/orders/"] });
+  });
+
+  it("records nothing read when the page cannot be read", async () => {
+    guarded.mockRejectedValue(new Error("ETIMEDOUT"));
+    const shipped = { pageRead: false, scriptsSeen: 0, scriptsRead: 0, paths: new Set<string>() };
+    await auditShippedBundle("https://app.example.com", undefined, [], shipped);
+    expect(shipped.pageRead).toBe(false);
+  });
+});

@@ -4,12 +4,13 @@ import { NextRequest } from "next/server";
 // Felipe (2026-09-30): the customer's own agent should have ShipLock's context
 // before it edits: stack, guardrails, open findings, and what was NOT read.
 // Read only, PAT authenticated, selected repositories only; no model call.
-const s = vi.hoisted(() => ({ auth: vi.fn(), repos: vi.fn(), runs: vi.fn(), findings: vi.fn(), source: vi.fn(), loop: vi.fn(), hot: vi.fn() }));
+const s = vi.hoisted(() => ({ auth: vi.fn(), repos: vi.fn(), runs: vi.fn(), findings: vi.fn(), source: vi.fn(), loop: vi.fn(), hot: vi.fn(), live: vi.fn() }));
 vi.mock("@/lib/mcpAuth", () => ({ authMcp: s.auth }));
 vi.mock("@/lib/agent/dashboardData", () => ({ getRepositories: s.repos, getRuns: s.runs, getOpenFindings: s.findings }));
 vi.mock("@/lib/graph/repositorySource", () => ({ loadRepositoryGraphSource: s.source }));
 vi.mock("@/lib/agent/securityLoopData", () => ({ loadSecurityLoopInput: s.loop }));
 vi.mock("@/lib/traffic/hotRoutes", () => ({ getHotRoutes: s.hot }));
+vi.mock("@/lib/chain/liveReach", () => ({ loadLiveReach: s.live }));
 const { GET } = await import("./route");
 const get = (q = "") => GET(new NextRequest(`https://shiplock.dev/api/mcp/context${q}`));
 const route = { path: "/api/orders", file: "app/api/orders/route.ts", methods: ["GET"], tables: ["orders"], authenticated: true,
@@ -33,6 +34,7 @@ describe("GET /api/mcp/context", () => {
     s.loop.mockReset().mockResolvedValue({ current: null, finished: null, agent: { available: true, paused: "not_connected", pending: 0, answered: 0 },
       map: null, fix: { open: 0, withPr: 0 }, watch: { prChecks: 0, blockedPrs: 0, trafficSites: 0, hotRoutes: 0, providersRead: 0, providersConnected: 0 } });
     s.hot.mockReset().mockResolvedValue({});
+    s.live.mockReset().mockResolvedValue(null);
   });
 
   // Felipe 2026-10-06: the agent sees the same loop and progress as the
@@ -97,6 +99,20 @@ describe("GET /api/mcp/context", () => {
     expect(own.chain.links.map((l: { link: string; state: string }) => `${l.link}:${l.state}`))
       .toEqual(["reach:unknown", "gap:open", "proof:unknown", "pressure:open"]);
     expect(own.chain.next).toMatch(/quoted lines/);
+  });
+
+  // P5: the live site's JavaScript, under the founder's binding to this repository.
+  it("tells the agent when the live site calls a finding's route, for the bound repository only", async () => {
+    s.live.mockResolvedValue({ repositoryId: "r1", host: "app.acme.com", observedAt: "2026-10-17T10:00:00.000Z", paths: ["/api/orders/"] });
+    const body = await (await get("?repository=acme/app")).json();
+    const open = body.openFindings.find((f: { id: string }) => f.id === "agent:open");
+    expect(open.chain.links[0]).toMatchObject({ link: "reach", state: "met" });
+    expect(open.chain.links[0].evidence).toContain("live site at app.acme.com");
+    s.live.mockResolvedValue({ repositoryId: "r2", host: "app.acme.com", observedAt: null, paths: ["/api/orders/"] });
+    const other = (await (await get("?repository=acme/app")).json()).openFindings.find((f: { id: string }) => f.id === "agent:open");
+    expect(other.chain.links[0].state).toBe("unknown");
+    s.live.mockRejectedValue(new Error("down"));
+    expect((await get("?repository=acme/app")).status).toBe(200);
   });
 
   it("does not serve an unselected repository and says unknown before any audit", async () => {

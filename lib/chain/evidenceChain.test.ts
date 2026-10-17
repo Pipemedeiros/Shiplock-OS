@@ -30,6 +30,14 @@ describe("the evidence chain: what joins the layers for one finding", () => {
     expect(link(uncalled, "reach").evidence).toMatch(/directly/);
   });
 
+  // P5: what the live site's JavaScript calls is an observation, not an inference.
+  it("counts reach observed in the live site's JavaScript, ahead of the repository's own calls", () => {
+    const live = evidenceChain(quoted, { calledBy: ["components/Note.tsx"], trafficConnected: false,
+      live: { host: "app.acme.com", path: "/api/notes/", observedAt: "2026-10-17T10:00:00.000Z" } });
+    expect(link(live, "reach").state).toBe("met");
+    expect(link(live, "reach").evidence).toBe("Your live site at app.acme.com ships JavaScript that names /api/notes/, so its address reaches every visitor. ShipLock read it without signing in on 2026-10-17.");
+  });
+
   it("counts reach observed from the public internet", () => {
     const outside = evidenceChain({ ...quoted, attackClass: "live:exposed-path" }, { trafficConnected: false });
     expect(link(outside, "reach").state).toBe("met");

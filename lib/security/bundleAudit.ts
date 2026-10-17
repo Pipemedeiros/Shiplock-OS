@@ -2,6 +2,7 @@ import type { Severity } from "@/lib/types";
 import { jwtRole } from "@/lib/deep/clientExposure";
 import { guardedFetch } from "@/lib/security/ssrfGuard";
 import { requestSignal } from "@/lib/abort";
+import { calledPaths, type ShippedRead } from "./shippedCalls";
 
 // D6 + D7 from CHECK-SPEC.md §4 — audit what the customer's app ACTUALLY ships
 // to a browser, fetched from the public internet the way a visitor gets it.
@@ -266,7 +267,7 @@ async function readCapped(res: Response, limit: number): Promise<string> {
  * a fetch timed out would be worse than reporting nothing.
  */
 export async function auditShippedBundle(
-  appUrl: string, signal?: AbortSignal, unread: string[] = [],
+  appUrl: string, signal?: AbortSignal, unread: string[] = [], shipped?: ShippedRead,
 ): Promise<BundleFinding[]> {
   // Failed reads never produce findings, and they record which finding families
   // this pass could not verify so the caller cannot mistake them for fixed.
@@ -294,6 +295,10 @@ export async function auditShippedBundle(
   const allScripts = extractScriptUrls(html, pageUrl);
   if (allScripts.length > MAX_SCRIPTS) chunksUnread();
   const scripts = allScripts.slice(0, MAX_SCRIPTS);
+  // The paths this JavaScript names (P5), with how much of it was read.
+  const keep = (text: string) => { if (shipped) for (const p of calledPaths(text)) shipped.paths.add(p); };
+  if (shipped) { shipped.pageRead = true; shipped.scriptsSeen = allScripts.length; }
+  keep(html);
   // An inline-only page (or one whose entry chunk we can't see) still gets its
   // HTML checked — bundlers and hand-written templates both inline keys there.
   for (const finding of scanBundleSecrets(html, pageUrl)) add(finding);
@@ -312,6 +317,8 @@ export async function auditShippedBundle(
         chunksUnread();
         return;
       }
+      if (shipped) shipped.scriptsRead++;
+      keep(js);
 
       for (const finding of scanBundleSecrets(js, jsUrl)) add(finding);
 

@@ -1,6 +1,7 @@
 import type { ProviderCommit } from "@/lib/monitoring/registry";
 import { probeExposedPaths, type ExposedFinding } from "./exposedPaths";
 import { auditShippedBundle } from "./bundleAudit";
+import { MAX_PATHS, type ShippedRead } from "./shippedCalls";
 import { auditEmailAuth, nodeTxtResolver, domainFromUrl, isSharedHost } from "./emailAuth";
 import { analyzeOriginPosture, collectOriginPosture, fetchOriginHeaders, nodeDnsResolver } from "./originExposure";
 
@@ -32,9 +33,10 @@ export async function runExposedPathScan(
   // that throws outright leaves its whole family unread.
   const unread: string[] = [];
   const failed = (prefix: string) => () => { unread.push(prefix); return []; };
+  const shipped: ShippedRead = { pageRead: false, scriptsSeen: 0, scriptsRead: 0, paths: new Set() };
   const [paths, bundle, email, origin] = await Promise.all([
     probeExposedPaths(appUrl, signal, unread).catch(failed("exposed:")),
-    auditShippedBundle(appUrl, signal, unread).catch(failed("bundle:")),
+    auditShippedBundle(appUrl, signal, unread, shipped).catch(failed("bundle:")),
     auditEmailAuth(appUrl, nodeTxtResolver, unread).catch(failed("email_auth:")),
     // Origin exposure. Skipped on shared platform hostnames for the same reason
     // as email auth: the customer does not control that DNS, so a finding there
@@ -56,7 +58,11 @@ export async function runExposedPathScan(
   // Findings commit under the monitor job's lease and the app URL it probed
   // (3F-C2c); unread families are never archived. The fenced commit does not
   // report an archive count, so none is claimed here.
-  const created = await commit({ transport: "app-surface", identity: appUrl, findings, retire: true, unread,
+  // The paths the live site names (P5), kept only from a read page: a failed
+  // read sends no fact, so the last observation stands with its own time.
+  const facts = shipped.pageRead ? { facts: { appSurface: { url: appUrl, scriptsSeen: shipped.scriptsSeen,
+    scriptsRead: shipped.scriptsRead, paths: [...shipped.paths].sort().slice(0, MAX_PATHS) } } } : {};
+  const created = await commit({ transport: "app-surface", identity: appUrl, ...facts, findings, retire: true, unread,
     snapshot: { scope: new URL(appUrl).host, failed: unread } });
   return { total: findings.length, newCount: created.length, newFindings: created as ExposedFinding[] };
 }
