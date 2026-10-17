@@ -38,6 +38,9 @@ export async function ingestTrafficEvent(params: {
       session_id: event.session_id ?? null,
       site_id: params.siteId ?? null,
       repository_id: params.repositoryId ?? null,
+      // Only when reported (migration 104); a snippet that cannot see the
+      // response sends none and the row is written exactly as before.
+      ...(event.status != null ? { status: event.status } : {}),
     });
 
     const since = new Date(Date.now() - LOOKBACK_MS).toISOString();

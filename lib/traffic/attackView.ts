@@ -1,5 +1,6 @@
 import type { Severity } from "@/lib/types";
 import { appRouteForPath } from "./routeMatch";
+import { idRoute, isAuthPath } from "./detect";
 
 /**
  * The Traffic page's model: which sources ShipLock flagged, what they did,
@@ -12,14 +13,20 @@ import { appRouteForPath } from "./routeMatch";
  * audit's own route files; a path that matches none (a scanner asking for
  * /.env) stays unmatched rather than being pinned on a guessed route.
  *
- * Traffic shows attempts, not outcomes: the snippet sees a request before
- * the app answers, so nothing here says a route was compromised.
+ * Outcomes come only from snippets that see the answer (Express, the
+ * Web-standard wrapper: a status code, migration 104). "Probably worked"
+ * needs two layers to agree: the code has an open issue on the route and a
+ * flagged source got success on many different record ids; or a flagged
+ * source signed in after a run of failures (OWASP OAT-008). It is never
+ * "compromised" and never sets an issue's status: a 200 can carry an empty
+ * list. The Next.js proxy runs before the route, so its traffic is "not
+ * reported", never refused and never clean.
  */
 export const WINDOW_HOURS = 48; // traffic_events retention (lib/traffic/prune.ts)
 
 export type AlertRow = { source_id: string; reason: string; alerted_at: string; action: string };
 export type BlockRow = { source_id: string; reason: string; blocked_at: string; expires_at: string };
-export type EventRow = { source_id: string; path: string; created_at: string };
+export type EventRow = { source_id: string; path: string; created_at: string; method?: string | null; status?: number | null };
 export type ViewRoute = { path: string; file: string };
 export type ViewFinding = { file: string | null; title: string; severity: Severity; confirmed: boolean };
 
@@ -28,14 +35,61 @@ export type Attacker = {
   blockedUntil: string | null; firstSeen: string; lastSeen: string; requests: number;
   routes: { pattern: string; file: string; requests: number }[]; unmatchedPaths: number;
 };
+export type Outcome = { kind: "worked" | "answered" | "errored" | "refused" | "unreported"; detail: string };
 export type AttackedRoute = {
   pattern: string; file: string; requests: number; attackers: number;
   finding: { title: string; severity: Severity; confirmed: boolean } | null;
+  outcome: Outcome;
 };
 export type AttackView = {
   attackers: Attacker[]; attackedRoutes: AttackedRoute[];
-  totals: { attackers: number; blocked: number; attackedRoutes: number; attackedWithIssue: number; unmatchedPaths: number };
+  totals: { attackers: number; blocked: number; attackedRoutes: number; attackedWithIssue: number; probablyWorked: number; unmatchedPaths: number };
 };
+
+/** One source answered with success on this many different record ids is a walk that got records back. */
+export const ANSWERED_IDS_THRESHOLD = 10;
+/** Failed sign ins before a success that make it look like a guessed password. */
+export const FAILURES_BEFORE_SIGN_IN = 5;
+
+const ok = (s: number) => s >= 200 && s < 300;
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/** How the app answered flagged sources on one route; pure. */
+export function routeOutcome(events: readonly EventRow[], hasIssue: boolean): Outcome {
+  const reported = events.filter((e): e is EventRow & { status: number } => typeof e.status === "number");
+  if (reported.length === 0) {
+    return { kind: "unreported", detail: "Your snippet reports requests, not how your app answered them." };
+  }
+  const bySource = new Map<string, (EventRow & { status: number })[]>();
+  for (const e of reported) bySource.set(e.source_id, [...(bySource.get(e.source_id) ?? []), e]);
+
+  let answeredIds = 0, signInAfter = 0;
+  for (const list of bySource.values()) {
+    const ids = new Set(list.filter((e) => ok(e.status)).map((e) => idRoute(e.path)?.id).filter(Boolean));
+    answeredIds = Math.max(answeredIds, ids.size);
+    let failures = 0;
+    for (const e of [...list].sort((a, b) => a.created_at.localeCompare(b.created_at))) {
+      if (!isAuthPath(e.path) || (e.method && e.method.toUpperCase() !== "POST")) continue;
+      if (e.status >= 400 && e.status < 500 && e.status !== 429) failures++;
+      else if (e.status >= 200 && e.status < 400 && failures >= FAILURES_BEFORE_SIGN_IN) { signInAfter = Math.max(signInAfter, failures); break; }
+    }
+  }
+  if (signInAfter > 0) {
+    return { kind: "worked", detail: `A flagged source signed in after ${signInAfter} failed attempts. Check that account and reset its sessions.` };
+  }
+  if (answeredIds >= ANSWERED_IDS_THRESHOLD && hasIssue) {
+    return { kind: "worked", detail: `Your app answered one flagged source with success on ${answeredIds} different record ids, on a route where the code has an open issue.` };
+  }
+  const errors = reported.filter((e) => e.status >= 500).length;
+  if (errors > 0) {
+    return { kind: "errored", detail: `Your app failed on ${errors} of these requests. An error on an attack request can mean the input reached a query; worth a look.` };
+  }
+  const answered = reported.filter((e) => ok(e.status) || (e.status >= 300 && e.status < 400)).length;
+  if (answered === 0) return { kind: "refused", detail: `Every one of ${plural(reported.length, "reported answer", "reported answers")} refused the request.` };
+  return { kind: "answered", detail: answeredIds >= ANSWERED_IDS_THRESHOLD
+    ? `Answered with success on ${answeredIds} different record ids. Fine if these records are public; the code shows no issue here.`
+    : `Answered ${answered} of ${plural(reported.length, "reported request", "reported requests")} with success.` };
+}
 
 const MAX_ATTACKERS = 25;
 const SEVERITY_RANK: Record<string, number> = { CRITICAL: 0, WARNING: 1, INFO: 2 };
@@ -74,7 +128,7 @@ export function buildAttackView(input: {
   };
 
   const attackers: Attacker[] = [];
-  const routeHits = new Map<string, { pattern: string; file: string; requests: number; sources: Set<string> }>();
+  const routeHits = new Map<string, { pattern: string; file: string; requests: number; sources: Set<string>; events: EventRow[] }>();
   let unmatchedTotal = 0;
   for (const [sourceId, f] of flagged) {
     const events = input.events.filter((e) => e.source_id === sourceId && recent(e.created_at));
@@ -86,8 +140,8 @@ export function buildAttackView(input: {
       const r = perRoute.get(route.file) ?? { ...route, requests: 0 };
       r.requests++;
       perRoute.set(route.file, r);
-      const hit = routeHits.get(route.file) ?? { ...route, requests: 0, sources: new Set<string>() };
-      hit.requests++; hit.sources.add(sourceId);
+      const hit = routeHits.get(route.file) ?? { ...route, requests: 0, sources: new Set<string>(), events: [] };
+      hit.requests++; hit.sources.add(sourceId); hit.events.push(e);
       routeHits.set(route.file, hit);
     }
     unmatchedTotal += unmatched;
@@ -114,14 +168,17 @@ export function buildAttackView(input: {
   const attackedRoutes: AttackedRoute[] = [...routeHits.values()].map((r) => {
     const f = worst.get(r.file);
     return { pattern: r.pattern, file: r.file, requests: r.requests, attackers: r.sources.size,
-      finding: f ? { title: f.title, severity: f.severity, confirmed: f.confirmed } : null };
-  }).sort((a, b) => Number(Boolean(b.finding?.confirmed)) - Number(Boolean(a.finding?.confirmed))
+      finding: f ? { title: f.title, severity: f.severity, confirmed: f.confirmed } : null,
+      outcome: routeOutcome(r.events, Boolean(f)) };
+  }).sort((a, b) => Number(b.outcome.kind === "worked") - Number(a.outcome.kind === "worked")
+    || Number(Boolean(b.finding?.confirmed)) - Number(Boolean(a.finding?.confirmed))
     || Number(Boolean(b.finding)) - Number(Boolean(a.finding)) || b.requests - a.requests || a.pattern.localeCompare(b.pattern));
 
   const shown = attackers.slice(0, MAX_ATTACKERS);
   return {
     attackers: shown, attackedRoutes,
     totals: { attackers: attackers.length, blocked: attackers.filter((a) => a.status === "blocked").length,
-      attackedRoutes: attackedRoutes.length, attackedWithIssue: attackedRoutes.filter((r) => r.finding).length, unmatchedPaths: unmatchedTotal },
+      attackedRoutes: attackedRoutes.length, attackedWithIssue: attackedRoutes.filter((r) => r.finding).length,
+      probablyWorked: attackedRoutes.filter((r) => r.outcome.kind === "worked").length, unmatchedPaths: unmatchedTotal },
   };
 }

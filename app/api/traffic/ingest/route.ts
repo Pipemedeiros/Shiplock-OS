@@ -27,6 +27,9 @@ const bodySchema = z.object({
   // A category the snippet classified locally (lib/traffic/probe.ts); an
   // unknown value is dropped, never stored or echoed.
   probe: z.enum(PROBE_KINDS).nullable().optional().catch(null),
+  // How the app answered (Express, the Web-standard wrapper); a status code
+  // only. Anything else is "not reported", never a guess.
+  status: z.number().int().min(100).max(599).nullable().optional().catch(null),
 });
 
 export async function POST(req: NextRequest) {
@@ -65,6 +68,7 @@ export async function POST(req: NextRequest) {
         session_id: b.session_id ?? null,
         t: b.t ?? Date.now(),
         probe: b.probe ?? null,
+        status: b.status ?? null,
       },
     });
 

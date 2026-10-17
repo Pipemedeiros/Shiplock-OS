@@ -14,6 +14,8 @@ import { probeSnippetSource } from "./probe";
 export function buildSnippet(ingestToken: string, origin: string): string {
   return `// ShipLock edge traffic protection: fail-open. Safe to remove anytime.
 // Our being unreachable never blocks or slows your app.
+// Next.js 16: save this as proxy.ts and rename the function middleware to proxy.
+// It runs before your routes, so it reports requests, not how your app answered.
 import { NextRequest, NextResponse, NextFetchEvent } from "next/server";
 
 const SHIPLOCK_ORIGIN = ${JSON.stringify(origin)};
@@ -146,18 +148,50 @@ export async function shiplockGuard(request) {
 
   const sess = await sessionHash(request);
   // fire-and-forget: do not await; never let this block the response
-  void mirror(id, sess, url.pathname, probeKind(url.pathname + url.search), request);
+  void mirror(id, sess, url.pathname, probeKind(url.pathname + url.search), request, null);
   if (Date.now() - fetchedAt > REFRESH_MS) void refresh();
   return null;
 }
 
-async function mirror(id, sess, path, probe, request) {
+// Preferred: wrap your fetch handler so ShipLock also learns how your app
+// answered (the status code only, never the body). Same checks as the guard.
+// Usage (Workers, Bun, Deno): export default { fetch: withShiplock(handler) }
+// Usage (Hono):               export default { fetch: withShiplock(app.fetch) }
+export function withShiplock(handler) {
+  return async (request, ...rest) => {
+    const url = new URL(request.url);
+    if (!/^\\/(api|login|signin|sign-in|register|auth)(\\/|$)/.test(url.pathname)) return handler(request, ...rest);
+    const ip =
+      request.headers.get("x-forwarded-for")?.split(",").pop()?.trim() ||
+      request.headers.get("x-real-ip") ||
+      "anonymous";
+    const id = await hash(ip + ":" + SHIPLOCK_SITE);
+    if (blocklist.has(id)) return new Response("Too many requests", { status: 429 });
+    const sess = await sessionHash(request);
+    const probe = probeKind(url.pathname + url.search);
+    // Workers pass a context whose waitUntil keeps the report alive after the response.
+    const ctx = rest.find((x) => x && typeof x.waitUntil === "function");
+    const later = (p) => (ctx ? ctx.waitUntil(p) : void p);
+    if (Date.now() - fetchedAt > REFRESH_MS) later(refresh());
+    let response;
+    try {
+      response = await handler(request, ...rest);
+    } catch (err) {
+      later(mirror(id, sess, url.pathname, probe, request, 500));
+      throw err;
+    }
+    later(mirror(id, sess, url.pathname, probe, request, response.status));
+    return response;
+  };
+}
+
+async function mirror(id, sess, path, probe, request, status) {
   try {
     await fetch(SHIPLOCK_ORIGIN + "/api/traffic/ingest", {
       method: "POST",
       headers: { "content-type": "application/json", "x-site": SHIPLOCK_SITE },
       body: JSON.stringify({
-        source_id: id, session_id: sess, path, probe,
+        source_id: id, session_id: sess, path, probe, status,
         method: request.method, ua: request.headers.get("user-agent") || null, t: Date.now(),
       }),
       signal: AbortSignal.timeout(2000),
@@ -217,13 +251,17 @@ function shiplock(req, res, next) {
   const m = (req.headers.cookie || "").match(/sb-[^=;]*-auth-token(?:\\.\\d+)?=([^;]+)/);
   const sess = m ? hash(m[1] + ":s:" + SHIPLOCK_SITE) : null;
 
-  // fire-and-forget: never blocks the response
-  fetch(SHIPLOCK_ORIGIN + "/api/traffic/ingest", {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-site": SHIPLOCK_SITE },
-    body: JSON.stringify({ source_id: id, session_id: sess, path: req.path, probe: probeKind(req.originalUrl || req.url), method: req.method, ua: req.headers["user-agent"] || null, t: Date.now() }),
-    signal: AbortSignal.timeout(2000),
-  }).catch(() => {});
+  const event = { source_id: id, session_id: sess, path: req.path, probe: probeKind(req.originalUrl || req.url), method: req.method, ua: req.headers["user-agent"] || null, t: Date.now() };
+  // After your app answered: its status code only, never a body or a header.
+  // An aborted request that never sent headers reports none. Fire-and-forget.
+  res.once("close", () => {
+    fetch(SHIPLOCK_ORIGIN + "/api/traffic/ingest", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-site": SHIPLOCK_SITE },
+      body: JSON.stringify({ ...event, status: res.headersSent ? res.statusCode : null }),
+      signal: AbortSignal.timeout(2000),
+    }).catch(() => {});
+  });
 
   if (Date.now() - fetchedAt > REFRESH_MS) {
     fetch(SHIPLOCK_ORIGIN + "/api/traffic/blocklist?site=" + SHIPLOCK_SITE, { signal: AbortSignal.timeout(2000) })

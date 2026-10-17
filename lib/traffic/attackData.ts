@@ -28,7 +28,7 @@ export async function loadAttackRows(userId: string, now = Date.now()):
   const sources = [...new Set([...alertRows, ...blockRows].map((r) => r.source_id))].slice(0, MAX_SOURCES);
   let events: EventRow[] = [];
   if (sources.length > 0) {
-    const read = await admin.from("traffic_events").select("source_id, path, created_at").eq("user_id", userId)
+    const read = await admin.from("traffic_events").select("source_id, path, method, status, created_at").eq("user_id", userId)
       .in("source_id", sources).gte("created_at", since).order("created_at", { ascending: false }).limit(MAX_EVENTS);
     if (read.error) return { available: false };
     events = (read.data ?? []) as EventRow[];

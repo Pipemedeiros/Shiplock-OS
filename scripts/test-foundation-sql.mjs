@@ -1522,5 +1522,20 @@ try {
       assert.equal((await db.query("select has_table_privilege($1,'public.agent_pr_grants','select') ok",[role])).rows[0].ok,false,`${role} reads no grant`);
     }
   });
+  // 104 (Felipe 2026-10-16): the app's answer to a mirrored request, a status code or nothing.
+  await check("traffic events keep a response status in range, or none (104)", async () => {
+    await db.exec("reset role");
+    await db.exec(await readFile(new URL("../supabase/migrations/104_traffic_response_status.sql", import.meta.url), "utf8"));
+    await db.query("insert into public.traffic_events(user_id,source_id,path,method,status) values ($1,'s104','/api/orders/1','GET',200)",[u1]);
+    await db.query("insert into public.traffic_events(user_id,source_id,path,method) values ($1,'s104','/api/orders/2','GET')",[u1]);
+    assert.deepEqual((await db.query("select status from public.traffic_events where source_id='s104' order by path")).rows,[{status:200},{status:null}]);
+    for (const bad of [99, 600, -1]) {
+      await assert.rejects(db.query("insert into public.traffic_events(user_id,source_id,path,method,status) values ($1,'s104','/x','GET',$2)",[u1,bad]));
+    }
+    for (const role of ["anon", "authenticated"]) {
+      assert.equal((await db.query("select has_table_privilege($1,'public.traffic_events','select') ok",[role])).rows[0].ok,false,`${role} reads no traffic`);
+    }
+    await db.query("delete from public.traffic_events where source_id='s104'");
+  });
   console.log(`${checks} SQL checks passed. Single-connection PostgreSQL WASM; multi-session contention and hosted Supabase remain unverified.`);
 } finally { await db.close(); }

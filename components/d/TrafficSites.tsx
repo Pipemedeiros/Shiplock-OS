@@ -43,8 +43,9 @@ export function TrafficSitesView({ enabled, repositories, sites, created, busy, 
       {created ? (
         <div style={{ margin: "10px 0" }}>
           <p style={{ ...note, color: "var(--ink)" }}>Snippet for {created.host}. Copy it now: its token is shown only once.
-            For Next.js, save as middleware.ts at the root of your app:</p>
+            For Next.js, save it at the root of your app as proxy.ts (Next.js 16) or middleware.ts (Next.js 15):</p>
           <pre style={pre}>{created.snippets.nextjs}</pre>
+          <p style={note}>The Next.js version runs before your routes, so it shows attempts, not how your app answered. The Express version and the web standard wrapper also report each answer&apos;s status code, never its body.</p>
           <details style={{ marginTop: 8 }}><summary style={{ fontSize: 13 }}>Other frameworks (web standard, Express)</summary>
             <pre style={pre}>{created.snippets.web}</pre>
             <pre style={pre}>{created.snippets.express}</pre>

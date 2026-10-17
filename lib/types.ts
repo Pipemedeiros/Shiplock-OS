@@ -74,6 +74,8 @@ export interface TrafficEvent {
   t: number; // client-side epoch ms, advisory only — server uses created_at
   /** The attack pattern the customer's snippet classified locally, if any. */
   probe?: "sqli" | "traversal" | "xss" | "ssrf" | "cmdi" | "nosql" | null;
+  /** How the app answered, from snippets that see the response; null when not reported. */
+  status?: number | null;
 }
 
 export type TrafficAction = "block" | "alert" | "none";

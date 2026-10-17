@@ -5,15 +5,16 @@ import { Sev } from "./FindingParts";
 import { When } from "./When";
 import { withSources, type RouteMap as RouteMapData } from "@/lib/routeMap";
 import type { TrafficPulse } from "@/lib/traffic/pulse";
-import type { AttackView } from "@/lib/traffic/attackView";
+import type { AttackView, Outcome } from "@/lib/traffic/attackView";
 
 /**
  * The Traffic page (Felipe 2026-10-16: see traffic, the routes under attack,
  * the graph, and who attacked them). Built from what the snippet already
  * sends and what detection logged; a source is a short alias of its salted
- * hash. Traffic shows attempts, never outcomes: the snippet sees a request
- * before the app answers, so nothing here says a route was breached. Not
- * connected and unreadable are said as such, never as a quiet page.
+ * hash. An attempt is shown as an attempt; how the app answered is shown
+ * only where the snippet reports it (lib/traffic/attackView.ts routeOutcome),
+ * and nothing here says a route was breached. Not connected and unreadable
+ * are said as such, never as a quiet page.
  */
 export type TrafficViewProps = {
   repository: string; sites: number; installed: boolean; lastSeenAt: string | null;
@@ -24,6 +25,19 @@ export type TrafficViewProps = {
 function Path({ path }: { path: string }) {
   const parts = path.split("/");
   return <>{parts.map((part, i) => <span key={i}>{i > 0 ? "/" : ""}{part}{i < parts.length - 1 ? <wbr /> : null}</span>)}</>;
+}
+
+const OUTCOME_LABEL: Record<Outcome["kind"], { label: string; tone: string }> = {
+  worked: { label: "Probably worked", tone: " crit" },
+  errored: { label: "App errored", tone: " warn" },
+  answered: { label: "Answered", tone: "" },
+  refused: { label: "Refused", tone: "" },
+  unreported: { label: "Not reported", tone: "" },
+};
+
+function Answer({ outcome }: { outcome: Outcome }) {
+  const o = OUTCOME_LABEL[outcome.kind];
+  return <><span className={`v3-tag${o.tone}`}>{o.label}</span><br /><span className="v3-small">{outcome.detail}</span></>;
 }
 
 function Volume({ pulse }: { pulse: TrafficPulse }) {
@@ -95,7 +109,8 @@ export function TrafficView(props: TrafficViewProps) {
           <div className="v3-metrics">
             <Metric label="Requests watched" value={pulse.watched} href="#volume" link={`${pulse.sources} visitors`} />
             <Metric label="Flagged sources" value={view.totals.attackers} href="#sources" link={`${view.totals.blocked} blocked`} tone="warn" />
-            <Metric label="Attacked routes" value={view.totals.attackedRoutes} href="#routes" link={`${view.totals.attackedWithIssue} with an open issue`} tone="crit" />
+            <Metric label="Attacked routes" value={view.totals.attackedRoutes} href="#routes" tone="crit"
+              link={view.totals.probablyWorked > 0 ? `${view.totals.probablyWorked} probably worked` : `${view.totals.attackedWithIssue} with an open issue`} />
             <Metric label="Turned away" value={pulse.turnedAway} href="#sources" link="from blocked sources" />
           </div>
         ) : (
@@ -112,7 +127,7 @@ export function TrafficView(props: TrafficViewProps) {
         <section id="map" aria-labelledby="attack-map-title">
           <div className="v3-between" style={{ marginBottom: 10 }}>
             <h2 id="attack-map-title" className="v3-eyebrow">Who attacked what</h2>
-            <span className="v3-small">Traffic shows attempts, not whether they worked.</span>
+            <span className="v3-small">Attempts. Whether one worked shows below, where your snippet reports answers.</span>
           </div>
           {shownMap ? <RouteMap map={shownMap} /> : (
             <div className="v3-empty"><p>The map appears after your first audit.</p></div>
@@ -127,7 +142,7 @@ export function TrafficView(props: TrafficViewProps) {
                 <p className="v3-card-p v3-small">No flagged source requested a route from your last audit in this window.</p>
               ) : (
                 <table className="v3-issues">
-                  <thead><tr><th>Route</th><th>Requests</th><th className="hide-sm">Sources</th><th>Open issue</th></tr></thead>
+                  <thead><tr><th>Route</th><th>Requests</th><th className="hide-sm">Sources</th><th>Open issue</th><th>Answer</th></tr></thead>
                   <tbody>
                     {view.attackedRoutes.map((r) => (
                       <tr key={r.file}>
@@ -142,6 +157,7 @@ export function TrafficView(props: TrafficViewProps) {
                             </>
                           ) : <span className="v3-small">None read in the code</span>}
                         </td>
+                        <td><Answer outcome={r.outcome} /></td>
                       </tr>
                     ))}
                   </tbody>

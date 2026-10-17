@@ -38,5 +38,16 @@ describe("traffic ingest binds site traffic to its repository (2F-2a)", () => {
     await POST(req({ probe: "id=1' OR '1'='1" }));
     expect(mocks.ingest.mock.calls[1][0].event.probe).toBeNull();
   });
-});
 
+  // 104: the app's answer, from snippets that see it. Only a whole status
+  // code in range is kept; anything else is "not reported", never a guess.
+  it("passes a response status in range and drops anything else", async () => {
+    mocks.resolve.mockResolvedValue({ userId: "u1", email: null, siteId: "s1", repositoryId: "r1" });
+    await POST(req({ status: 200 }));
+    await POST(req({ status: 99 }));
+    await POST(req({ status: "200" }));
+    await POST(req({ status: 404.5 }));
+    await POST(req());
+    expect(mocks.ingest.mock.calls.map((c) => c[0].event.status)).toEqual([200, null, null, null, null]);
+  });
+});
