@@ -33,8 +33,16 @@ describe("isAuthPath", () => {
       expect(isAuthPath(p)).toBe(true);
     }
   });
+  // The common Next.js shape: a sign-in endpoint under /api. Before, only the
+  // root form and /api/auth matched, so stuffing on /api/login went uncounted.
+  it("matches sign-in and sign-up endpoints under /api", () => {
+    for (const p of ["/api/login", "/api/log-in", "/api/signin", "/api/sign-in", "/api/signup", "/api/sign-up", "/api/register", "/api/v1/login", "/api/users/login"]) {
+      expect(isAuthPath(p)).toBe(true);
+    }
+  });
   it("does not match ordinary routes", () => {
-    for (const p of ["/", "/dashboard", "/api/posts", "/products/authentic-widget"]) {
+    for (const p of ["/", "/dashboard", "/api/posts", "/products/authentic-widget", "/api/login-history", "/api/logins",
+      "/api/registered-users", "/api/sessions", "/api/token-prices", "/api/users/42"]) {
       expect(isAuthPath(p)).toBe(false);
     }
   });

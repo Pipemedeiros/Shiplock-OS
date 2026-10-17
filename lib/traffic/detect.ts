@@ -49,7 +49,7 @@ const NONE: Decision = { action: "none", reason: "", severity: "INFO", ttlMs: 0 
 
 // ── Path classifiers (pure, shared with tests) ─────────────────────────────
 const AUTH_PATH_RE =
-  /^\/(login|log-in|signin|sign-in|register|signup|sign-up|auth\b|session|token)|^\/api\/auth|\/auth\//i;
+  /^\/(login|log-in|signin|sign-in|register|signup|sign-up|auth\b|session|token)|^\/api\/auth|\/auth\/|^\/api\/(?:[\w-]+\/)*(login|log-in|signin|sign-in|signup|sign-up|register)\/?$/i;
 
 // Paths no legitimate app-of-this-kind serves — hitting several distinct ones
 // is an automated vulnerability scanner, not a user.
