@@ -129,6 +129,14 @@ describe("GET /api/mcp/context", () => {
     expect(f.chain.next).toMatch(/Fix it/);
   });
 
+  it("offers the self-check with the method the route facts say reaches data unsigned", async () => {
+    s.runs.mockResolvedValue([{ fullName: "acme/app", startedAt: "2026-09-30T00:00:00Z", status: "complete", stack: null, coverage: [],
+      routeFacts: [{ path: "/api/orders/[id]", file: "app/api/orders/[id]/route.ts", tables: [], authenticated: false, ownershipFiltered: false,
+        machineGated: false, methods: ["GET", "DELETE"], unrefusedMethods: ["DELETE"] }] }]);
+    const open = (await (await get("?repository=acme/app")).json()).openFindings.find((f: { id: string }) => f.id === "agent:open");
+    expect(open.selfCheck).toMatch(/^curl -i -X DELETE /);
+  });
+
   it("does not serve an unselected repository and says unknown before any audit", async () => {
     expect((await get("?repository=someone/else")).status).toBe(404);
     s.runs.mockResolvedValue([]); s.source.mockResolvedValue({ repositoryId: "r1" });

@@ -218,9 +218,9 @@ function Inspector({ finding, proof }: { finding: DashboardFinding & { chain?: E
 
 /** One harmless request the founder runs against their own preview app
  * (lib/proof/selfCheck.ts). ShipLock never sends it. */
-function SelfCheckBlock({ finding }: { finding: DashboardFinding }) {
+function SelfCheckBlock({ finding }: { finding: DashboardFinding & { methods?: string[] } }) {
   const [copied, setCopied] = useState<"yes" | "no" | null>(null);
-  const check = finding.entry ? selfCheck({ entry: finding.entry, attackClass: finding.attackClass }) : null;
+  const check = finding.entry ? selfCheck({ entry: finding.entry, attackClass: finding.attackClass, methods: finding.methods }) : null;
   if (!check) return null;
   return (
     <div style={{ marginTop: 16 }}>

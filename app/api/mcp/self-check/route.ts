@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { authMcp } from "@/lib/mcpAuth";
-import { getOpenFindings } from "@/lib/agent/dashboardData";
+import { getOpenFindings, getRuns } from "@/lib/agent/dashboardData";
+import { latestRouteFacts } from "@/lib/chain/findingChains";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { readSelfCheck, reportedHost, selfCheck } from "@/lib/proof/selfCheck";
+import { checkMethods, readSelfCheck, reportedHost, selfCheck } from "@/lib/proof/selfCheck";
 
 /**
  * MCP tool `report_self_check`: the customer's agent ran the one harmless
@@ -43,7 +44,10 @@ export async function POST(req: NextRequest) {
   if (matches.length === 0) return bad("No such open finding.", 404);
   if (matches.length > 1) return bad("That id is open in more than one repository; pass repository as owner/name.", 409);
   const finding = matches[0];
-  const check = finding.entry ? selfCheck({ entry: finding.entry, attackClass: finding.attackClass }) : null;
+  // The same route facts get_security_context read, so this is the request the agent was given.
+  const route = finding.entry && finding.repository
+    ? latestRouteFacts(await getRuns(ctx.userId, 20).catch(() => [])).get(finding.repository)?.get(finding.entry) : undefined;
+  const check = finding.entry ? selfCheck({ entry: finding.entry, attackClass: finding.attackClass, methods: checkMethods(route) }) : null;
   if (!check) return bad("This finding has no one-request self-check.", 409);
 
   const { error } = await admin.rpc("record_self_check", { p_user: ctx.userId, p_finding_row: finding.rowId,

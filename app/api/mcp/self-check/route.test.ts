@@ -4,9 +4,9 @@ import { NextRequest } from "next/server";
 // The customer's agent runs the one harmless self-check ShipLock offers and
 // reports the status. ShipLock derives the request itself, refuses the
 // founder's production address, and stores only what the agent says it saw.
-const s = vi.hoisted(() => ({ auth: vi.fn(), findings: vi.fn(), rpc: vi.fn(), profile: { monitored_app_url: "https://app.acme.com" } as Record<string, unknown> }));
+const s = vi.hoisted(() => ({ auth: vi.fn(), findings: vi.fn(), runs: vi.fn(), rpc: vi.fn(), profile: { monitored_app_url: "https://app.acme.com" } as Record<string, unknown> }));
 vi.mock("@/lib/mcpAuth", () => ({ authMcp: s.auth }));
-vi.mock("@/lib/agent/dashboardData", () => ({ getOpenFindings: s.findings }));
+vi.mock("@/lib/agent/dashboardData", () => ({ getOpenFindings: s.findings, getRuns: s.runs }));
 vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({
   rpc: s.rpc,
   from: () => { const q = { select: () => q, eq: () => q, maybeSingle: async () => ({ data: s.profile, error: null }) }; return q; },
@@ -21,6 +21,7 @@ beforeEach(() => {
   s.auth.mockReset().mockResolvedValue({ userId: "u1" });
   s.findings.mockReset().mockResolvedValue([open]);
   s.rpc.mockReset().mockResolvedValue({ error: null });
+  s.runs.mockReset().mockResolvedValue([]);
   s.profile = { monitored_app_url: "https://app.acme.com" };
 });
 
@@ -33,6 +34,13 @@ describe("POST /api/mcp/self-check", () => {
     const body = await res.json();
     expect(body).toMatchObject({ recorded: true, outcome: "reached" });
     expect(body.next).toMatch(/not proof/);
+  });
+
+  it("records the method the audit's route facts give, the same one get_security_context offered", async () => {
+    s.runs.mockResolvedValue([{ fullName: "acme/app", routeFacts: [{ path: "/api/notes/[id]", methods: ["GET", "DELETE"], unrefusedMethods: ["DELETE"] }] },
+      { fullName: "acme/app", routeFacts: [{ path: "/api/notes/[id]", methods: ["GET"] }] }]);
+    expect((await post({ findingId: "agent:notes", status: 404, host: "localhost:3000" })).status).toBe(200);
+    expect(s.rpc.mock.calls[0][1].p_method).toBe("DELETE");
   });
 
   it("refuses the founder's production address before writing", async () => {

@@ -92,7 +92,9 @@ describe("route map, connections and simulation (Felipe 2026-09-30)", () => {
   it("keeps compact, code-free route facts from an audit, capped", () => {
     const facts = compactRouteFacts([{ ...full("/api/a", ["lib/auth.ts"]), methods: ["GET"], usesServiceRole: true, identityGap: "x" } as never]);
     expect(facts[0]).toEqual({ path: "/api/a", file: "app/api/a/route.ts", tables: ["invoices"], authenticated: true, ownershipFiltered: true,
-      machineGated: false, via: ["lib/auth.ts"], identityReadable: true, ownershipReadable: true, machineGateReadable: true });
+      machineGated: false, via: ["lib/auth.ts"], identityReadable: true, ownershipReadable: true, machineGateReadable: true, methods: ["GET"] });
+    // Methods are kept so the self-check names one the route serves.
+    expect(parseRouteFacts(facts)?.[0].methods).toEqual(["GET"]);
     expect(compactRouteFacts(Array.from({ length: 900 }, (_, i) => full(`/r${i}`, []) as never))).toHaveLength(400);
   });
 

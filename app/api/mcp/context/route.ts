@@ -1,4 +1,4 @@
-import { selfCheck } from "@/lib/proof/selfCheck";
+import { checkMethods, selfCheck } from "@/lib/proof/selfCheck";
 import { NextRequest, NextResponse } from "next/server";
 import { authMcp } from "@/lib/mcpAuth";
 import { getOpenFindings, getRepositories, getRuns } from "@/lib/agent/dashboardData";
@@ -9,7 +9,7 @@ import { securityLoop } from "@/lib/securityLoop";
 import { auditState } from "@/lib/verdict";
 import { getHotRoutes } from "@/lib/traffic/hotRoutes";
 import { evidenceChain, orderByChain, type ChainContext } from "@/lib/chain/evidenceChain";
-import { liveContext } from "@/lib/chain/findingChains";
+import { latestRouteFacts, liveContext } from "@/lib/chain/findingChains";
 import { loadLiveReach } from "@/lib/chain/liveReach";
 import { loadSelfCheckReports } from "@/lib/proof/selfCheckReports";
 
@@ -38,15 +38,18 @@ export async function GET(req: NextRequest) {
   // The evidence chain per finding (lib/chain): reach from the live site under
   // the founder's binding or the audit's route facts, pressure from attack
   // traffic on the finding's route.
-  const calledBy = new Map((run?.routeFacts ?? []).map((r) => [r.path, r.calledBy ?? []]));
+  // The same newest route facts the Issues page and report_self_check read,
+  // so the self-check's method is one request everywhere.
+  const facts = latestRouteFacts(runs).get(repo.fullName);
   const repoHot = (hot as Record<string, { file: string; pattern: string; suspiciousRequests: number }[]>)[repo.id] ?? [];
   const chainContext = (f: { entry: string | null; file: string | null; rowId?: string }): ChainContext => ({
     selfCheck: (f.rowId && reports.get(f.rowId)) || null,
-    calledBy: f.entry ? calledBy.get(f.entry) : undefined, live: liveContext({ repositoryId: repo.id, entry: f.entry }, live),
+    calledBy: f.entry && facts?.get(f.entry) ? facts.get(f.entry)!.calledBy ?? [] : undefined, live: liveContext({ repositoryId: repo.id, entry: f.entry }, live),
     trafficConnected: loop.watch.trafficSites > 0,
     hitHard: (f.file && repoHot.find((h) => h.file === f.file)) || null,
   });
-  const repoFindings = orderByChain(findings.filter((f) => f.repositoryId === repo.id).map((f) => ({ ...f, claims: f.claims ?? [] })), chainContext);
+  const repoFindings = orderByChain(findings.filter((f) => f.repositoryId === repo.id)
+    .map((f) => ({ ...f, claims: f.claims ?? [], methods: checkMethods(f.entry ? facts?.get(f.entry) : undefined) })), chainContext);
 
   return NextResponse.json({
     repository: repo.fullName,
@@ -61,7 +64,7 @@ export async function GET(req: NextRequest) {
       // id and fixKind feed open_fix_pull_request (manual gets none); selfCheck is one harmless request to run on a local or preview app.
       .map((f) => ({ id: f.id, title: f.title, severity: f.severity, route: f.entry, file: f.file, consequence: f.consequence,
         confirmed: f.confirmed === true, fixKind: f.fixKind,
-        selfCheck: f.entry ? selfCheck({ entry: f.entry, attackClass: f.attackClass })?.curl ?? null : null,
+        selfCheck: f.entry ? selfCheck({ entry: f.entry, attackClass: f.attackClass, methods: f.methods })?.curl ?? null : null,
         // Which layers back it, and the next safe step for the agent (lib/chain/evidenceChain.ts).
         chain: (({ links, next }) => ({ links: links.map((l) => ({ link: l.id, state: l.state, evidence: l.evidence })), next }))(
           evidenceChain(f, chainContext(f))) })),

@@ -17,6 +17,8 @@ export type MapRoute = {
   unrefusedMethods?: string[]; refusalGap?: string;
   /** Shipped files that call this entry (lib/graph/clientReach.ts): the evidence chain's reach link. */
   calledBy?: string[];
+  /** HTTP methods the route file exports; the self-check names one it serves. */
+  methods?: string[];
 };
 export type MapTool = { id: string; name: string; kind: StackKind };
 /** confirmed: a proven issue (lib/agent/confirmed.ts); otherwise a candidate. */
@@ -80,6 +82,7 @@ const storedRoute = z.object({
   identityReadable: z.boolean().optional(), ownershipReadable: z.boolean().optional(), machineGateReadable: z.boolean().optional(),
   unrefusedMethods: z.array(z.string().max(16)).max(8).optional(), refusalGap: z.string().max(300).optional(),
   calledBy: z.array(z.string().max(400)).max(5).optional(),
+  methods: z.array(z.string().max(16)).max(8).optional(),
 });
 /** Stored route facts, validated on read; anything malformed is no facts. */
 export function parseRouteFacts(value: unknown): MapRoute[] | null {
@@ -96,6 +99,7 @@ export function compactRouteFacts(routes: MapRoute[]): MapRoute[] {
     ...(r.unrefusedMethods?.length ? { unrefusedMethods: r.unrefusedMethods.slice(0, 8) } : {}),
     ...(r.refusalGap ? { refusalGap: r.refusalGap.slice(0, 300) } : {}),
     ...(r.calledBy?.length ? { calledBy: r.calledBy.slice(0, 5) } : {}),
+    ...(r.methods?.length ? { methods: r.methods.slice(0, 8) } : {}),
   }));
 }
 const MAX_TABLES = 80;

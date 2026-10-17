@@ -26,6 +26,13 @@ describe("withChains", () => {
     expect(f.chain.links.map((l) => `${l.id}:${l.state}`)).toEqual(["reach:unknown", "gap:met", "proof:met", "pressure:unknown"]);
   });
 
+  it("gives the self-check the method the newest route facts say reaches data unsigned", () => {
+    const facts = [{ fullName: "acme/app", status: "complete", routeFacts: [{ path: "/api/notes/[id]", methods: ["GET", "POST"], unrefusedMethods: ["POST"] }] }];
+    const [f] = withChains([{ ...base, confidence: "corroborated" as const, repositoryId: "r1", hitHard: null }], { runs: facts, repos, trafficConnected: false });
+    expect(f.methods).toEqual(["POST"]);
+    expect(f.chain.links[2].evidence).toContain("curl -i -X POST");
+  });
+
   it("shows the agent's reported self-check for that finding's row only", () => {
     const reports = new Map([["row-1", { status: 404, host: "localhost:3000", reportedAt: null }]]);
     const [mine, other] = withChains([{ ...base, confidence: "corroborated" as const, repositoryId: "r1", rowId: "row-1", hitHard: null },

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { NO_SUCH_ID, selfCheck, readSelfCheck } from "./selfCheck";
+import { NO_SUCH_ID, checkMethods, selfCheck, readSelfCheck } from "./selfCheck";
 
 // Strix's idea (proof per finding), rebuilt so ShipLock never sends attack
 // traffic: the founder or their agent runs one request against their own
@@ -51,5 +51,22 @@ describe("readSelfCheck", () => {
       expect(meaning).not.toMatch(/[–—]/);
       expect(meaning).not.toMatch(/proven|proved|confirmed/i);
     }
+  });
+});
+
+// The method comes from the audit's route facts: the methods that never
+// refuse an anonymous caller first, then the methods the file exports.
+describe("checkMethods", () => {
+  it("prefers the methods that reach data without a sign-in check", () => {
+    expect(checkMethods({ methods: ["GET", "POST"], unrefusedMethods: ["POST"] })).toEqual(["POST"]);
+    expect(selfCheck({ entry: "/api/orders/[id]", attackClass: "missing_authentication",
+      methods: checkMethods({ methods: ["GET", "DELETE"], unrefusedMethods: ["DELETE"] }) })!.curl).toBe(
+      `curl -i -X DELETE "$APP_URL/api/orders/${NO_SUCH_ID}"`);
+  });
+
+  it("falls back to the exported methods, then to nothing (GET), for older facts", () => {
+    expect(checkMethods({ methods: ["POST"] })).toEqual(["POST"]);
+    expect(checkMethods({})).toEqual([]);
+    expect(checkMethods(undefined)).toEqual([]);
   });
 });

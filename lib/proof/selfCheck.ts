@@ -18,6 +18,13 @@ const PARAM = /\[\[?(?:\.\.\.)?[^\]]+\]\]?|:[A-Za-z_]\w*/g;
 const READING =
   "Run it against your local or preview app, never production. A 401 or 403 means a sign-in check ran first. A 404 or a 200 means the route reached your data layer without one. A 405 means the route has no handler for that method; try the one it serves. The id does not exist, so nothing is read or changed.";
 
+/** The methods to try, from the audit's stored route facts: those that never
+ * refuse an anonymous caller, else those the file exports, else none (GET). */
+export function checkMethods(route: { methods?: string[]; unrefusedMethods?: string[] } | undefined): string[] {
+  if (route?.unrefusedMethods?.length) return route.unrefusedMethods;
+  return route?.methods ?? [];
+}
+
 export function selfCheck(finding: { entry: string; attackClass: string; methods?: string[] }): SelfCheck | null {
   if (finding.attackClass !== "missing_authentication") return null;
   if (!finding.entry.startsWith("/")) return null;

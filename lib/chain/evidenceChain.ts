@@ -25,6 +25,8 @@ import type { Severity } from "@/lib/types";
 export type ChainFinding = {
   severity: Severity; confidence: Confidence; attackClass: string; entry: string | null;
   claims: readonly Claim[]; confirmed: boolean;
+  /** Methods for the self-check, from the audit's route facts (checkMethods). */
+  methods?: readonly string[];
 };
 export type ChainContext = {
   /** Shipped files that call the entry, from the audit's stored route facts. */
@@ -82,7 +84,7 @@ function proof(f: ChainFinding, ctx: ChainContext): Link {
     return { id: "proof", title, state: "open",
       evidence: `Your agent ran the check on ${host}${on} and reported ${status}: ${readSelfCheck(status).meaning}. Reported by your agent; ShipLock did not send it.` };
   }
-  const check = f.entry ? selfCheck({ entry: f.entry, attackClass: f.attackClass }) : null;
+  const check = f.entry ? selfCheck({ entry: f.entry, attackClass: f.attackClass, methods: f.methods ? [...f.methods] : undefined }) : null;
   if (check) return { id: "proof", title, state: "open", evidence: `Not yet. One harmless request against your preview app shows it: ${check.curl}` };
   return { id: "proof", title, state: "unknown", evidence: "No safe one-request check exists for this kind of issue; it needs a second account or a replica." };
 }
