@@ -20,7 +20,9 @@ const view: AttackView = {
 };
 const pulse = { ...EMPTY_PULSE, watched: 1200, sources: 40, turnedAway: 18, hasData: true,
   buckets: EMPTY_PULSE.buckets.map((_, i) => i * 3), recentPaths: [{ path: "/api/notes/1031", method: "GET", blocked: true }] };
-const base = { repository: "acme/app", sites: 1, installed: true, lastSeenAt: "2026-10-16T11:59:00Z", pulse, view, map, capped: false };
+const base = { repository: "acme/app", sites: 1, installed: true, lastSeenAt: "2026-10-16T11:59:00Z", pulse, view, map, capped: false, gateway: null };
+const gateway = [{ path: "/rest/v1/orders", label: "Table orders", suspiciousRequests: 40, answered: 38, observedAt: "2026-10-16T11:00:00Z" },
+  { path: "/auth/v1/token", label: "Sign in", suspiciousRequests: 25, answered: null, observedAt: "2026-10-16T11:00:00Z" }];
 
 describe("TrafficView", () => {
   const html = renderToStaticMarkup(<TrafficView {...base} />);
@@ -83,6 +85,20 @@ describe("TrafficView", () => {
     expect(w).toContain("31 different record ids");
     expect(w).toContain("1 probably worked");
     expect(w).not.toMatch(/compromised|breached/i);
+  });
+
+  // 105: what the Supabase gateway saw, shown even with no snippet installed,
+  // since ShipLock reads it through the Supabase connection.
+  it("shows flagged Supabase gateway traffic, with or without a snippet", () => {
+    for (const props of [{ ...base, gateway }, { ...base, gateway, sites: 0, installed: false, view: null, map: null }]) {
+      const g = renderToStaticMarkup(<TrafficView {...props} />);
+      expect(g).toContain("Supabase gateway");
+      expect(g).toContain("Table orders");
+      expect(g).toContain("38 answered with success");
+      expect(g).toContain("Not counted");
+      expect(g).not.toMatch(/compromised|stolen|taken/i);
+    }
+    expect(renderToStaticMarkup(<TrafficView {...base} />)).not.toContain("Supabase gateway");
   });
 
   it("writes copy with no dashes", () => {

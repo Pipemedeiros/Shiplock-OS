@@ -20,7 +20,7 @@ const rowSchema = z.object({
 export type EdgeJudgment = { sourceId: string; action: "block" | "alert"; reason: string };
 export type EdgeAnalysis =
   | { readable: false; rowsRead: number }
-  | { readable: true; rowsRead: number; judged: EdgeJudgment[]; hotPaths: { path: string; suspiciousRequests: number }[] };
+  | { readable: true; rowsRead: number; judged: EdgeJudgment[]; hotPaths: { path: string; suspiciousRequests: number; answered: number }[] };
 
 const MAX_HOT_PATHS = 20;
 
@@ -34,17 +34,19 @@ export function dailySalt(key: string, now = new Date()): string {
 }
 
 export function analyzeEdgeRequests(raw: unknown[], salt: string): EdgeAnalysis {
-  const events: { source: string; path: string; at: number }[] = [];
+  const events: { source: string; path: string; at: number; ok: boolean }[] = [];
   for (const item of raw) {
     const row = rowSchema.safeParse(item);
     if (!row.success) continue;
     const at = typeof row.data.ts === "number" ? (row.data.ts > 1e14 ? row.data.ts / 1000 : row.data.ts) : Date.parse(row.data.ts);
     if (!Number.isFinite(at)) continue;
-    events.push({ source: hashSource(row.data.ip, salt), path: row.data.path.split("?")[0], at });
+    // Success only from a readable 2xx; anything else is not counted as answered.
+    const status = Number(row.data.status);
+    events.push({ source: hashSource(row.data.ip, salt), path: row.data.path.split("?")[0], at, ok: status >= 200 && status < 300 });
   }
   if (raw.length > 0 && events.length === 0) return { readable: false, rowsRead: raw.length };
 
-  const bySource = new Map<string, { path: string; at: number }[]>();
+  const bySource = new Map<string, { path: string; at: number; ok: boolean }[]>();
   for (const event of events) {
     const list = bySource.get(event.source) ?? [];
     list.push(event);
@@ -52,7 +54,7 @@ export function analyzeEdgeRequests(raw: unknown[], salt: string): EdgeAnalysis 
   }
 
   const judged: EdgeJudgment[] = [];
-  const hot = new Map<string, number>();
+  const hot = new Map<string, { seen: number; answered: number }>();
   for (const [sourceId, list] of bySource) {
     list.sort((a, b) => a.at - b.at);
     let strongest: EdgeJudgment | null = null;
@@ -69,11 +71,15 @@ export function analyzeEdgeRequests(raw: unknown[], salt: string): EdgeAnalysis 
     }
     if (!strongest) continue;
     judged.push(strongest);
-    for (const e of list) hot.set(e.path, (hot.get(e.path) ?? 0) + 1);
+    for (const e of list) {
+      const h = hot.get(e.path) ?? { seen: 0, answered: 0 };
+      h.seen++; if (e.ok) h.answered++;
+      hot.set(e.path, h);
+    }
   }
 
   const hotPaths = [...hot.entries()]
-    .map(([path, suspiciousRequests]) => ({ path, suspiciousRequests }))
+    .map(([path, h]) => ({ path, suspiciousRequests: h.seen, answered: h.answered }))
     .sort((a, b) => b.suspiciousRequests - a.suspiciousRequests || a.path.localeCompare(b.path))
     .slice(0, MAX_HOT_PATHS);
   return { readable: true, rowsRead: raw.length, judged, hotPaths };

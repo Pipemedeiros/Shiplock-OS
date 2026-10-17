@@ -27,7 +27,7 @@ describe("collectSupabaseEdgeTraffic (2F-4)", () => {
   it("stores judged paths for every repository the customer confirmed for this project", async () => {
     expect(await collectSupabaseEdgeTraffic("u1", "tok", "abcd")).toEqual({ status: "read", repositories: 2, judgedSources: 1 });
     expect(state.rpc).toHaveBeenCalledWith("replace_traffic_observations",
-      { p_user: "u1", p_repository: "r1", p_source: "supabase", p_paths: [{ path: "/auth/v1/token", suspiciousRequests: 25 }] });
+      { p_user: "u1", p_repository: "r1", p_source: "supabase", p_paths: [{ path: "/auth/v1/token", suspiciousRequests: 25, answered: 0 }] });
     expect(JSON.stringify(state.rpc.mock.calls)).not.toContain("203.0.113.9");
   });
 

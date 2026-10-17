@@ -23,7 +23,7 @@ describe("analyzeEdgeRequests (2F-4)", () => {
     expect(out.judged).toHaveLength(1);
     expect(out.judged[0]).toMatchObject({ action: "block" });
     expect(out.judged[0].reason).toMatch(/Credential stuffing/);
-    expect(out.hotPaths).toEqual([{ path: "/auth/v1/token", suspiciousRequests: 25 }]);
+    expect(out.hotPaths).toEqual([{ path: "/auth/v1/token", suspiciousRequests: 25, answered: 0 }]);
   });
 
   it("never exposes a raw IP: sources are keyed, salted hashes", () => {
@@ -43,5 +43,15 @@ describe("analyzeEdgeRequests (2F-4)", () => {
   it("treats an unreadable or empty response as unread, never as quiet", () => {
     expect(analyzeEdgeRequests([{ nope: true } as never], "salt")).toMatchObject({ readable: false });
     expect(analyzeEdgeRequests([], "salt")).toMatchObject({ readable: true, judged: [], hotPaths: [] });
+  });
+
+  // 105: the gateway log already carries each answer's status. Count the
+  // success answers flagged sources got per path; unreadable statuses are
+  // not counted as either.
+  it("counts how many of a flagged source's requests were answered with success", () => {
+    const rows = Array.from({ length: 25 }, (_, i) => row("203.0.113.9", "/auth/v1/token", i * 1000, i < 20 ? 400 : 200));
+    rows.push({ ...row("203.0.113.9", "/auth/v1/token", 26_000), status: "not a status" } as never);
+    const out = analyzeEdgeRequests(rows, "salt");
+    expect(out.hotPaths).toEqual([{ path: "/auth/v1/token", suspiciousRequests: 26, answered: 5 }]);
   });
 });

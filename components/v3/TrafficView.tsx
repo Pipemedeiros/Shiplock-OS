@@ -6,6 +6,7 @@ import { When } from "./When";
 import { withSources, type RouteMap as RouteMapData } from "@/lib/routeMap";
 import type { TrafficPulse } from "@/lib/traffic/pulse";
 import type { AttackView, Outcome } from "@/lib/traffic/attackView";
+import type { GatewayPath } from "@/lib/traffic/gateway";
 
 /**
  * The Traffic page (Felipe 2026-10-16: see traffic, the routes under attack,
@@ -19,7 +20,32 @@ import type { AttackView, Outcome } from "@/lib/traffic/attackView";
 export type TrafficViewProps = {
   repository: string; sites: number; installed: boolean; lastSeenAt: string | null;
   pulse: TrafficPulse; view: AttackView | null; map: RouteMapData | null; capped: boolean;
+  /** Flagged traffic the Supabase gateway saw; null or empty shows nothing. */
+  gateway?: GatewayPath[] | null;
 };
+
+/** What the Supabase gateway saw from flagged sources, read with no snippet. */
+function Gateway({ paths }: { paths: GatewayPath[] }) {
+  return (
+    <section className="v3-card" aria-labelledby="gateway-title">
+      <div className="v3-hd"><h2 id="gateway-title" className="v3-eyebrow">Supabase gateway</h2><span className="v3-small">read through your Supabase connection</span></div>
+      <table className="v3-issues">
+        <thead><tr><th>Reached</th><th>Flagged requests</th><th>Answer</th></tr></thead>
+        <tbody>
+          {paths.map((p) => (
+            <tr key={p.path}>
+              <td>{p.label}<br /><span className="v3-small route"><Path path={p.path} /></span></td>
+              <td>{p.suspiciousRequests.toLocaleString("en-US")}</td>
+              <td>{p.answered === null ? <span className="v3-small">Not counted</span>
+                : <span className={`v3-tag${p.answered > 0 ? " warn" : ""}`}>{p.answered.toLocaleString("en-US")} answered with success</span>}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="v3-card-p v3-small">A success can be an empty list when your row level security filtered the rows, so this shows what was answered, not what was read.</p>
+    </section>
+  );
+}
 
 /** A path that wraps only after a slash, never mid word. */
 function Path({ path }: { path: string }) {
@@ -73,7 +99,8 @@ function StatusLine({ sites, installed, lastSeenAt }: Pick<TrafficViewProps, "si
 }
 
 export function TrafficView(props: TrafficViewProps) {
-  const { repository, sites, installed, lastSeenAt, pulse, view, map, capped } = props;
+  const { repository, sites, installed, lastSeenAt, pulse, view, map, capped, gateway } = props;
+  const gatewayCard = gateway && gateway.length > 0 ? <Gateway paths={gateway} /> : null;
 
   if (sites === 0) {
     return (
@@ -86,6 +113,7 @@ export function TrafficView(props: TrafficViewProps) {
           </p>
           <Link href="/dashboard/settings" className="v3-btn v3-btn-sm v3-primary" style={{ marginTop: 18 }}>Connect traffic</Link>
         </div>
+        {gatewayCard ? <div style={{ marginTop: 16 }}>{gatewayCard}</div> : null}
       </>
     );
   }
@@ -196,6 +224,8 @@ export function TrafficView(props: TrafficViewProps) {
             </section>
           </>
         ) : null}
+
+        {gatewayCard}
 
         {pulse.recentPaths.length > 0 ? (
           <section className="v3-card" aria-labelledby="latest-title">

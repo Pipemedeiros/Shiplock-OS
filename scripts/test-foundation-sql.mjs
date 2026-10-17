@@ -1537,5 +1537,22 @@ try {
     }
     await db.query("delete from public.traffic_events where source_id='s104'");
   });
+  // 105: the gateway's answers to flagged sources, counted, never more than were seen.
+  await check("gateway observations keep an answered count within what was seen, or none (105)", async () => {
+    await db.exec("reset role");
+    await db.exec(await readFile(new URL("../supabase/migrations/105_gateway_answered.sql", import.meta.url), "utf8"));
+    await db.exec("set role service_role");
+    const replace=(paths)=>db.query("select public.replace_traffic_observations($1,$2,'supabase',$3) as n",[u1,r1,JSON.stringify(paths)]).then((x)=>x.rows[0].n);
+    assert.equal(await replace([{path:"/rest/v1/orders",suspiciousRequests:40,answered:38},{path:"/rest/v1/notes",suspiciousRequests:5}]),2);
+    await assert.rejects(replace([{path:"/rest/v1/orders",suspiciousRequests:4,answered:5}]));
+    await assert.rejects(replace([{path:"/rest/v1/orders",suspiciousRequests:4,answered:-1}]));
+    await db.exec("reset role");
+    assert.deepEqual((await db.query("select path,answered from public.traffic_route_observations where user_id=$1 and repository_id=$2 and source='supabase' order by path",[u1,r1])).rows,
+      [{path:"/rest/v1/notes",answered:null},{path:"/rest/v1/orders",answered:38}]);
+    for (const role of ["anon", "authenticated"]) {
+      assert.equal((await db.query("select has_function_privilege($1,'public.replace_traffic_observations(uuid,uuid,text,jsonb)','execute') ok", [role])).rows[0].ok, false, `${role} cannot write observations`);
+    }
+    await db.query("delete from public.traffic_route_observations where user_id=$1 and repository_id=$2",[u1,r1]);
+  });
   console.log(`${checks} SQL checks passed. Single-connection PostgreSQL WASM; multi-session contention and hosted Supabase remain unverified.`);
 } finally { await db.close(); }
