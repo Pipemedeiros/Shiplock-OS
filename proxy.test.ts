@@ -1,16 +1,16 @@
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const proxyMocks = vi.hoisted(() => ({ getUser: vi.fn(), observe: vi.fn() }));
+const proxyMocks = vi.hoisted(() => ({ getClaims: vi.fn(), observe: vi.fn() }));
 vi.mock("@/lib/traffic/selfObserve", () => ({ observeSelf: proxyMocks.observe }));
 vi.mock("@supabase/ssr", () => ({
-  createServerClient: vi.fn(() => ({ auth: { getUser: proxyMocks.getUser } })),
+  createServerClient: vi.fn(() => ({ auth: { getClaims: proxyMocks.getClaims } })),
 }));
 
 import { config, proxy } from "./proxy";
 
 beforeEach(() => {
-  proxyMocks.getUser.mockReset().mockResolvedValue({ data: { user: null }, error: null });
+  proxyMocks.getClaims.mockReset().mockResolvedValue({ data: null, error: null });
 });
 
 afterEach(() => { vi.unstubAllEnvs(); });
@@ -20,7 +20,7 @@ describe("Section 4 / Step 4A: Next.js proxy boundary", () => {
     const response = await proxy(new NextRequest("https://shiplock.dev/"));
     const csp = response.headers.get("content-security-policy");
 
-    expect(proxyMocks.getUser).not.toHaveBeenCalled();
+    expect(proxyMocks.getClaims).not.toHaveBeenCalled();
     expect(csp).toContain("default-src 'self'");
     expect(csp).toContain("'strict-dynamic'");
     expect(csp).toContain("frame-ancestors 'none'");
@@ -95,7 +95,7 @@ describe("Section 4 / Step 4A: Next.js proxy boundary", () => {
 
     await proxy(request);
 
-    expect(proxyMocks.getUser).toHaveBeenCalledOnce();
+    expect(proxyMocks.getClaims).toHaveBeenCalledOnce();
   });
 
   it("keeps static assets outside the proxy matcher", () => {

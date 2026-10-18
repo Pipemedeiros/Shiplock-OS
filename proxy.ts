@@ -75,7 +75,7 @@ function hasSessionCookie(request: NextRequest): boolean {
 
 // Refreshes the Supabase session cookie so it doesn't expire between page
 // loads, which SSR auth with @supabase/ssr requires. Per Supabase's own Next.js
-// guidance: do not add logic between createServerClient and getUser(), and
+// guidance: do not add logic between createServerClient and getClaims(), and
 // always return the `response` object created here (not a new NextResponse) so
 // refreshed cookies aren't dropped.
 //
@@ -129,7 +129,11 @@ export async function proxy(request: NextRequest, event?: NextFetchEvent) {
   if (hasSessionCookie(request)) {
     try {
       await Promise.race([
-        supabase.auth.getUser(),
+        // getClaims refreshes a token about to expire, like getUser, and with
+        // asymmetric signing keys verifies locally instead of calling the
+        // auth server. Never an authority here (below), so nothing is trusted
+        // from it.
+        supabase.auth.getClaims(),
         new Promise((_, reject) =>
           setTimeout(() => reject(new Error("auth refresh timed out")), AUTH_REFRESH_TIMEOUT_MS),
         ),

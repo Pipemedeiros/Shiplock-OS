@@ -197,9 +197,9 @@
       },
       "testFile": "proxy.test.ts",
       "testName": "uses exact Supabase HTTP and realtime origins with a fresh nonce in production",
-      "assertionDigest": "006d2116a34d98db3e44da33cc551368d13278fdeef9ad40a76673396a1b6b87",
+      "assertionDigest": "4f4d001e10a4b276dc8dade838c90f675cab8bd8dc208fdbabe893bc234487bb",
       "sourcePins": {
-        "proxy.ts": "a5d8d7713495cbc60b420f5fe0b91e8d6108f721809b193356feffb996015cce"
+        "proxy.ts": "8e3116484b5952a5b96bda05681bee0396cb72162e324d77af965dceb4ad45c9"
       }
     },
     {
