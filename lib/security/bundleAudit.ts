@@ -239,7 +239,7 @@ const MAX_MAP_BYTES = 4_000_000;
  * be tens of megabytes; a monitoring pass must not be able to exhaust memory on
  * whatever a customer happens to serve.
  */
-async function readCapped(res: Response, limit: number): Promise<string> {
+export async function readCapped(res: Response, limit: number): Promise<string> {
   if (!res.body) return (await res.text().catch(() => "")).slice(0, limit);
   const reader = res.body.getReader();
   const decoder = new TextDecoder();

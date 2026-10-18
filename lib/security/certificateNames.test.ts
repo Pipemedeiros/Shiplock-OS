@@ -49,6 +49,9 @@ describe("readCertificateNames", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(await readCertificateNames("https://app.acme.com")).toBeNull();
     expect(fetchMock.mock.calls[0][0]).toBe("https://api.certspotter.com/v1/issuances?domain=acme.com&include_subdomains=true&expand=dns_names");
+    // A log too large to read whole is cut at the cap and reads as not read.
+    fetchMock.mockResolvedValueOnce(new Response(`[${'{"dns_names":["a.acme.com"],"not_before":"2026-01-01T00:00:00Z"},'.repeat(80_000)}{}]`));
+    expect(await readCertificateNames("https://app.acme.com")).toBeNull();
     vi.unstubAllGlobals();
   });
 });

@@ -1,5 +1,6 @@
 import { requestSignal } from "@/lib/abort";
 import { isSharedHost } from "./emailAuth";
+import { readCapped } from "./bundleAudit";
 
 /**
  * Other names on the founder's own domain, from certificate transparency
@@ -63,9 +64,8 @@ export async function readCertificateNames(appUrl: string, signal?: AbortSignal)
     const res = await fetch(`https://api.certspotter.com/v1/issuances?domain=${encodeURIComponent(apex)}&include_subdomains=true&expand=dns_names`,
       { signal: requestSignal(signal, TIMEOUT_MS), headers: { Accept: "application/json" } });
     if (!res.ok) return null;
-    const text = await res.text();
-    if (text.length > MAX_BYTES) return null;
-    return otherCertificateNames(JSON.parse(text), apex, host);
+    // Stops reading at the cap; a cut log fails to parse and reads as not read.
+    return otherCertificateNames(JSON.parse(await readCapped(res, MAX_BYTES)), apex, host);
   } catch {
     return null;
   }

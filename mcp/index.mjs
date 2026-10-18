@@ -118,7 +118,7 @@ const RESOURCES = [
   { uri: "shiplock://posture", name: "ShipLock posture", description: "Current security posture summary (counts, last scan).", mimeType: "application/json" },
 ];
 
-const server = new Server({ name: "shiplock", version: "0.2.0" }, { capabilities: { tools: {}, resources: {} } });
+const server = new Server({ name: "shiplock", version: "0.3.0" }, { capabilities: { tools: {}, resources: {} } });
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS }));
 
