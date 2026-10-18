@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const db = vi.hoisted(() => ({ profile: {} as Record<string, unknown>, repos: [] as Record<string, unknown>[], updates: [] as unknown[], filters: [] as unknown[][] }));
+const db = vi.hoisted(() => ({ profile: {} as Record<string, unknown>, repos: [] as Record<string, unknown>[], updates: [] as unknown[], filters: [] as unknown[][], runtime: null as Record<string, unknown> | null }));
 const gh = vi.hoisted(() => ({ token: vi.fn(), homepage: {} as Record<string, string | null>, fail: false }));
 const guard = vi.hoisted(() => ({ assert: vi.fn() }));
 vi.mock("@/lib/deep/github", () => ({ getInstallationToken: gh.token }));
@@ -15,7 +15,7 @@ vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({
     const q: Record<string, unknown> = {};
     Object.assign(q, {
       select: () => q, eq: (...args: unknown[]) => { if (table === "repositories") db.filters.push(args); return q; },
-      maybeSingle: async () => ({ data: table === "user_profiles" ? db.profile
+      maybeSingle: async () => ({ data: table === "user_profiles" ? db.profile : table === "graph_facts" ? (db.runtime ? { facts: db.runtime } : null)
         : db.repos.find((r) => db.filters.some(([k, v]) => k === "full_name" && v === r.full_name)) ?? null, error: null }),
       update: (patch: unknown) => { db.updates.push(patch); return { eq: async () => ({ error: null }) }; },
       then: (res: (v: unknown) => unknown) => Promise.resolve({ data: table === "repositories" ? db.repos : [], error: null }).then(res),
@@ -27,7 +27,7 @@ vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({
 const { clearAppUrl, getAppUrlState, setAppUrl } = await import("./appUrlStore");
 
 beforeEach(() => {
-  vi.clearAllMocks(); db.updates = []; db.filters = [];
+  vi.clearAllMocks(); db.updates = []; db.filters = []; db.runtime = null;
   db.profile = { github_installation_id: 42, monitored_app_url: null };
   db.repos = [{ id: "r-app", full_name: "acme/app" }, { id: "r-docs", full_name: "acme/docs" }];
   gh.token.mockResolvedValue("t");
@@ -38,14 +38,14 @@ beforeEach(() => {
 
 describe("the app address", () => {
   it("suggests the selected repositories' homepages only, as origins", async () => {
-    expect(await getAppUrlState("u1")).toEqual({ current: null, repository: null, repositories: ["acme/app", "acme/docs"],
+    expect(await getAppUrlState("u1")).toEqual({ current: null, repository: null, repositories: ["acme/app", "acme/docs"], otherNames: null,
       suggestions: [{ repository: "acme/app", url: "https://app.acme.com" }] });
   });
 
   it("still answers when GitHub cannot be read, with no suggestions", async () => {
     gh.token.mockRejectedValue(new Error("down"));
     db.profile = { github_installation_id: 42, monitored_app_url: "https://acme.com" };
-    expect(await getAppUrlState("u1")).toEqual({ current: "https://acme.com", repository: null, repositories: ["acme/app", "acme/docs"], suggestions: [] });
+    expect(await getAppUrlState("u1")).toEqual({ current: "https://acme.com", repository: null, repositories: ["acme/app", "acme/docs"], otherNames: null, suggestions: [] });
   });
 
   it("saves the origin of a public https address after the SSRF guard", async () => {
@@ -85,6 +85,18 @@ describe("the app address", () => {
     guard.assert.mockRejectedValue(new Error("private"));
     await expect(setAppUrl("u1", "https://intranet.acme.com")).rejects.toThrow("invalid_url");
     expect(db.updates).toEqual([]);
+  });
+
+  // Certificate transparency: other names under the founder's domain, from
+  // the last read of the address that is still confirmed.
+  it("lists the other certificate names read for the current address only", async () => {
+    db.profile = { github_installation_id: 42, monitored_app_url: "https://app.acme.com" };
+    db.runtime = { appSurface: { url: "https://app.acme.com", paths: [], certificateNames: [{ name: "staging.acme.com", lastIssued: "2026-09-01" }] } };
+    expect((await getAppUrlState("u1")).otherNames).toEqual([{ name: "staging.acme.com", lastIssued: "2026-09-01" }]);
+    db.runtime = { appSurface: { url: "https://old.acme.com", paths: [], certificateNames: [{ name: "x.acme.com", lastIssued: "2026-09-01" }] } };
+    expect((await getAppUrlState("u1")).otherNames).toBeNull();
+    db.runtime = { appSurface: { url: "https://app.acme.com", paths: [], certificateNames: [{ name: "bad name", lastIssued: "x" }] } };
+    expect((await getAppUrlState("u1")).otherNames).toBeNull();
   });
 
   it("forgets the address", async () => {

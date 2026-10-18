@@ -4,7 +4,7 @@ import { AppUrlView } from "./AppUrlPanel";
 
 // G3: the outside view reads the founder's app only at an address they
 // confirmed. Every state says what happens, and every press answers.
-const base = { current: null, repository: null, repositories: [] as string[], suggestions: [], busy: false, saved: false, error: "", onSave: () => {}, onClear: () => {} };
+const base = { current: null, repository: null, repositories: [] as string[], otherNames: null as { name: string; lastIssued: string }[] | null, suggestions: [], busy: false, saved: false, error: "", onSave: () => {}, onClear: () => {} };
 const text = (html: string) => html.replace(/<[^>]+>/g, " ");
 
 describe("AppUrlView", () => {
@@ -48,5 +48,19 @@ describe("AppUrlView", () => {
     const two = renderToStaticMarkup(<AppUrlView {...base} repositories={["acme/app", "acme/web"]} />);
     expect(two).toMatch(/<option value="" selected="">None of these<\/option>/);
     expect(renderToStaticMarkup(<AppUrlView {...base} />)).not.toContain("app-repo");
+  });
+
+  // Certificate transparency: names under the founder's domain, for review only.
+  it("lists other certificate names for review, says ShipLock does not read them, and says when there are none", () => {
+    const names = Array.from({ length: 12 }, (_, i) => ({ name: `n${i}.acme.com`, lastIssued: "2026-09-01" }));
+    const t = text(renderToStaticMarkup(<AppUrlView {...base} current="https://app.acme.com" otherNames={names} />));
+    expect(t).toMatch(/Other addresses on your domain/);
+    expect(t).toContain("n0.acme.com");
+    expect(t).not.toContain("n11.acme.com");
+    expect(t).toMatch(/and 2 more/);
+    expect(t).toMatch(/ShipLock does not read them/);
+    expect(t).not.toMatch(/[–—]/);
+    expect(text(renderToStaticMarkup(<AppUrlView {...base} current="https://app.acme.com" otherNames={[]} />))).toMatch(/No other names under your domain/);
+    expect(text(renderToStaticMarkup(<AppUrlView {...base} current="https://app.acme.com" />))).not.toMatch(/Other addresses/);
   });
 });

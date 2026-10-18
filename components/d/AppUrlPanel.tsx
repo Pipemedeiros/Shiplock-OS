@@ -10,10 +10,35 @@ import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 
 type Suggestion = { repository: string; url: string };
+type OtherName = { name: string; lastIssued: string };
+const SHOWN = 10;
+
+/** Other names under the founder's domain, from certificate transparency: for
+ * review only. A forgotten copy of an app is often the least protected. */
+function OtherNames({ names }: { names: OtherName[] }) {
+  if (names.length === 0) {
+    return <p className="v3-small" style={{ margin: "0 0 10px" }}>No other names under your domain have current certificates.</p>;
+  }
+  return (
+    <div style={{ margin: "0 0 12px" }}>
+      <b style={{ fontWeight: 500, fontSize: 13.5 }}>Other addresses on your domain</b>
+      <p className="v3-small" style={{ margin: "4px 0 6px" }}>
+        Certificates were issued for these names. ShipLock does not read them. Check that each one is yours and still
+        needed: a forgotten staging or admin copy is often the least protected.
+      </p>
+      <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13 }}>
+        {names.slice(0, SHOWN).map((n) => (
+          <li key={n.name} style={{ overflowWrap: "anywhere" }}>{n.name} <small style={{ color: "var(--muted)", whiteSpace: "nowrap" }}>certificate issued {n.lastIssued}</small></li>
+        ))}
+      </ul>
+      {names.length > SHOWN ? <p className="v3-small" style={{ margin: "4px 0 0" }}>and {names.length - SHOWN} more</p> : null}
+    </div>
+  );
+}
 const note = { fontSize: 13, color: "var(--muted)", margin: "0 0 10px", maxWidth: 700 } as const;
 
-export function AppUrlView({ current, repository, repositories, suggestions, busy, saved, error, onSave, onClear }: {
-  current: string | null; repository: string | null; repositories: string[]; suggestions: Suggestion[];
+export function AppUrlView({ current, repository, repositories, otherNames, suggestions, busy, saved, error, onSave, onClear }: {
+  current: string | null; repository: string | null; repositories: string[]; otherNames: OtherName[] | null; suggestions: Suggestion[];
   busy: boolean; saved: boolean; error: string;
   onSave: (url: string, repository: string | null) => void; onClear: () => void;
 }) {
@@ -38,6 +63,7 @@ export function AppUrlView({ current, repository, repositories, suggestions, bus
           <button type="button" className="v3-btn v3-btn-sm v3-ghost" onClick={onClear} disabled={busy}>Stop reading it</button>
         </div>
       ) : null}
+      {current && otherNames ? <OtherNames names={otherNames} /> : null}
 
       {suggestions.map((s) => (
         <div key={s.url} className="v3-between" style={{ fontSize: 13.5, marginBottom: 8 }}>
@@ -71,8 +97,8 @@ export function AppUrlView({ current, repository, repositories, suggestions, bus
 }
 
 export function AppUrlPanel() {
-  const [state, setState] = useState<{ current: string | null; repository: string | null; repositories: string[]; suggestions: Suggestion[] }>(
-    { current: null, repository: null, repositories: [], suggestions: [] });
+  const [state, setState] = useState<{ current: string | null; repository: string | null; repositories: string[]; otherNames: OtherName[] | null; suggestions: Suggestion[] }>(
+    { current: null, repository: null, repositories: [], otherNames: null, suggestions: [] });
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
@@ -88,7 +114,8 @@ export function AppUrlPanel() {
         ...(url ? { body: JSON.stringify({ url, repository }) } : {}) });
       const json = (await res.json()) as { url?: string | null; error?: string };
       if (!res.ok) throw new Error(json.error ?? "Could not save your app's address.");
-      setState((s) => ({ ...s, current: json.url ?? null, repository: json.url ? repository : null,
+      // A new address has not been read yet: its other names are unknown.
+      setState((s) => ({ ...s, current: json.url ?? null, repository: json.url ? repository : null, otherNames: json.url === s.current ? s.otherNames : null,
         suggestions: s.suggestions.filter((x) => x.url !== json.url) }));
       setSaved(method === "POST");
     } catch (err) {

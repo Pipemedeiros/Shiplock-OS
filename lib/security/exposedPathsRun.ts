@@ -2,6 +2,7 @@ import type { ProviderCommit } from "@/lib/monitoring/registry";
 import { probeExposedPaths, type ExposedFinding } from "./exposedPaths";
 import { auditShippedBundle } from "./bundleAudit";
 import { MAX_PATHS, type ShippedRead } from "./shippedCalls";
+import { readCertificateNames } from "./certificateNames";
 import { auditEmailAuth, nodeTxtResolver, domainFromUrl, isSharedHost } from "./emailAuth";
 import { analyzeOriginPosture, collectOriginPosture, fetchOriginHeaders, nodeDnsResolver } from "./originExposure";
 
@@ -34,7 +35,7 @@ export async function runExposedPathScan(
   const unread: string[] = [];
   const failed = (prefix: string) => () => { unread.push(prefix); return []; };
   const shipped: ShippedRead = { pageRead: false, scriptsSeen: 0, scriptsRead: 0, paths: new Set() };
-  const [paths, bundle, email, origin] = await Promise.all([
+  const [paths, bundle, email, origin, certificateNames] = await Promise.all([
     probeExposedPaths(appUrl, signal, unread).catch(failed("exposed:")),
     auditShippedBundle(appUrl, signal, unread, shipped).catch(failed("bundle:")),
     auditEmailAuth(appUrl, nodeTxtResolver, unread).catch(failed("email_auth:")),
@@ -49,6 +50,9 @@ export async function runExposedPathScan(
       const posture = await collectOriginPosture(domain, nodeDnsResolver, headers, unread);
       return posture ? analyzeOriginPosture(posture) : [];
     })().catch(failed("origin:")),
+    // Other names on the founder's own domain (certificate transparency):
+    // listed for review, never read. null is not read; undefined, not applicable.
+    readCertificateNames(appUrl, signal).catch(() => null),
   ]);
   // Probes resolve to [] on network failure, and an empty pass archives every
   // active finding below. A cancelled pass must therefore write nothing at all.
@@ -61,7 +65,8 @@ export async function runExposedPathScan(
   // The paths the live site names (P5), kept only from a read page: a failed
   // read sends no fact, so the last observation stands with its own time.
   const facts = shipped.pageRead ? { facts: { appSurface: { url: appUrl, scriptsSeen: shipped.scriptsSeen,
-    scriptsRead: shipped.scriptsRead, paths: [...shipped.paths].sort().slice(0, MAX_PATHS) } } } : {};
+    scriptsRead: shipped.scriptsRead, paths: [...shipped.paths].sort().slice(0, MAX_PATHS),
+    ...(certificateNames !== undefined ? { certificateNames } : {}) } } } : {};
   const created = await commit({ transport: "app-surface", identity: appUrl, ...facts, findings, retire: true, unread,
     snapshot: { scope: new URL(appUrl).host, failed: unread } });
   return { total: findings.length, newCount: created.length, newFindings: created as ExposedFinding[] };

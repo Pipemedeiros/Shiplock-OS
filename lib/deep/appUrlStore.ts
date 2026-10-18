@@ -1,7 +1,9 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { getInstallationToken } from "@/lib/deep/github";
 import { assertPublicHttpsUrl } from "@/lib/security/ssrfGuard";
+import { z } from "zod";
 import { suggestAppUrl } from "./appUrl";
+import type { CertificateName } from "@/lib/security/certificateNames";
 
 /**
  * The founder's app address, read by the outside view (lib/security/
@@ -29,24 +31,41 @@ export type AppUrlState = {
   repository: string | null;
   /** Selected repositories the founder may name when confirming. */
   repositories: string[];
+  /** Other names under the domain from certificate transparency, read for the
+   * current address; null when not read (or read for another address). */
+  otherNames: CertificateName[] | null;
   suggestions: { repository: string; url: string }[];
 };
 
 type Selected = { id: string; full_name: string };
+
+const Names = z.array(z.object({ name: z.string().regex(/^[a-z0-9-]+(\.[a-z0-9-]+)+$/).max(253),
+  lastIssued: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) })).max(50);
+
+/** The last read's other names, only when it was read from the current address. */
+async function otherNamesFor(userId: string, current: string | null): Promise<CertificateName[] | null> {
+  if (!current) return null;
+  const { data } = await getSupabaseAdmin().from("graph_facts").select("facts").eq("user_id", userId).eq("collector", "runtime").maybeSingle();
+  const surface = (data?.facts as { appSurface?: { url?: unknown; certificateNames?: unknown } } | undefined)?.appSurface;
+  if (!surface || surface.url !== current) return null;
+  const parsed = Names.safeParse(surface.certificateNames);
+  return parsed.success ? parsed.data : null;
+}
 
 export async function getAppUrlState(userId: string): Promise<AppUrlState> {
   const admin = getSupabaseAdmin();
   const { data: profile } = await admin.from("user_profiles")
     .select("github_installation_id, monitored_app_url, monitored_app_repository_id, monitored_app_bound_url").eq("id", userId).maybeSingle();
   const current = (profile?.monitored_app_url as string | null) ?? null;
+  const otherNames = await otherNamesFor(userId, current).catch(() => null);
   const installation = profile?.github_installation_id as number | string | null | undefined;
-  if (!installation) return { current, repository: null, repositories: [], suggestions: [] };
+  if (!installation) return { current, repository: null, repositories: [], otherNames, suggestions: [] };
   const { data: rows } = await admin.from("repositories").select("id, full_name").eq("user_id", userId).eq("selected", true);
   const selected = (rows ?? []) as Selected[];
   const names = [...new Set(selected.map((r) => r.full_name))].slice(0, 10);
   const bound = current && profile?.monitored_app_bound_url === current
     ? selected.find((r) => r.id === profile?.monitored_app_repository_id)?.full_name ?? null : null;
-  const base = { current, repository: bound, repositories: names };
+  const base = { current, repository: bound, repositories: names, otherNames };
   try {
     const token = await getInstallationToken(installation);
     const homepages = await Promise.all(names.map(async (fullName) => ({ fullName, homepage: await repoHomepage(token, fullName).catch(() => null) })));

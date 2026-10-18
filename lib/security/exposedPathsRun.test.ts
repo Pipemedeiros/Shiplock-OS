@@ -8,9 +8,11 @@ const probeMock = vi.fn();
 const auditMock = vi.fn();
 const emailMock = vi.fn();
 const commitMock = vi.fn();
+const namesMock = vi.fn();
 
 vi.mock("./exposedPaths", () => ({ probeExposedPaths: probeMock }));
 vi.mock("./bundleAudit", () => ({ auditShippedBundle: auditMock }));
+vi.mock("./certificateNames", () => ({ readCertificateNames: namesMock }));
 // Mocked so the suite never performs real DNS lookups; the origin probe then
 // fails closed and is reported unread.
 vi.mock("./emailAuth", () => ({ auditEmailAuth: emailMock, nodeTxtResolver: vi.fn() }));
@@ -27,6 +29,7 @@ beforeEach(() => {
   probeMock.mockReset().mockResolvedValue([]);
   auditMock.mockReset().mockResolvedValue([]);
   emailMock.mockReset().mockResolvedValue([]);
+  namesMock.mockReset().mockResolvedValue(undefined);
   commitMock.mockReset().mockImplementation(async (result: ProviderResult) => result.findings);
 });
 
@@ -89,6 +92,22 @@ describe("runExposedPathScan", () => {
     });
     await run();
     expect(sent().facts).toEqual({ appSurface: { url, scriptsSeen: 9, scriptsRead: 8, paths: ["/api/me", "/api/orders/"] } });
+  });
+
+  // Other names on the founder's own domain, from certificate transparency.
+  it("adds the other certificate names to the fact, null when the log was not read", async () => {
+    auditMock.mockImplementation(async (_u: string, _s: unknown, _unread: string[], shipped: { pageRead: boolean }) => {
+      shipped.pageRead = true;
+      return [];
+    });
+    namesMock.mockResolvedValue([{ name: "staging.example.com", lastIssued: "2026-09-01" }]);
+    await run();
+    expect(namesMock).toHaveBeenCalledWith(url, undefined);
+    expect((sent().facts as { appSurface: Record<string, unknown> }).appSurface.certificateNames).toEqual([{ name: "staging.example.com", lastIssued: "2026-09-01" }]);
+    namesMock.mockRejectedValue(new Error("down"));
+    commitMock.mockClear();
+    await run();
+    expect((sent().facts as { appSurface: Record<string, unknown> }).appSurface.certificateNames).toBeNull();
   });
 
   it("sends no fact when the page could not be read, so an old one is never replaced by nothing", async () => {
