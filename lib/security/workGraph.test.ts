@@ -28,6 +28,16 @@ describe("work graph", () => {
     }
   });
 
+  it("closes its own loop, so a run continues without a new prompt", () => {
+    expect(graph).toMatch(/^\| Next \|/m);
+    expect(graph).toMatch(/Record -> Next -> Orient/);
+  });
+
+  it("says when an unattended run stops: a gate, a repeated failure, nothing left", () => {
+    const stops = graph.split("## Running unattended")[1] ?? "";
+    for (const stop of [/gate/i, /failed twice/i, /nothing unblocked/i]) expect(stops).toMatch(stop);
+  });
+
   it("keeps the skills short enough to read whole", () => {
     for (const skill of skills) {
       expect(readFileSync(join(root, skill, "SKILL.md"), "utf8").split("\n").length, skill).toBeLessThan(110);
