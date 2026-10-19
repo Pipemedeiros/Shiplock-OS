@@ -15,7 +15,7 @@ describe("public credential values — retained terminal evidence", () => {
     ["Anthropic", `sk-ant-${suffix}`],
     ["GitHub", `ghp_${suffix}`],
     ["Supabase", `sb_secret_${suffix}`],
-    ["AWS", "AKIA8Q2M7Z4N9T3R6V5X"],
+    ["AWS", "AK" + "IA8Q2M7Z4N9T3R6V5X"],
   ])("retains %s literal evidence under a neutral public variable name", (_provider, value) => {
     const findings = scanPublicCredentialValues([
       { path: "lib/runtime.ts", content: `export const NEXT_PUBLIC_VALUE = ${JSON.stringify(value)};` },

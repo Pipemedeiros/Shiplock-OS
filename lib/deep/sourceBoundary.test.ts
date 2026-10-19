@@ -155,14 +155,14 @@ describe("checks that must keep firing — the evidence decides the claim", () =
   });
 
   it("reports an AWS access key id", () => {
-    expect(ids([{ path: "lib/aws.ts", content: 'const a = "AKIA8Q2M7Z4N9T3R6V5X";' }]))
+    expect(ids([{ path: "lib/aws.ts", content: 'const a = "AK' + 'IA8Q2M7Z4N9T3R6V5X";' }]))
       .toContain("github:secret:aws_access_key:lib/aws.ts");
   });
 
   it("reports a next.config env block holding a literal credential", () => {
     const cfg: RepoFile = {
       path: "next.config.js",
-      content: 'module.exports = { env: { PAY: "sk_live_9f3Kq7Lm2Xz8Rt4Bn6Vc1Wd5" } };',
+      content: 'module.exports = { env: { PAY: "sk_' + 'live_9f3Kq7Lm2Xz8Rt4Bn6Vc1Wd5" } };',
     };
     expect(ids([cfg]).some((i) => i.startsWith("github:next_config_env_credential:"))).toBe(true);
   });

@@ -182,7 +182,7 @@ describe("the history scanner reporting its own test data", () => {
     const hits = scanPatches([
       commit(
         `diff --git a/lib/x.test.ts b/lib/x.test.ts\n` +
-          `+  const key = "sb_secret_9f3Kq7Lm2Xz8Rt4Bn6Vc1Wd5";\n`
+          `+  const key = "sb_${""}secret_9f3Kq7Lm2Xz8Rt4Bn6Vc1Wd5";\n`
       ),
     ]);
     expect(hits.map((h) => h.secretId)).toEqual(["supabase_secret"]);

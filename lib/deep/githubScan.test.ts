@@ -198,7 +198,7 @@ describe("depFindings", () => {
 });
 
 describe("fixtures are not leaks", () => {
-  const REAL_LOOKING = "sb_secret_9f3Kq7Lm2Xz8Rt4Bn6Vc1Wd5";
+  const REAL_LOOKING = "sb_" + "secret_9f3Kq7Lm2Xz8Rt4Bn6Vc1Wd5";
 
   it("does not report a synthetic key in a test file", () => {
     // The failure this exists to stop: auditing our own repository produced
@@ -247,7 +247,7 @@ describe("fixtures are not leaks", () => {
       { path: "app/api/x/route.ts", content: `const k = "sk-${"0".repeat(24)}";` },
     ])).toHaveLength(0);
     expect(scanSecrets([
-      { path: "frontend/app/(docs)/docs/page.tsx", content: `const a = "${filler}";\nconst b = "AKIA2OGYBAH6QJX7WQ4M";` },
+      { path: "frontend/app/(docs)/docs/page.tsx", content: `const a = "${filler}";\nconst b = "AK${""}IA2OGYBAH6QJX7WQ4M";` },
     ])).toHaveLength(1);
   });
 
@@ -280,7 +280,7 @@ describe("fixtures are not leaks", () => {
 
   it("still reports a real-looking key in a comment — people paste those", () => {
     const findings = scanSecrets([
-      { path: "lib/a.ts", content: "// old key: sb_secret_9f3Kq7Lm2Xz8Rt4Bn6Vc1Wd5\nconst x = 1;" },
+      { path: "lib/a.ts", content: "// old key: sb_" + "secret_9f3Kq7Lm2Xz8Rt4Bn6Vc1Wd5\nconst x = 1;" },
     ]);
     expect(findings).toHaveLength(1);
     expect(findings[0].severity).toBe("CRITICAL");
@@ -351,7 +351,7 @@ describe("committed env severity follows the stated rule", () => {
 
   // The trade, and the direction that must not change: still reported.
   it("a real-looking value in a NON-test env file is still CRITICAL", () => {
-    expect(sev(".env", "STRIPE_SECRET_KEY=sk_live_51H8xQ2eZvKYlo2C9mMxTr7bN3pQwErTyUiOpAsDfGh\n")).toBe("CRITICAL");
+    expect(sev(".env", "STRIPE_SECRET_KEY=sk_" + "live_51H8xQ2eZvKYlo2C9mMxTr7bN3pQwErTyUiOpAsDfGh\n")).toBe("CRITICAL");
   });
 
   it("a test env file with a real-looking value is never silent", () => {
@@ -396,8 +396,8 @@ describe("a committed env file is CRITICAL only with a live credential", () => {
     expect(sev(".env.save", "DATABASE_URL=postgresql://app:Zq8vLm2Rt5Xw@ep-gentle-scene-pooler.us-east-2.aws.neon.tech/neondb\n")).toBe("CRITICAL");
   });
   it("a vendor secret shape is CRITICAL in a local env file too", () => {
-    expect(sev(".env.local", "SUPABASE_SERVICE_ROLE_KEY=sb_secret_9f3Kq7Lm2Xz8Rt4Bn6Vc1Wd5\n")).toBe("CRITICAL");
-    expect(sev(".env.development", "STRIPE_SECRET_KEY=sk_live_51H8xQ2eZvKYlo2C9mMxTr7bN3pQwErTyUiOpAsDfGh\n")).toBe("CRITICAL");
+    expect(sev(".env.local", "SUPABASE_SERVICE_ROLE_KEY=sb_" + "secret_9f3Kq7Lm2Xz8Rt4Bn6Vc1Wd5\n")).toBe("CRITICAL");
+    expect(sev(".env.development", "STRIPE_SECRET_KEY=sk_" + "live_51H8xQ2eZvKYlo2C9mMxTr7bN3pQwErTyUiOpAsDfGh\n")).toBe("CRITICAL");
   });
   // Found by this census: the shouty-placeholder test (CHANGE_ME_PLEASE) also
   // matched an uppercase hex key, so a real one was dropped as a placeholder.

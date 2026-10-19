@@ -21,7 +21,7 @@ describe("next.config env entries", () => {
     const findings = scanNextConfigEnv([
       {
         path: "next.config.mjs",
-        content: `export default { env: { LABEL: "internal", API_KEY: "sb_secret_9f3Kq7Lm2Xz8Rt4Bn6Vc1Wd5" } };`,
+        content: `export default { env: { LABEL: "internal", API_KEY: "sb_${""}secret_9f3Kq7Lm2Xz8Rt4Bn6Vc1Wd5" } };`,
       },
     ]);
 
@@ -92,9 +92,9 @@ describe("next.config env entries", () => {
   });
 
   it.each([
-    "sk_live_9f3Kq7Lm2Xz8Rt4Bn6Vc1Wd5",
-    "sk-ant-9f3Kq7Lm2Xz8Rt4Bn6Vc1Wd5",
-    "ghp_9f3Kq7Lm2Xz8Rt4Bn6Vc1Wd5",
+    "sk_" + "live_9f3Kq7Lm2Xz8Rt4Bn6Vc1Wd5",
+    "sk-" + "ant-9f3Kq7Lm2Xz8Rt4Bn6Vc1Wd5",
+    "gh" + "p_9f3Kq7Lm2Xz8Rt4Bn6Vc1Wd5",
     `${Buffer.from('{"alg":"HS256"}').toString("base64url")}.${Buffer.from('{"role":"service_role"}').toString("base64url")}.signature`,
   ])("retains terminal credential evidence in literal config values", (value) => {
     const [finding] = scanNextConfigEnv([{ path: "next.config.ts", content: `export default {env: {TOKEN: ${JSON.stringify(value)}}}` }]);
