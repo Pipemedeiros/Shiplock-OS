@@ -211,14 +211,16 @@ fixtures, rerun the offline corpus.
 
 ## Skills
 
-Read the full `SKILL.md`, not the name. Every implementation: Ponytail
-(`.agents/skills/ponytail/`) and Superpowers (`.agents/skills/superpowers/`).
-Anything a person sees: UI UX Pro (`.agents/skills/ui-ux-pro-max/`) plus the
-design references at `~/starred-repos/VoltAgent__awesome-design-md/design-md/`
-(Linear, Sentry, Vercel; principles, never palettes). Security-sensitive
-review: GStack (`.agents/skills/gstack/`). Parallel agents only when
-delegated: Ruflo (`.agents/skills/ruflo/`). Tooling index before building
-workflow tools: `~/starred-repos/hesreallyhim__awesome-claude-code/`.
+Read the full `SKILL.md`, not the name. The work graph
+(`.agents/skills/work-graph/`) routes every task: its nodes, the skill each
+uses, Felipe's gates and the anchors; `lib/security/workGraph.test.ts` keeps
+it and the skills in step. Every implementation: Ponytail and Superpowers.
+Anything a person sees: UI UX Pro plus the design references at
+`~/starred-repos/VoltAgent__awesome-design-md/design-md/` (Linear, Sentry,
+Vercel; principles, never palettes). Security-sensitive review: GStack.
+Metric work: Autoresearch. Parallel agents only when delegated: Ruflo. Tooling
+index before building workflow tools:
+`~/starred-repos/hesreallyhim__awesome-claude-code/`.
 
 ## Documents
 
