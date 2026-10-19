@@ -157,6 +157,14 @@ export async function executeClaimedJob(job: ClaimedJob, stages: readonly ((job:
  * scheduled audits do not pile up while no worker runs. Returns how many were
  * replaced.
  */
+/** 108: keep only the newest queued scheduled copy per account, kind and
+ * repository, so a wake never lands on a stale one. */
+export async function supersedeStaleScheduledJobs(): Promise<number> {
+  const { data, error } = await getSupabaseAdmin().rpc("supersede_stale_scheduled_jobs");
+  if (error) throw new Error("Stale scheduled jobs could not be superseded");
+  return z.number().int().nonnegative().parse(data);
+}
+
 export async function supersedeStaleAudits(): Promise<number> {
   const { data, error } = await getSupabaseAdmin().rpc("supersede_stale_audits");
   if (error) throw new Error("Stale audits could not be superseded");

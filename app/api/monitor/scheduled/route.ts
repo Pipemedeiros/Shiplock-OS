@@ -16,7 +16,7 @@ import {
   admitDueRepositorySourceScans,
   admitDueIntelligenceScans,
 } from "@/lib/jobs/scheduler";
-import { enqueueJob, supersedeStaleAudits } from "@/lib/jobs/queue";
+import { enqueueJob, supersedeStaleAudits, supersedeStaleScheduledJobs } from "@/lib/jobs/queue";
 
 // Provider monitoring and all repository scans are admitted into the durable
 // queue. This route still performs bounded traffic aggregation, graph admission,
@@ -164,8 +164,13 @@ export async function GET(req: NextRequest) {
   // source of truth. Cost is up to ~24h of grace past the end date.
   const expired = await expirePrepaidTerms();
 
+  // 108: after every admission above (graph jobs included), keep only the
+  // newest queued scheduled copy per account, kind and repository (fail-soft).
+  const staleScheduledReplaced = await supersedeStaleScheduledJobs().catch(() => 0);
+
   return NextResponse.json({
     staleAuditsReplaced,
+    staleScheduledReplaced,
     checked: monitoringAdmission.eligible,
     succeeded: monitoringAdmission.admitted,
     failed: monitoringAdmission.failed,

@@ -1611,5 +1611,31 @@ try {
     await db.query("delete from public.deep_findings where id=$1",[f]);
     assert.equal((await db.query("select count(*)::int n from public.self_check_reports where finding_row_id=$1",[f])).rows[0].n,0);
   });
+  // 108: the newest queued scheduled copy per account, kind and repository stays.
+  await check("older queued scheduled copies are superseded; manual, running and other repositories stay (108)", async () => {
+    await db.exec("reset role");
+    await db.exec(await readFile(new URL("../supabase/migrations/108_supersede_stale_scheduled_jobs.sql", import.meta.url), "utf8"));
+    await db.query("delete from public.execution_jobs where user_id=$1 and kind in ('monitor','source')",[u1]);
+    const job=(repo,kind,key,ageDays)=>db.query("insert into public.execution_jobs(user_id,repository_id,kind,deduplication_key,created_at) values($1,$2,$3,$4,now()-($5||' days')::interval) returning id",[u1,repo,kind,key,ageDays]).then((x)=>x.rows[0].id);
+    const m1=await job(null,"monitor","scheduled-monitor:scheduled_48h:x:2026-09-25",20);
+    const m2=await job(null,"monitor","scheduled-monitor:scheduled_48h:x:2026-10-18",1);
+    const m3=await job(null,"monitor","scheduled-monitor:scheduled_48h:x:2026-10-19",0);
+    const manual=await job(null,"monitor","manual:app-surface:2026-10-19T09:00",3);
+    const s1=await job(r1,"source","scheduled-source:r1:2026-10-18",1);
+    const s2=await job(r1,"source","scheduled-source:r1:2026-10-19",0);
+    const s3=await job(r3,"source","scheduled-source:r3:2026-10-18",1);
+    await db.query("update public.execution_jobs set status='running',lease_token=gen_random_uuid(),lease_until=now()+interval '5 minutes' where id=$1",[m1]);
+    await db.exec("set role service_role");
+    assert.equal((await db.query("select public.supersede_stale_scheduled_jobs() as n")).rows[0].n,2);
+    assert.equal((await db.query("select public.supersede_stale_scheduled_jobs() as n")).rows[0].n,0,"idempotent");
+    await db.exec("reset role");
+    const status=async(id)=>(await db.query("select status from public.execution_jobs where id=$1",[id])).rows[0].status;
+    assert.deepEqual([await status(m1),await status(m2),await status(m3),await status(manual),await status(s1),await status(s2),await status(s3)],
+      ["running","cancelled","queued","queued","cancelled","queued","queued"]);
+    for (const role of ["anon", "authenticated"]) {
+      assert.equal((await db.query("select has_function_privilege($1,'public.supersede_stale_scheduled_jobs()','execute') ok",[role])).rows[0].ok,false,`${role} cannot supersede`);
+    }
+    await db.query("delete from public.execution_jobs where id = any($1)",[[m1,m2,m3,manual,s1,s2,s3]]);
+  });
   console.log(`${checks} SQL checks passed. Single-connection PostgreSQL WASM; multi-session contention and hosted Supabase remain unverified.`);
 } finally { await db.close(); }

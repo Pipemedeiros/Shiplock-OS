@@ -15,6 +15,7 @@ const purgeIntelligenceMock = vi.fn();
 const pruneSnapshotsMock = vi.fn();
 const enqueueJobMock = vi.fn();
 const supersedeMock = vi.fn();
+const supersedeScheduledMock = vi.fn();
 const syncSnippetMock = vi.fn();
 
 let tableRows: Record<string, unknown[]> = {};
@@ -26,7 +27,7 @@ vi.mock("@/lib/jobs/scheduler", () => ({
   admitDueMonitoringPasses: admitMonitoringMock,
   admitDueIntelligenceScans: admitIntelligenceMock,
 }));
-vi.mock("@/lib/jobs/queue", () => ({ enqueueJob: enqueueJobMock, supersedeStaleAudits: supersedeMock }));
+vi.mock("@/lib/jobs/queue", () => ({ enqueueJob: enqueueJobMock, supersedeStaleAudits: supersedeMock, supersedeStaleScheduledJobs: supersedeScheduledMock }));
 vi.mock("@/lib/traffic/prune", () => ({ pruneOldTraffic: pruneOldTrafficMock }));
 vi.mock("@/lib/intelligence/retention", () => ({ purgeIntelligenceTasks: purgeIntelligenceMock }));
 vi.mock("@/lib/monitoring/snapshotRetention", () => ({ pruneProviderSnapshots: pruneSnapshotsMock }));
@@ -79,6 +80,7 @@ function request(secret = "cron-dummy") {
 describe("GET /api/monitor/scheduled — durable source admission", () => {
   beforeEach(() => {
     supersedeMock.mockReset().mockResolvedValue(5);
+    supersedeScheduledMock.mockReset().mockResolvedValue(7);
     vi.clearAllMocks();
     tableRows = {};
     admitAuditsMock.mockResolvedValue({ eligible: 3, admitted: 2, failed: 1, limited: false });
@@ -159,6 +161,18 @@ describe("GET /api/monitor/scheduled — durable source admission", () => {
     expect(supersedeMock.mock.invocationCallOrder[0]).toBeGreaterThan(admitAuditsMock.mock.invocationCallOrder[0]);
     expect(body.staleAuditsReplaced).toBe(5);
     supersedeMock.mockRejectedValue(new Error("db"));
+    expect((await GET(request())).status).toBe(200);
+  });
+
+  // 108: after every admission, including the graph jobs at the end, older
+  // queued scheduled copies are replaced; a failure never fails the pass.
+  it("replaces stale scheduled copies after the graph admission and reports how many", async () => {
+    const body = await (await GET(request())).json();
+    expect(supersedeScheduledMock).toHaveBeenCalledOnce();
+    const graphAdmissions = enqueueJobMock.mock.invocationCallOrder;
+    if (graphAdmissions.length > 0) expect(supersedeScheduledMock.mock.invocationCallOrder[0]).toBeGreaterThan(Math.max(...graphAdmissions));
+    expect(body.staleScheduledReplaced).toBe(7);
+    supersedeScheduledMock.mockRejectedValue(new Error("db"));
     expect((await GET(request())).status).toBe(200);
   });
 
