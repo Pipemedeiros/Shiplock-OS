@@ -5,7 +5,6 @@ import { ImageResponse } from "next/og";
 // mark: the LockGlyph drawing from components/d/Brand.tsx; when the
 // owner's logo lands, swap the <svg> block only.
 
-export const runtime = "edge";
 export const alt = "ShipLock: security monitoring that opens the pull request";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
