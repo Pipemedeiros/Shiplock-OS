@@ -151,12 +151,6 @@ export async function executeClaimedJob(job: ClaimedJob, stages: readonly ((job:
   }
 }
 
-/**
- * Migration 097: keep only the newest queued manual or scheduled audit per
- * repository, so the oldest-first queue runs what was just requested and
- * scheduled audits do not pile up while no worker runs. Returns how many were
- * replaced.
- */
 /** 108: keep only the newest queued scheduled copy per account, kind and
  * repository, so a wake never lands on a stale one. */
 export async function supersedeStaleScheduledJobs(): Promise<number> {
@@ -165,6 +159,12 @@ export async function supersedeStaleScheduledJobs(): Promise<number> {
   return z.number().int().nonnegative().parse(data);
 }
 
+/**
+ * Migration 097: keep only the newest queued manual or scheduled audit per
+ * repository, so the oldest-first queue runs what was just requested and
+ * scheduled audits do not pile up while no worker runs. Returns how many were
+ * replaced.
+ */
 export async function supersedeStaleAudits(): Promise<number> {
   const { data, error } = await getSupabaseAdmin().rpc("supersede_stale_audits");
   if (error) throw new Error("Stale audits could not be superseded");

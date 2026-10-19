@@ -203,6 +203,28 @@ describe("Step 2C-3-A: selected-repository source admission", () => {
     expect(assessReachability(finding("acme/one"), await loadRepositoryReachability("u", now)).state).toBe("unknown");
   });
 
+  it("admits a scan time in the microsecond form Postgres returns for now()", async () => {
+    // Production 2026-10-19: every last_source_scan_at read back this way, so
+    // no repository's source evidence was ever admitted.
+    reads.repositories.mockResolvedValue({ data: [{
+      id: "repo-one", full_name: "acme/one", github_repo_id: null,
+      default_branch: "main", last_source_scan_at: "2026-09-16T10:05:00.528706+00:00",
+    }], error: null });
+    reads.graph_facts.mockResolvedValue({ data: { facts: { repositories: [
+      { ...snapshot, recordedAt: "2026-09-16T10:05:00.437Z", dependencies: [{ name: "hono", version: "1" }] },
+    ] } }, error: null });
+    expect((await loadRepositoryReachability("u", now)).repositoryIndices?.get("acme/one")?.coverage).toBe("partial");
+  });
+
+  it("still refuses a scan time with more than microsecond precision or no zone", async () => {
+    for (const value of ["2026-09-16T10:05:00.5287061+00:00", "2026-09-16T10:05:00.528706"]) {
+      reads.repositories.mockResolvedValue({ data: [{
+        id: "repo-one", full_name: "acme/one", github_repo_id: null, default_branch: "main", last_source_scan_at: value,
+      }], error: null });
+      expect((await loadRepositoryReachability("u", now)).repositoryIndices?.size).toBe(0);
+    }
+  });
+
   it("rejects duplicate snapshot identities instead of picking the last writer", async () => {
     reads.graph_facts.mockResolvedValue({ data: { facts: { repositories: [snapshot, { ...snapshot, repositoryFullName: "Acme/One" }] } }, error: null });
     expect(assessReachability(finding("acme/one"), await loadRepositoryReachability("u", now)).state).toBe("unknown");

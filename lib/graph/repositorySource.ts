@@ -36,8 +36,10 @@ const snapshotSchema = z.object({
   dependencies: z.unknown().optional(),
 }).refine((value) => value.filesRead <= value.filesAttempted && value.liveFiles.length <= value.filesRead);
 
+// Postgres returns timestamptz with up to microseconds; Date.parse keeps the
+// milliseconds, which only moves a database write time earlier.
 function timestamp(value: string): number {
-  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(value)) return NaN;
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/.test(value)) return NaN;
   return Date.parse(value);
 }
 
