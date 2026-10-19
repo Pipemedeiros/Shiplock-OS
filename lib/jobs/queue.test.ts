@@ -55,6 +55,11 @@ it("permanent context failures become dead jobs rather than repeated retries", a
   await expect(executeClaimedJob(job,[async()=>{throw new PermanentJobError("changed");}])).rejects.toThrow("changed");
   expect(rpc.mock.calls.map(([,args])=>args.p_outcome)).toEqual(["heartbeat","dead"]);
 });
+it("a job whose repository was deselected ends cancelled and the wake answers normally", async () => {
+  const { StaleJobError } = await import("./queue");
+  await expect(executeClaimedJob(job,[async()=>{throw new StaleJobError("deselected");}])).resolves.toBeUndefined();
+  expect(rpc.mock.calls.map(([,args])=>args.p_outcome)).toEqual(["heartbeat","cancelled"]);
+});
 it("lease rejection prevents stage entry", async () => {
   rpc.mockResolvedValue({data:false,error:null}); const stage=vi.fn();
   await expect(executeClaimedJob(job,[stage])).rejects.toThrow("Work lease lost"); expect(stage).not.toHaveBeenCalled();

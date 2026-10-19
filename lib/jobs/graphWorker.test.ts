@@ -34,8 +34,10 @@ vi.mock("@/lib/graph/repositorySource", () => ({
 }));
 vi.mock("./queue", () => {
   class PermanentJobError extends Error {}
+  class StaleJobError extends PermanentJobError {}
   return {
     PermanentJobError,
+    StaleJobError,
     claimJob: state.claim,
     executeClaimedJob: state.execute,
     JobKind: z.enum(["audit", "source", "monitor", "dependency", "graph", "pr-check"]),
@@ -43,7 +45,7 @@ vi.mock("./queue", () => {
 });
 
 import { executeGraphJob, runNextGraphJob } from "./graphWorker";
-import { PermanentJobError, type ClaimedJob } from "./queue";
+import { PermanentJobError, StaleJobError, type ClaimedJob } from "./queue";
 
 const job: ClaimedJob = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -99,6 +101,14 @@ it("persists deterministic repository paths only through the live graph lease", 
     }],
     p_allow_retire: false,
   });
+});
+
+it("cancels, not fails, a job for a repository the founder deselected or removed", async () => {
+  for (const data of [{ selected: false }, null]) {
+    state.repository.mockResolvedValue({ data, error: null });
+    await expect(executeGraphJob(job)).rejects.toBeInstanceOf(StaleJobError);
+  }
+  expect(state.input).not.toHaveBeenCalled();
 });
 
 it("permanently refuses a deselected or mismatched repository", async () => {

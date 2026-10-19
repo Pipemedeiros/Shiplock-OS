@@ -9,9 +9,9 @@ vi.mock("@/lib/supabase",()=>({getSupabaseAdmin:()=>({from:(table:keyof typeof s
 },rpc:state.rpc})}));
 vi.mock("@/lib/deep/github",()=>({getInstallationToken:state.token,listRepos:state.repos}));
 vi.mock("@/lib/deep/githubRun",()=>({collectRepositorySource:state.collect}));
-vi.mock("./queue",()=>{class PermanentJobError extends Error{} return {PermanentJobError,claimJob:state.claim,enqueueJob:state.enqueue,executeClaimedJob:state.execute,withLeaseHeartbeat:(_job:unknown,work:()=>Promise<unknown>)=>work(),JobKind:z.enum(["audit","source","monitor","dependency","graph","pr-check"])};});
+vi.mock("./queue",()=>{class PermanentJobError extends Error{} class StaleJobError extends PermanentJobError{} return {PermanentJobError,StaleJobError,claimJob:state.claim,enqueueJob:state.enqueue,executeClaimedJob:state.execute,withLeaseHeartbeat:(_job:unknown,work:()=>Promise<unknown>)=>work(),JobKind:z.enum(["audit","source","monitor","dependency","graph","pr-check"])};});
 import {enqueueFollowUpsAfterSource,executeSourceJob,runNextSourceJob} from "./sourceWorker";
-import {PermanentJobError,type ClaimedJob} from "./queue";
+import {PermanentJobError,StaleJobError,type ClaimedJob} from "./queue";
 const job:ClaimedJob={id:"11111111-1111-4111-8111-111111111111",user_id:"22222222-2222-4222-8222-222222222222",repository_id:"33333333-3333-4333-8333-333333333333",audit_run_id:null,deduplication_key:"manual-source:test",kind:"source",status:"running",attempts:1,lease_token:"55555555-5555-4555-8555-555555555555",lease_until:"2099-01-01T00:00:00Z",checkpoint:0};
 
 beforeEach(()=>{
@@ -35,6 +35,14 @@ it("permanently refuses a changed branch or deselected repository",async()=>{
   state.repos.mockResolvedValue([{fullName:"acme/app",defaultBranch:"develop"}]);
   await expect(executeSourceJob(job)).rejects.toBeInstanceOf(PermanentJobError);
   expect(state.collect).not.toHaveBeenCalled();
+});
+
+it("cancels, not fails, a job for a repository the founder deselected or removed",async()=>{
+  for (const data of [{full_name:"acme/app",github_repo_id:"9",default_branch:"main",selected:false},null]) {
+    state.reads.repositories.mockResolvedValue({data,error:null});
+    await expect(executeSourceJob(job)).rejects.toBeInstanceOf(StaleJobError);
+  }
+  expect(state.token).not.toHaveBeenCalled();
 });
 
 it("refuses a provider repository id that was renamed or replaced",async()=>{

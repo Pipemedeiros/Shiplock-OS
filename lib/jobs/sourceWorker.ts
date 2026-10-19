@@ -7,6 +7,7 @@ import {
   enqueueJob,
   executeClaimedJob,
   PermanentJobError,
+  StaleJobError,
   withLeaseHeartbeat,
   type ClaimedJob,
 } from "./queue";
@@ -58,6 +59,7 @@ export async function executeSourceJob(job: ClaimedJob): Promise<void> {
       .eq("id", repositoryId).eq("user_id", job.user_id).maybeSingle(),
   ]);
   if (profileRead.error || repositoryRead.error) throw new Error("Source context could not be read");
+  if (!repositoryRead.data || repositoryRead.data.selected === false) throw new StaleJobError("Repository no longer selected");
   const profile = profileSchema.safeParse(profileRead.data);
   const repository = repositorySchema.safeParse(repositoryRead.data);
   if (!profile.success || !repository.success) throw new PermanentJobError("Source context changed");

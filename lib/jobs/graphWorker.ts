@@ -7,6 +7,7 @@ import {
   claimJob,
   executeClaimedJob,
   PermanentJobError,
+  StaleJobError,
   type ClaimedJob,
 } from "./queue";
 
@@ -33,6 +34,7 @@ export async function executeGraphJob(job: ClaimedJob): Promise<void> {
     .eq("user_id", job.user_id)
     .maybeSingle();
   if (repositoryRead.error) throw new Error("Graph context could not be read");
+  if (!repositoryRead.data || repositoryRead.data.selected === false) throw new StaleJobError("Repository no longer selected");
   if (!repositorySchema.safeParse(repositoryRead.data).success) {
     throw new PermanentJobError("Graph context changed");
   }

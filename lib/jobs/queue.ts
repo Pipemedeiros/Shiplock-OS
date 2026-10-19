@@ -16,6 +16,10 @@ export type JobOutcome = "heartbeat" | "checkpoint" | "succeeded" | "retry" | "d
 
 /** Stored context no longer authorizes the work; retries cannot repair it. */
 export class PermanentJobError extends Error {}
+/** The job's subject is gone (the founder deselected or removed the
+ * repository): nothing failed, so the job ends cancelled and the wake answers
+ * normally. Evidence that is merely unreadable stays a PermanentJobError. */
+export class StaleJobError extends PermanentJobError {}
 
 const auditReceipt = z.object({ job_id: z.uuid(), run_id: z.uuid() });
 
@@ -144,6 +148,10 @@ export async function executeClaimedJob(job: ClaimedJob, stages: readonly ((job:
     }
     await advanceJob(job, checkpoint, "succeeded");
   } catch (error) {
+    if (error instanceof StaleJobError) {
+      await advanceJob(job, checkpoint, "cancelled").catch(() => {});
+      return;
+    }
     // If acknowledgement is uncertain the persisted checkpoint is authoritative.
     // A stale worker cannot reset it or finalize a replacement worker's result.
     await advanceJob(job, checkpoint, error instanceof PermanentJobError ? "dead" : "retry").catch(() => {});
