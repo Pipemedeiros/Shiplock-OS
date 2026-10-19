@@ -48,6 +48,14 @@ beforeEach(() => {
 });
 
 describe("repository source collection", () => {
+  it("returns the commits its history check read in full, and none when history was unreadable (109)", async () => {
+    const sha = "d".repeat(40);
+    api.listRecentCommitPatches.mockResolvedValue([{ sha, message: "m", patch: "+x", date: "", complete: true }]);
+    expect((await collect(0)).historyRead).toEqual([sha]);
+    api.listRecentCommitPatches.mockRejectedValue(new Error("rate limited"));
+    expect((await collect(0)).historyRead).toEqual([]);
+  });
+
   it("keeps identical paths and different dependency versions in separate repository snapshots", async () => {
     const first = await collect(0);
     const second = await collect(1);

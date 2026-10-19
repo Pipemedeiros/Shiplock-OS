@@ -8,7 +8,7 @@ import { collectRoutes } from "@/lib/graph/routeInventory";
 import { buildReachabilityIndex } from "@/lib/graph/reachability";
 import { scanRouteFacts } from "@/lib/graph/routeChecks";
 import { scanWorkflows } from "./workflowScan";
-import { historyFindings, scanPatches, MAX_COMMITS } from "./historyScan";
+import { fullyRead, historyFindings, scanPatches, MAX_COMMITS } from "./historyScan";
 import type { RepositorySourceSnapshot } from "@/lib/graph/graphRun";
 import type { RouteFact } from "@/lib/graph/routeInventory";
 
@@ -49,7 +49,8 @@ async function scanRepo(
   routeSink?: RouteFact[],
   liveFileSink?: Set<string>,
   depSink?: Map<string, string>,
-  readStats?: { filesAttempted: number; filesRead: number }
+  readStats?: { filesAttempted: number; filesRead: number },
+  historySink?: string[]
 ): Promise<GithubFinding[]> {
   const { fullName, defaultBranch: branch } = repo;
   const tree = await listTree(token, fullName, branch);
@@ -129,6 +130,7 @@ async function scanRepo(
     );
     const commits = await listRecentCommitPatches(token, fullName, branch, MAX_COMMITS);
     findings.push(...historyFindings(scanPatches(commits), repo.isPrivate === false, stillPresent));
+    historySink?.push(...fullyRead(commits));
   } catch {
     // History is best-effort — never let it cost us the rest of the scan.
   }
@@ -145,6 +147,8 @@ async function scanRepo(
 export interface CollectedRepositorySource {
   snapshot: RepositorySourceSnapshot;
   findings: GithubFinding[];
+  /** Commits the history check read in full; empty when history was unread. */
+  historyRead: string[];
 }
 
 /** Pure collection boundary for one selected repository. Persistence and job
@@ -159,9 +163,11 @@ export async function collectRepositorySource(
   const liveFiles = new Set<string>();
   const dependencies = new Map<string,string>();
   const stats = { filesAttempted: 0, filesRead: 0 };
-  const findings = await scanRepo(token,repo,routes,liveFiles,dependencies,stats);
+  const historyRead: string[] = [];
+  const findings = await scanRepo(token,repo,routes,liveFiles,dependencies,stats,historyRead);
   return {
     findings,
+    historyRead,
     snapshot: {
       repositoryId,
       ...(repo.id ? { providerRepositoryId: repo.id } : {}),

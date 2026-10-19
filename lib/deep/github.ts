@@ -429,7 +429,7 @@ export async function listRecentCommitPatches(
   fullName: string,
   branch: string,
   maxCommits: number
-): Promise<{ sha: string; message: string; patch: string; date: string }[]> {
+): Promise<{ sha: string; message: string; patch: string; date: string; complete: boolean }[]> {
   const perPage = Math.min(maxCommits, 100);
   const listRes = await fetch(
     `${API}/repos/${fullName}/commits?sha=${encodeURIComponent(branch)}&per_page=${perPage}`,
@@ -443,7 +443,7 @@ export async function listRecentCommitPatches(
   }[];
   if (!Array.isArray(list)) return [];
 
-  const out: { sha: string; message: string; patch: string; date: string }[] = [];
+  const out: { sha: string; message: string; patch: string; date: string; complete: boolean }[] = [];
 
   for (const entry of list.slice(0, maxCommits)) {
     if (!entry.sha) continue;
@@ -460,7 +460,11 @@ export async function listRecentCommitPatches(
         .map((file) => typeof file.filename === "string"
           ? `diff --git a/${file.filename} b/${file.filename}\n${file.patch}` : file.patch).join("\n");
       if (!patch) continue;
+      // GitHub omits a file's patch when its diff is too large and lists at
+      // most 300 files; such a commit was not read in full (migration 109).
+      const files = detail.files ?? [];
       out.push({
+        complete: files.length < 300 && files.every((file) => typeof file.patch === "string"),
         sha: entry.sha,
         message: entry.commit?.message?.split("\n")[0] ?? "",
         patch,

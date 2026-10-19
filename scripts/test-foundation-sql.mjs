@@ -1637,5 +1637,51 @@ try {
     }
     await db.query("delete from public.execution_jobs where id = any($1)",[[m1,m2,m3,manual,s1,s2,s3]]);
   });
+  // 109: a history finding on a commit this scan read in full, and no longer
+  // reports, retires; nothing else does.
+  await check("a history finding retires only on a fully re-read commit it is no longer reported on (109)", async () => {
+    await db.exec("reset role");
+    await db.exec(await readFile(new URL("../supabase/migrations/109_history_finding_retirement.sql", import.meta.url), "utf8"));
+    const repo=(await db.query("select full_name,default_branch,github_repo_id,selected from public.repositories where id=$1",[r1])).rows[0];
+    const install=(await db.query("select github_installation_id from public.user_profiles where id=$1",[u1])).rows[0].github_installation_id;
+    const snapshot=()=>JSON.stringify({...sourceSnapshot(),repositoryFullName:repo.full_name,ref:repo.default_branch,
+      providerRepositoryId:String(repo.github_repo_id),installationId:String(install),recordedAt:new Date().toISOString()});
+    assert.equal(repo.selected,true);
+    // One running job per tenant: earlier checks leave some of u1's running.
+    await db.query("update public.execution_jobs set status='succeeded',lease_token=null,lease_until=null,finished_at=now() where status='running'");
+    const read="a".repeat(40), unread="b".repeat(40);
+    const id=(kind,sha)=>`${repo.full_name}::github:${kind}:aws_key:${sha.slice(0,12)}`;
+    const ids={fixed:id("history_secret",read),outside:id("history_secret",unread),
+      reported:`${repo.full_name}::github:history_secret:openai:${read.slice(0,12)}`,other:id("secret",read)};
+    for (const finding of Object.values(ids)) {
+      await db.query("insert into public.deep_findings(user_id,repository_id,source,finding_id,severity,title,consequence) values($1,$2,'github',$3,'WARNING','t','c')",[u1,r1,finding]);
+    }
+    const claim=async(key)=>{
+      await db.query("select public.enqueue_execution_job($1,$2,'source',$3)",[u1,r1,key]);
+      return (await db.query("select * from public.claim_execution_job('source',120)")).rows[0];
+    };
+    const persist=(job,findings,history)=>db.query(
+      history===undefined
+        ? "select public.persist_repository_source($1,$2,$3,$4,$5::jsonb,$6::jsonb) as result"
+        : "select public.persist_repository_source($1,$2,$3,$4,$5::jsonb,$6::jsonb,$7::text[]) as result",
+      [u1,r1,job.id,job.lease_token,snapshot(),JSON.stringify(findings),...(history===undefined?[]:[history])]);
+    const reported=[{finding_id:ids.reported,severity:"WARNING",title:"t",consequence:"c"}];
+    await db.exec("set role service_role");
+    let job=await claim("history-109-old");
+    assert.equal((await persist(job,reported)).rows[0].result.resolvedCount,0,"an older caller retires nothing");
+    await db.query("select public.advance_execution_job($1,$2,0,'succeeded')",[job.id,job.lease_token]);
+    job=await claim("history-109-bad");
+    await assert.rejects(persist(job,reported,["not-a-sha"]),/history window/);
+    await assert.rejects(persist(job,reported,Array.from({length:201},(_,i)=>i.toString(16).padStart(40,"0"))),/history window/);
+    assert.equal((await persist(job,reported,[read])).rows[0].result.resolvedCount,1);
+    await db.query("select public.advance_execution_job($1,$2,0,'succeeded')",[job.id,job.lease_token]);
+    await db.exec("reset role");
+    const open=async(finding)=>(await db.query("select count(*)::int n from public.deep_findings where finding_id=$1 and archived_at is null",[finding])).rows[0].n;
+    assert.deepEqual([await open(ids.fixed),await open(ids.outside),await open(ids.reported),await open(ids.other)],[0,1,1,1]);
+    for (const role of ["anon","authenticated"]) {
+      assert.equal((await db.query("select has_function_privilege($1,'public.persist_repository_source(uuid,uuid,uuid,uuid,jsonb,jsonb,text[])','execute') ok",[role])).rows[0].ok,false,`${role} cannot persist`);
+    }
+    await db.query("delete from public.deep_findings where finding_id = any($1)",[Object.values(ids)]);
+  });
   console.log(`${checks} SQL checks passed. Single-connection PostgreSQL WASM; multi-session contention and hosted Supabase remain unverified.`);
 } finally { await db.close(); }

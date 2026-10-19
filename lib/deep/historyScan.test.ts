@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { historyFindings, MAX_COMMITS, scanPatches, type CommitPatch } from "./historyScan";
+import { fullyRead, historyFindings, MAX_COMMITS, MAX_PATCH_BYTES, scanPatches, type CommitPatch } from "./historyScan";
 
 const commit = (patch: string, over: Partial<CommitPatch> = {}): CommitPatch => ({
   sha: "abc123def456789",
@@ -64,6 +64,21 @@ describe("scanPatches", () => {
 
   it("handles an empty list", () => {
     expect(scanPatches([])).toEqual([]);
+  });
+});
+
+describe("fullyRead", () => {
+  // 109 retires a history finding only on a commit this scan read in full.
+  it("names only complete commits under the byte cap, within the commit cap", () => {
+    const sha = (n: number) => n.toString(16).padStart(40, "0");
+    const commits = [
+      { ...commit("+x"), sha: sha(1), complete: true },
+      { ...commit("+x"), sha: sha(2), complete: false },
+      { ...commit("+".repeat(MAX_PATCH_BYTES + 1)), sha: sha(3), complete: true },
+      { ...commit("+x"), sha: sha(4) },
+    ];
+    expect(fullyRead(commits)).toEqual([sha(1)]);
+    expect(fullyRead(Array.from({ length: MAX_COMMITS + 5 }, (_, i) => ({ ...commit("+x"), sha: sha(i), complete: true })))).toHaveLength(MAX_COMMITS);
   });
 });
 

@@ -25,6 +25,15 @@ it("keeps each file's path, so the history scan can tell test scaffolding from s
   expect(scanPatches([commit])).toEqual([]);
 });
 
+it("says a commit was read in full only when every file came with its patch (109)", async () => {
+  vi.stubGlobal("fetch", commitWith("lib/config.ts"));
+  expect((await listRecentCommitPatches("token", "acme/app", "main", 1))[0].complete).toBe(true);
+  vi.stubGlobal("fetch", vi.fn()
+    .mockResolvedValueOnce(new Response(JSON.stringify([{ sha: "a".repeat(40), commit: { message: "m" } }]), { status: 200 }))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ files: [{ filename: "a.ts", patch: "@@\n+x" }, { filename: "big.json" }] }), { status: 200 })));
+  expect((await listRecentCommitPatches("token", "acme/app", "main", 1))[0].complete).toBe(false);
+});
+
 it("still reports the same key added to shipped code", async () => {
   vi.stubGlobal("fetch", commitWith("lib/config.ts"));
   const commits = await listRecentCommitPatches("token", "acme/app", "main", 1);

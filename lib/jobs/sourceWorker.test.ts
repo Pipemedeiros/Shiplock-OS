@@ -31,6 +31,14 @@ it("collects one exact current repository and persists through the live lease",a
   expect(state.rpc).toHaveBeenCalledWith("persist_repository_source",expect.objectContaining({p_job:job.id,p_token:job.lease_token,p_repository:job.repository_id,p_findings:[expect.objectContaining({finding_id:"acme/app::github:secret:key:file"})]}));
 });
 
+it("passes the fully read history window and accepts what it retired (109)",async()=>{
+  const read="c".repeat(40);
+  state.collect.mockResolvedValue({snapshot:{repositoryId:job.repository_id,providerRepositoryId:"9",repositoryFullName:"acme/app",installationId:"42",ref:"main",recordedAt:"2026-09-22T00:00:00Z",completeness:"partial",filesAttempted:1,filesRead:1,routes:[],liveFiles:[],hasEntryPoints:false,dependencies:[]},findings:[],historyRead:[read]});
+  state.rpc.mockResolvedValue({data:{total:0,newCount:0,resolvedCount:1},error:null});
+  await executeSourceJob(job);
+  expect(state.rpc).toHaveBeenCalledWith("persist_repository_source",expect.objectContaining({p_history_read:[read]}));
+});
+
 it("permanently refuses a changed branch or deselected repository",async()=>{
   state.repos.mockResolvedValue([{fullName:"acme/app",defaultBranch:"develop"}]);
   await expect(executeSourceJob(job)).rejects.toBeInstanceOf(PermanentJobError);

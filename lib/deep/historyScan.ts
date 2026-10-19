@@ -59,6 +59,16 @@ export interface CommitPatch {
   patch: string;
   /** ISO date, so we can say how long it has been exposed. */
   date: string;
+  /** Every file in the commit came with its patch. */
+  complete?: boolean;
+}
+
+/** Commits this scan read in full: complete and under the byte cap. Migration
+ * 109 retires a stored history finding only on one of these. */
+export function fullyRead(commits: CommitPatch[]): string[] {
+  return commits.slice(0, MAX_COMMITS)
+    .filter((commit) => commit.complete === true && commit.patch.length <= MAX_PATCH_BYTES)
+    .map((commit) => commit.sha);
 }
 
 export interface HistoryHit {

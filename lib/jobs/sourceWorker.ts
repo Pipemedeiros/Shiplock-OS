@@ -28,7 +28,7 @@ const repositorySchema = z.object({
 const resultSchema = z.object({
   total: z.number().int().nonnegative(),
   newCount: z.number().int().nonnegative(),
-  resolvedCount: z.literal(0),
+  resolvedCount: z.number().int().nonnegative(),
 });
 
 function findingPayload(findings: Awaited<ReturnType<typeof collectRepositorySource>>["findings"]) {
@@ -86,6 +86,7 @@ export async function executeSourceJob(job: ClaimedJob): Promise<void> {
       p_token: job.lease_token,
       p_snapshot: collected.snapshot,
       p_findings: findingPayload(collected.findings),
+      p_history_read: collected.historyRead,
     });
     if (error) throw new Error("Source evidence could not be saved");
     resultSchema.parse(data);
