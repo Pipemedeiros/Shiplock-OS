@@ -84,7 +84,7 @@ describe("historyFindings", () => {
 
   // The whole point of the finding.
   it("says rotation is the only action that helps", () => {
-    expect(historyFindings(hits, true)[0].consequence).toContain("ONLY ACTION THAT HELPS IS ROTATING");
+    expect(historyFindings(hits, true)[0].consequence).toContain("Rotating the key is the only action that helps");
   });
 
   it("warns that rewriting history does not reliably help", () => {
@@ -103,6 +103,22 @@ describe("historyFindings", () => {
   // Already reported by the committed-secrets check.
   it("does not repeat a secret that is STILL in the working tree", () => {
     expect(historyFindings(hits, true, new Set(["stripe_live"]))).toEqual([]);
+  });
+
+  // githubRun passes the working-tree scan's own ids, which name the same
+  // classes differently; before 2026-10-19 three of four never matched.
+  it("does not repeat a key the working-tree scan reports under its own id", () => {
+    const aws = scanPatches([commit('+key = "AKIA' + '2OGYQ7TL3MZ4PNWB"')]);
+    expect(historyFindings(aws, true, new Set(["aws_access_key"]))).toEqual([]);
+    const supabase = scanPatches([commit('+key = "sb_' + 'secret_9fQ2kLm7Tx4Rz8Vb"')]);
+    expect(historyFindings(supabase, true, new Set(["supabase_service_key"]))).toEqual([]);
+  });
+
+  it("claims only what it read, in plain copy", () => {
+    const { title, consequence } = historyFindings(hits, true)[0];
+    expect(consequence).not.toMatch(/someone removed it|not in your current files/);
+    expect(consequence).toContain("not in the files we read");
+    expect(`${title} ${consequence}`).not.toMatch(/[\u2013\u2014]| -- /);
   });
 
   it("handles no hits", () => {

@@ -94,7 +94,7 @@
       "testName": "each PR module is imported only by the receipted repair path",
       "assertionDigest": "e52901ef065a87ac33268b8b5386560b3bc479c1c337ba7e5f45b481c250bf74",
       "sourcePins": {
-        "lib/deep/github.ts": "0efbe4b5b78a61cf1c5b84940612d7eeb60009f461f5165e46119ce016b14814",
+        "lib/deep/github.ts": "d0b494ecc4ed2754f45bd00e1288b229ce35a8b62c213d8ffca8581002ca1967",
         "lib/deep/githubFixRun.ts": "62bf494b3a55b2415d4da5b55b6b6c02711bd6cbd7295815f4d77a27138c207d",
         "lib/fixes/aiFixPr.ts": "a661d8c11e0b1394d8139f5e02fbfd1fb9736ba1593ac8193601117da32720ec",
         "lib/fixes/prRun.ts": "ac172740424c6bc53fe490115d90d6429fda7e9baff31c0d3dffc58c3a216cfe",

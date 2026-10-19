@@ -33,15 +33,17 @@ const f = (
   packageName: null, version: null, vulnId: null, cveId: null,
 });
 
-/** Vendor-issued credential shapes. Every one is distinctive, not a heuristic. */
-const HISTORY_SECRETS: { id: string; label: string; re: RegExp; rotate: string }[] = [
-  { id: "supabase_secret", label: "a Supabase secret key", re: /\bsb_secret_[A-Za-z0-9_-]{10,}/, rotate: "Supabase → Project Settings → API Keys" },
+/** Vendor-issued credential shapes. Every one is distinctive, not a heuristic.
+ * `current` is the working-tree scan's id for the same class (githubScan),
+ * which is what githubRun passes as stillPresent. */
+const HISTORY_SECRETS: { id: string; label: string; re: RegExp; rotate: string; current?: string }[] = [
+  { id: "supabase_secret", label: "a Supabase secret key", re: /\bsb_secret_[A-Za-z0-9_-]{10,}/, rotate: "Supabase → Project Settings → API Keys", current: "supabase_service_key" },
   { id: "stripe_live", label: "a live Stripe secret key", re: /\bsk_live_[A-Za-z0-9]{16,}/, rotate: "the Stripe dashboard" },
-  { id: "aws_key", label: "an AWS access key id", re: /\bAKIA[0-9A-Z]{16}\b/, rotate: "AWS IAM" },
+  { id: "aws_key", label: "an AWS access key id", re: /\bAKIA[0-9A-Z]{16}\b/, rotate: "AWS IAM", current: "aws_access_key" },
   { id: "anthropic", label: "an Anthropic API key", re: /\bsk-ant-[A-Za-z0-9_-]{20,}/, rotate: "the Anthropic console" },
-  { id: "openai", label: "an OpenAI API key", re: /\bsk-(?:proj-)?[A-Za-z0-9_-]{32,}/, rotate: "the OpenAI dashboard" },
+  { id: "openai", label: "an OpenAI API key", re: /\bsk-(?:proj-)?[A-Za-z0-9_-]{32,}/, rotate: "the OpenAI dashboard", current: "openai_key" },
   { id: "github_token", label: "a GitHub token", re: /\bgh[pso]_[A-Za-z0-9]{20,}/, rotate: "GitHub → Developer settings" },
-  { id: "private_key", label: "a PEM private key", re: /-----BEGIN (?:RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY-----/, rotate: "wherever the key pair is issued" },
+  { id: "private_key", label: "a PEM private key", re: /-----BEGIN (?:RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY-----/, rotate: "wherever the key pair is issued", current: "private_key" },
   { id: "slack_token", label: "a Slack token", re: /\bxox[baprs]-[A-Za-z0-9-]{10,}/, rotate: "the Slack app configuration" },
 ];
 
@@ -159,7 +161,8 @@ export function historyFindings(
   stillPresent: Set<string> = new Set()
 ): GithubFinding[] {
   return hits
-    .filter((hit) => !stillPresent.has(hit.secretId))
+    .filter((hit) => !stillPresent.has(hit.secretId)
+      && !stillPresent.has(HISTORY_SECRETS.find((secret) => secret.id === hit.secretId)?.current ?? ""))
     .map((hit) => {
       const days = daysSince(hit.date);
       const age = days === null ? "" : days === 0 ? " today" : ` ${days} day${days === 1 ? "" : "s"} ago`;
@@ -168,12 +171,12 @@ export function historyFindings(
         `github:history_secret:${hit.secretId}:${hit.sha.slice(0, 12)}`,
         repoIsPublic ? "CRITICAL" : "WARNING",
         `${hit.label} was committed${age} and is still in your history`,
-        `Commit ${hit.sha.slice(0, 8)} added ${hit.label}. It is not in your current files — someone removed it — but removing a secret from a file does not remove it from the repository. Every commit that contained it is still there and still readable by anyone who can clone. ` +
+        `Commit ${hit.sha.slice(0, 8)} added ${hit.label}. It is not in the files we read today, but deleting a secret from a file does not remove it from the repository: every commit that contained it is still readable by anyone who can clone. ` +
           (repoIsPublic
             ? `This repository is public, so that means anyone at all, and credential-harvesting bots index public commits within minutes of a push. Treat this key as compromised rather than at risk. `
-            : `This repository is private, so the exposure is limited to people with access — but that includes every past collaborator, every fork, and anything that has ever cloned it. `) +
-          `THE ONLY ACTION THAT HELPS IS ROTATING THE KEY, at ${hit.rotate}. Rewriting history does not reliably help: GitHub serves orphaned commits over the API after a force-push, and any existing clone or fork keeps its copy. ` +
-          `We are not opening a pull request for this, because there is nothing to change in your code — it is already correct. That is exactly why this one gets missed.`
+            : `This repository is private, so the exposure is limited to people with access, and that includes every past collaborator, every fork, and anything that has ever cloned it. `) +
+          `Rotating the key is the only action that helps, at ${hit.rotate}. Rewriting history does not reliably help: GitHub serves orphaned commits over the API after a force-push, and any existing clone or fork keeps its copy. ` +
+          `We are not opening a pull request for this, because there is nothing to change in your code. That is exactly why this one gets missed.`
       );
     });
 }

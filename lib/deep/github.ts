@@ -453,8 +453,12 @@ export async function listRecentCommitPatches(
         signal: AbortSignal.timeout(TIMEOUT_MS),
       });
       if (!res.ok) continue;
-      const detail = (await res.json()) as { files?: { patch?: string }[] };
-      const patch = (detail.files ?? []).map((file) => file.patch ?? "").join("\n");
+      // GitHub returns each file's patch without a diff header; keep the path,
+      // which the history scan needs to tell test scaffolding from shipped code.
+      const detail = (await res.json()) as { files?: { filename?: string; patch?: string }[] };
+      const patch = (detail.files ?? []).filter((file) => file.patch)
+        .map((file) => typeof file.filename === "string"
+          ? `diff --git a/${file.filename} b/${file.filename}\n${file.patch}` : file.patch).join("\n");
       if (!patch) continue;
       out.push({
         sha: entry.sha,
