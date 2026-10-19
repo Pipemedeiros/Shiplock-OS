@@ -634,7 +634,7 @@ export function depFindings(results: { dep: Dep; vulns: OsvVuln[] }[]): GithubFi
       findings.push({
         id: `github:dep:${dep.name}:${v.id}`,
         severity: v.severity,
-        title: `${dep.name}@${dep.version} — ${v.cveId ?? v.id}`,
+        title: `${dep.name}@${dep.version}: ${v.cveId ?? v.id}`,
         consequence: `${v.summary} Update ${dep.name} past the vulnerable version.`,
         packageName: dep.name,
         version: dep.version,

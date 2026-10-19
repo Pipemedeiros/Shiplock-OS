@@ -192,6 +192,8 @@ describe("depFindings", () => {
     expect(f[0].id).toBe("github:dep:left-pad:GHSA-xxxx");
     expect(f[0].packageName).toBe("left-pad");
     expect(f[0].cveId).toBe("CVE-2025-0001");
+    // Founder copy carries no dashes (AGENTS.md); every advisory title is seen.
+    expect(f[0].title).toBe("left-pad@1.0.0: CVE-2025-0001");
   });
 });
 
