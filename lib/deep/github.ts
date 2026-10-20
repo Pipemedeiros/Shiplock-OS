@@ -558,7 +558,7 @@ export async function listPullRequestFiles(
     files,
     listed: json.length,
     complete,
-    coverage: complete ? `All ${json.length} changed file${json.length === 1 ? " was" : "s were"} readable.` : `Partial diff: ${reasons.join("; ")}.`,
+    coverage: complete && json.length === 0 ? "This pull request changes no files." : complete ? `All ${json.length} changed file${json.length === 1 ? " was" : "s were"} readable.` : `Partial diff: ${reasons.join("; ")}.`,
   };
 }
 

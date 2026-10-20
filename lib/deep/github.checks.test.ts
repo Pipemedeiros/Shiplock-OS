@@ -38,6 +38,15 @@ it("marks deleted, bounded, paginated, and unreadable files as partial", async (
   expect(result.coverage).toContain("review budget");
 });
 
+// Production 2026-10-20: a probe PR with an empty commit got "All 0 changed
+// files were readable." on its check run.
+it("says a pull request changes no files instead of counting zero", async () => {
+  vi.stubGlobal("fetch",vi.fn().mockResolvedValueOnce(new Response("[]",{status:200})));
+  const result = await listPullRequestFiles("token","acme/app",7,"a".repeat(40));
+  expect(result.complete).toBe(true);
+  expect(result.coverage).toBe("This pull request changes no files.");
+});
+
 it("recovers an already-open PR by deterministic head branch", async () => {
   const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify([{html_url:"https://github.com/acme/app/pull/7"}]),{status:200}));
   vi.stubGlobal("fetch",fetchMock);
