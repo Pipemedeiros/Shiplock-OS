@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isCandidate, parseTar, createTarStream } from "./repoArchive";
+import { isCandidate, parseTar, createTarStream, fitsFileBudget } from "./repoArchive";
 
 /** Builds a ustar entry so the parser is tested against real bytes, not a mock. */
 function entry(name: string, body: string, typeFlag = "0"): Buffer {
@@ -144,5 +144,19 @@ describe("streaming tar parse", () => {
     for (let i = 0; i < archive.length; i += 64) s.push(archive.subarray(i, i + 64));
     s.end();
     expect(seen).toEqual(["repo-sha/a.ts"]);
+  });
+});
+
+// Production 2026-10-20: ShipLock's own package-lock.json (416 KB) was over the
+// 400 KB file cap, so every audit had one skipped file and, by the rule that
+// an unread file blocks retirement, no fixed finding ever closed. A lockfile
+// can hold a token in a registry URL, so it is read, under its own cap.
+describe("fitsFileBudget", () => {
+  it("reads a lockfile up to 4 MB and other files up to 400 KB", () => {
+    expect(fitsFileBudget("package-lock.json", 416_008)).toBe(true);
+    expect(fitsFileBudget("apps/web/pnpm-lock.yaml", 3_000_000)).toBe(true);
+    expect(fitsFileBudget("yarn.lock", 4_000_001)).toBe(false);
+    expect(fitsFileBudget("lib/generated.ts", 416_008)).toBe(false);
+    expect(fitsFileBudget("lib/app.ts", 400_000)).toBe(true);
   });
 });

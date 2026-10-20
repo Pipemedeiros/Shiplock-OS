@@ -51,6 +51,16 @@ const NOISE_RE = /(^|\/)(.*\.min\.js|.*\.map|.*\.d\.ts|.*\.snap)$/i;
 
 const MAX_TOTAL_BYTES = 24 * 1024 * 1024; // decompressed source we keep
 const MAX_FILE_BYTES = 400_000; // one file; larger is generated, not written
+// A lockfile is generated too, but it can hold a token in a registry URL, and
+// an app's is often over 400 KB (ShipLock's own: 416 KB). Skipped, it made
+// every audit partial, so no fixed finding could ever close.
+const MAX_LOCKFILE_BYTES = 4_000_000;
+const LOCKFILE = /(^|\/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock)$/;
+
+/** Whether one file is small enough to read; the total budget still applies. */
+export function fitsFileBudget(path: string, bytes: number): boolean {
+  return bytes <= (LOCKFILE.test(path) ? MAX_LOCKFILE_BYTES : MAX_FILE_BYTES);
+}
 const MAX_FILES = 4_000;
 const MAX_ARCHIVE_BYTES = 120 * 1024 * 1024; // refuse to decompress more than this
 
@@ -246,7 +256,7 @@ export async function fetchRepoArchive(
   const parser = createTarStream((rawPath, body) => {
     const path = stripRoot(rawPath);
     if (!path || !isCandidate(path)) return;
-    if (body.length > MAX_FILE_BYTES) { skipped++; return; }
+    if (!fitsFileBudget(path, body.length)) { skipped++; return; }
     if (files.length >= MAX_FILES || bytesRead + body.length > MAX_TOTAL_BYTES) {
       skipped++;
       truncated = true;
