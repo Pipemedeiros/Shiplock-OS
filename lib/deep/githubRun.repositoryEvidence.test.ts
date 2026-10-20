@@ -81,6 +81,28 @@ describe("repository source collection", () => {
     expect(JSON.stringify(first)).not.toContain("export async");
   });
 
+  // Production 2026-10-20: ShipLock's own repository has mcp/package.json and
+  // mcp/package-lock.json, which the tree lists before the root ones. The scan
+  // kept the first of each, so the app's dependencies were never checked and
+  // the 91 packages of a small subpackage stood in for them.
+  it("checks the root manifest and its own lockfile, not the first ones the tree lists", async () => {
+    api.listTree.mockResolvedValue([
+      { path: "mcp/package-lock.json", size: 100 }, { path: "mcp/package.json", size: 100 },
+      { path: "package-lock.json", size: 100 }, { path: "package.json", size: 100 },
+    ]);
+    const lock = (name: string, version: string) =>
+      JSON.stringify({ lockfileVersion: 3, packages: { "": {}, [`node_modules/${name}`]: { version } } });
+    api.getFile.mockImplementation(async (_token, _repository, path) => ({
+      "mcp/package.json": JSON.stringify({ dependencies: { hono: "^4.0.0" } }),
+      "mcp/package-lock.json": lock("hono", "4.12.30"),
+      "package.json": JSON.stringify({ dependencies: { next: "^16.0.0" } }),
+      "package-lock.json": lock("next", "16.4.2"),
+    } as Record<string, string>)[path] ?? null);
+    const { snapshot } = await collect();
+    expect(snapshot.dependencies.map((d) => d.name)).toContain("next");
+    expect(snapshot.dependencies.map((d) => d.name)).not.toContain("hono");
+  });
+
   it("returns no empty snapshot when the repository tree cannot be read", async () => {
     api.listTree.mockRejectedValue(new Error("unreadable"));
     await expect(collect()).rejects.toThrow("unreadable");

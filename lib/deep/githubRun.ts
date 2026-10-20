@@ -64,16 +64,23 @@ async function scanRepo(
     .slice(0, MAX_FILES_PER_REPO);
 
   const files: RepoFile[] = [];
-  let packageJson: string | null = null;
-  let packageLock: string | null = null;
 
   for (const c of candidates) {
     const content = await getFile(token, fullName, c.path, branch).catch(() => null);
     if (content == null) continue;
     files.push({ path: c.path, content });
-    if (/(^|\/)package\.json$/.test(c.path) && !packageJson) packageJson = content;
-    if (/(^|\/)package-lock\.json$/.test(c.path) && !packageLock) packageLock = content;
   }
+  // The shallowest manifest is the app's (a root lockfile also covers its
+  // workspaces), and only its own directory's lockfile pins its versions. The
+  // tree lists mcp/package.json before package.json, so "first seen" once
+  // checked a subpackage in place of the app.
+  const manifest = files
+    .filter((file) => /(^|\/)package\.json$/.test(file.path))
+    .sort((a, b) => a.path.split("/").length - b.path.split("/").length)[0];
+  const packageJson = manifest?.content ?? null;
+  const packageLock = manifest
+    ? files.find((file) => file.path === manifest.path.replace(/package\.json$/, "package-lock.json"))?.content ?? null
+    : null;
   if (readStats) {
     readStats.filesAttempted = candidates.length;
     readStats.filesRead = files.length;
