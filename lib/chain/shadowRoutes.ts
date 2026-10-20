@@ -67,3 +67,9 @@ function declares(routes: Routes): (path: string) => boolean {
   });
   return (p) => matchers.some((m) => m(p));
 }
+
+/** Areas not checked, as Overview and Coverage both count them: the audit's
+ * own notes, plus one when the live site requests addresses with no route. */
+export function notCheckedAreas(coverage: readonly unknown[], shadow: ShadowRoutes): number {
+  return coverage.length + (shadow.state === "read" && shadow.paths.length > 0 ? 1 : 0);
+}

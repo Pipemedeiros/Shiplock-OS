@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { shadowRoutes, shadowRoutesFromRuns } from "./shadowRoutes";
+import { notCheckedAreas, shadowRoutes, shadowRoutesFromRuns } from "./shadowRoutes";
 import type { LiveReach } from "./liveReach";
 
 // Shadow routes (G3, the outside view): addresses the live site requests on
@@ -62,5 +62,14 @@ describe("shadowRoutes", () => {
     expect(shadowRoutesFromRuns(live(["/api/me", "/api/legacy", "/api/x"]), runs, "acme/app"))
       .toEqual({ state: "read", paths: ["/api/legacy", "/api/x"], partial: false, removed: ["/api/legacy"], codeUnread: true });
     expect(shadowRoutesFromRuns(live(["/api/me"]), runs, "acme/none")).toMatchObject({ state: "unknown" });
+  });
+
+  // Overview and Coverage count the same areas: live addresses with no
+  // route are one more area that was not checked.
+  it("counts live addresses with no route as one more area not checked", () => {
+    const notes = [{ name: "12 files we did not read" }];
+    expect(notCheckedAreas(notes, { state: "read", paths: ["/api/x", "/api/y"], partial: false, removed: [], codeUnread: false })).toBe(2);
+    expect(notCheckedAreas(notes, { state: "read", paths: [], partial: false, removed: [], codeUnread: false })).toBe(1);
+    expect(notCheckedAreas([], { state: "unknown", why: "x" })).toBe(0);
   });
 });

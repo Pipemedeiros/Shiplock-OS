@@ -16,7 +16,7 @@ import { When } from "@/components/v3/When";
 import { Fold } from "@/components/v3/Fold";
 import { auditState } from "@/lib/verdict";
 import { loadLiveReach } from "@/lib/chain/liveReach";
-import { shadowRoutes, shadowRoutesFromRuns } from "@/lib/chain/shadowRoutes";
+import { notCheckedAreas, shadowRoutes, shadowRoutesFromRuns } from "@/lib/chain/shadowRoutes";
 import { LiveSite, liveSiteStatus } from "@/components/v3/LiveSite";
 import { productionLine } from "@/lib/chain/productionLine";
 import { unboundAppUrl } from "@/lib/deep/appUrlStore";
@@ -55,6 +55,10 @@ export default async function Coverage() {
   const [deploy, unbound] = await Promise.all([deployRepo ? loadRepositoryDeploy(userId, deployRepo.id).catch(() => null) : null,
     bound ? null : unboundAppUrl(userId).catch(() => null)]);
 
+  // Counted with the audit's notes only for the audited repository.
+  const latestShadow = latest && bound?.fullName === latest.fullName ? shadow : shadowRoutes(null, null);
+  const liveUnchecked = latestShadow.state === "read" ? latestShadow.paths : [];
+
   const aiStatus = !ai.available ? "Unavailable" : ai.paused ? "Not running" : `${ai.checks.length} ${ai.checks.length === 1 ? "check" : "checks"}`;
   const providerStatus = !providers.available ? "Unavailable"
     : providers.items.length === 0 ? "None connected" : `${providers.items.filter((p) => p.state === "complete").length} of ${providers.items.length} read in full`;
@@ -82,7 +86,7 @@ export default async function Coverage() {
               <Stat label="Files read" value={latest.filesRead ?? 0} />
               <Stat label="Entry points" value={latest.entriesFound ?? 0} />
               <Stat label="Tables" value={latest.tablesFound ?? 0} />
-              <Stat label="Not checked" value={latest.coverage.length} warn />
+              <Stat label="Not checked" value={notCheckedAreas(latest.coverage, latestShadow)} warn />
             </div>
 
             <div className="v3-card">
@@ -90,7 +94,17 @@ export default async function Coverage() {
                 <h2 className="v3-eyebrow">Not checked</h2>
               </div>
               <div className="v3-card-p v3-cov">
-                {latest.coverage.length === 0 ? (
+                {liveUnchecked.length > 0 ? (
+                  <div>
+                    <b>{liveUnchecked.length} live {liveUnchecked.length === 1 ? "address" : "addresses"} with no route in {latest.fullName}</b>
+                    <span style={{ fontSize: 14, color: "var(--muted)" }}>
+                      Your live site requests {liveUnchecked.length === 1 ? "it" : "them"}, and ShipLock read no code for {liveUnchecked.length === 1 ? "it" : "them"}.
+                      <small style={{ display: "block", marginTop: 5, fontFamily: "inherit", fontSize: 13 }}>Listed under Live site below.</small>
+                    </span>
+                    <span className="v3-small">Nothing to connect</span>
+                  </div>
+                ) : null}
+                {latest.coverage.length === 0 && liveUnchecked.length === 0 ? (
                   <p className="v3-small">No gaps were recorded for this audit.</p>
                 ) : (
                   latest.coverage.map((c) => (

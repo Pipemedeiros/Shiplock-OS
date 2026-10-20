@@ -14,6 +14,8 @@ import { When } from "@/components/v3/When";
 import { Metric, Verdict } from "@/components/v3/Verdict";
 import { auditState, verdictOf } from "@/lib/verdict";
 import { getRecentPullRequestReviews } from "@/lib/agent/pullRequestReviews";
+import { loadLiveReach } from "@/lib/chain/liveReach";
+import { notCheckedAreas, shadowRoutesFromRuns } from "@/lib/chain/shadowRoutes";
 
 export const metadata = { title: "Overview" };
 
@@ -24,12 +26,13 @@ export const metadata = { title: "Overview" };
  */
 export default async function Overview() {
   const { userId } = await requireDashboardSession();
-  const [findings, runs, repos, reviews, attackTasks] = await Promise.all([
+  const [findings, runs, repos, reviews, attackTasks, live] = await Promise.all([
     getOpenFindings(userId),
     getRuns(userId, 5),
     getRepositories(userId),
     getRecentPullRequestReviews(userId).catch(() => []),
     getAttackTasks(userId).catch(() => null),
+    loadLiveReach(userId).catch(() => null),
   ]);
   // A3: the attack's real state in one line; unreadable shows nothing.
   const attack = attackTasks ? attackFeed(attackTasks) : null;
@@ -52,7 +55,11 @@ export default async function Overview() {
   const ordered = withTraffic(findings, hot);
   const { routes: routeCount, exposed } = mapCounts(map);
   const blocked = reviews.filter((r) => r.verdict === "block").length;
-  const unread = latest?.coverage.length ?? 0;
+  // Live addresses with no route in the audited repository count as one more
+  // area not checked (lib/chain/shadowRoutes.ts), as on Coverage.
+  const boundName = live ? repos.find((r) => r.id === live.repositoryId)?.fullName : undefined;
+  const unread = latest ? notCheckedAreas(latest.coverage,
+    boundName === latest.fullName ? shadowRoutesFromRuns(live, runs, latest.fullName) : { state: "unknown", why: "" }) : 0;
   // Only confirmed issues set the status (A1, Felipe 2026-10-07: prioritize
   // accuracy); candidates are named as "to review", never counted as issues.
   const issues = findings.filter((f) => f.confirmed);
