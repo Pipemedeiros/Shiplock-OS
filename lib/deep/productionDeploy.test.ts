@@ -58,6 +58,12 @@ describe("readProductionDeploy", () => {
     expect(await readProductionDeploy("tok", "acme/app", sha("f"))).toMatchObject({ behindBy: null });
   });
 
+  it("refuses a head that is not a commit sha before building any path from it", async () => {
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await readProductionDeploy("tok", "acme/app", "main/../../x")).toMatchObject({ state: "unreadable" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("is none when the host reports no production deploys to GitHub", async () => {
     vi.stubGlobal("fetch", fetchMock);
     fetchMock.mockResolvedValue(json([]));

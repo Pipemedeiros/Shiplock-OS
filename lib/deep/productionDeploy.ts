@@ -67,6 +67,7 @@ export function summarizeDeploys(deploys: readonly Deploy[], statuses: ReadonlyM
 
 /** The production deploy of one repository against its default branch head. */
 export async function readProductionDeploy(token: string, fullName: string, headSha: string): Promise<ProductionDeploy> {
+  if (!Sha.safeParse(headSha).success) return { state: "unreadable", why: "The default branch head was not a commit." };
   try {
     const deploys = z.array(z.object({ id: z.number(), sha: Sha, environment: z.string(), production_environment: z.boolean().optional(),
       created_at: z.string(), creator: z.object({ login: z.string().optional() }).nullable().optional() }).loose())
