@@ -55,6 +55,9 @@ export async function POST(req: NextRequest) {
   }
 
   const event = req.headers.get("x-github-event");
+  if (event === "push") {
+    try { return await recheckAfterPush(JSON.parse(raw)); } catch { return NextResponse.json({ ok: true }); }
+  }
   if (event !== "pull_request") return NextResponse.json({ ok: true });
 
   let payload: {
@@ -202,6 +205,48 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ ok: true });
+}
+
+/**
+ * A push to the default branch of a selected repository (2026-10-20). Founders
+ * often push straight to main, and GitHub reports each push; until now the
+ * only recheck was the daily one. This queues the source scan (secrets,
+ * dependencies, history) in the same 10-minute bucket the pull request path
+ * uses, so a merge, its push and a burst of pushes share one scan. The full
+ * audit stays with pull requests, merges, a click and the daily cycle.
+ */
+async function recheckAfterPush(payload: {
+  ref?: string; after?: string; deleted?: boolean; installation?: { id?: number };
+  repository?: { full_name?: string; default_branch?: string };
+}): Promise<NextResponse> {
+  const installationId = payload.installation?.id;
+  const fullName = payload.repository?.full_name;
+  const branch = payload.repository?.default_branch;
+  if (!installationId || !fullName || !branch || payload.ref !== `refs/heads/${branch}` || payload.deleted === true
+    || !payload.after || !/^[a-f0-9]{40}$/i.test(payload.after) || /^0+$/.test(payload.after)) {
+    return NextResponse.json({ ok: true });
+  }
+  try {
+    const admin = getSupabaseAdmin();
+    const { data: profile, error: profileError } = await admin.from("user_profiles")
+      .select("id, is_paid").eq("github_installation_id", installationId).maybeSingle();
+    if (profileError) return NextResponse.json({ error: "webhook temporarily unavailable" }, { status: 503 });
+    if (!profile || !hasProductAccess(profile)) return NextResponse.json({ ok: true });
+    const { data: repository, error: repositoryError } = await admin.from("repositories")
+      .select("id").eq("user_id", profile.id).eq("full_name", fullName).eq("selected", true).maybeSingle();
+    if (repositoryError) return NextResponse.json({ error: "webhook temporarily unavailable" }, { status: 503 });
+    if (!repository) return NextResponse.json({ ok: true });
+
+    const bucket = Math.floor(Date.now() / COALESCE_WINDOW_MS);
+    await enqueueJob(profile.id as string, repository.id as string, "source", `webhook-source:${repository.id}:${bucket}`);
+    after(async () => {
+      try { await runNextJob(); } catch { console.error("[monitor/github] worker wake failed"); }
+    });
+    return NextResponse.json({ ok: true });
+  } catch {
+    console.error("[monitor/github] push recheck admission failed");
+    return NextResponse.json({ error: "webhook temporarily unavailable" }, { status: 503 });
+  }
 }
 
 /**

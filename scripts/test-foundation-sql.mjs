@@ -1758,7 +1758,7 @@ try {
   const pruneSql = await readFile(new URL("../supabase/migrations/111_prune_scheduler_history.sql", import.meta.url), "utf8");
   await check("111 is a no-op without pg_cron and prunes only scheduler run history older than 7 days", async () => {
     await db.exec("reset role");
-    await db.exec(pruneSql);
+    await db.exec(await readFile(new URL("../supabase/migrations/111_prune_scheduler_history.sql", import.meta.url), "utf8"));
     assert.equal((await db.query("select count(*)::int n from pg_namespace where nspname = 'cron'")).rows[0].n, 0);
     assert.match(pruneSql, /cron\.schedule\(\s*'shiplock-prune-scheduler-history',\s*'17 3 \* \* \*'/);
     assert.match(pruneSql, /delete from cron\.job_run_details where end_time < now\(\) - interval '7 days'/);
