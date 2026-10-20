@@ -94,6 +94,11 @@ describe("Phase 1 finding classes route to lanes that can actually apply", () =>
     expect(fixLane(f("bundle:source_map_exposed:with_content")).method).toBe("code-pr");
   });
 
+  it("missing response headers are a config change, so a PR", () => {
+    expect(fixLane(f("headers:frame_protection_missing")).method).toBe("code-pr");
+    expect(fixLane(f("headers:hsts_missing")).method).toBe("code-pr");
+  });
+
   it("email auth is DNS — not code, not SQL, and not a page we can link to", () => {
     for (const id of ["email_auth:spf_missing", "email_auth:dmarc_policy_none", "email_auth:dkim_revoked:resend"]) {
       const l = fixLane(f(id));

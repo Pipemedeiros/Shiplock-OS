@@ -51,7 +51,7 @@ export async function getFixFindings(userId: string): Promise<FixableFinding[]> 
           ? "dns"
           : d.finding_id.startsWith("auth_redirect:") || d.finding_id.startsWith("auth_site_url:")
             ? "auth-config"
-            : d.finding_id.startsWith("exposed:") || d.finding_id.startsWith("bundle:")
+            : d.finding_id.startsWith("exposed:") || d.finding_id.startsWith("bundle:") || d.finding_id.startsWith("headers:")
               ? "app"
               : "github";
     out.push({

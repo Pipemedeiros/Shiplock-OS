@@ -99,6 +99,9 @@ describe("dispatch — null is the correct answer for judgement cases", () => {
   it("has a codemod for the mechanical fixes", () => {
     expect(hasCodemod(f("scan:missing-security-headers", "Missing security headers"))).toBe(true);
     expect(hasCodemod(f("bundle:source_map_exposed:with_content"))).toBe(true);
+    // The live site's own response headers (lib/security/responseHeaders.ts).
+    expect(hasCodemod(f("headers:frame_protection_missing"))).toBe(true);
+    expect(hasCodemod(f("headers:hsts_missing"))).toBe(true);
     expect(hasCodemod(f("acme/app::github:public_prefixed_secret:NEXT_PUBLIC_X_SECRET:.env"))).toBe(true);
   });
 

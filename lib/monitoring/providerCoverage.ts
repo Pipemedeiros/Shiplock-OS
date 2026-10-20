@@ -40,6 +40,7 @@ const FAMILIES: [string, string][] = [
   ["storage:unrestricted_uploads:", "Storage buckets"], ["storage:permissive_object_policy", "Storage policies"],
   ["storage:no_pitr", "Backups"], ["realtime:", "Realtime"], ["exposed:", "Exposed paths"],
   ["bundle:", "Shipped JavaScript"], ["email_auth:", "Email authentication records"], ["origin:", "Origin server"],
+  ["headers:", "Response headers"],
 ];
 
 const REASONS: Record<string, string> = {

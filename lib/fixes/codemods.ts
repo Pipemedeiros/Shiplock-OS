@@ -233,6 +233,7 @@ export function codemodFor(finding: FixableFinding): Codemod | null {
   const id = finding.id.includes("::") ? finding.id.slice(finding.id.indexOf("::") + 2) : finding.id;
 
   if (id.startsWith("scan:") && /security header/i.test(finding.title)) return addSecurityHeaders;
+  if (id.startsWith("headers:")) return addSecurityHeaders;
   if (id.startsWith("bundle:source_map_exposed")) return disableProductionSourceMaps;
   if (id.startsWith("github:workflow_no_permissions:")) return addWorkflowPermissions;
   if (id.startsWith("github:logged_secret")) return removeSecretLogging;

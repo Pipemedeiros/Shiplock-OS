@@ -155,6 +155,8 @@ export function fixLane(f: FixableFinding): FixLane {
   if (id.startsWith("bundle:source_map_exposed")) {
     return lane("code-pr", "Open fix PR", true);
   }
+  // Missing response headers are a next.config change.
+  if (id.startsWith("headers:")) return lane("code-pr", "Open fix PR", true);
 
   // ── Email authentication is DNS. Not code, not SQL, and not something we can
   // deep-link to, because we don't know who runs their DNS. Honest label. ──

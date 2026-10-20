@@ -1,6 +1,7 @@
 import type { ProviderCommit } from "@/lib/monitoring/registry";
 import { probeExposedPaths, type ExposedFinding } from "./exposedPaths";
 import { auditShippedBundle } from "./bundleAudit";
+import { auditResponseHeaders } from "./responseHeaders";
 import { MAX_PATHS, type ShippedRead } from "./shippedCalls";
 import { readCertificateNames } from "./certificateNames";
 import { auditEmailAuth, nodeTxtResolver, domainFromUrl, isSharedHost } from "./emailAuth";
@@ -11,6 +12,7 @@ import { analyzeOriginPosture, collectOriginPosture, fetchOriginHeaders, nodeDns
 //  - the shipped bundle audit (D6 source maps, D7 secrets in public JS)
 //  - email authentication on their domain (D12 SPF/DKIM/DMARC)
 //  - origin exposure: whether their edge protection can be bypassed
+//  - response headers: frame protection and HTTPS pinning (INFO)
 // Both take the same single input and hit the same host, so they share a pass
 // and a source label. Findings commit through the monitor worker's fence into
 // deep_findings (source='exposed-path')
@@ -35,7 +37,7 @@ export async function runExposedPathScan(
   const unread: string[] = [];
   const failed = (prefix: string) => () => { unread.push(prefix); return []; };
   const shipped: ShippedRead = { pageRead: false, pagesRead: 0, scriptsSeen: 0, scriptsRead: 0, paths: new Set(), requests: new Set() };
-  const [paths, bundle, email, origin, certificateNames] = await Promise.all([
+  const [paths, bundle, email, origin, certificateNames, headers] = await Promise.all([
     probeExposedPaths(appUrl, signal, unread).catch(failed("exposed:")),
     auditShippedBundle(appUrl, signal, unread, shipped).catch(failed("bundle:")),
     auditEmailAuth(appUrl, nodeTxtResolver, unread).catch(failed("email_auth:")),
@@ -53,11 +55,13 @@ export async function runExposedPathScan(
     // Other names on the founder's own domain (certificate transparency):
     // listed for review, never read. null is not read; undefined, not applicable.
     readCertificateNames(appUrl, signal).catch(() => null),
+    // Frame protection and HTTPS pinning on the home page (INFO).
+    auditResponseHeaders(appUrl, signal, unread).catch(failed("headers:")),
   ]);
   // Probes resolve to [] on network failure, and an empty pass archives every
   // active finding below. A cancelled pass must therefore write nothing at all.
   signal?.throwIfAborted();
-  const findings = [...paths, ...bundle, ...email, ...origin];
+  const findings = [...paths, ...bundle, ...email, ...origin, ...headers];
 
   // Findings commit under the monitor job's lease and the app URL it probed
   // (3F-C2c); unread families are never archived. The fenced commit does not
