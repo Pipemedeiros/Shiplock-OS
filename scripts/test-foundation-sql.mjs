@@ -1792,5 +1792,15 @@ try {
     }
     await db.query("delete from public.deep_findings where finding_id in ('github:insecure_random:t.ts','agent:missing_authentication:/api/p')");
   });
+  // 113: 025 and 037 both indexed traffic_events (user_id, created_at desc);
+  // the advisor's one performance warning. One copy stays.
+  await check("traffic_events keeps one (user_id, created_at desc) index (113)", async () => {
+    await db.exec("reset role");
+    // As production has it: the local suite does not load 037, so add its copy.
+    await db.exec("create index if not exists idx_traffic_events_user_created on public.traffic_events (user_id, created_at desc)");
+    await db.exec(await readFile(new URL("../supabase/migrations/113_drop_duplicate_traffic_index.sql", import.meta.url), "utf8"));
+    const names=(await db.query("select indexname from pg_indexes where schemaname='public' and tablename='traffic_events' and indexdef like '%(user_id, created_at DESC)'")).rows.map((r)=>r.indexname);
+    assert.deepEqual(names,["traffic_events_user_created_idx"]);
+  });
   console.log(`${checks} SQL checks passed. Single-connection PostgreSQL WASM; multi-session contention and hosted Supabase remain unverified.`);
 } finally { await db.close(); }
