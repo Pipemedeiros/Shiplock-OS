@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { AgentSetupView, httpCommand, setupCommand } from "./AgentSetup";
+import { AgentSetupView, codexHttpConfig, httpCommand, setupCommand } from "./AgentSetup";
 
 const base = { tokens: [], fresh: null, busy: false, error: "", onGenerate: vi.fn(), onRevoke: vi.fn(), published: true };
 const html = (props: Partial<Parameters<typeof AgentSetupView>[0]> & { host: Parameters<typeof AgentSetupView>[0]["host"] }) =>
@@ -30,7 +30,8 @@ describe("AgentSetup (MCP for every account)", () => {
   });
 
   // G1: the hosted endpoint (app/api/mcp/server) needs no npm package, so
-  // Claude Code connects today; Codex waits for the package, which it needs.
+  // Claude Code and Codex (streamable HTTP, url + bearer_token_env_var in the
+  // official Codex docs, read 2026-10-20) both connect today.
   it("connects Claude Code over HTTP with no package, and the token in a header", () => {
     expect(httpCommand("https://shiplock.dev", "tok")).toBe('claude mcp add --transport http shiplock https://shiplock.dev/api/mcp/server --header "Authorization: Bearer tok"');
     const out = html({ host: "claude-code", published: false, fresh: "tok", origin: "https://shiplock.dev" });
@@ -39,11 +40,13 @@ describe("AgentSetup (MCP for every account)", () => {
     expect(out).not.toContain("npx");
   });
 
-  it("keeps Codex waiting for the package and points to Claude Code today", () => {
-    const out = html({ host: "codex", published: false });
-    expect(out).toContain("Codex setup opens once the ShipLock MCP package is published");
-    expect(out).toContain("Claude Code can connect today");
-    expect(out).not.toContain("Create a token");
+  it("connects Codex over HTTP with no package, the token only in the environment", () => {
+    expect(codexHttpConfig("https://shiplock.dev/")).toBe('[mcp_servers.shiplock]\nurl = "https://shiplock.dev/api/mcp/server"\nbearer_token_env_var = "SHIPLOCK_TOKEN"');
+    const out = html({ host: "codex", published: false, fresh: "tok", origin: "https://shiplock.dev" });
+    expect(out).toContain("Create a token");
+    expect(out).toContain("url = &quot;https://shiplock.dev/api/mcp/server&quot;");
+    expect(out).toContain("export SHIPLOCK_TOKEN=tok");
+    expect(out).not.toContain("SHIPLOCK_TOKEN = &quot;tok&quot;");
     expect(out).not.toContain("npx");
   });
 

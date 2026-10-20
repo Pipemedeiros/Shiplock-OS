@@ -21,6 +21,12 @@ export function setupCommand(host: "claude-code" | "codex", token: string): stri
   return `[mcp_servers.shiplock]\ncommand = "npx"\nargs = ["-y", "shiplock-mcp"]\nenv = { SHIPLOCK_TOKEN = "${token}" }`;
 }
 
+/** Codex to the hosted endpoint over streamable HTTP: the config names the
+ * environment variable, so the token never sits in config.toml. */
+export function codexHttpConfig(origin: string): string {
+  return `[mcp_servers.shiplock]\nurl = "${origin.replace(/\/+$/, "")}/api/mcp/server"\nbearer_token_env_var = "SHIPLOCK_TOKEN"`;
+}
+
 /** Claude Code to ShipLock's hosted MCP endpoint (app/api/mcp/server): no package. */
 export function httpCommand(origin: string, token: string): string {
   return `claude mcp add --transport http shiplock ${origin.replace(/\/+$/, "")}/api/mcp/server --header "Authorization: Bearer ${token}"`;
@@ -37,11 +43,9 @@ export function AgentSetupView({ host, tokens, fresh, busy, error, onGenerate, o
   if (host === "chatgpt") {
     return <p style={note}>ChatGPT connection is not available yet. Choose Claude Code or Codex to connect an agent today.</p>;
   }
-  if (!published && host === "codex") {
-    return <p style={note}>Codex setup opens once the ShipLock MCP package is published. Claude Code can connect today. Your approval here is saved and applies as soon as your agent is connected.</p>;
-  }
+  const hostedCodex = !published && host === "codex";
   const where = host === "claude-code" ? "Run this in your terminal:" : "Add this to ~/.codex/config.toml:";
-  const command = (token: string) => (published ? setupCommand(host, token) : httpCommand(origin, token));
+  const command = (token: string) => (published ? setupCommand(host, token) : hostedCodex ? codexHttpConfig(origin) : httpCommand(origin, token));
   return (
     <div style={{ marginBottom: 12 }}>
       <p style={note}>
@@ -57,6 +61,12 @@ export function AgentSetupView({ host, tokens, fresh, busy, error, onGenerate, o
         <div style={{ marginTop: 10 }}>
           <p style={{ ...note, color: "var(--ink)" }}>Copy it now: this token is shown only once. {where}</p>
           <pre style={pre}>{command(fresh)}</pre>
+          {hostedCodex ? (
+            <>
+              <p style={{ ...note, color: "var(--ink)", marginTop: 10 }}>Then set the token in the shell that starts Codex:</p>
+              <pre style={pre}>{`export SHIPLOCK_TOKEN=${fresh}`}</pre>
+            </>
+          ) : null}
         </div>
       ) : null}
       {tokens.length > 0 ? (
