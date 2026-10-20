@@ -60,4 +60,18 @@ describe("resolveRepairTarget (Q13)", () => {
     expect(await resolveRepairTarget("u1", { lane: "finding", findingId: "f" })).toEqual({ ok: false, code: "choose_repository" });
     expect(await resolveRepairTarget("u1", { lane: "finding", findingId: "missing" })).toEqual({ ok: false, code: "not_found" });
   });
+  // A live-site finding is fixed in the repository the founder said serves
+  // that site, under a binding still current; otherwise the founder chooses.
+  it("fix card: a live-site finding goes to the repository bound to the app address", async () => {
+    state.rows.repositories = [{ id: R1, full_name: "acme/app" }, { id: "other", full_name: "acme/web" }];
+    state.fix.mockResolvedValue([{ id: "headers:hsts_missing" }, { id: "f" }]);
+    state.rows.user_profiles = { monitored_app_url: "https://acme.com", monitored_app_bound_url: "https://acme.com", monitored_app_repository_id: "other" };
+    expect(await resolveRepairTarget("u1", { lane: "finding", findingId: "headers:hsts_missing" }))
+      .toEqual({ ok: true, target: { action: "finding-fix-pr", repositoryId: "other", findingId: "headers:hsts_missing", editedContent: null } });
+    expect(await resolveRepairTarget("u1", { lane: "finding", findingId: "f" })).toEqual({ ok: false, code: "choose_repository" });
+    state.rows.user_profiles = { monitored_app_url: "https://new.acme.com", monitored_app_bound_url: "https://acme.com", monitored_app_repository_id: "other" };
+    expect(await resolveRepairTarget("u1", { lane: "finding", findingId: "headers:hsts_missing" })).toEqual({ ok: false, code: "choose_repository" });
+    state.rows.user_profiles = { monitored_app_url: "https://acme.com", monitored_app_bound_url: "https://acme.com", monitored_app_repository_id: "deselected" };
+    expect(await resolveRepairTarget("u1", { lane: "finding", findingId: "headers:hsts_missing" })).toEqual({ ok: false, code: "choose_repository" });
+  });
 });

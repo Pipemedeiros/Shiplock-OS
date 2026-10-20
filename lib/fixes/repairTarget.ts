@@ -29,6 +29,20 @@ const reviewSchema = z.object({ repository_id: z.uuid(), same_repository: z.bool
   findings: z.array(z.object({ id: z.string() })) });
 const taskSchema = z.object({ repository_id: z.uuid(), status: z.string(), result: z.object({ edits: z.array(z.unknown()) }).nullable() });
 
+// Findings read from the live site, fixed in the repository that serves it.
+const LIVE_SITE = /^(?:exposed:|bundle:|headers:)/;
+
+/** The selected repository the founder bound the app address to, while that
+ * binding is still for the current address; otherwise the founder chooses. */
+async function boundRepository(userId: string, rows: { id: string; full_name: string }[]) {
+  const { data, error } = await getSupabaseAdmin().from("user_profiles")
+    .select("monitored_app_url, monitored_app_bound_url, monitored_app_repository_id").eq("id", userId).maybeSingle();
+  if (error) throw new Error("profile unreadable");
+  const p = data as { monitored_app_url?: unknown; monitored_app_bound_url?: unknown; monitored_app_repository_id?: unknown } | null;
+  if (!p || typeof p.monitored_app_url !== "string" || p.monitored_app_bound_url !== p.monitored_app_url) return undefined;
+  return rows.find((row) => row.id === p.monitored_app_repository_id);
+}
+
 /** Reads throw (the caller answers 503); refusals return a code the caller
  * turns into its own message. */
 export async function resolveRepairTarget(userId: string, button: RepairButton): Promise<RepairTargetResult> {
@@ -67,7 +81,8 @@ export async function resolveRepairTarget(userId: string, button: RepairButton):
   if (error) throw new Error("repositories unreadable");
   const rows = (selected ?? []) as { id: string; full_name: string }[];
   const scoped = finding.id.includes("::") ? finding.id.slice(0, finding.id.indexOf("::")) : null;
-  const repository = scoped ? rows.find((row) => row.full_name === scoped) : rows.length === 1 ? rows[0] : undefined;
+  const repository = scoped ? rows.find((row) => row.full_name === scoped)
+    : rows.length === 1 ? rows[0] : LIVE_SITE.test(finding.id) ? await boundRepository(userId, rows) : undefined;
   if (!repository) return { ok: false, code: "choose_repository" };
   return { ok: true, target: fixLane(finding).method === "dep-pr"
     ? { action: "dependency-bump-pr", repositoryId: repository.id }
