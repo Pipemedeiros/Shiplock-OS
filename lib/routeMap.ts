@@ -73,7 +73,7 @@ const RISK_RANK: Record<Risk, number> = { open: 0, unknown: 1, unscoped: 2, guar
 
 const MAX_ROUTES = 120;
 const MAX_HELPERS = 30;
-const MAX_STORED = 400;
+export const MAX_STORED = 400;
 
 const storedRoute = z.object({
   path: z.string().max(1024), file: z.string().max(1024), tables: z.array(z.string().max(256)).max(40),

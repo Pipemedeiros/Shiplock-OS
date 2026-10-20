@@ -2,7 +2,7 @@ import type { Severity } from "@/lib/types";
 import { jwtRole } from "@/lib/deep/clientExposure";
 import { guardedFetch } from "@/lib/security/ssrfGuard";
 import { requestSignal } from "@/lib/abort";
-import { calledPaths, type ShippedRead } from "./shippedCalls";
+import { API_PATH, calledPaths, requestedPaths, type ShippedRead } from "./shippedCalls";
 
 // D6 + D7 from CHECK-SPEC.md §4 — audit what the customer's app ACTUALLY ships
 // to a browser, fetched from the public internet the way a visitor gets it.
@@ -37,14 +37,16 @@ export interface BundleFinding {
 // ── Pure: what the page loads ──────────────────────────────────────────────
 
 const SCRIPT_SRC_RE = /<script\b[^>]*\bsrc\s*=\s*["']([^"']+)["']/gi;
+const OWN_BUILD = /\/_next\/static\//;
 
 /**
- * Same-origin script URLs from a page's HTML, absolute and deduped.
+ * The page's own script URLs from its HTML, absolute and deduped.
  *
- * Same-origin only, deliberately. Third-party scripts (analytics, Stripe,
- * intercom) are not the customer's build output — auditing them would mean
- * reporting other companies' code as this customer's finding, and fetching
- * unrelated hosts on their behalf.
+ * Same-origin, plus the app's own Next.js build on an asset host (assetPrefix
+ * puts it under /_next/static/ on a CDN). Third-party scripts (analytics,
+ * Stripe, intercom) are not the customer's build output — auditing them would
+ * mean reporting other companies' code as this customer's finding, and
+ * fetching unrelated hosts on their behalf.
  */
 export function extractScriptUrls(html: string, pageUrl: string): string[] {
   let origin: string;
@@ -65,7 +67,7 @@ export function extractScriptUrls(html: string, pageUrl: string): string[] {
     } catch {
       continue;
     }
-    if (abs.origin !== origin) continue;
+    if (abs.origin !== origin && !OWN_BUILD.test(abs.pathname)) continue;
     if (!/^https?:$/.test(abs.protocol)) continue;
     const href = abs.href;
     if (seen.has(href)) continue;
@@ -227,10 +229,33 @@ export function scanBundleSecrets(js: string, jsUrl: string): BundleFinding[] {
   return out;
 }
 
+// ── Pure: the pages a visitor reaches next ─────────────────────────────────
+
+// A link whose GET may change something, or that names a backend address
+// rather than a page, is never followed: this pass reads what a visitor's
+// click would show and nothing a click would do.
+const NOT_A_PAGE = /(?:log|sign)[-_]?out|delete|remove|unsubscribe|callback|confirm|verify|reset|invite|accept|download|export/i;
+
+/** Same-origin pages the home page links to, absolute, sorted, excluding itself. */
+export function linkedPages(html: string, pageUrl: string): string[] {
+  let home: URL;
+  try { home = new URL(pageUrl); } catch { return []; }
+  const out = new Set<string>();
+  for (const path of requestedPaths(html)) {
+    if (API_PATH.test(path) || NOT_A_PAGE.test(path) || path.includes("[")) continue;
+    const url = new URL(path, home);
+    if (url.origin !== home.origin || url.pathname === home.pathname) continue;
+    out.add(url.href);
+  }
+  return [...out].sort();
+}
+
 // ── Network orchestration ──────────────────────────────────────────────────
 
 const TIMEOUT_MS = 8_000;
-const MAX_SCRIPTS = 8;
+const PAGE_TIMEOUT_MS = 5_000;
+const MAX_PAGES = 8;
+const MAX_SCRIPTS = 24;
 const MAX_JS_BYTES = 2_000_000; // a big Next.js chunk; beyond this we read a prefix
 const MAX_MAP_BYTES = 4_000_000;
 
@@ -260,7 +285,8 @@ export async function readCapped(res: Response, limit: number): Promise<string> 
 }
 
 /**
- * D6 + D7 against a live app URL.
+ * D6 + D7 against a live app URL: its page, the same-origin pages it links to,
+ * and the scripts they load.
  *
  * Best-effort throughout: any network failure means "we could not prove a
  * problem", never a finding. A monitoring pass reporting a vulnerability because
@@ -275,6 +301,12 @@ export async function auditShippedBundle(
   const found = new Map<string, BundleFinding>();
   const add = (finding: BundleFinding) => {
     if (!found.has(finding.id)) found.set(finding.id, finding);
+  };
+  // The paths this JavaScript names (P5), and those it requests itself.
+  const keep = (text: string) => {
+    if (!shipped) return;
+    for (const p of calledPaths(text)) shipped.paths.add(p);
+    for (const p of requestedPaths(text)) shipped.requests.add(p);
   };
 
   let html: string;
@@ -291,17 +323,41 @@ export async function auditShippedBundle(
     unread.push("bundle:");
     return [];
   }
-
-  const allScripts = extractScriptUrls(html, pageUrl);
-  if (allScripts.length > MAX_SCRIPTS) chunksUnread();
-  const scripts = allScripts.slice(0, MAX_SCRIPTS);
-  // The paths this JavaScript names (P5), with how much of it was read.
-  const keep = (text: string) => { if (shipped) for (const p of calledPaths(text)) shipped.paths.add(p); };
-  if (shipped) { shipped.pageRead = true; shipped.scriptsSeen = allScripts.length; }
+  if (shipped) { shipped.pageRead = true; shipped.pagesRead = 1; }
   keep(html);
   // An inline-only page (or one whose entry chunk we can't see) still gets its
   // HTML checked — bundlers and hand-written templates both inline keys there.
   for (const finding of scanBundleSecrets(html, pageUrl)) add(finding);
+
+  // A home page loads only its own chunks; the pages it links to load theirs.
+  // An error answer is what a visitor gets (nothing to read); a failed read
+  // leaves that page's scripts unread.
+  const origin = new URL(pageUrl).origin;
+  const pages = linkedPages(html, pageUrl);
+  if (pages.length > MAX_PAGES) chunksUnread();
+  const linked = await Promise.all(pages.slice(0, MAX_PAGES).map(async (url) => {
+    try {
+      const res = await guardedFetch(url, { signal: requestSignal(signal, PAGE_TIMEOUT_MS) });
+      if (res.status >= 500) { chunksUnread(); return null; }
+      const at = res.url || url;
+      if (new URL(at).origin !== origin) return null;
+      if (shipped) shipped.pagesRead++;
+      if (!res.ok) return null;
+      const body = await readCapped(res, 1_000_000);
+      keep(body);
+      for (const finding of scanBundleSecrets(body, at)) add(finding);
+      return { html: body, url: at };
+    } catch {
+      chunksUnread();
+      return null;
+    }
+  }));
+
+  const allScripts = [...new Set([{ html, url: pageUrl }, ...linked.filter((p) => p !== null)]
+    .flatMap((p) => extractScriptUrls(p.html, p.url)))];
+  if (allScripts.length > MAX_SCRIPTS) chunksUnread();
+  const scripts = allScripts.slice(0, MAX_SCRIPTS);
+  if (shipped) shipped.scriptsSeen = allScripts.length;
 
   await Promise.all(
     scripts.map(async (jsUrl) => {

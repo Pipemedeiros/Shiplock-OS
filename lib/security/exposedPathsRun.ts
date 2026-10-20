@@ -34,7 +34,7 @@ export async function runExposedPathScan(
   // that throws outright leaves its whole family unread.
   const unread: string[] = [];
   const failed = (prefix: string) => () => { unread.push(prefix); return []; };
-  const shipped: ShippedRead = { pageRead: false, scriptsSeen: 0, scriptsRead: 0, paths: new Set() };
+  const shipped: ShippedRead = { pageRead: false, pagesRead: 0, scriptsSeen: 0, scriptsRead: 0, paths: new Set(), requests: new Set() };
   const [paths, bundle, email, origin, certificateNames] = await Promise.all([
     probeExposedPaths(appUrl, signal, unread).catch(failed("exposed:")),
     auditShippedBundle(appUrl, signal, unread, shipped).catch(failed("bundle:")),
@@ -64,8 +64,9 @@ export async function runExposedPathScan(
   // report an archive count, so none is claimed here.
   // The paths the live site names (P5), kept only from a read page: a failed
   // read sends no fact, so the last observation stands with its own time.
-  const facts = shipped.pageRead ? { facts: { appSurface: { url: appUrl, scriptsSeen: shipped.scriptsSeen,
+  const facts = shipped.pageRead ? { facts: { appSurface: { url: appUrl, pagesRead: shipped.pagesRead, scriptsSeen: shipped.scriptsSeen,
     scriptsRead: shipped.scriptsRead, paths: [...shipped.paths].sort().slice(0, MAX_PATHS),
+    requests: [...shipped.requests].sort().slice(0, MAX_PATHS),
     ...(certificateNames !== undefined ? { certificateNames } : {}) } } } : {};
   const created = await commit({ transport: "app-surface", identity: appUrl, ...facts, findings, retire: true, unread,
     snapshot: { scope: new URL(appUrl).host, failed: unread } });

@@ -43,7 +43,8 @@ describe("withChains", () => {
 
   // P5: live reach joins only the repository the founder bound the address to.
   it("joins what the live site calls only to the bound repository's findings", () => {
-    const live = { repositoryId: "r1", host: "app.acme.com", observedAt: "2026-10-17T10:00:00.000Z", paths: ["/api/notes/"] };
+    const live = { repositoryId: "r1", host: "app.acme.com", observedAt: "2026-10-17T10:00:00.000Z", paths: ["/api/notes/"],
+      requests: null, read: { pages: null, scriptsSeen: null, scriptsRead: null } };
     const [bound, other] = withChains([{ ...base, repositoryId: "r1", hitHard: null }, { ...base, repositoryId: "r2", hitHard: null }],
       { runs: [], repos: [...repos, { id: "r2", fullName: "acme/other" }], trafficConnected: false, live });
     expect(bound.chain.links[0]).toMatchObject({ state: "met" });

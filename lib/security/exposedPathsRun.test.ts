@@ -85,13 +85,15 @@ describe("runExposedPathScan", () => {
   // P5: the paths the live site's JavaScript calls, as a runtime fact under
   // the address it was read from, only when the page itself was read.
   it("sends the paths the live site calls as its own fact when the page was read", async () => {
-    auditMock.mockImplementation(async (_u: string, _s: unknown, _unread: string[], shipped: { pageRead: boolean; scriptsSeen: number; scriptsRead: number; paths: Set<string> }) => {
-      Object.assign(shipped, { pageRead: true, scriptsSeen: 9, scriptsRead: 8 });
-      shipped.paths.add("/api/orders/").add("/api/me");
+    auditMock.mockImplementation(async (_u: string, _s: unknown, _unread: string[], shipped: { pageRead: boolean; scriptsSeen: number; scriptsRead: number; paths: Set<string>; requests: Set<string> }) => {
+      Object.assign(shipped, { pageRead: true, pagesRead: 3, scriptsSeen: 9, scriptsRead: 8 });
+      shipped.paths.add("/api/orders/").add("/api/me").add("/api/surveys/");
+      shipped.requests.add("/api/orders/").add("/api/me");
       return [];
     });
     await run();
-    expect(sent().facts).toEqual({ appSurface: { url, scriptsSeen: 9, scriptsRead: 8, paths: ["/api/me", "/api/orders/"] } });
+    expect(sent().facts).toEqual({ appSurface: { url, pagesRead: 3, scriptsSeen: 9, scriptsRead: 8,
+      paths: ["/api/me", "/api/orders/", "/api/surveys/"], requests: ["/api/me", "/api/orders/"] } });
   });
 
   // Other names on the founder's own domain, from certificate transparency.

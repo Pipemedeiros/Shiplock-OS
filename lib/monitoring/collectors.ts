@@ -152,7 +152,7 @@ export const supabaseManagementCollector: CollectorSpec = {
  * archive-on-resolve contract and returns only what is new, so these findings
  * never enter the snapshot and must not be diffed centrally.
  *
- * Full passes only. The bundle audit downloads real chunks (up to 8 per pass),
+ * Full passes only. The bundle audit downloads real chunks (up to 24 per pass),
  * which is the wrong weight for something firing every hour — and unlike a
  * leaked key in the database layer, a bundle only changes when the customer
  * deploys. It runs on a schedule at all because these checks used to run exactly
@@ -166,7 +166,8 @@ export const appSurfaceCollector: CollectorSpec = {
   layer: "app-surface",
   transport: "app-surface",
   eligibleTriggers: ["manual", "deploy", "scheduled_48h"],
-  timeoutMs: 30_000,
+  // The page, up to 8 linked pages, then up to 24 scripts and their maps.
+  timeoutMs: 45_000,
   appliesTo: (ctx) => ctx.profile.monitoring_enabled !== false
     && Boolean(ctx.profile.monitored_app_url),
   async run(ctx) {

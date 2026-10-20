@@ -117,6 +117,19 @@ describe("GET /api/mcp/context", () => {
     expect((await get("?repository=acme/app")).status).toBe(200);
   });
 
+  // Shadow routes: what the live site requests that this repository has no route for.
+  it("lists live requests the bound repository has no route for, and says unknown otherwise", async () => {
+    s.runs.mockResolvedValue([{ fullName: "acme/app", startedAt: "2026-09-30T00:00:00Z", status: "complete", stack: null, coverage: [],
+      routeFacts: [{ path: "/api/orders/[id]", file: "app/api/orders/[id]/route.ts", tables: [], authenticated: false, ownershipFiltered: false, machineGated: false }] }]);
+    s.live.mockResolvedValue({ repositoryId: "r1", host: "app.acme.com", observedAt: "2026-10-20T09:00:00.000Z", paths: [],
+      requests: ["/api/orders/", "/api/legacy/export"], read: { pages: 3, scriptsSeen: 4, scriptsRead: 4 } });
+    const body = await (await get("?repository=acme/app")).json();
+    expect(body.liveSite).toEqual({ host: "app.acme.com", observedAt: "2026-10-20T09:00:00.000Z", notInRepository: ["/api/legacy/export"], partial: false });
+    expect(body.notRead.some((n: string) => n.includes("/api/legacy/export"))).toBe(true);
+    s.live.mockResolvedValue(null);
+    expect((await (await get("?repository=acme/app")).json()).liveSite).toEqual({ unknown: "No app address is bound to this repository." });
+  });
+
   // 107: the agent sees its own reported self-check on the finding, and the next step it implies.
   it("returns the agent's reported self-check on the finding's proof link", async () => {
     s.findings.mockResolvedValue([{ id: "agent:notes", rowId: "row-1", repositoryId: "r1", title: "t", severity: "CRITICAL", entry: "/api/notes/[id]",

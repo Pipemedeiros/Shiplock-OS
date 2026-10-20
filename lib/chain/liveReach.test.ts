@@ -12,7 +12,13 @@ const runtime = { appSurface: { url, scriptsSeen: 3, scriptsRead: 3, paths: ["/a
 describe("liveReachFrom", () => {
   it("admits the live paths under a current binding to a selected repository", () => {
     expect(liveReachFrom(profile, runtime, ["r1"])).toEqual({ repositoryId: "r1", host: "app.acme.com",
-      observedAt: "2026-10-17T10:00:00.000Z", paths: ["/api/notes/"] });
+      observedAt: "2026-10-17T10:00:00.000Z", paths: ["/api/notes/"], requests: null,
+      read: { pages: null, scriptsSeen: 3, scriptsRead: 3 } });
+  });
+
+  it("carries the own-origin requests and pages read once the fact records them", () => {
+    const v2 = { ...runtime, appSurface: { ...runtime.appSurface, pagesRead: 4, requests: ["/api/notes/", "https://evil.example/x"] } };
+    expect(liveReachFrom(profile, v2, ["r1"])).toMatchObject({ requests: ["/api/notes/"], read: { pages: 4, scriptsSeen: 3, scriptsRead: 3 } });
   });
 
   it.each([

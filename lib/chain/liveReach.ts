@@ -16,11 +16,18 @@ import { getSupabaseAdmin } from "@/lib/supabase";
  *
  * Anything else is no join, never "not reachable".
  */
-export type LiveReach = { repositoryId: string; host: string; observedAt: string | null; paths: string[] };
+export type LiveReach = {
+  repositoryId: string; host: string; observedAt: string | null; paths: string[];
+  /** Paths requested on the site's own origin; null on a fact read before they were recorded. */
+  requests: string[] | null;
+  read: { pages: number | null; scriptsSeen: number | null; scriptsRead: number | null };
+};
 
 type Profile = { monitored_app_url?: unknown; monitored_app_repository_id?: unknown; monitored_app_bound_url?: unknown };
 const PLAIN = /^\/[A-Za-z0-9_\-.~/[\]:@]{1,199}$/;
-const Fact = z.object({ url: z.string(), paths: z.array(z.string()).max(500) });
+const Count = z.number().int().nonnegative().optional();
+const Fact = z.object({ url: z.string(), paths: z.array(z.string()).max(500), requests: z.array(z.string()).max(500).optional(),
+  pagesRead: Count, scriptsSeen: Count, scriptsRead: Count });
 
 export function liveReachFrom(profile: Profile | null, runtime: Record<string, unknown> | null, selected: readonly string[]): LiveReach | null {
   if (!profile || !runtime) return null;
@@ -33,8 +40,10 @@ export function liveReachFrom(profile: Profile | null, runtime: Record<string, u
   const recordedAt = evidence?.fields?.appSurface?.recordedAt;
   let host: string;
   try { host = new URL(url).host; } catch { return null; }
+  const { paths, requests, pagesRead, scriptsSeen, scriptsRead } = fact.data;
   return { repositoryId, host, observedAt: typeof recordedAt === "string" ? recordedAt : null,
-    paths: fact.data.paths.filter((p) => PLAIN.test(p)) };
+    paths: paths.filter((p) => PLAIN.test(p)), requests: requests ? requests.filter((p) => PLAIN.test(p)) : null,
+    read: { pages: pagesRead ?? null, scriptsSeen: scriptsSeen ?? null, scriptsRead: scriptsRead ?? null } };
 }
 
 /** The account's live reach, or null when nothing is bound or readable. */

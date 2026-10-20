@@ -34,6 +34,16 @@ describe("extractScriptUrls", () => {
     ]);
   });
 
+  // Next.js assetPrefix serves the app's own build from a CDN host
+  // (supabase.com: frontend-assets.supabase.com/www/<id>/_next/static/...).
+  // Skipping it read nothing and reported nothing unread, a quiet clean.
+  it("keeps the app's own Next.js build served from an asset host", () => {
+    const html = `
+      <script src="https://assets.example-cdn.com/www/abc/_next/static/chunks/main-app.js?dpl=x"></script>
+      <script src="https://cdn.posthog.com/static/array.js"></script>`;
+    expect(extractScriptUrls(html, PAGE)).toEqual(["https://assets.example-cdn.com/www/abc/_next/static/chunks/main-app.js?dpl=x"]);
+  });
+
   // Auditing someone else's CDN would mean reporting another company's code as
   // this customer's finding, and fetching unrelated hosts on their behalf.
   it("ignores third-party scripts", () => {

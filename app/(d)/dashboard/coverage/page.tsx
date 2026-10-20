@@ -15,6 +15,10 @@ import { getHotRoutes } from "@/lib/traffic/hotRoutes";
 import { When } from "@/components/v3/When";
 import { Fold } from "@/components/v3/Fold";
 import { auditState } from "@/lib/verdict";
+import { loadLiveReach } from "@/lib/chain/liveReach";
+import { latestRouteFacts } from "@/lib/chain/findingChains";
+import { shadowRoutes } from "@/lib/chain/shadowRoutes";
+import { LiveSite, liveSiteStatus } from "@/components/v3/LiveSite";
 
 export const metadata = { title: "Coverage" };
 
@@ -28,10 +32,10 @@ export const metadata = { title: "Coverage" };
  */
 export default async function Coverage() {
   const { userId } = await requireDashboardSession();
-  const [runs, evidence, ai, providers, traffic, hotRoutes, repos] = await Promise.all([getRuns(userId, 5), getEvidenceCoverage(userId),
+  const [runs, evidence, ai, providers, traffic, hotRoutes, repos, live] = await Promise.all([getRuns(userId), getEvidenceCoverage(userId),
     getAiActivity(userId), getProviderCoverage(userId), getTrafficSources(userId),
     // GitHub tree reads for rate-limit offers; any failure just offers nothing.
-    getHotRoutes(userId).catch(() => ({})), getRepositories(userId)]);
+    getHotRoutes(userId).catch(() => ({})), getRepositories(userId), loadLiveReach(userId).catch(() => null)]);
   // What the last FINISHED audit did not reach; one still running has read
   // nothing yet and must not read as "nothing unread".
   const latest = auditState(runs).finished;
@@ -39,6 +43,12 @@ export default async function Coverage() {
   const repo = latest ? repos.find((r) => r.fullName === latest.fullName) : undefined;
   const source = repo ? await loadRepositoryGraphSource(userId, repo.id) : null;
   const guardrails = repo && source?.routes ? deriveGuardrails(source.routes, { repository: repo.fullName, commit: null }) : null;
+
+  // The outside view: what the live site requests that the bound repository's
+  // newest stored routes do not declare.
+  const bound = live ? repos.find((r) => r.id === live.repositoryId) ?? null : null;
+  const boundRoutes = bound ? latestRouteFacts(runs).get(bound.fullName) : undefined;
+  const shadow = shadowRoutes(bound ? live : null, boundRoutes ? [...boundRoutes.values()] : null);
 
   const aiStatus = !ai.available ? "Unavailable" : ai.paused ? "Not running" : `${ai.checks.length} ${ai.checks.length === 1 ? "check" : "checks"}`;
   const providerStatus = !providers.available ? "Unavailable"
@@ -98,6 +108,9 @@ export default async function Coverage() {
         {/* Work handed to the customer's own AI (10B-2d). Unanswered is not clean. */}
         <Fold title="AI checks" status={aiStatus}><AiChecks activity={ai} /></Fold>
         <Fold title="Guardrails" status={guardrails ? `${guardrails.rules.length} rules` : "Not derived"}><GuardrailList guardrails={guardrails} /></Fold>
+        <Fold title="Live site" status={liveSiteStatus(bound ? live : null, shadow)}>
+          <LiveSite live={bound ? live : null} repository={bound?.fullName ?? null} shadow={shadow} />
+        </Fold>
         {/* Latest read per connected provider (5A-3). */}
         <Fold title="Providers" status={providerStatus}><ProviderCoverage coverage={providers} /></Fold>
         {/* Per repository traffic source (Q3 / 2F-5). */}
