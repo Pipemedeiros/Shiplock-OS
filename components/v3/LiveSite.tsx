@@ -57,6 +57,11 @@ export function LiveSite({ live, repository, shadow }: { live: LiveReach | null;
                 {shadow.removed.includes(p) ? <>{" "}<strong>Removed from {repository}, still live.</strong></> : null}</li>
             ))}
           </ul>
+          {shadow.codeUnread ? (
+            <p style={{ marginTop: 8 }}>
+              Your last audit of {repository} did not read every file, so some of these may be routes it never saw.
+            </p>
+          ) : null}
           {shadow.removed.length > 0 ? (
             <p style={{ marginTop: 8 }}>
               An earlier audit read a route for {shadow.removed.length === 1 ? "this address" : "these addresses"} that {repository} no

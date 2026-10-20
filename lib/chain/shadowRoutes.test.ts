@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { shadowRoutes } from "./shadowRoutes";
+import { shadowRoutes, shadowRoutesFromRuns } from "./shadowRoutes";
 import type { LiveReach } from "./liveReach";
 
 // Shadow routes (G3, the outside view): addresses the live site requests on
@@ -12,7 +12,7 @@ const routes = ["/api/me", "/api/notes/[id]", "/api/orders/[id]/share", "/dashbo
 describe("shadowRoutes", () => {
   it("lists the backend addresses the live site requests that no route declares", () => {
     const out = shadowRoutes(live(["/api/me", "/api/notes/", "/api/legacy/export", "/api/billing", "/pricing"]), routes);
-    expect(out).toEqual({ state: "read", paths: ["/api/billing", "/api/legacy/export"], partial: false, removed: [] });
+    expect(out).toEqual({ state: "read", paths: ["/api/billing", "/api/legacy/export"], partial: false, removed: [], codeUnread: false });
   });
 
   it("matches a dynamic route by its fixed prefix and a template prefix by the routes under it", () => {
@@ -30,7 +30,7 @@ describe("shadowRoutes", () => {
 
   it("says partial when scripts went unread, so a short list is not the whole list", () => {
     expect(shadowRoutes(live(["/api/billing"], { pages: 1, scriptsSeen: 30, scriptsRead: 24 }), routes))
-      .toEqual({ state: "read", paths: ["/api/billing"], partial: true, removed: [] });
+      .toEqual({ state: "read", paths: ["/api/billing"], partial: true, removed: [], codeUnread: false });
   });
 
   it.each([
@@ -49,6 +49,18 @@ describe("shadowRoutes", () => {
     const earlier = [[...routes, { path: "/api/legacy/export" }], [{ path: "/api/billing/[id]" }]];
     const out = shadowRoutes(live(["/api/legacy/export", "/api/billing/7", "/api/new"]), routes, earlier);
     expect(out).toEqual({ state: "read", paths: ["/api/billing/7", "/api/legacy/export", "/api/new"], partial: false,
-      removed: ["/api/billing/7", "/api/legacy/export"] });
+      removed: ["/api/billing/7", "/api/legacy/export"], codeUnread: false });
+  });
+
+  // A route inventory from an audit that skipped files may lack real routes,
+  // so a listed address may be one it never saw: said, never hidden.
+  it("reads the newest run's routes and earlier ones, and marks code the audit did not read", () => {
+    const run = (fullName: string, paths: string[], coverage: string[] = []) =>
+      ({ fullName, routeFacts: paths.map((path) => ({ path })), coverage: coverage.map((name) => ({ name })) });
+    const runs = [run("acme/other", ["/api/x"]), run("acme/app", ["/api/me"], ["12 files we did not read"]),
+      run("acme/app", ["/api/legacy"]), { fullName: "acme/app", routeFacts: null, coverage: [] }];
+    expect(shadowRoutesFromRuns(live(["/api/me", "/api/legacy", "/api/x"]), runs, "acme/app"))
+      .toEqual({ state: "read", paths: ["/api/legacy", "/api/x"], partial: false, removed: ["/api/legacy"], codeUnread: true });
+    expect(shadowRoutesFromRuns(live(["/api/me"]), runs, "acme/none")).toMatchObject({ state: "unknown" });
   });
 });

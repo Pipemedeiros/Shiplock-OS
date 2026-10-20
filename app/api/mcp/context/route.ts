@@ -12,7 +12,7 @@ import { getHotRoutes } from "@/lib/traffic/hotRoutes";
 import { evidenceChain, orderByChain, type ChainContext } from "@/lib/chain/evidenceChain";
 import { latestRouteFacts, liveContext } from "@/lib/chain/findingChains";
 import { loadLiveReach } from "@/lib/chain/liveReach";
-import { shadowRoutes } from "@/lib/chain/shadowRoutes";
+import { shadowRoutesFromRuns } from "@/lib/chain/shadowRoutes";
 import { loadSelfCheckReports } from "@/lib/proof/selfCheckReports";
 
 // MCP `get_security_context` (Felipe 2026-09-30): what the customer's own
@@ -47,8 +47,7 @@ export async function GET(req: NextRequest) {
   // Backend addresses the live site requests that this repository declares no
   // route for (lib/chain/shadowRoutes.ts): not checked, never an issue.
   const boundLive = live?.repositoryId === repo.id ? live : null;
-  const routeSets = runs.filter((r) => r.fullName === repo.fullName && r.routeFacts).map((r) => r.routeFacts!);
-  const shadow = shadowRoutes(boundLive, routeSets[0] ?? null, routeSets.slice(1));
+  const shadow = shadowRoutesFromRuns(boundLive, runs, repo.fullName);
   const repoHot = (hot as Record<string, { file: string; pattern: string; suspiciousRequests: number }[]>)[repo.id] ?? [];
   const chainContext = (f: { entry: string | null; file: string | null; rowId?: string }): ChainContext => ({
     selfCheck: (f.rowId && reports.get(f.rowId)) || null,
@@ -82,7 +81,7 @@ export async function GET(req: NextRequest) {
         commitsNotLive: deploy.deploy.behindBy, newestDeploy: deploy.deploy.latest } : {}) },
     liveSite: shadow.state === "read" && boundLive
       ? { host: boundLive.host, observedAt: boundLive.observedAt, notInRepository: shadow.paths, removedFromRepository: shadow.removed,
-        partial: shadow.partial }
+        partial: shadow.partial, auditLeftFilesUnread: shadow.codeUnread }
       : { unknown: shadow.state === "unknown" ? shadow.why : "Not read." },
     notRead: [...(run?.coverage ?? []).map((c) => `${c.name}: ${c.effect}`),
       ...(shadow.state === "read" ? shadow.paths.map((p) => shadow.removed.includes(p)

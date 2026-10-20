@@ -16,7 +16,7 @@ import { When } from "@/components/v3/When";
 import { Fold } from "@/components/v3/Fold";
 import { auditState } from "@/lib/verdict";
 import { loadLiveReach } from "@/lib/chain/liveReach";
-import { shadowRoutes } from "@/lib/chain/shadowRoutes";
+import { shadowRoutes, shadowRoutesFromRuns } from "@/lib/chain/shadowRoutes";
 import { LiveSite, liveSiteStatus } from "@/components/v3/LiveSite";
 import { productionLine } from "@/lib/chain/productionLine";
 import { unboundAppUrl } from "@/lib/deep/appUrlStore";
@@ -49,8 +49,7 @@ export default async function Coverage() {
   // The outside view: what the live site requests that the bound repository's
   // newest stored routes do not declare.
   const bound = live ? repos.find((r) => r.id === live.repositoryId) ?? null : null;
-  const routeSets = bound ? runs.filter((r) => r.fullName === bound.fullName && r.routeFacts).map((r) => r.routeFacts!) : [];
-  const shadow = shadowRoutes(bound ? live : null, routeSets[0] ?? null, routeSets.slice(1));
+  const shadow = bound ? shadowRoutesFromRuns(live, runs, bound.fullName) : shadowRoutes(null, null);
   // Is it live? The production deploy of the bound repository, else the audited one.
   const deployRepo = bound ?? repo;
   const [deploy, unbound] = await Promise.all([deployRepo ? loadRepositoryDeploy(userId, deployRepo.id).catch(() => null) : null,
