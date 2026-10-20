@@ -45,13 +45,13 @@ export default function Error({
         padding: "40px 24px",
         background: "#ffffff",
         color: INK,
-        fontFamily: "var(--font-inter), ui-sans-serif, system-ui, sans-serif",
+        fontFamily: "ui-sans-serif, system-ui, sans-serif",
       }}
     >
       <div style={{ maxWidth: 480 }}>
         <p
           style={{
-            fontFamily: "var(--font-plex-mono), ui-monospace, monospace",
+            fontFamily: "ui-monospace, SFMono-Regular, monospace",
             fontSize: 12,
             letterSpacing: "0.08em",
             textTransform: "uppercase",
@@ -64,7 +64,7 @@ export default function Error({
 
         <h1
           style={{
-            fontFamily: "var(--font-fraunces), Georgia, serif",
+            fontFamily: "Georgia, serif",
             fontSize: 30,
             lineHeight: 1.2,
             margin: "14px 0 12px",
@@ -82,7 +82,7 @@ export default function Error({
         {error.digest ? (
           <p
             style={{
-              fontFamily: "var(--font-plex-mono), ui-monospace, monospace",
+              fontFamily: "ui-monospace, SFMono-Regular, monospace",
               fontSize: 12.5,
               color: MUTED,
               marginTop: 16,

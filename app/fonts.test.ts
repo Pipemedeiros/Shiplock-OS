@@ -14,11 +14,13 @@ describe("fonts", () => {
     expect(loaders(src("app/(d)/layout.tsx"))).toEqual(["Geist", "Geist_Mono", "Newsreader"]);
   });
 
-  it("does not preload the older root fonts that only the error page uses", () => {
-    const root = src("app/layout.tsx");
-    const declarations = [...root.matchAll(/= \w+\(\{[\s\S]*?\}\);/g)].map((match) => match[0]);
-    expect(declarations).toHaveLength(3);
-    for (const declaration of declarations) expect(declaration).toMatch(/preload: false/);
+  // 2026-10-20: the root layout fetched Fraunces, Inter and IBM Plex Mono at
+  // every build for the error page alone, and a failed Google Fonts fetch
+  // broke a deploy and a CI run. The error page uses system fonts now.
+  it("loads no Google font in the root layout, so a build fetches only the v3 families", () => {
+    expect(loaders(src("app/layout.tsx"))).toEqual([]);
+    expect(src("app/layout.tsx")).not.toMatch(/next\/font/);
+    expect(src("app/error.tsx")).not.toMatch(/var\(--font-/);
   });
 
   it("keeps no styles that point at a font the layouts no longer load", () => {
