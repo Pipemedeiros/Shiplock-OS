@@ -1765,5 +1765,32 @@ try {
     // Nothing else is deleted: one delete statement, on the scheduler's own log.
     assert.equal(pruneSql.match(/\bdelete from\b/gi)?.length, 1);
   });
+  // 112: an audit finding the audit reports again takes its current title,
+  // consequence and claims, only for the classes the audit owns; a finding
+  // the customer's agent proved keeps its own words and proof.
+  await check("a re-reported audit finding takes the current text and claims; an agent's proof is untouched (112)", async () => {
+    await db.exec("reset role");
+    await db.exec(await readFile(new URL("../supabase/migrations/112_refresh_audit_finding_text.sql", import.meta.url), "utf8"));
+    await db.query("update public.audit_runs set status='running' where repository_id=$1",[r3]);
+    const run=(await db.query("insert into public.audit_runs(user_id,repository_id,full_name,status) values ($1,$2,'acme/three','running') returning id",[u1,r3])).rows[0].id;
+    const proof=[{claim:"Quoted lines show the write.",origin:"agent",verified:true}];
+    const seed=(id,cls,confidence,claims)=>db.query("insert into public.deep_findings(user_id,repository_id,source,finding_id,severity,title,consequence,attack_class,confidence,fix_kind,claims) values ($1,$2,'agent',$3,'WARNING','old -- title','old','committed_secret','corroborated','manual','[{\"claim\":\"stale\",\"origin\":\"secrets\",\"verified\":true}]'::jsonb)",[u1,r3,id]).then(()=>db.query("update public.deep_findings set attack_class=$2,confidence=$3,claims=$4::jsonb where finding_id=$1 and archived_at is null",[id,cls,confidence,JSON.stringify(claims)]));
+    await seed("github:insecure_random:t.ts","committed_secret","corroborated",[{claim:"stale",origin:"secrets",verified:true}]);
+    await seed("agent:missing_authentication:/api/p","missing_authentication","proven",proof);
+    const fresh=(id,cls)=>({id,severity:"CRITICAL",title:"new title",consequence:"new",confidence:"corroborated",fixKind:"manual",
+      claims:[{claim:"The pattern is read directly from t.ts; nothing was run.",origin:"secrets",verified:true}],attackClass:cls});
+    await db.exec("set role service_role");
+    await db.query("select public.persist_audit_findings($1,$2,$3,$4,$5::text[])",[u1,r3,run,
+      JSON.stringify([fresh("github:insecure_random:t.ts","committed_secret"),fresh("agent:missing_authentication:/api/p","missing_authentication")]),[]]);
+    await db.exec("reset role");
+    const row=async(id)=>(await db.query("select severity,title,consequence,confidence,claims from public.deep_findings where finding_id=$1 and archived_at is null",[id])).rows[0];
+    assert.deepEqual(await row("github:insecure_random:t.ts"),{severity:"WARNING",title:"new title",consequence:"new",confidence:"corroborated",
+      claims:[{claim:"The pattern is read directly from t.ts; nothing was run.",origin:"secrets",verified:true}]},"text and claims refresh; severity stays");
+    assert.deepEqual(await row("agent:missing_authentication:/api/p"),{severity:"WARNING",title:"old -- title",consequence:"old",confidence:"proven",claims:proof},"a proven finding is untouched");
+    for (const role of ["anon","authenticated"]) {
+      assert.equal((await db.query("select has_function_privilege($1,'public.persist_audit_findings(uuid,uuid,uuid,jsonb,text[],uuid,uuid)','execute') ok",[role])).rows[0].ok,false,`${role} cannot persist`);
+    }
+    await db.query("delete from public.deep_findings where finding_id in ('github:insecure_random:t.ts','agent:missing_authentication:/api/p')");
+  });
   console.log(`${checks} SQL checks passed. Single-connection PostgreSQL WASM; multi-session contention and hosted Supabase remain unverified.`);
 } finally { await db.close(); }
