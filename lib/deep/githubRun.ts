@@ -23,6 +23,11 @@ import type { RouteFact } from "@/lib/graph/routeInventory";
 
 const MAX_FILES_PER_REPO = 60;
 const MAX_FILE_BYTES = 200_000; // skip large/binary blobs
+// A lockfile is what pins installed versions, and an app's is often several
+// hundred KB (ShipLock's own: 416 KB). Read it up to the 1 MB the contents API
+// returns inline; past that, versions fall back to package.json ranges.
+const MAX_LOCKFILE_BYTES = 1_000_000;
+const LOCKFILE = /(^|\/)package-lock\.json$/;
 
 // Files worth reading for credential detection, plus manifests.
 const CANDIDATE_RE = /(^|\/)(\.env(\.[\w-]+)?|package\.json|package-lock\.json|.*\.(ts|tsx|js|jsx|mjs|cjs|json|ya?ml|env)|.*\.pem)$/i;
@@ -55,7 +60,7 @@ async function scanRepo(
   const { fullName, defaultBranch: branch } = repo;
   const tree = await listTree(token, fullName, branch);
   const candidates = tree
-    .filter((t) => t.size <= MAX_FILE_BYTES && CANDIDATE_RE.test(t.path))
+    .filter((t) => t.size <= (LOCKFILE.test(t.path) ? MAX_LOCKFILE_BYTES : MAX_FILE_BYTES) && CANDIDATE_RE.test(t.path))
     // Stable within a priority band, so the set we read is deterministic and a
     // finding doesn't appear and vanish between passes.
     .map((t, index) => ({ t, index, rank: readPriority(t.path) }))

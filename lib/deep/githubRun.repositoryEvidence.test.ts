@@ -103,6 +103,23 @@ describe("repository source collection", () => {
     expect(snapshot.dependencies.map((d) => d.name)).not.toContain("hono");
   });
 
+  // Same day: the root package-lock.json is 416 KB, over the 200 KB file cap,
+  // so versions fell back to package.json range floors ("^4.1.10" read as
+  // 4.1.10 while 4.1.12 was installed), and a fixed advisory was reported.
+  it("reads a lockfile up to GitHub's 1 MB contents limit, so versions are the installed ones", async () => {
+    api.listTree.mockResolvedValue([
+      { path: "package.json", size: 100 }, { path: "package-lock.json", size: 416_008 },
+      { path: "lib/big.json", size: 416_008 },
+    ]);
+    api.getFile.mockImplementation(async (_token, _repository, path) => ({
+      "package.json": JSON.stringify({ devDependencies: { vitest: "^4.1.10" } }),
+      "package-lock.json": JSON.stringify({ lockfileVersion: 3, packages: { "": {}, "node_modules/vitest": { version: "4.1.12" } } }),
+    } as Record<string, string>)[path] ?? null);
+    const { snapshot } = await collect();
+    expect(snapshot.dependencies).toEqual([{ name: "vitest", version: "4.1.12" }]);
+    expect(api.getFile).not.toHaveBeenCalledWith(expect.anything(), expect.anything(), "lib/big.json", expect.anything());
+  });
+
   it("returns no empty snapshot when the repository tree cannot be read", async () => {
     api.listTree.mockRejectedValue(new Error("unreadable"));
     await expect(collect()).rejects.toThrow("unreadable");

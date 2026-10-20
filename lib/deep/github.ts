@@ -176,19 +176,24 @@ function mapOsvSeverity(raw: string | null): Severity {
 export async function queryOsv(deps: Dep[]): Promise<{ dep: Dep; vulns: OsvVuln[] }[]> {
   if (deps.length === 0) return [];
 
-  const batchRes = await fetch("https://api.osv.dev/v1/querybatch", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      queries: deps.map((d) => ({ package: { name: d.name, ecosystem: "npm" }, version: d.version })),
-    }),
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-  });
-  if (!batchRes.ok) throw new Error(`OSV querybatch HTTP ${batchRes.status}`);
-  const batch = (await batchRes.json()) as { results?: Array<{ vulns?: Array<{ id: string }> }> };
+  // OSV takes at most 1,000 queries per batch; a 1 MB lockfile holds ~2,000.
+  const results: Array<{ vulns?: Array<{ id: string }> }> = [];
+  for (let start = 0; start < deps.length; start += 1000) {
+    const batchRes = await fetch("https://api.osv.dev/v1/querybatch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        queries: deps.slice(start, start + 1000).map((d) => ({ package: { name: d.name, ecosystem: "npm" }, version: d.version })),
+      }),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    if (!batchRes.ok) throw new Error(`OSV querybatch HTTP ${batchRes.status}`);
+    const batch = (await batchRes.json()) as { results?: Array<{ vulns?: Array<{ id: string }> }> };
+    const page = batch.results ?? [];
+    for (let i = 0; i < Math.min(1000, deps.length - start); i++) results.push(page[i] ?? {});
+  }
 
   const out: { dep: Dep; vulns: OsvVuln[] }[] = [];
-  const results = batch.results ?? [];
   for (let i = 0; i < deps.length; i++) {
     const ids = (results[i]?.vulns ?? []).map((v) => v.id);
     if (ids.length === 0) continue;
