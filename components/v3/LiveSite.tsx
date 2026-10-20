@@ -12,6 +12,7 @@ const utc = (iso: string) => iso.slice(0, 16).replace("T", " ") + " UTC";
 export function liveSiteStatus(live: LiveReach | null, shadow: ShadowRoutes): string {
   if (!live) return "Not bound";
   if (shadow.state === "unknown") return "Unknown";
+  if (shadow.removed.length > 0) return `${shadow.removed.length} removed from code, still live`;
   if (shadow.paths.length > 0) return `${shadow.paths.length} not in the repository`;
   return shadow.partial ? "Partly read" : "All in the repository";
 }
@@ -51,8 +52,18 @@ export function LiveSite({ live, repository, shadow }: { live: LiveReach | null;
             for {shadow.paths.length === 1 ? "it" : "them"}, so {shadow.paths.length === 1 ? "it is" : "they are"} not checked.
           </p>
           <ul>
-            {shadow.paths.map((p) => <li key={p}><code>{p}</code></li>)}
+            {shadow.paths.map((p) => (
+              <li key={p}><code style={{ overflowWrap: "anywhere" }}>{p}</code>
+                {shadow.removed.includes(p) ? <>{" "}<strong>Removed from {repository}, still live.</strong></> : null}</li>
+            ))}
           </ul>
+          {shadow.removed.length > 0 ? (
+            <p style={{ marginTop: 8 }}>
+              An earlier audit read a route for {shadow.removed.length === 1 ? "this address" : "these addresses"} that {repository} no
+              longer has, and your live site still requests {shadow.removed.length === 1 ? "it" : "them"}. The deployed build may be older
+              than your code, for example a fix that merged but never deployed. Check your latest deploy before you count the fix.
+            </p>
+          ) : null}
         </>
       )}
     </div>

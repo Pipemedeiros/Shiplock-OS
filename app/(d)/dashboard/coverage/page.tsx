@@ -16,7 +16,6 @@ import { When } from "@/components/v3/When";
 import { Fold } from "@/components/v3/Fold";
 import { auditState } from "@/lib/verdict";
 import { loadLiveReach } from "@/lib/chain/liveReach";
-import { latestRouteFacts } from "@/lib/chain/findingChains";
 import { shadowRoutes } from "@/lib/chain/shadowRoutes";
 import { LiveSite, liveSiteStatus } from "@/components/v3/LiveSite";
 
@@ -47,8 +46,8 @@ export default async function Coverage() {
   // The outside view: what the live site requests that the bound repository's
   // newest stored routes do not declare.
   const bound = live ? repos.find((r) => r.id === live.repositoryId) ?? null : null;
-  const boundRoutes = bound ? latestRouteFacts(runs).get(bound.fullName) : undefined;
-  const shadow = shadowRoutes(bound ? live : null, boundRoutes ? [...boundRoutes.values()] : null);
+  const routeSets = bound ? runs.filter((r) => r.fullName === bound.fullName && r.routeFacts).map((r) => r.routeFacts!) : [];
+  const shadow = shadowRoutes(bound ? live : null, routeSets[0] ?? null, routeSets.slice(1));
 
   const aiStatus = !ai.available ? "Unavailable" : ai.paused ? "Not running" : `${ai.checks.length} ${ai.checks.length === 1 ? "check" : "checks"}`;
   const providerStatus = !providers.available ? "Unavailable"

@@ -124,8 +124,17 @@ describe("GET /api/mcp/context", () => {
     s.live.mockResolvedValue({ repositoryId: "r1", host: "app.acme.com", observedAt: "2026-10-20T09:00:00.000Z", paths: [],
       requests: ["/api/orders/", "/api/legacy/export"], read: { pages: 3, scriptsSeen: 4, scriptsRead: 4 } });
     const body = await (await get("?repository=acme/app")).json();
-    expect(body.liveSite).toEqual({ host: "app.acme.com", observedAt: "2026-10-20T09:00:00.000Z", notInRepository: ["/api/legacy/export"], partial: false });
+    expect(body.liveSite).toEqual({ host: "app.acme.com", observedAt: "2026-10-20T09:00:00.000Z", notInRepository: ["/api/legacy/export"],
+      removedFromRepository: [], partial: false });
     expect(body.notRead.some((n: string) => n.includes("/api/legacy/export"))).toBe(true);
+    // An earlier audit declared it: the deployed build may be older than the code.
+    s.runs.mockResolvedValue([{ fullName: "acme/app", startedAt: "2026-10-01T00:00:00Z", status: "complete", stack: null, coverage: [],
+      routeFacts: [{ path: "/api/orders/[id]", file: "a", tables: [], authenticated: false, ownershipFiltered: false, machineGated: false }] },
+    { fullName: "acme/app", startedAt: "2026-09-01T00:00:00Z", status: "complete", stack: null, coverage: [],
+      routeFacts: [{ path: "/api/legacy/export", file: "b", tables: [], authenticated: false, ownershipFiltered: false, machineGated: false }] }]);
+    const drift = await (await get("?repository=acme/app")).json();
+    expect(drift.liveSite.removedFromRepository).toEqual(["/api/legacy/export"]);
+    expect(drift.notRead.some((n: string) => n.includes("older than this code"))).toBe(true);
     s.live.mockResolvedValue(null);
     expect((await (await get("?repository=acme/app")).json()).liveSite).toEqual({ unknown: "No app address is bound to this repository." });
   });

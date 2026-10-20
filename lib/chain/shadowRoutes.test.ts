@@ -12,7 +12,7 @@ const routes = ["/api/me", "/api/notes/[id]", "/api/orders/[id]/share", "/dashbo
 describe("shadowRoutes", () => {
   it("lists the backend addresses the live site requests that no route declares", () => {
     const out = shadowRoutes(live(["/api/me", "/api/notes/", "/api/legacy/export", "/api/billing", "/pricing"]), routes);
-    expect(out).toEqual({ state: "read", paths: ["/api/billing", "/api/legacy/export"], partial: false });
+    expect(out).toEqual({ state: "read", paths: ["/api/billing", "/api/legacy/export"], partial: false, removed: [] });
   });
 
   it("matches a dynamic route by its fixed prefix and a template prefix by the routes under it", () => {
@@ -30,7 +30,7 @@ describe("shadowRoutes", () => {
 
   it("says partial when scripts went unread, so a short list is not the whole list", () => {
     expect(shadowRoutes(live(["/api/billing"], { pages: 1, scriptsSeen: 30, scriptsRead: 24 }), routes))
-      .toEqual({ state: "read", paths: ["/api/billing"], partial: true });
+      .toEqual({ state: "read", paths: ["/api/billing"], partial: true, removed: [] });
   });
 
   it.each([
@@ -40,5 +40,15 @@ describe("shadowRoutes", () => {
     ["the stored routes may be truncated", live(["/api/billing"]), Array.from({ length: 400 }, (_, i) => ({ path: `/api/r${i}` }))],
   ])("is unknown when %s, never an empty list", (_why, reach, declared) => {
     expect(shadowRoutes(reach, declared)).toMatchObject({ state: "unknown" });
+  });
+
+  // Deploy drift: a route an earlier audit of this repository declared, gone
+  // from the newest one, still requested by the live site. The deployed build
+  // is older than the code (a fix merged but never deployed, a failed build).
+  it("marks a shadow route an earlier audit declared as removed from the repository", () => {
+    const earlier = [[...routes, { path: "/api/legacy/export" }], [{ path: "/api/billing/[id]" }]];
+    const out = shadowRoutes(live(["/api/legacy/export", "/api/billing/7", "/api/new"]), routes, earlier);
+    expect(out).toEqual({ state: "read", paths: ["/api/billing/7", "/api/legacy/export", "/api/new"], partial: false,
+      removed: ["/api/billing/7", "/api/legacy/export"] });
   });
 });

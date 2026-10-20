@@ -45,7 +45,8 @@ export async function GET(req: NextRequest) {
   // Backend addresses the live site requests that this repository declares no
   // route for (lib/chain/shadowRoutes.ts): not checked, never an issue.
   const boundLive = live?.repositoryId === repo.id ? live : null;
-  const shadow = shadowRoutes(boundLive, facts ? [...facts.values()] : null);
+  const routeSets = runs.filter((r) => r.fullName === repo.fullName && r.routeFacts).map((r) => r.routeFacts!);
+  const shadow = shadowRoutes(boundLive, routeSets[0] ?? null, routeSets.slice(1));
   const repoHot = (hot as Record<string, { file: string; pattern: string; suspiciousRequests: number }[]>)[repo.id] ?? [];
   const chainContext = (f: { entry: string | null; file: string | null; rowId?: string }): ChainContext => ({
     selfCheck: (f.rowId && reports.get(f.rowId)) || null,
@@ -74,10 +75,13 @@ export async function GET(req: NextRequest) {
         chain: (({ links, next }) => ({ links: links.map((l) => ({ link: l.id, state: l.state, evidence: l.evidence })), next }))(
           evidenceChain(f, chainContext(f))) })),
     liveSite: shadow.state === "read" && boundLive
-      ? { host: boundLive.host, observedAt: boundLive.observedAt, notInRepository: shadow.paths, partial: shadow.partial }
+      ? { host: boundLive.host, observedAt: boundLive.observedAt, notInRepository: shadow.paths, removedFromRepository: shadow.removed,
+        partial: shadow.partial }
       : { unknown: shadow.state === "unknown" ? shadow.why : "Not read." },
     notRead: [...(run?.coverage ?? []).map((c) => `${c.name}: ${c.effect}`),
-      ...(shadow.state === "read" ? shadow.paths.map((p) => `Live site request ${p}: no route in this repository serves it, so its code was not read.`) : [])],
-    howToUse: "Keep every guardrail when you edit. Fix open findings only with the change they describe; a finding with confirmed false is a candidate to verify, not a proven issue. Anything under notRead, and any route without a rule, is not known to be safe. ShipLock's pull request check re-checks your change. To fix one, call open_fix_pull_request with its id where the customer turned agent pull requests on, or make the change in your own checkout and open the pull request yourself. Each finding's chain says which layers back it (reach, gap, proof, pressure) and its next safe step; an unknown link was not read, never cleared. liveSite.notInRepository lists backend addresses the live site requests that this repository has no route for; find what serves each one (a rewrite, another service, an older deploy) before treating it as safe. Where a finding has a selfCheck, run it on a local or preview app, never production, and call report_self_check with the status you got; it is shown as a test you ran, never as proof.",
+      ...(shadow.state === "read" ? shadow.paths.map((p) => shadow.removed.includes(p)
+        ? `Live site request ${p}: an earlier audit read a route for it that this repository no longer has, so the deployed build may be older than this code.`
+        : `Live site request ${p}: no route in this repository serves it, so its code was not read.`) : [])],
+    howToUse: "Keep every guardrail when you edit. Fix open findings only with the change they describe; a finding with confirmed false is a candidate to verify, not a proven issue. Anything under notRead, and any route without a rule, is not known to be safe. ShipLock's pull request check re-checks your change. To fix one, call open_fix_pull_request with its id where the customer turned agent pull requests on, or make the change in your own checkout and open the pull request yourself. Each finding's chain says which layers back it (reach, gap, proof, pressure) and its next safe step; an unknown link was not read, never cleared. liveSite.notInRepository lists backend addresses the live site requests that this repository has no route for; find what serves each one (a rewrite, another service, an older deploy) before treating it as safe; removedFromRepository are routes this code deleted that the live site still requests, so check the deploy before trusting a fix. Where a finding has a selfCheck, run it on a local or preview app, never production, and call report_self_check with the status you got; it is shown as a test you ran, never as proof.",
   });
 }
