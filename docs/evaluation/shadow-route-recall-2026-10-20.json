@@ -1,0 +1,15 @@
+{
+  "experiment": "shadow-route-request-context-recall",
+  "date": "2026-10-20",
+  "question": "What share of /api/ path literals in client-side source sit in a context requestedPaths (lib/security/shippedCalls.ts) keeps, which bounds shadow-route recall on bundles?",
+  "population": "docs/CORPUS.json archives in .cache/shiplock-corpus, every 7th by sorted file name (190 of 1331); files .ts/.tsx/.js/.jsx under 400 KB, excluding node_modules, .next, dist, server paths (app/api, pages/api, server, api, supabase/functions, scripts, tests) and test files",
+  "environment": "source, not minified bundles; JSX attributes appear as href={...} in source and href:\"...\" in bundles",
+  "results": [
+    { "rule": "fetch, client verbs, useSWR, new Request first argument; url or href value", "literals": 7041, "requested": 4179, "share": 0.594 },
+    { "rule": "plus src and action values and an upper-case method name before the path", "literals": 7041, "requested": 4425, "share": 0.628 }
+  ],
+  "repositoriesWithApiLiterals": 163,
+  "excludedOnPurpose": ["startsWith path checks", "SWR mutate keys (renamed in bundles)", "ternary branches", "TypeScript generic wrappers (named, not requested)"],
+  "precisionCheck": "shiplock.dev bundles unchanged (one API request, declared); 10 public Next.js sites: 4 own-origin API requests in total, none from an SDK family (counts only)",
+  "uncertainty": "single sample, no labels: share is a recall ceiling on source, not measured recall on bundles"
+}
