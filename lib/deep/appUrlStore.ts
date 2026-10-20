@@ -79,6 +79,20 @@ export async function getAppUrlState(userId: string): Promise<AppUrlState> {
   }
 }
 
+/** A saved address that serves no repository yet (never confirmed, or bound
+ * to an earlier address), with the selected repositories it may serve. Read
+ * from the database only, so Coverage can ask on every render. */
+export async function unboundAppUrl(userId: string): Promise<{ url: string; repositories: string[] } | null> {
+  const admin = getSupabaseAdmin();
+  const { data: profile } = await admin.from("user_profiles")
+    .select("monitored_app_url, monitored_app_repository_id, monitored_app_bound_url").eq("id", userId).maybeSingle();
+  const url = (profile?.monitored_app_url as string | null | undefined) ?? null;
+  if (!url || (profile?.monitored_app_repository_id && profile?.monitored_app_bound_url === url)) return null;
+  const { data: rows } = await admin.from("repositories").select("id, full_name").eq("user_id", userId).eq("selected", true);
+  const repositories = [...new Set(((rows ?? []) as Selected[]).map((r) => r.full_name))].slice(0, 10);
+  return repositories.length > 0 ? { url, repositories } : null;
+}
+
 /** Saves the origin of a public https address; throws invalid_url otherwise.
  * A named repository must be selected for this account (invalid_repository). */
 export async function setAppUrl(userId: string, value: string, repository: string | null = null): Promise<string> {

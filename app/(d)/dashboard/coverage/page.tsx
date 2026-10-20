@@ -19,6 +19,8 @@ import { loadLiveReach } from "@/lib/chain/liveReach";
 import { shadowRoutes } from "@/lib/chain/shadowRoutes";
 import { LiveSite, liveSiteStatus } from "@/components/v3/LiveSite";
 import { productionLine } from "@/lib/chain/productionLine";
+import { unboundAppUrl } from "@/lib/deep/appUrlStore";
+import { ConfirmServes } from "@/components/v3/ConfirmServes";
 
 export const metadata = { title: "Coverage" };
 
@@ -51,7 +53,8 @@ export default async function Coverage() {
   const shadow = shadowRoutes(bound ? live : null, routeSets[0] ?? null, routeSets.slice(1));
   // Is it live? The production deploy of the bound repository, else the audited one.
   const deployRepo = bound ?? repo;
-  const deploy = deployRepo ? await loadRepositoryDeploy(userId, deployRepo.id).catch(() => null) : null;
+  const [deploy, unbound] = await Promise.all([deployRepo ? loadRepositoryDeploy(userId, deployRepo.id).catch(() => null) : null,
+    bound ? null : unboundAppUrl(userId).catch(() => null)]);
 
   const aiStatus = !ai.available ? "Unavailable" : ai.paused ? "Not running" : `${ai.checks.length} ${ai.checks.length === 1 ? "check" : "checks"}`;
   const providerStatus = !providers.available ? "Unavailable"
@@ -111,9 +114,10 @@ export default async function Coverage() {
         {/* Work handed to the customer's own AI (10B-2d). Unanswered is not clean. */}
         <Fold title="AI checks" status={aiStatus}><AiChecks activity={ai} /></Fold>
         <Fold title="Guardrails" status={guardrails ? `${guardrails.rules.length} rules` : "Not derived"}><GuardrailList guardrails={guardrails} /></Fold>
-        <Fold title="Live site" status={liveSiteStatus(bound ? live : null, shadow)}>
+        <Fold title="Live site" open={Boolean(unbound)} status={unbound ? "Confirm the repository" : liveSiteStatus(bound ? live : null, shadow)}>
           {deployRepo ? <p className="v3-small" style={{ marginBottom: 12 }}><strong>{deployRepo.fullName}</strong>: {productionLine(deploy)}</p> : null}
-          <LiveSite live={bound ? live : null} repository={bound?.fullName ?? null} shadow={shadow} />
+          {unbound ? <ConfirmServes url={unbound.url} repositories={unbound.repositories} />
+            : <LiveSite live={bound ? live : null} repository={bound?.fullName ?? null} shadow={shadow} />}
         </Fold>
         {/* Latest read per connected provider (5A-3). */}
         <Fold title="Providers" status={providerStatus}><ProviderCoverage coverage={providers} /></Fold>

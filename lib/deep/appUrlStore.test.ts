@@ -24,7 +24,7 @@ vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({
   },
 }) }));
 
-const { clearAppUrl, getAppUrlState, setAppUrl } = await import("./appUrlStore");
+const { clearAppUrl, getAppUrlState, setAppUrl, unboundAppUrl } = await import("./appUrlStore");
 
 beforeEach(() => {
   vi.clearAllMocks(); db.updates = []; db.filters = []; db.runtime = null;
@@ -102,5 +102,30 @@ describe("the app address", () => {
   it("forgets the address", async () => {
     await clearAppUrl("u1");
     expect(db.updates).toEqual([{ monitored_app_url: null, monitored_app_repository_id: null, monitored_app_bound_url: null }]);
+  });
+});
+
+// Coverage asks once, in place, which repository a saved but unbound address
+// serves; a database read only, no GitHub call on every render.
+describe("unboundAppUrl", () => {
+  it("returns a saved address that serves no repository, with the selected repositories", async () => {
+    db.profile = { monitored_app_url: "https://acme.com", monitored_app_repository_id: null, monitored_app_bound_url: null };
+    expect(await unboundAppUrl("u1")).toEqual({ url: "https://acme.com", repositories: ["acme/app", "acme/docs"] });
+    expect(gh.token).not.toHaveBeenCalled();
+  });
+
+  it("is null with no address, no selected repository, or a current binding", async () => {
+    db.profile = { monitored_app_url: null };
+    expect(await unboundAppUrl("u1")).toBeNull();
+    db.profile = { monitored_app_url: "https://acme.com", monitored_app_repository_id: "r-app", monitored_app_bound_url: "https://acme.com" };
+    expect(await unboundAppUrl("u1")).toBeNull();
+    db.profile = { monitored_app_url: "https://acme.com" };
+    db.repos = [];
+    expect(await unboundAppUrl("u1")).toBeNull();
+  });
+
+  it("asks again when the binding belongs to an earlier address", async () => {
+    db.profile = { monitored_app_url: "https://new.acme.com", monitored_app_repository_id: "r-app", monitored_app_bound_url: "https://acme.com" };
+    expect(await unboundAppUrl("u1")).toMatchObject({ url: "https://new.acme.com" });
   });
 });
