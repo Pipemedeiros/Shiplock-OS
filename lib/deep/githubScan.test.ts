@@ -470,11 +470,14 @@ describe("a committed env file is CRITICAL only with a live credential", () => {
 // proves the format, not the vendor.
 describe("a key in OpenAI's format names the format, not the vendor", () => {
   it("does not claim the key is OpenAI's", () => {
-    const f = scanSecrets([{ path: "src/inngest/functions.ts", content: 'const k = { apiKey: "sk-U3wXq8Lm2Rt5Xw9Zb4Nc7Vd1", baseUrl: "https://api.moonshot.ai/v1" };\n' }])
+    const f = scanSecrets([{ path: "src/inngest/functions.ts", content: 'const k = { apiKey: "' + "sk-" + 'U3wXq8Lm2Rt5Xw9Zb4Nc7Vd1", baseUrl: "https://api.moonshot.ai/v1" };\n' }])
       .find((x) => x.id.includes("openai_key"));
     expect(f).toBeDefined();
     expect(`${f!.title} ${f!.consequence}`).not.toMatch(/an OpenAI API key/);
     expect(f!.title).toMatch(/OpenAI's format/);
+    // Labels carry their article ("an API key ..."); production showed
+    // "Possible an API key in OpenAI's format" on 2026-10-20.
+    expect(f!.title).toMatch(/^Possible API key in OpenAI's format/);
   });
 });
 
