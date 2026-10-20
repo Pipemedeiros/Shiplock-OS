@@ -36,3 +36,26 @@ describe("classifyExposed — no false positives", () => {
     expect(classifyExposed(_PROBES.find((p) => p.path === "/dump.sql")!, 200, "just some text")).toBeNull();
   });
 });
+
+// The live app's own .env files (2026-10-20): the monitoring collector sent
+// these probes to the Supabase project URL, never the app, so an app-only
+// account was never probed for the classic leak.
+describe("classifyExposed: .env files on the live app", () => {
+  const env = probe("env_file_exposed");
+  it("probes the four usual names on the app address", () => {
+    expect(_PROBES.filter((p) => p.group === "env_file_exposed").map((p) => p.path).sort())
+      .toEqual(["/.env", "/.env.development", "/.env.local", "/.env.production"]);
+  });
+  it("flags a served .env that assigns a secret-like name", () => {
+    for (const body of ["NEXT_PUBLIC_URL=https://a.b\nSUPABASE_SERVICE_ROLE_KEY=eyJhbGci", "export STRIPE_SECRET_KEY=sk_live_x", "DATABASE_URL=postgres://u:p@h/db"]) {
+      expect(classifyExposed(env, 200, body)?.id, body).toBe("exposed:env_file_exposed");
+    }
+    expect(classifyExposed(env, 200, "API_TOKEN=x")?.severity).toBe("CRITICAL");
+  });
+  it("ignores a catch-all page, an empty value, a public-only file and prose", () => {
+    for (const body of ['<!doctype html><html><body><input data-key="SECRET_KEY=1"></body></html>', "SECRET_KEY=\n", "NEXT_PUBLIC_SITE_URL=https://a.b\nPORT=3000",
+      "Set your API_KEY = in the dashboard", '{"error":"not found","API_KEY":"x"}']) {
+      expect(classifyExposed(env, 200, body), body).toBeNull();
+    }
+  });
+});

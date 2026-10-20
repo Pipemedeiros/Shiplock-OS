@@ -2,10 +2,10 @@ import type { Severity } from "@/lib/types";
 import { assertPublicHttpsUrl } from "@/lib/security/ssrfGuard";
 import { requestSignal } from "@/lib/abort";
 
-// Dynamic exposed-path probes against the customer's LIVE app URL. Complements
-// the scanner's checkSecretsExposure (which already covers /.env* variants) with
-// the classic vibecoded-app leaks it doesn't: a publicly-served .git repo,
-// database dumps, and committed credential files.
+// Dynamic exposed-path probes against the customer's LIVE app URL: .env files
+// (the scanner's checkSecretsExposure only ever probed the Supabase project
+// URL), a publicly-served .git repo, database dumps, and committed credential
+// files.
 //
 // PRECISION: modern SPAs/static hosts answer 200 with index.html for ANY path
 // (catch-all routing), so a bare 200 means nothing. Every probe requires a
@@ -28,7 +28,16 @@ interface Probe {
   consequence: string;
 }
 
+// A line assigning a secret-like name a value, as a .env file does.
+const ENV_SECRET_LINE = /^(?:export\s+)?(?=[A-Z])[A-Z0-9_]*(?:KEY|SECRET|TOKEN|PASSWORD|PASS|DATABASE_URL|DSN)[A-Z0-9_]*[ \t]*=[ \t]*\S/m;
+const ENV_CONSEQUENCE =
+  "This file is downloadable from your live site by anyone, and it assigns secret values (keys, tokens, passwords or a database address). Treat every value in it as public: rotate each one at its provider, then stop serving the file (it usually reaches the web through a public folder or a static export) and recheck.";
+
 const PROBES: Probe[] = [
+  ...["/.env", "/.env.local", "/.env.production", "/.env.development"].map((path): Probe => ({
+    path, group: "env_file_exposed", severity: "CRITICAL", sig: ENV_SECRET_LINE,
+    title: "Your environment file is publicly served", consequence: ENV_CONSEQUENCE,
+  })),
   {
     path: "/.git/HEAD", group: "git_exposed", severity: "CRITICAL", sig: /ref:\s*refs\//,
     title: "Your Git repository is publicly served",
