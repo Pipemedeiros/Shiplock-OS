@@ -26,10 +26,10 @@ process.env.GITHUB_WEBHOOK_SECRET = SECRET;
 const { POST } = await import("./route");
 
 const sign = (raw: string) => `sha256=${crypto.createHmac("sha256", SECRET).update(raw).digest("hex")}`;
-const req = (body: unknown, signature?: string) => {
+const req = (body: unknown, signature?: string, event = "push") => {
   const raw = JSON.stringify(body);
   return new Request("https://x/api/monitor/github", { method: "POST",
-    headers: { "x-hub-signature-256": signature ?? sign(raw), "x-github-event": "push", "content-type": "application/json" }, body: raw }) as unknown as NextRequest;
+    headers: { "x-hub-signature-256": signature ?? sign(raw), "x-github-event": event, "content-type": "application/json" }, body: raw }) as unknown as NextRequest;
 };
 const pushed = (over: Record<string, unknown> = {}) => ({
   ref: "refs/heads/main", after: "f".repeat(40), deleted: false, installation: { id: 42 },
@@ -69,5 +69,24 @@ describe("recheck after a push to the default branch", () => {
     expect((await POST(req(pushed(), "sha256=" + "0".repeat(64)))).status).toBe(401);
     mocks.job.mockRejectedValueOnce(new Error("down"));
     expect((await POST(req(pushed()))).status).toBe(503);
+  });
+});
+
+// Observed 2026-10-20: the App is subscribed to check suites, not pushes, so
+// what GitHub sends on a push is check_suite "requested" for the new commit.
+describe("recheck on the check suite GitHub opens for a push", () => {
+  const suite = (over: Record<string, unknown> = {}) => ({
+    action: "requested", installation: { id: 42 }, repository: { full_name: "acme/app", default_branch: "main" },
+    check_suite: { head_branch: "main", head_sha: "f".repeat(40) }, ...over,
+  });
+  it("queues the same source scan for a suite on the default branch", async () => {
+    expect((await POST(req(suite(), undefined, "check_suite"))).status).toBe(200);
+    expect(mocks.job).toHaveBeenCalledWith(owner, repo, "source", expect.stringMatching(new RegExp(`^webhook-source:${repo}:\\d+$`)));
+  });
+  it("ignores a completed suite, another branch, and a suite with no branch", async () => {
+    await POST(req(suite({ action: "completed" }), undefined, "check_suite"));
+    await POST(req(suite({ check_suite: { head_branch: "feature", head_sha: "f".repeat(40) } }), undefined, "check_suite"));
+    await POST(req(suite({ check_suite: { head_branch: null, head_sha: "f".repeat(40) } }), undefined, "check_suite"));
+    expect(mocks.job).not.toHaveBeenCalled();
   });
 });

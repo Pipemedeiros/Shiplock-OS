@@ -58,6 +58,16 @@ export async function POST(req: NextRequest) {
   if (event === "push") {
     try { return await recheckAfterPush(JSON.parse(raw)); } catch { return NextResponse.json({ ok: true }); }
   }
+  // The App subscribes to check suites, not pushes (observed 2026-10-20), so a
+  // push arrives as the suite GitHub opens for the new commit.
+  if (event === "check_suite") {
+    let suite: { action?: string; installation?: { id?: number }; repository?: { full_name?: string; default_branch?: string };
+      check_suite?: { head_branch?: string | null; head_sha?: string } };
+    try { suite = JSON.parse(raw); } catch { return NextResponse.json({ ok: true }); }
+    if (suite.action !== "requested" || !suite.check_suite?.head_branch) return NextResponse.json({ ok: true });
+    return recheckAfterPush({ ref: `refs/heads/${suite.check_suite.head_branch}`, after: suite.check_suite.head_sha,
+      installation: suite.installation, repository: suite.repository });
+  }
   if (event !== "pull_request") {
     // The event name only, never the payload: which deliveries arrive unused.
     console.info("[monitor/github] ignored event", String(event).slice(0, 40));
