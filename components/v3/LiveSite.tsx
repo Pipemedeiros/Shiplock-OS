@@ -46,6 +46,12 @@ export function LiveSite({ live, repository, shadow }: { live: LiveReach | null;
           {live.change.added.length > 0 ? " A new address is surface nobody has reviewed yet." : null}
         </p>
       ) : null}
+      {shadow.state === "read" && shadow.servedElsewhere?.length ? (
+        <p style={{ marginBottom: 12 }}>
+          Served by another repository you selected, and audited there: {shadow.servedElsewhere.map((s, i) =>
+            <span key={s.path}>{i > 0 ? ", " : ""}<code style={{ overflowWrap: "anywhere" }}>{s.path}</code> ({s.repository})</span>)}.
+        </p>
+      ) : null}
       {shadow.state === "unknown" ? (
         <p>Addresses your live site requests outside {repository}: unknown. {shadow.why}</p>
       ) : shadow.paths.length === 0 ? (

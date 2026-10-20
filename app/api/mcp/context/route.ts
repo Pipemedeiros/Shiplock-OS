@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
   // Backend addresses the live site requests that this repository declares no
   // route for (lib/chain/shadowRoutes.ts): not checked, never an issue.
   const boundLive = live?.repositoryId === repo.id ? live : null;
-  const shadow = shadowRoutesFromRuns(boundLive, runs, repo.fullName);
+  const shadow = shadowRoutesFromRuns(boundLive, runs, repo.fullName, repos.map((r) => r.fullName));
   const repoHot = (hot as Record<string, { file: string; pattern: string; suspiciousRequests: number }[]>)[repo.id] ?? [];
   const chainContext = (f: { entry: string | null; file: string | null; rowId?: string }): ChainContext => ({
     selfCheck: (f.rowId && reports.get(f.rowId)) || null,
@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
         commitsNotLive: deploy.deploy.behindBy, newestDeploy: deploy.deploy.latest } : {}) },
     liveSite: shadow.state === "read" && boundLive
       ? { host: boundLive.host, observedAt: boundLive.observedAt, notInRepository: shadow.paths, removedFromRepository: shadow.removed,
-        partial: shadow.partial, auditLeftFilesUnread: shadow.codeUnread,
+        partial: shadow.partial, auditLeftFilesUnread: shadow.codeUnread, servedByAnotherSelectedRepository: shadow.servedElsewhere ?? [],
         changeSinceLastRead: boundLive.change?.comparable ? { since: boundLive.change.since, added: boundLive.change.added, removed: boundLive.change.removed } : null }
       : { unknown: shadow.state === "unknown" ? shadow.why : "Not read." },
     notRead: [...(run?.coverage ?? []).map((c) => `${c.name}: ${c.effect}`),

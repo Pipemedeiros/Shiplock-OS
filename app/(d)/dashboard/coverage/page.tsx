@@ -49,7 +49,7 @@ export default async function Coverage() {
   // The outside view: what the live site requests that the bound repository's
   // newest stored routes do not declare.
   const bound = live ? repos.find((r) => r.id === live.repositoryId) ?? null : null;
-  const shadow = bound ? shadowRoutesFromRuns(live, runs, bound.fullName) : shadowRoutes(null, null);
+  const shadow = bound ? shadowRoutesFromRuns(live, runs, bound.fullName, repos.map((r) => r.fullName)) : shadowRoutes(null, null);
   // Is it live? The production deploy of the bound repository, else the audited one.
   const deployRepo = bound ?? repo;
   const [deploy, unbound] = await Promise.all([deployRepo ? loadRepositoryDeploy(userId, deployRepo.id).catch(() => null) : null,

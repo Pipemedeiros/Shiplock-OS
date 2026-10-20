@@ -138,7 +138,7 @@ describe("GET /api/mcp/context", () => {
       requests: ["/api/orders/", "/api/legacy/export"], read: { pages: 3, scriptsSeen: 4, scriptsRead: 4 } });
     const body = await (await get("?repository=acme/app")).json();
     expect(body.liveSite).toEqual({ host: "app.acme.com", observedAt: "2026-10-20T09:00:00.000Z", notInRepository: ["/api/legacy/export"],
-      removedFromRepository: [], partial: false, auditLeftFilesUnread: false, changeSinceLastRead: null });
+      removedFromRepository: [], partial: false, auditLeftFilesUnread: false, servedByAnotherSelectedRepository: [], changeSinceLastRead: null });
     expect(body.notRead.some((n: string) => n.includes("/api/legacy/export"))).toBe(true);
     // An earlier audit declared it: the deployed build may be older than the code.
     s.runs.mockResolvedValue([{ fullName: "acme/app", startedAt: "2026-10-01T00:00:00Z", status: "complete", stack: null, coverage: [],

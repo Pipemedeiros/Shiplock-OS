@@ -55,6 +55,13 @@ describe("LiveSite (outside view, shadow routes)", () => {
     expect(same).not.toMatch(/Since/);
   });
 
+  it("names addresses another selected repository serves, outside the not checked list", () => {
+    const out = html({ live, repository: "acme/web", shadow: { state: "read", paths: [], partial: false, removed: [], codeUnread: false,
+      servedElsewhere: [{ path: "/api/billing/7", repository: "acme/api" }] } });
+    expect(out).toContain("Served by another repository you selected");
+    expect(out).toContain("(acme/api)");
+  });
+
   it("offers the binding when no address is bound", () => {
     const out = html({ live: null, repository: null, shadow: { state: "unknown", why: "No app address is bound to this repository." } });
     expect(out).toContain("/dashboard/settings");

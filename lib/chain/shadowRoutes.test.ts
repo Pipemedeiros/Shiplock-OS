@@ -72,4 +72,15 @@ describe("shadowRoutes", () => {
     expect(notCheckedAreas(notes, { state: "read", paths: [], partial: false, removed: [], codeUnread: false })).toBe(1);
     expect(notCheckedAreas([], { state: "unknown", why: "x" })).toBe(0);
   });
+
+  // A frontend repository whose API lives in another selected repository:
+  // that address was audited there, so it is not unchecked surface.
+  it("moves an address another selected repository declares out of not checked", () => {
+    const run = (fullName: string, paths: string[]) => ({ fullName, routeFacts: paths.map((path) => ({ path })), coverage: [] });
+    const runs = [run("acme/web", ["/dashboard"]), run("acme/api", ["/api/billing/[id]", "/api/me"]), run("acme/api", ["/api/legacy"])];
+    expect(shadowRoutesFromRuns(live(["/api/me"]), runs, "acme/web")).toMatchObject({ paths: ["/api/me"] }); // acme/api not selected
+    expect(shadowRoutesFromRuns(live(["/api/billing/7", "/api/me", "/api/legacy", "/api/x"]), runs, "acme/web", ["acme/web", "acme/api"])).toEqual({ state: "read",
+      paths: ["/api/legacy", "/api/x"], partial: false, removed: [], codeUnread: false,
+      servedElsewhere: [{ path: "/api/billing/7", repository: "acme/api" }, { path: "/api/me", repository: "acme/api" }] });
+  });
 });

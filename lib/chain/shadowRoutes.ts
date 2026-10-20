@@ -22,7 +22,9 @@ import type { LiveReach } from "./liveReach";
  * call that route gone.
  */
 export type ShadowRoutes =
-  | { state: "read"; paths: string[]; partial: boolean; removed: string[]; codeUnread: boolean }
+  | { state: "read"; paths: string[]; partial: boolean; removed: string[]; codeUnread: boolean;
+      /** Requested addresses another selected repository declares: audited there, so not unchecked. */
+      servedElsewhere?: { path: string; repository: string }[] }
   | { state: "unknown"; why: string };
 
 const TRPC = /^\/(?:api\/)?trpc(?:\/|$)/;
@@ -48,11 +50,25 @@ type Run = { fullName: string; routeFacts: Routes | null; coverage: readonly { n
 
 /** Shadow routes for one repository from stored runs (newest first): its
  * newest route facts, the earlier ones for drift, and whether that audit left
- * files unread, which makes a listed address possibly a route it never saw. */
-export function shadowRoutesFromRuns(live: LiveReach | null, runs: readonly Run[], fullName: string): ShadowRoutes {
+ * files unread, which makes a listed address possibly a route it never saw.
+ * An address the newest audit of another selected repository declares (a
+ * separate API repository) was audited there and leaves the list. */
+export function shadowRoutesFromRuns(live: LiveReach | null, runs: readonly Run[], fullName: string, selected: readonly string[] = []): ShadowRoutes {
   const withRoutes = runs.filter((r) => r.fullName === fullName && r.routeFacts);
-  return shadowRoutes(live, withRoutes[0]?.routeFacts ?? null, withRoutes.slice(1).map((r) => r.routeFacts!),
+  const result = shadowRoutes(live, withRoutes[0]?.routeFacts ?? null, withRoutes.slice(1).map((r) => r.routeFacts!),
     withRoutes[0]?.coverage.some((c) => FILES_UNREAD.test(c.name)) ?? false);
+  if (result.state !== "read") return result;
+  const others = selected.filter((name) => name !== fullName).flatMap((name) => {
+    const newest = runs.find((r) => r.fullName === name && r.routeFacts);
+    return newest ? [{ name, declared: declares(newest.routeFacts!) }] : [];
+  });
+  const servedElsewhere = result.paths.flatMap((path) => {
+    const other = others.find((o) => o.declared(path));
+    return other ? [{ path, repository: other.name }] : [];
+  });
+  if (servedElsewhere.length === 0) return result;
+  const moved = new Set(servedElsewhere.map((s) => s.path));
+  return { ...result, paths: result.paths.filter((p) => !moved.has(p)), removed: result.removed.filter((p) => !moved.has(p)), servedElsewhere };
 }
 
 /** Whether a set of route entries serves a requested path. */

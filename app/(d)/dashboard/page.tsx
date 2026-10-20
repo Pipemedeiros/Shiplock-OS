@@ -59,7 +59,7 @@ export default async function Overview() {
   // area not checked (lib/chain/shadowRoutes.ts), as on Coverage.
   const boundName = live ? repos.find((r) => r.id === live.repositoryId)?.fullName : undefined;
   const unread = latest ? notCheckedAreas(latest.coverage,
-    boundName === latest.fullName ? shadowRoutesFromRuns(live, runs, latest.fullName) : { state: "unknown", why: "" }) : 0;
+    boundName === latest.fullName ? shadowRoutesFromRuns(live, runs, latest.fullName, repos.map((r) => r.fullName)) : { state: "unknown", why: "" }) : 0;
   // Only confirmed issues set the status (A1, Felipe 2026-10-07: prioritize
   // accuracy); candidates are named as "to review", never counted as issues.
   const issues = findings.filter((f) => f.confirmed);
