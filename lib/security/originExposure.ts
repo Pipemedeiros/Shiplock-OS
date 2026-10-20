@@ -187,9 +187,9 @@ export function checkOriginLeak(posture: OriginPosture): OriginFinding[] {
         severity: "WARNING",
         title: `Your mail records point at the same server as your site`,
         consequence:
-          `${domain} is served through ${provider}, but its mail records resolve to ${shared.join(", ")} — the same address serving the site. ` +
+          `${domain} is served through ${provider}, but its mail records resolve to ${shared.join(", ")}; the same address serving the site. ` +
           `A mail server cannot sit behind an HTTP CDN, so its address is real infrastructure and it is published in DNS by design. Anyone can read it, connect to that address directly, and reach your app without passing through ${provider} at all. ` +
-          `Everything you rely on ${provider} for — rate limiting, bot filtering, absorbing a flood — is only in the path for people who arrive the normal way. ` +
+          `Everything you rely on ${provider} for (rate limiting, bot filtering, absorbing a flood) is only in the path for people who arrive the normal way. ` +
           `We are telling you the door exists; closing it is a firewall rule at your host that accepts traffic only from ${provider}'s ranges. That is not something we can do for you, and it is worth doing once.`,
       },
     ];
@@ -224,8 +224,8 @@ export function checkNoEdge(posture: OriginPosture): OriginFinding[] {
       title: "Your app is served directly, not from behind an edge network",
       consequence:
         `${posture.domain} resolves to ${routableWeb.join(", ")}, which we do not recognise as a CDN or edge network. That usually means requests reach your server directly. ` +
-        `This is a note, not a fault — serving directly is a normal choice, and for a small app it is often the right one. It is here because it decides who absorbs a traffic spike: with nothing in front, your server does, and the first sign is usually the site being down. ` +
-        `We handle the application-layer side of this — credential stuffing, scrapers, floods aimed at expensive endpoints — but a volumetric attack is absorbed by network capacity, which is not something we can do from inside your app. If you ever need that, it comes from a provider in front of you. ` +
+        `This is a note, not a fault: serving directly is a normal choice, and for a small app it is often the right one. It is here because it decides who absorbs a traffic spike: with nothing in front, your server does, and the first sign is usually the site being down. ` +
+        `We handle the application-layer side of this (credential stuffing, scrapers, floods aimed at expensive endpoints) but a volumetric attack is absorbed by network capacity, which is not something we can do from inside your app. If you ever need that, it comes from a provider in front of you. ` +
         `If you are already behind something we did not recognise, ignore this.`,
     },
   ];

@@ -116,7 +116,7 @@ export function classifySourceMap(status: number, body: string, jsUrl: string): 
       ? "Your original source code is downloadable from your live site"
       : "Source maps are served in production (file paths only)",
     consequence: hasContent
-      ? `The source map for ${name} is publicly downloadable and contains your original, unminified source. Anyone can reconstruct your codebase — including comments, internal API routes, feature flags, and any logic you assumed was hidden by minification. Minification was never security, but shipping the map removes even the small friction it provided. Turn off production source maps (in Next.js, leave productionBrowserSourceMaps off), or restrict .map files at your host so only your error reporter can fetch them.`
+      ? `The source map for ${name} is publicly downloadable and contains your original, unminified source. Anyone can reconstruct your codebase, including comments, internal API routes, feature flags, and any logic you assumed was hidden by minification. Minification was never security, but shipping the map removes even the small friction it provided. Turn off production source maps (in Next.js, leave productionBrowserSourceMaps off), or restrict .map files at your host so only your error reporter can fetch them.`
       : `The source map for ${name} is publicly downloadable. It doesn't include your source text, but it does reveal your project's internal file and directory structure, which tells an attacker how your app is organised and what to look for. Turn off production source maps or restrict .map files at your host.`,
   };
 }
@@ -142,7 +142,7 @@ const BUNDLE_SECRETS: { id: string; label: string; re: RegExp; rotate: string }[
     id: "stripe_live_secret",
     label: "a live Stripe secret key (sk_live_…)",
     re: /\bsk_live_[A-Za-z0-9]{16,}/,
-    rotate: "Roll it in the Stripe dashboard now — a live secret key can move real money and read every customer record.",
+    rotate: "Roll it in the Stripe dashboard now; a live secret key can move real money and read every customer record.",
   },
   {
     id: "stripe_test_secret",
@@ -172,7 +172,7 @@ const BUNDLE_SECRETS: { id: string; label: string; re: RegExp; rotate: string }[
     id: "google_api_key",
     label: "a Google API key (AIza…)",
     re: /\bAIza[0-9A-Za-z_-]{35}\b/,
-    rotate: "Restrict it to your domain in the Google Cloud console (HTTP referrer restrictions), or rotate it. Some Google keys are safe to ship IF restricted — an unrestricted one is billable by anyone.",
+    rotate: "Restrict it to your domain in the Google Cloud console (HTTP referrer restrictions), or rotate it. Some Google keys are safe to ship IF restricted; an unrestricted one is billable by anyone.",
   },
   {
     id: "private_key",
@@ -207,7 +207,7 @@ export function scanBundleSecrets(js: string, jsUrl: string): BundleFinding[] {
       id: `bundle:shipped_secret:${secret.id}`,
       severity: "CRITICAL",
       title: `${secret.label} is in your public JavaScript`,
-      consequence: `We downloaded ${name} from your live site — no login, no special access, the same file every visitor gets — and found ${secret.label} inside it. Treat this key as public: assume it is already copied, and that removing it from your code does not un-leak it. ${secret.rotate}`,
+      consequence: `We downloaded ${name} from your live site (no login, no special access, the same file every visitor gets) and found ${secret.label} inside it. Treat this key as public: assume it is already copied, and that removing it from your code does not un-leak it. ${secret.rotate}`,
     });
   }
 
@@ -219,7 +219,7 @@ export function scanBundleSecrets(js: string, jsUrl: string): BundleFinding[] {
       id: `bundle:shipped_secret:supabase_${role}_jwt`,
       severity: "CRITICAL",
       title: `Your Supabase "${role}" key is in your public JavaScript`,
-      consequence: `${name} is served publicly from your site, and it contains a Supabase key whose decoded role is "${role}". A service-role key ignores Row Level Security completely: whoever holds it can read, change, or delete every row in every table, regardless of what your policies say. Anyone who has viewed your site's source has it. Rotate it in Supabase → Project Settings → API Keys right now — that is the only action that stops this — and then replace the client-side usage with the anon key. This usually happens because the anon and service-role keys sit next to each other in the dashboard and look identical.`,
+      consequence: `${name} is served publicly from your site, and it contains a Supabase key whose decoded role is "${role}". A service-role key ignores Row Level Security completely: whoever holds it can read, change, or delete every row in every table, regardless of what your policies say. Anyone who has viewed your site's source has it. Rotate it in Supabase → Project Settings → API Keys right now (that is the only action that stops this) and then replace the client-side usage with the anon key. This usually happens because the anon and service-role keys sit next to each other in the dashboard and look identical.`,
     });
     break; // one finding per bundle; the fix is the same rotation
   }

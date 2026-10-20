@@ -184,11 +184,11 @@ const SEVERITY_OVERRIDE: Record<string, Severity> = {
 // better to say.
 const CONSEQUENCE: Record<string, string> = {
   policy_exists_rls_disabled:
-    "This table has access policies written for it, but row-level security is switched off — so none of them apply. Anyone with your public key can read every row, and the policies give a false impression that the table is protected.",
+    "This table has access policies written for it, but row-level security is switched off, so none of them apply. Anyone with your public key can read every row, and the policies give a false impression that the table is protected.",
   rls_policy_always_true:
-    "The policy on this table allows unrestricted access, so every signed-in user can read every row — including other customers' data. Signing up is enough to see everything.",
+    "The policy on this table allows unrestricted access, so every signed-in user can read every row, including other customers' data. Signing up is enough to see everything.",
   rls_disabled_in_public:
-    "This table is reachable through your public API with no access rules at all. Anyone who has your publishable key — which your own frontend ships to every visitor — can read it.",
+    "This table is reachable through your public API with no access rules at all. Anyone who has your publishable key (which your own frontend ships to every visitor) can read it.",
   sensitive_columns_exposed:
     "Columns that look like personal or sensitive data are reachable through your public API.",
   auth_users_exposed:
@@ -204,7 +204,7 @@ const CONSEQUENCE: Record<string, string> = {
   insecure_queue_exposed_in_api:
     "This queue is reachable through your public API without protection, so a caller can read or enqueue messages.",
   public_bucket_allows_listing:
-    "This storage bucket lets anyone list its contents, so filenames — often revealing in themselves — are public even where the files are not.",
+    "This storage bucket lets anyone list its contents, so filenames (often revealing in themselves) are public even where the files are not.",
   pg_graphql_anon_table_exposed:
     "This table is queryable over GraphQL by unauthenticated callers.",
   pg_graphql_authenticated_table_exposed:

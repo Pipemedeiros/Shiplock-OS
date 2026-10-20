@@ -110,8 +110,8 @@ export function buildPrBody(changes: DepBump[]): string {
     "",
     lines,
     "",
-    "Only `package.json` version ranges changed — no application code was touched. Review, run your install to refresh the lockfile, and merge if your tests pass.",
+    "Only `package.json` version ranges changed, no application code was touched. Review, run your install to refresh the lockfile, and merge if your tests pass.",
     "",
-    "— ShipLock",
+    "ShipLock",
   ].join("\n");
 }

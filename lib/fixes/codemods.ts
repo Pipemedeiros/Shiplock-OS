@@ -186,7 +186,7 @@ export function gitignoreEnvFile(envPath: string): Codemod {
     const suffix = content.endsWith("\n") || content === "" ? "" : "\n";
     return {
       path,
-      content: `${content}${suffix}\n# Added by ShipLock — this file was committed.\n${envPath}\n`,
+      content: `${content}${suffix}\n# Added by ShipLock: this file was committed.\n${envPath}\n`,
       description: `add ${envPath} to .gitignore so it stops being committed`,
     };
   };

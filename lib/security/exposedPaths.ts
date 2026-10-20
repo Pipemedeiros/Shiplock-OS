@@ -46,21 +46,21 @@ const PROBES: Probe[] = [
     sig: /(insert\s+into|create\s+table|copy\s+public\.|postgresql database dump)/i,
     title: "A database dump is publicly served",
     consequence:
-      "A .sql dump of your database is downloadable over the web — that's every row of your data, publicly. Remove it from your deploy immediately and rotate anything sensitive it contained.",
+      "A .sql dump of your database is downloadable over the web; that's every row of your data, publicly. Remove it from your deploy immediately and rotate anything sensitive it contained.",
   },
   {
     path: "/dump.sql", group: "db_dump_exposed", severity: "CRITICAL",
     sig: /(insert\s+into|create\s+table|copy\s+public\.|postgresql database dump)/i,
     title: "A database dump is publicly served",
     consequence:
-      "A .sql dump of your database is downloadable over the web — that's every row of your data, publicly. Remove it from your deploy immediately and rotate anything sensitive it contained.",
+      "A .sql dump of your database is downloadable over the web; that's every row of your data, publicly. Remove it from your deploy immediately and rotate anything sensitive it contained.",
   },
   {
     path: "/database.sql", group: "db_dump_exposed", severity: "CRITICAL",
     sig: /(insert\s+into|create\s+table|copy\s+public\.|postgresql database dump)/i,
     title: "A database dump is publicly served",
     consequence:
-      "A .sql dump of your database is downloadable over the web — that's every row of your data, publicly. Remove it from your deploy immediately and rotate anything sensitive it contained.",
+      "A .sql dump of your database is downloadable over the web; that's every row of your data, publicly. Remove it from your deploy immediately and rotate anything sensitive it contained.",
   },
   {
     path: "/.npmrc", group: "npmrc_exposed", severity: "WARNING", sig: /_authToken=|_auth=/,

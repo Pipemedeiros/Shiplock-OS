@@ -103,7 +103,7 @@ export function detectCredentialStuffing(events: AuthEvent[]): RuntimeFinding[] 
       title: `Someone is testing stolen passwords against your users`,
       consequence:
         `One source produced ${sourceFailures.length} failed sign-ins against ${accounts.size} different accounts. ` +
-        `That shape is not someone forgetting a password — a real person fails repeatedly against their OWN account. Trying many different accounts from one place is what credential stuffing looks like: someone is replaying a password list leaked from another service to see which of your users reused theirs. ` +
+        `That shape is not someone forgetting a password; a real person fails repeatedly against their OWN account. Trying many different accounts from one place is what credential stuffing looks like: someone is replaying a password list leaked from another service to see which of your users reused theirs. ` +
         `Some of them will have. The accounts that matter are the ones where a login SUCCEEDED from this source, so that is the first thing to check. ` +
         `Turning on rate limiting at your auth provider, and requiring a second factor for accounts with elevated access, are what actually stop this.`,
       evidence: [
@@ -195,7 +195,7 @@ export function detectTakeoverSequence(events: AuthEvent[]): RuntimeFinding[] {
         title: `An account may have been taken over`,
         consequence:
           `One account shows the sequence an account takeover leaves behind: ${priorFailures.length} failed sign-ins, then a successful one from the same source, then a password change within ${Math.round(TAKEOVER_WINDOW_MS / 60000)} minutes. ` +
-          `Each of those events is unremarkable alone — people mistype passwords and then change them. In this order, from one source, it is what happens when someone guesses their way in and then locks the owner out. ` +
+          `Each of those events is unremarkable alone: people mistype passwords and then change them. In this order, from one source, it is what happens when someone guesses their way in and then locks the owner out. ` +
           `This is the one finding in the product worth acting on before you finish reading: if it is real, the legitimate owner can no longer log in to tell you. Check whether that password change came from the account owner, and if you cannot confirm it quickly, reset the session.`,
         evidence: [
           `${priorFailures.length} failed sign-ins, then success, from one source`,
@@ -229,7 +229,7 @@ export function detectSignupBurst(events: AuthEvent[], windowMs = 60 * 60 * 1000
       title: `One source is creating accounts automatically`,
       consequence:
         `${count} accounts were created from a single source within an hour. That is automation, not people. ` +
-        `On its own it is usually spam or someone farming free-tier usage, and the cost is your bill rather than your data. It becomes serious if any endpoint returns more than the caller's own rows to a signed-in user, because then a free account is all an attacker needs — which is exactly the combination we look for elsewhere. ` +
+        `On its own it is usually spam or someone farming free-tier usage, and the cost is your bill rather than your data. It becomes serious if any endpoint returns more than the caller's own rows to a signed-in user, because then a free account is all an attacker needs, which is exactly the combination we look for elsewhere. ` +
         `Requiring email confirmation before an account can do anything is the cheapest thing that stops this.`,
       evidence: [`${count} signups from one source within the hour`],
     });

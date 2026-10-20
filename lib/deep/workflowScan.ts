@@ -97,9 +97,9 @@ export function checkPullRequestTarget(path: string, workflow: Workflow): Github
       "CRITICAL",
       `${path} runs untrusted pull-request code with your secrets`,
       `${path} triggers on \`pull_request_target\` and then checks out the pull request's own branch. ` +
-        `Those two together are the most exploited mistake in GitHub Actions. \`pull_request_target\` deliberately runs with YOUR repository's token and YOUR secrets — that is what makes it useful for labelling or commenting on outside contributions — and checking out the contributor's branch then executes their code with all of it. ` +
+        `Those two together are the most exploited mistake in GitHub Actions. \`pull_request_target\` deliberately runs with YOUR repository's token and YOUR secrets (that is what makes it useful for labelling or commenting on outside contributions) and checking out the contributor's branch then executes their code with all of it. ` +
         `Anyone who can open a pull request, including from a fork, can read every secret in this repository and push to it. They do not need it merged, or even reviewed. ` +
-        `Fix: use \`pull_request\` instead, which runs without secrets, or keep \`pull_request_target\` and do NOT check out the PR head — only the base.`
+        `Fix: use \`pull_request\` instead, which runs without secrets, or keep \`pull_request_target\` and do NOT check out the PR head, only the base.`
     ),
   ];
 }
@@ -138,7 +138,7 @@ export function checkUnpinnedActions(path: string, workflow: Workflow): GithubFi
       `${path} runs third-party actions from a moveable tag`,
       `${path} uses ${[...unpinned].sort().join(", ")}, pinned to a tag or branch rather than a commit. ` +
         `Tags are not immutable: the author can repoint one at new code at any time, and so can anyone who takes over their account. Your CI then runs that code with your repository token and secrets, on your next push, with nothing in your diff to show anything changed. ` +
-        `This is the same shape as the npm supply-chain attacks — the compromise is upstream, and the victim's own code is untouched. ` +
+        `This is the same shape as the npm supply-chain attacks; the compromise is upstream, and the victim's own code is untouched. ` +
         `Fix: pin to the full commit SHA (\`uses: owner/action@<40-char-sha>\`). Dependabot updates SHA pins for you, so this costs nothing ongoing. First-party \`actions/*\` are not flagged here.`
     ),
   ];
@@ -163,7 +163,7 @@ export function checkPermissions(path: string, workflow: Workflow): GithubFindin
       `${path} does not state what it is allowed to do`,
       `${path} declares no \`permissions:\` block, so its token gets whatever the repository default is. On repositories created in the last couple of years that default is read-only and this is nothing to worry about; on older ones it is write-all, meaning any compromise of this workflow can push code. ` +
         `We cannot tell which from the file alone, which is why this is a note rather than a finding. ` +
-        `Adding \`permissions: contents: read\` at the top makes it explicit and costs nothing — and if the workflow then fails, it was relying on write access you did not know it had.`
+        `Adding \`permissions: contents: read\` at the top makes it explicit and costs nothing, and if the workflow then fails, it was relying on write access you did not know it had.`
     ),
   ];
 }

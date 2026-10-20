@@ -67,7 +67,7 @@ export function validateAnonKey(value: unknown): string {
     key.startsWith(SECRET_KEY_PREFIX);
   if (!looksValid) {
     throw new ValidationError(
-      'anonKey must be a Supabase key — either a JWT starting with "eyJ", or the newer "sb_publishable_..." format.',
+      'anonKey must be a Supabase key, either a JWT starting with "eyJ", or the newer "sb_publishable_..." format.',
       "anonKey"
     );
   }

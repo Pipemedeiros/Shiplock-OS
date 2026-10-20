@@ -94,7 +94,7 @@ export async function checkBadgeInstalled(
 
     return {
       state: "not_found",
-      detail: "No badge found on your homepage. If it's on another page, that's fine — we only check this one.",
+      detail: "No badge found on your homepage. If it's on another page, that's fine; we only check this one.",
       checkedAt,
     };
   } catch (err) {

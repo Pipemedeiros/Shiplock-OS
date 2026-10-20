@@ -119,11 +119,11 @@ export function interpretProbe(outcome: ProbeOutcome): ProvenFinding | null {
     severity: "CRITICAL",
     title: `Confirmed: one signed-in user can read another's rows in ${outcome.table}`,
     consequence:
-      `We copied your database structure into a temporary branch — schema, policies and configuration, with none of your data — created two synthetic users in it, and signed in as the first. ` +
+      `We copied your database structure into a temporary branch (schema, policies and configuration, with none of your data) created two synthetic users in it, and signed in as the first. ` +
       `Querying ${outcome.table} returned ${outcome.leakedRows} row${outcome.leakedRows === 1 ? "" : "s"} belonging to the second user. ` +
       `This is not a warning based on reading your policies; it is what actually happened when we tried. Your real ${outcome.table} table has the same policies, so a signed-in user of your app can read other users' rows there too. ` +
       `The fix is a policy on ${outcome.table} that compares the owner column (${outcome.ownerColumn}) to auth.uid(), so the database enforces the boundary regardless of what any endpoint forgets to filter. ` +
-      `Once you have applied it we will re-run this same probe and confirm it now returns nothing — you will see the finding close on evidence rather than on our say-so.`,
+      `Once you have applied it we will re-run this same probe and confirm it now returns nothing; you will see the finding close on evidence rather than on our say-so.`,
     proven: true,
   };
 }

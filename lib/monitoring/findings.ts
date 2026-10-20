@@ -132,7 +132,7 @@ export function extractFindings(scan: ScanResult): Finding[] {
       id: "sql_error_exposed",
       severity: "INFO",
       title: "Supabase returns detailed database errors (platform default)",
-      consequence: "Standard PostgREST behavior — reveals column names to anyone with your public key. Low risk, not SQL injection. Optional hardening.",
+      consequence: "Standard PostgREST behavior: reveals column names to anyone with your public key. Low risk, not SQL injection. Optional hardening.",
     });
   }
 

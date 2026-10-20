@@ -186,7 +186,7 @@ export function scanPublicCredentialValues(files: RepoFile[]): GithubFinding[] {
           `github:public_prefixed_secret_value:${name}:${file.path}`,
           "CRITICAL",
           `${name} holds ${shape.label} (${file.path})`,
-          `${name} has a public prefix, so its literal value can appear in client builds — and the value in ${file.path} is ${shape.label}, not a publishable one. If used in browser code, visitors receive the credential and its privileges. Rotate it immediately, then move it to a variable with no public prefix. The variable name doesn't matter here; the prefix and the value do.`
+          `${name} has a public prefix, so its literal value can appear in client builds, and the value in ${file.path} is ${shape.label}, not a publishable one. If used in browser code, visitors receive the credential and its privileges. Rotate it immediately, then move it to a variable with no public prefix. The variable name doesn't matter here; the prefix and the value do.`
         );
         continue;
       }
@@ -197,7 +197,7 @@ export function scanPublicCredentialValues(files: RepoFile[]): GithubFinding[] {
           `github:public_prefixed_service_jwt:${name}:${file.path}`,
           "CRITICAL",
           `${name} holds a Supabase "${role}" key, not the anon key (${file.path})`,
-          `The key in ${name} decodes to role "${role}". A service_role key ignores Row Level Security entirely — it can read and write every row in every table. Because ${name} has a public prefix, that key can appear in your browser bundle when used in client code. The anon and service-role keys sit next to each other in the Supabase dashboard and look identical, which is exactly how this happens. Rotate the service-role key now, and put the anon key here instead.`
+          `The key in ${name} decodes to role "${role}". A service_role key ignores Row Level Security entirely; it can read and write every row in every table. Because ${name} has a public prefix, that key can appear in your browser bundle when used in client code. The anon and service-role keys sit next to each other in the Supabase dashboard and look identical, which is exactly how this happens. Rotate the service-role key now, and put the anon key here instead.`
         );
       }
     }

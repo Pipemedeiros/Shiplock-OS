@@ -70,7 +70,7 @@ export async function getLayerStatus(userId: string): Promise<LayerStatus> {
       label: "code",
       connected: Boolean(profile?.github_installation_id),
       unlocks:
-        "Connect GitHub and we can tell you whether anything in your code actually depends on a risky policy — the difference between worth a look and fix this today.",
+        "Connect GitHub and we can tell you whether anything in your code actually depends on a risky policy; the difference between worth a look and fix this today.",
     },
     {
       id: "database",
@@ -102,7 +102,7 @@ export async function getLayerStatus(userId: string): Promise<LayerStatus> {
       id: "email-dns",
       label: "email/DNS",
       connected: Boolean(profile?.monitored_app_url),
-      unlocks: "We derive this from your app URL — nothing to connect.",
+      unlocks: "We derive this from your app URL, nothing to connect.",
     },
   ];
 
@@ -127,7 +127,7 @@ export { correlationLayers } from "./layerLabels";
 export function describeLayerStatus(status: LayerStatus): string {
   const connected = status.layers.filter((l) => l.connected).map((l) => l.label);
   if (connected.length === 0) {
-    return "No layers correlated yet — connect your stack to begin.";
+    return "No layers correlated yet: connect your stack to begin.";
   }
-  return `${status.connectedCount} of ${status.totalCount} layers correlated — ${connected.join(", ")}.`;
+  return `${status.connectedCount} of ${status.totalCount} layers correlated: ${connected.join(", ")}.`;
 }

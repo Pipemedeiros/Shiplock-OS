@@ -60,7 +60,7 @@ export async function checkScanRateLimit(req: NextRequest): Promise<RateLimitRes
   const ipHash = getClientIpHash(req);
   return checkDbRateLimit("scan_logs", ipHash, 60 * 60 * 1000, 1, () =>
     NextResponse.json(
-      { error: "Rate limit exceeded — one scan per hour. Please retry later." },
+      { error: "Rate limit exceeded: one scan per hour. Please retry later." },
       {
         status: 429,
         headers: {

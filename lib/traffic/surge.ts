@@ -134,7 +134,7 @@ export function describeSurge(current: TrafficWindow, assessment: SurgeAssessmen
   if (!assessment.surging) return [];
 
   const shared =
-    `${current.requests.toLocaleString()} requests reached ${current.topPath} from ${current.sources.toLocaleString()} sources — ${assessment.multiple.toFixed(1)} times your normal rate, with ${Math.round(assessment.concentration * 100)}% of all traffic on that one path. ` +
+    `${current.requests.toLocaleString()} requests reached ${current.topPath} from ${current.sources.toLocaleString()} sources: ${assessment.multiple.toFixed(1)} times your normal rate, with ${Math.round(assessment.concentration * 100)}% of all traffic on that one path. ` +
     `Real growth arrives across a site; this arrived at one endpoint.`;
 
   if (assessment.distributed) {
@@ -145,10 +145,10 @@ export function describeSurge(current: TrafficWindow, assessment: SurgeAssessmen
         title: `${current.topPath} is under a distributed flood`,
         consequence:
           `${shared} ` +
-          `Because it is spread across ${current.sources.toLocaleString()} sources, blocking individual addresses will not stop it — each one is making too few requests to look wrong on its own, which is the point of doing it this way. ` +
+          `Because it is spread across ${current.sources.toLocaleString()} sources, blocking individual addresses will not stop it; each one is making too few requests to look wrong on its own, which is the point of doing it this way. ` +
           `What is at risk is not your bandwidth but your database: an endpoint that costs a query per request runs out of connections long before the network notices anything. ` +
           `We have started turning away requests to ${current.topPath} that arrive faster than your normal rate, which keeps the rest of your app serving. That is reversible from your dashboard and lifts by itself once the rate returns to normal. ` +
-          `The durable fix is caching or a rate limit on that endpoint specifically — if it does not need to be computed per request, it should not be.`,
+          `The durable fix is caching or a rate limit on that endpoint specifically, if it does not need to be computed per request, it should not be.`,
       },
     ];
   }
@@ -161,7 +161,7 @@ export function describeSurge(current: TrafficWindow, assessment: SurgeAssessmen
       consequence:
         `${shared} ` +
         `It is coming from few enough sources that the ones responsible have been blocked, which normally ends it. ` +
-        `Worth a look at whether that endpoint is expensive to serve — a path that hits the database on every request is the one an attacker returns to, because it costs them a request and costs you a query.`,
+        `Worth a look at whether that endpoint is expensive to serve; a path that hits the database on every request is the one an attacker returns to, because it costs them a request and costs you a query.`,
     },
   ];
 }
@@ -219,7 +219,7 @@ export function planResponse(
     allowancePerMinute: allowance,
     reversible: true,
     explanation:
-      `Allowing ${allowance} requests a minute to ${current.topPath} — about 1.5x its own normal rate — and turning away the excess. ` +
+      `Allowing ${allowance} requests a minute to ${current.topPath}, about 1.5x its own normal rate, and turning away the excess. ` +
       `Your real users are inside that budget; the flood is not. Lifts automatically when the rate returns to normal, and can be turned off from the dashboard.`,
   };
 }

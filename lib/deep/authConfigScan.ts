@@ -148,9 +148,9 @@ export function analyzeRedirectAllowList(config: SupabaseAuthConfig): GithubFind
         "CRITICAL",
         `Your login redirect allow-list contains "${entry}", which permits ANY destination`,
         `Supabase's redirect allow-list includes "${entry}". After a successful sign-in, Supabase will hand the user's session to any URL an attacker chooses. ` +
-          `The attack is one link: send someone a genuine login link for your app with the redirect pointed at a server you control, let them log in normally on your real domain — 2FA and all — and receive their session tokens. ` +
+          `The attack is one link: send someone a genuine login link for your app with the redirect pointed at a server you control, let them log in normally on your real domain (2FA and all) and receive their session tokens. ` +
           `Nothing looks like phishing to the victim, because nothing about the login was fake. This is full account takeover for any user who clicks. ` +
-          `Fix: remove this entry and list your exact redirect URLs instead (a wildcard in the PATH, like https://yourapp.com/**, is fine — the problem is the host).`
+          `Fix: remove this entry and list your exact redirect URLs instead (a wildcard in the PATH, like https://yourapp.com/**, is fine; the problem is the host).`
       );
       continue;
     }
@@ -162,7 +162,7 @@ export function analyzeRedirectAllowList(config: SupabaseAuthConfig): GithubFind
         `auth_redirect:globstar_host:${entry}`,
         "CRITICAL",
         `Login redirect allow-list entry "${entry}" matches hosts you don't own`,
-        `The entry "${entry}" puts a "**" in the HOST portion. In Supabase's matching rules "**" matches any characters at all, including dots and slashes — so this does not mean "my subdomains", it means hosts that merely contain your domain name somewhere, including ones an attacker controls. ` +
+        `The entry "${entry}" puts a "**" in the HOST portion. In Supabase's matching rules "**" matches any characters at all, including dots and slashes, so this does not mean "my subdomains", it means hosts that merely contain your domain name somewhere, including ones an attacker controls. ` +
           `That lets an attacker receive a real user's session after a completely genuine login on your site. ` +
           `Fix: use a single "*" for one subdomain level, or list exact hosts. Keep wildcards to the path.`
       );
@@ -183,7 +183,7 @@ export function analyzeRedirectAllowList(config: SupabaseAuthConfig): GithubFind
           ? `The entry "${entry}" wildcards a host on ${bareHost}, where anyone can create a subdomain for free in about a minute. ` +
             `An attacker deploys anything to a name matching that pattern, sends a user a genuine login link for your app pointing there, and collects their session after they log in legitimately on your real domain. ` +
             `This is usually left over from wanting preview deployments to work. ` +
-            `Fix: remove it, and list the exact preview URLs you actually need — or point previews at a domain you control.`
+            `Fix: remove it, and list the exact preview URLs you actually need, or point previews at a domain you control.`
           : `The entry "${entry}" allows any subdomain to receive a signed-in user's session. That is safe only while you control every subdomain, forever. ` +
             `It commonly breaks in one specific way: a DNS record left pointing at a service you no longer use lets someone else claim that subdomain (a subdomain takeover), and they can then collect sessions from real logins on your real domain. ` +
             `Fix: list the exact hosts you redirect to. If this exists for preview deployments, prefer listing them explicitly.`
@@ -197,7 +197,7 @@ export function analyzeRedirectAllowList(config: SupabaseAuthConfig): GithubFind
         `auth_redirect:insecure_scheme:${entry}`,
         "WARNING",
         `Login redirect allow-list entry "${entry}" sends sessions over plain HTTP`,
-        `"${entry}" uses http:// rather than https://, so the session handed over after login travels unencrypted. Anyone between your user and that host — on shared Wi-Fi, or anywhere along the path — can read the tokens and use them. ` +
+        `"${entry}" uses http:// rather than https://, so the session handed over after login travels unencrypted. Anyone between your user and that host (on shared Wi-Fi, or anywhere along the path) can read the tokens and use them. ` +
           `Fix: change it to https://. (http:// on localhost is fine and is not flagged.)` +
           (path ? "" : "")
       );
@@ -224,7 +224,7 @@ export function analyzeSiteUrl(config: SupabaseAuthConfig): GithubFinding[] {
         "auth_site_url:localhost",
         "WARNING",
         "Your Site URL still points at localhost",
-        `Supabase's Site URL is "${raw}", which is the default and was never changed. Site URL is where password-reset and email-confirmation links point when the code doesn't say otherwise — so those emails are currently sending your users to their own machine, where nothing is running. ` +
+        `Supabase's Site URL is "${raw}", which is the default and was never changed. Site URL is where password-reset and email-confirmation links point when the code doesn't say otherwise, so those emails are currently sending your users to their own machine, where nothing is running. ` +
           `The practical effect is that password reset appears broken for everyone, and a user who can't reset a password often reuses one or contacts support to have it changed, which is its own risk. ` +
           `Fix: set Site URL to your production URL in Authentication → URL Configuration.`
       ),
@@ -261,7 +261,7 @@ export function scanAuthConfig(config: SupabaseAuthConfig | null): GithubFinding
     // Deliberately loud. This is the shape of the bug that hid two advisor lints
     // for months, and it must never again present as a passing check.
     console.error(
-      "[authConfigScan] auth config had none of the expected keys — B7 and Site URL checks did NOT run. Keys seen:",
+      "[authConfigScan] auth config had none of the expected keys: B7 and Site URL checks did NOT run. Keys seen:",
       Object.keys(config).slice(0, 40).join(", ")
     );
     return [];

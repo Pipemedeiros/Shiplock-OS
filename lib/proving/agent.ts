@@ -129,7 +129,7 @@ function buildAgentFinding(
     severity: "CRITICAL",
     title: `Confirmed: another user's rows in ${context.table} are reachable`,
     consequence:
-      `We rebuilt ${context.table} and its policies on our own infrastructure — your schema, none of your data — created two synthetic users, and signed in as the first. ` +
+      `We rebuilt ${context.table} and its policies on our own infrastructure (your schema, none of your data) created two synthetic users, and signed in as the first. ` +
       `This query returned ${rows.length} row${rows.length === 1 ? "" : "s"} belonging to the second user:\n\n${sql}\n\n` +
       `That is not a warning derived from reading your policy; it is what came back when we ran it. Your real table has the same policies, so a signed-in user of your app can reach other users' rows the same way. ` +
       `${summariseAttempts(attempts)} ` +

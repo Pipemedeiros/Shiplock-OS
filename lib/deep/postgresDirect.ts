@@ -265,7 +265,7 @@ export async function assertReadOnlyRole(
   }
   if (role.rolsuper || role.rolbypassrls) {
     throw new PostgresConnectionError(
-      "That role is a superuser or can bypass Row Level Security. Create a read-only role for ShipLock instead — we should not be able to change or over-read your data.",
+      "That role is a superuser or can bypass Row Level Security. Create a read-only role for ShipLock instead; we should not be able to change or over-read your data.",
       "not_read_only"
     );
   }
@@ -294,7 +294,7 @@ export async function assertReadOnlyRole(
   }
   if (writable.count > 0) {
     throw new PostgresConnectionError(
-      "That role can write to your tables. Create a read-only role for ShipLock instead — we should not be able to change your data.",
+      "That role can write to your tables. Create a read-only role for ShipLock instead; we should not be able to change your data.",
       "not_read_only"
     );
   }

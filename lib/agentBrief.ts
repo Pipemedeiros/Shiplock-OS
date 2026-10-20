@@ -32,7 +32,7 @@ export function buildAgentBrief(scan: LatestScan, deepFindings: DeepBriefFinding
   lines.push(
     "ShipLock is a continuous security scanner for Supabase-backed apps. This brief lists " +
       "every open finding from the customer's latest audit, with the fix ShipLock recommends " +
-      "for each — paste this whole file to your coding agent (Cursor, Lovable, Bolt, v0, or " +
+      "for each: paste this whole file to your coding agent (Cursor, Lovable, Bolt, v0, or " +
       "similar) and ask it to work through the findings below."
   );
   lines.push("");
@@ -44,7 +44,7 @@ export function buildAgentBrief(scan: LatestScan, deepFindings: DeepBriefFinding
   lines.push(
     "- Do NOT auto-modify Row Level Security policies, auth configuration, or run destructive " +
       "database migrations without stopping to flag the change for human review first. " +
-      "These stay copy-paste-and-verify, never silent auto-apply — ask before proceeding on " +
+      "These stay copy-paste-and-verify, never silent auto-apply; ask before proceeding on " +
       "anything under those three categories, even if a fix below includes SQL for one."
   );
   lines.push(
@@ -75,7 +75,7 @@ export function buildAgentBrief(scan: LatestScan, deepFindings: DeepBriefFinding
     lines.push(`**Fix:** ${issue.fix}`);
     if (issue.codefix) {
       lines.push("");
-      lines.push(`**File:** \`${issue.codefix.file}\` — ${issue.codefix.description}`);
+      lines.push(`**File:** \`${issue.codefix.file}\`: ${issue.codefix.description}`);
       lines.push("");
       lines.push("```");
       lines.push(issue.codefix.prompt);
@@ -91,7 +91,7 @@ export function buildAgentBrief(scan: LatestScan, deepFindings: DeepBriefFinding
     lines.push("");
     lines.push(
       "From your connected repository and deeper analysis. Apply the described fix; the same " +
-        "RLS/auth/destructive guardrail above applies — flag those for review, never silent auto-apply."
+        "RLS/auth/destructive guardrail above applies; flag those for review, never silent auto-apply."
     );
     lines.push("");
     for (const d of deepSorted) {

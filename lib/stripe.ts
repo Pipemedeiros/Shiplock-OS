@@ -23,7 +23,7 @@ export function getStripe(): Stripe {
   const key = process.env.STRIPE_SECRET_KEY;
   // Thrown at CALL time, so the failure lands on the request that needed
   // billing rather than on everything else.
-  if (!key) throw new Error("STRIPE_SECRET_KEY is not set — add it to .env.local.");
+  if (!key) throw new Error("STRIPE_SECRET_KEY is not set: add it to .env.local.");
 
   client = new Stripe(key, { apiVersion: "2026-05-27.dahlia" });
   return client;

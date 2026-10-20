@@ -97,7 +97,7 @@
         "lib/deep/github.ts": "9a59918f186f3c18fc975947cfcf064e05d86c943f35ed588cfba49bcac02151",
         "lib/deep/githubFixRun.ts": "62bf494b3a55b2415d4da5b55b6b6c02711bd6cbd7295815f4d77a27138c207d",
         "lib/fixes/aiFixPr.ts": "a661d8c11e0b1394d8139f5e02fbfd1fb9736ba1593ac8193601117da32720ec",
-        "lib/fixes/prRun.ts": "ac172740424c6bc53fe490115d90d6429fda7e9baff31c0d3dffc58c3a216cfe",
+        "lib/fixes/prRun.ts": "ed56fc3abe0df435dc15a03f0e1ee6bff6cf3839109624bab7feefdb49fc98a2",
         "lib/fixes/pullRequestFixPr.ts": "c9fd02509b7df459970c572aab3ecc70735cdb353a95ec19199bdca1ca5d3854",
         "lib/fixes/rateLimitPr.ts": "dbfb1054037ce1c53cf46b8ab3d325ece2779e614afed341afe8bee2f55a1ae0",
         "lib/fixes/riskFixPr.ts": "5e803d5a41232a13fdd3aa5a4f355f70bae80181d7d6716372f90fdcf608cbdc",
@@ -224,8 +224,8 @@
     },
     {
       "id": "customer-copy",
-      "statement": "Customer pages and components contain no em or en dash.",
-      "why": "AGENTS.md: Customer pages and components contain no em or en dash.",
+      "statement": "Customer pages, components and every lib string contain no em or en dash.",
+      "why": "AGENTS.md: no dashes anywhere a customer reads; finding copy lives in lib (2026-10-19).",
       "severity": "block",
       "kind": "existing_test",
       "scope": [
@@ -237,7 +237,7 @@
       },
       "testFile": "app/noDashes.test.ts",
       "testName": "no em or en dash in any page or component outside comments",
-      "assertionDigest": "13950e0241982887fab07c987546dd6774a43339e6b2784229fa40ca99a96c81"
+      "assertionDigest": "024abcb2f0e17f6796306cc5a3a9c1bbf5942acfe6170bf371c8e7d4487634d7"
     },
     {
       "id": "crawler-agreement",

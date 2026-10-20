@@ -42,7 +42,7 @@ export async function sendNewFindingsAlert(
   const sent = await sendEmail(
     {
       to: email,
-      subject: `ShipLock — ${toAlert.length} new issue${toAlert.length !== 1 ? "s" : ""} found`,
+      subject: `ShipLock: ${toAlert.length} new issue${toAlert.length !== 1 ? "s" : ""} found`,
       text: `ShipLock found ${toAlert.length} new issue${toAlert.length !== 1 ? "s" : ""} on your monitored project:\n\n${lines}\n\nSign in to ShipLock for the exact fix and code prompt for each.`,
     },
     "monitoring"
@@ -62,7 +62,7 @@ export async function sendNewFindingsAlert(
   // than silence about a CRITICAL finding.
   if (!sent) {
     console.error(
-      `[monitoring] not recording dedup for ${toAlert.length} finding(s) for user ${userId} — email did not send, so they stay eligible for the next pass`
+      `[monitoring] not recording dedup for ${toAlert.length} finding(s) for user ${userId}: email did not send, so they stay eligible for the next pass`
     );
     return "failed";
   }

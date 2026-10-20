@@ -175,7 +175,7 @@ export async function runDirectPostgresScan(
       // BEFORE the persistence block — a broken parser must never archive a
       // customer's real findings as resolved.
       console.error(
-        `[postgresDirect] SHAPE MISMATCH for ${userId} — scan abandoned rather than ` +
+        `[postgresDirect] SHAPE MISMATCH for ${userId}: scan abandoned rather than ` +
           `reported clean. ${err.message}`
       );
       return { ok: false, findings: 0, reason: "shape_mismatch" };

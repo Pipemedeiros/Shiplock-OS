@@ -104,7 +104,7 @@ export function checkNetworkGrants(rows: NetworkGrantRow[]): GithubFinding[] {
       `Anyone with your public key can make your database send HTTP requests`,
       `${roles.join(" and ")} can execute ${functions.join(", ")}, which open outbound HTTP connections from inside your database. ` +
         `Anyone holding your public key can therefore make your infrastructure issue requests on their behalf. That is server-side request forgery, and the database is an unusually good place to have it: requests come from inside your network, so they reach services that are not exposed to the internet, and cloud metadata endpoints that hand out credentials to whatever asks from inside. ` +
-        `It is also a data-exfiltration channel — a request can carry query results in its URL, leaving through a door you opened rather than one you monitor. ` +
+        `It is also a data-exfiltration channel; a request can carry query results in its URL, leaving through a door you opened rather than one you monitor. ` +
         `Fix: \`revoke execute on all functions in schema net from anon, authenticated;\` and call it only from a SECURITY DEFINER function you control, or from your server.`
     ),
   ];
@@ -140,7 +140,7 @@ export function checkCronJobs(rows: CronJobRow[]): GithubFinding[] {
         "WARNING",
         `${superuserJobs.length} scheduled job${superuserJobs.length === 1 ? "" : "s"} run as a superuser`,
         `${superuserJobs.map((r) => r.name ?? "unnamed").join(", ")} run as \`${superuserJobs[0].runs_as}\`, which bypasses Row Level Security entirely and can alter any table. ` +
-          `Sometimes that is required. It is worth confirming deliberately, because a scheduled job is the least-reviewed code in most projects — it runs unattended, its output is rarely read, and a mistake in it has the same reach as a mistake in your migrations. ` +
+          `Sometimes that is required. It is worth confirming deliberately, because a scheduled job is the least-reviewed code in most projects; it runs unattended, its output is rarely read, and a mistake in it has the same reach as a mistake in your migrations. ` +
           `If the job only needs a few tables, give it a role with only those.`
       )
     );
@@ -159,7 +159,7 @@ export function checkForeignServers(rows: FdwRow[]): GithubFinding[] {
       "INFO",
       `Your database connects to ${rows.length} external system${rows.length === 1 ? "" : "s"}`,
       `${rows.map((r) => `${r.server} (${r.wrapper})`).join(", ")} ${rows.length === 1 ? "is" : "are"} configured as foreign servers, so your database can query systems outside it. ` +
-        `This is a note rather than a problem — it is a normal way to join across services. It is worth knowing about because it widens what a compromise of the database reaches: RLS does not apply to the remote side, and the credentials for that connection live in your database. ` +
+        `This is a note rather than a problem; it is a normal way to join across services. It is worth knowing about because it widens what a compromise of the database reaches: RLS does not apply to the remote side, and the credentials for that connection live in your database. ` +
         `Worth confirming the connection uses a least-privilege account on the remote system rather than an administrative one.`
     ),
   ];

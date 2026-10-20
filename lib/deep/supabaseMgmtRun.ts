@@ -398,7 +398,7 @@ export async function runPolicyScan(
     // broken parser cannot mark a customer's real findings resolved.
     if (err instanceof CollectorShapeError) {
       console.error(
-        `[supabaseMgmt] SHAPE MISMATCH for ${userId} — the scan was abandoned rather than ` +
+        `[supabaseMgmt] SHAPE MISMATCH for ${userId}; the scan was abandoned rather than ` +
           `reported clean. ${err.message}`
       );
       return { ok: false, findings: 0, reason: "shape_mismatch" };

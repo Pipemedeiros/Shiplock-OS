@@ -56,7 +56,7 @@ export class CollectorShapeError extends Error {
     super(
       `${source}: response did not match the expected shape` +
         (failedRows !== undefined ? ` (${failedRows} row(s))` : "") +
-        (issues.length > 0 ? ` — ${issues.join("; ")}` : "")
+        (issues.length > 0 ? `: ${issues.join("; ")}` : "")
     );
     this.name = "CollectorShapeError";
   }

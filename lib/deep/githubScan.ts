@@ -558,7 +558,7 @@ export function scanSecrets(files: RepoFile[]): GithubFinding[] {
           : `Possible ${pat.label} committed in ${file.path}`,
         consequence: inTest
           ? `${file.path} is test scaffolding, and the value in it does not look manufactured. If the suite authenticates against something real, that credential is in source control and should be rotated and moved to an environment variable the suite reads.`
-          : `${file.path} appears to contain ${pat.label}. Committed credentials are compromised the moment they're pushed — rotate it now and move it to a server-only environment variable.`,
+          : `${file.path} appears to contain ${pat.label}. Committed credentials are compromised the moment they're pushed; rotate it now and move it to a server-only environment variable.`,
         packageName: null, version: null, vulnId: null, cveId: null,
       });
     }

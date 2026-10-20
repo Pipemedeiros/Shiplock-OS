@@ -51,7 +51,7 @@ export function auditEnv(projectName: string, vars: VercelEnvVar[]): EnvFinding[
         title: `Secret-looking variable "${v.key}" is exposed to the client bundle`,
         consequence:
           `Variables with a public prefix (e.g. NEXT_PUBLIC_) are inlined into the browser bundle and visible to anyone. ` +
-          `"${v.key}" looks like a server-only secret — rotate it immediately and move it to a server-only variable.`,
+          `"${v.key}" looks like a server-only secret; rotate it immediately and move it to a server-only variable.`,
         key: v.key,
       });
     }

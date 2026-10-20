@@ -143,13 +143,13 @@ export function buildDigestText(d: DigestData, appUrl: string): string {
     lines.push(`  ${d.resolvedFindings} finding${d.resolvedFindings === 1 ? "" : "s"} resolved`);
   }
   if (d.newFindings > 0) {
-    lines.push(`  ${d.newFindings} new finding${d.newFindings === 1 ? "" : "s"} — details in your dashboard`);
+    lines.push(`  ${d.newFindings} new finding${d.newFindings === 1 ? "" : "s"}, details in your dashboard`);
   }
 
   lines.push("");
   lines.push(
     d.newFindings === 0
-      ? "We didn't email you this week because nothing new appeared. That's the product working, not a gap in it — this note is just the proof."
+      ? "We didn't email you this week because nothing new appeared. That's the product working, not a gap in it; this note is just the proof."
       : "New findings were alerted separately when we found them; this is the summary."
   );
   lines.push("");
@@ -183,10 +183,10 @@ export async function sendWeeklyDigest(
 
   const subject =
     data.openCritical > 0
-      ? `ShipLock — ${data.openCritical} critical still open`
+      ? `ShipLock: ${data.openCritical} critical still open`
       : data.newFindings > 0
-        ? "ShipLock — your week in review"
-        : "ShipLock — all quiet, and here's the proof";
+        ? "ShipLock: your week in review"
+        : "ShipLock: all quiet, and here's the proof";
 
   // Resend resolves (does not throw) on API errors, so the old try/catch here
   // could not see a rejected send — and last_digest_sent_at below would still be

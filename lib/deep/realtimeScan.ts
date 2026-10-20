@@ -90,9 +90,9 @@ export function checkRealtimeTables(rows: RealtimeTableRow[]): GithubFinding[] {
         `${names.join(", ")} ${names.length === 1 ? "is" : "are"} streaming live to anyone who subscribes`,
         `${names.join(", ")} ${names.length === 1 ? "is" : "are"} published to Supabase Realtime with Row Level Security switched off. ` +
           `Anyone holding your public key can open a websocket and receive every insert, update and delete on ${names.length === 1 ? "that table" : "those tables"} as it happens. ` +
-          `This is worse than a table that merely reads openly, for two reasons. It is a continuous feed rather than a query someone has to think to run — they subscribe once and watch. And it produces no request in the logs you look at, so nothing about it will ever catch your eye. ` +
+          `This is worse than a table that merely reads openly, for two reasons. It is a continuous feed rather than a query someone has to think to run; they subscribe once and watch. And it produces no request in the logs you look at, so nothing about it will ever catch your eye. ` +
           `It is also easy to miss because Realtime is configured somewhere else: securing your API surface does nothing here, and adding a table to the publication is a single toggle. ` +
-          `Fix: \`alter table ${names[0]} enable row level security;\` and add a policy scoping rows to their owner. Realtime honours policies — it just has nothing to honour right now.`
+          `Fix: \`alter table ${names[0]} enable row level security;\` and add a policy scoping rows to their owner. Realtime honours policies; it just has nothing to honour right now.`
       )
     );
   }
@@ -106,7 +106,7 @@ export function checkRealtimeTables(rows: RealtimeTableRow[]): GithubFinding[] {
         "INFO",
         `${names.join(", ")} ${names.length === 1 ? "is" : "are"} published to Realtime but deliver nothing`,
         `${names.join(", ")} ${names.length === 1 ? "is" : "are"} in the Realtime publication with Row Level Security on and no policies, so the database denies everything and subscribers receive no events. ` +
-          `That is the safe direction, and nothing is leaking. It is here because it is usually not what was intended — someone enabled Realtime expecting a live feed, and it silently does nothing. ` +
+          `That is the safe direction, and nothing is leaking. It is here because it is usually not what was intended; someone enabled Realtime expecting a live feed, and it silently does nothing. ` +
           `If the feed is meant to work, add a policy that scopes rows to their owner. If it is not, removing the table from the publication makes the intent clear.`
       )
     );
@@ -134,7 +134,7 @@ export function checkAuthHooks(rows: AuthHookRow[]): GithubFinding[] {
       "auth_hook:mutable_search_path",
       "WARNING",
       `${names.join(", ")} runs with elevated rights and no fixed search_path`,
-      `${names.join(", ")} ${names.length === 1 ? "is" : "are"} SECURITY DEFINER — running with the definer's privileges rather than the caller's — and ${names.length === 1 ? "does" : "do"} not pin a search_path. ` +
+      `${names.join(", ")} ${names.length === 1 ? "is" : "are"} SECURITY DEFINER (running with the definer's privileges rather than the caller's) and ${names.length === 1 ? "does" : "do"} not pin a search_path. ` +
         `search_path decides which schema an unqualified name resolves to, so anyone who can create a function or table in an earlier schema can make this one call something its author never wrote, with elevated rights. ` +
         `That matters more here than for an ordinary function, because a hook with "hook" in its name is usually shaping the claims that go into a signed access token. Claims are what your policies trust: if this can be influenced, so can every rule written as "admins can read everything". ` +
         `Fix: add \`set search_path = ''\` to the function definition and schema-qualify every name inside it.`

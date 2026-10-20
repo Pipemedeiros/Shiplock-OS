@@ -92,7 +92,7 @@ export function checkAnonymousSignIns(config: SupabaseAuthConfig): GithubFinding
       "auth_policy:anonymous_signins",
       "WARNING",
       "Anonymous sign-in is enabled",
-      "Anyone can obtain a signed-in session on your project without providing an email or a password. That is a real feature — it is how guest carts and try-before-signup flows work — so this is not automatically wrong. " +
+      "Anyone can obtain a signed-in session on your project without providing an email or a password. That is a real feature (it is how guest carts and try-before-signup flows work) so this is not automatically wrong. " +
         "It matters because it changes what `authenticated` means in your policies: every rule written as \"logged-in users can read this\" now also means \"anybody at all can read this\". " +
         "If you are not using anonymous sign-ins deliberately, turn them off in Authentication → Providers. If you are, check that no policy grants access on the strength of being authenticated alone."
     ),
@@ -109,7 +109,7 @@ export function checkEmailConfirmation(config: SupabaseAuthConfig): GithubFindin
       "New accounts are active without confirming their email",
       "Sign-ups are auto-confirmed, so an account works immediately with an address nobody proved they own. Two consequences worth separating. " +
         "First, anyone can create unlimited accounts with addresses they do not control, which is how free-tier abuse and spam start. " +
-        "Second, and more serious: someone can sign up using SOMEONE ELSE'S email address. If any part of your app treats an email as identity — inviting a teammate, matching a customer record, restoring access — that account now impersonates a real person. " +
+        "Second, and more serious: someone can sign up using SOMEONE ELSE'S email address. If any part of your app treats an email as identity (inviting a teammate, matching a customer record, restoring access) that account now impersonates a real person. " +
         "Fix: require email confirmation in Authentication → Providers."
     ),
   ];
@@ -126,7 +126,7 @@ export function checkPasswordPolicy(config: SupabaseAuthConfig): GithubFinding[]
         "auth_policy:weak_password_length",
         "WARNING",
         `Passwords as short as ${minLength} characters are accepted`,
-        `Your project accepts passwords of ${minLength} characters. Short passwords are not guessed one at a time — they are cracked offline in bulk if a password database is ever exposed, and the difference between 6 and 8 characters is minutes versus considerably longer. ` +
+        `Your project accepts passwords of ${minLength} characters. Short passwords are not guessed one at a time; they are cracked offline in bulk if a password database is ever exposed, and the difference between 6 and 8 characters is minutes versus considerably longer. ` +
           `The cost of raising it is close to zero: existing users keep their passwords and are unaffected. Set the minimum to at least 8 in Authentication → Providers, and consider enabling the leaked-password check while you are there.`
       )
     );
@@ -139,7 +139,7 @@ export function checkPasswordPolicy(config: SupabaseAuthConfig): GithubFinding[]
         "auth_policy:no_password_complexity",
         "INFO",
         "No character requirements on passwords",
-        "Passwords have a reasonable minimum length but no character-class requirement. This is a note rather than a problem — length matters considerably more than symbol requirements, and forced complexity pushes people toward predictable substitutions. " +
+        "Passwords have a reasonable minimum length but no character-class requirement. This is a note rather than a problem; length matters considerably more than symbol requirements, and forced complexity pushes people toward predictable substitutions. " +
           "Mentioned only so the choice is deliberate. Enabling Supabase's leaked-password check is a better use of the same effort."
       )
     );
@@ -158,7 +158,7 @@ export function checkMfa(config: SupabaseAuthConfig): GithubFinding[] {
       "INFO",
       "Your users cannot turn on two-factor authentication",
       "Multi-factor enrolment is disabled, so no user of your app can add a second factor even if they want to. " +
-        "For most consumer apps this is a reasonable default. It becomes worth changing as soon as any account can see other people's data — an admin or support role — because for those accounts a stolen password is the whole breach. " +
+        "For most consumer apps this is a reasonable default. It becomes worth changing as soon as any account can see other people's data (an admin or support role) because for those accounts a stolen password is the whole breach. " +
         "Enable it in Authentication → Providers; users opt in individually, so nothing changes for anyone who ignores it."
     ),
   ];
@@ -177,7 +177,7 @@ export function checkSessionPolicy(config: SupabaseAuthConfig): GithubFinding[] 
         "auth_policy:long_session",
         "WARNING",
         `Access tokens stay valid for ${hours} hours`,
-        `Your access tokens live for ${hours} hours. Access tokens cannot be revoked — that is what makes them fast — so this is also how long a stolen one keeps working after you have found out about it and reset the account. ` +
+        `Your access tokens live for ${hours} hours. Access tokens cannot be revoked (that is what makes them fast) so this is also how long a stolen one keeps working after you have found out about it and reset the account. ` +
           `The usual reason for a long expiry is to stop users being logged out, but refresh tokens already handle that: a short access token is renewed silently in the background, and the user never notices. ` +
           `An hour is the common setting. Change it in Authentication → Sessions.`
       )
@@ -190,7 +190,7 @@ export function checkSessionPolicy(config: SupabaseAuthConfig): GithubFinding[] 
         "auth_policy:no_refresh_rotation",
         "WARNING",
         "Refresh tokens are not rotated",
-        "A refresh token can be used repeatedly without being replaced. With rotation on, each use issues a new token and retires the old one, so a token stolen from a device or a log stops working the moment the real user's client next refreshes — and the reuse is detectable. " +
+        "A refresh token can be used repeatedly without being replaced. With rotation on, each use issues a new token and retires the old one, so a token stolen from a device or a log stops working the moment the real user's client next refreshes, and the reuse is detectable. " +
           "Without it, a leaked refresh token is a long-lived key to the account with nothing to signal the theft. Enable rotation in Authentication → Sessions."
       )
     );
@@ -205,7 +205,7 @@ export function scanAuthPolicy(config: SupabaseAuthConfig | null): GithubFinding
 
   if (isUnrecognisedAuthConfig(config)) {
     console.error(
-      "[authPolicyScan] auth config had none of the expected keys — B1/B2/B4/B5/B11 did NOT run. Keys seen:",
+      "[authPolicyScan] auth config had none of the expected keys: B1/B2/B4/B5/B11 did NOT run. Keys seen:",
       Object.keys(config).slice(0, 40).join(", ")
     );
     return [];

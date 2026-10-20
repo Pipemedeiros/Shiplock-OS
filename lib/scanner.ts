@@ -272,14 +272,14 @@ async function fetchJSON<T>(url: string, key: string, signal?: AbortSignal): Pro
       if (err.name === "TimeoutError" || err.name === "AbortError")
         throw new ScanError("Request timed out after 10 seconds.", "NETWORK_TIMEOUT");
       if (err.name === "TypeError")
-        throw new ScanError("Network error — could not reach the Supabase project.", "FETCH_ERROR");
+        throw new ScanError("Network error: could not reach the Supabase project.", "FETCH_ERROR");
     }
     throw err;
   }
   if (response.status === 401)
-    throw new ScanError("Authentication failed — credentials are invalid.", "INVALID_CREDENTIALS", 401);
+    throw new ScanError("Authentication failed: credentials are invalid.", "INVALID_CREDENTIALS", 401);
   if (response.status === 404)
-    throw new ScanError("Supabase project not found — verify the project URL.", "PROJECT_NOT_FOUND", 404);
+    throw new ScanError("Supabase project not found: verify the project URL.", "PROJECT_NOT_FOUND", 404);
   if (!response.ok)
     throw new ScanError(`Unexpected response (HTTP ${response.status}).`, "FETCH_ERROR", response.status);
   return response.json() as Promise<T>;

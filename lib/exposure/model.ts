@@ -206,7 +206,7 @@ export function estimateExposure(inventory: TableInventory): ExposureEstimate | 
       `(${SOURCES.perRecord.source}) = ${formatMoney(estimate)}`,
     caveat:
       `This is an exposure estimate built from published averages, not a prediction and not legal advice. ` +
-      `It covers notification and response — the costs you would incur regardless of whether anyone sued you — and excludes regulatory action entirely, because that depends on your jurisdiction and conduct rather than on row counts. ` +
+      `It covers notification and response (the costs you would incur regardless of whether anyone sued you) and excludes regulatory action entirely, because that depends on your jurisdiction and conduct rather than on row counts. ` +
       `${SOURCES.dwellTime.label.charAt(0).toUpperCase()}${SOURCES.dwellTime.label.slice(1)} (${SOURCES.dwellTime.source}), and breaches found late cost roughly double.`,
   };
 }
@@ -241,7 +241,7 @@ export function summariseExposure(inventories: TableInventory[]): ExposureSummar
     // are not qualified to give and would be wrong more often than right.
     regulatoryNote:
       `Fines are deliberately not included above. GDPR sets ceilings of 2% or 4% of global annual turnover depending on which obligation was breached, and US state laws vary by state and by the kind of data involved. ` +
-      `Which ceiling applies, and where in the range a regulator lands, depends on your jurisdiction, your users' locations, and how you respond — none of which is something a row count can tell you. ` +
+      `Which ceiling applies, and where in the range a regulator lands, depends on your jurisdiction, your users' locations, and how you respond, none of which is something a row count can tell you. ` +
       `We describe the structure so you can do that arithmetic with your own lawyer rather than take a number from us.`,
   };
 }

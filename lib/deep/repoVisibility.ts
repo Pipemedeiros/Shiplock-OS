@@ -68,7 +68,7 @@ export function checkRepoVisibility(repo: RepoVisibility, repoFindings: GithubFi
           `If that's deliberate, nothing here needs doing and you can ignore this. ` +
           `We flag it because it changes what a mistake costs: from now on, any credential committed to this repo is public the moment you push, ` +
           `and deleting the file afterwards does not remove it from history. ` +
-          `Credential-harvesting bots watch new public commits continuously — the window between pushing a key and it being used is minutes, not days. ` +
+          `Credential-harvesting bots watch new public commits continuously; the window between pushing a key and it being used is minutes, not days. ` +
           `We check every pull request, so if a secret does land here you'll hear from us immediately.`,
         packageName: null,
         version: null,
@@ -87,7 +87,7 @@ export function checkRepoVisibility(repo: RepoVisibility, repoFindings: GithubFi
         `${repo.fullName} is readable by anyone on the internet, and we found ${leaked.length} credential${leaked.length === 1 ? "" : "s"} committed to it: ` +
         `${leaked.map((finding) => finding.title).join("; ")}. ` +
         `Treat every one of these as already compromised rather than at risk. Bots scan newly-pushed public commits for exactly these patterns, so assume the keys have been collected. ` +
-        `ROTATE them now — that is the only step that actually stops this. ` +
+        `ROTATE them now; that is the only step that actually stops this. ` +
         `Deleting the files does not help: they remain in your commit history and stay readable forever. ` +
         `Making the repository private also does not help, because anything already fetched or forked is out of your control. ` +
         `Rotate first, then clean up, in that order.`,

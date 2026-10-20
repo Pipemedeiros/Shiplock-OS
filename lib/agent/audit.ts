@@ -252,7 +252,7 @@ export function buildCoverage(
       name: "This run's reasoning did not produce a usable result",
       why: "Everything the reasoning step proposed named an endpoint we could not match back to your code, so all of it was discarded.",
       effect:
-        "That is a fault on our side, not a finding about your application. This run tells you nothing about attack paths either way — it is not a clean result.",
+        "That is a fault on our side, not a finding about your application. This run tells you nothing about attack paths either way; it is not a clean result.",
       upgrade: "Run the audit again",
     });
   }

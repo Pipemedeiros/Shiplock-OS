@@ -109,7 +109,7 @@ export function analyzeGrants(grants: ColumnGrant[]): GithubFinding[] {
             `grants:credential_readable:${role}:${table}`,
             "CRITICAL",
             `${role} is granted access to credential columns in ${table}`,
-            `The \`${role}\` role — which anyone holding your public key can act as — has column privileges on ${[...detail.credentials].sort().join(", ")} in ${table}. Those columns hold tokens or keys. ` +
+            `The \`${role}\` role (which anyone holding your public key can act as) has column privileges on ${[...detail.credentials].sort().join(", ")} in ${table}. Those columns hold tokens or keys. ` +
               `Row Level Security may be stopping the reads today, and if a policy is doing that then nothing is leaking right now. But it means two separate things both have to stay correct for these secrets to stay secret, and only one of them is visible in your policy list. ` +
               `Revoke the grant: \`revoke all on public.${table} from ${role};\` then grant back only the columns the browser genuinely needs. Secrets should be unreachable because there is no grant, not because a policy happens to filter them out.`
           )
@@ -122,7 +122,7 @@ export function analyzeGrants(grants: ColumnGrant[]): GithubFinding[] {
             `grants:entitlement_writable:${role}:${table}`,
             "CRITICAL",
             `${role} can be granted writes to ${[...detail.entitlement].sort().join(", ")} in ${table}`,
-            `\`${role}\` holds write privileges on ${[...detail.entitlement].sort().join(", ")} in ${table} — columns that decide what a user is entitled to rather than describing them. ` +
+            `\`${role}\` holds write privileges on ${[...detail.entitlement].sort().join(", ")} in ${table}: columns that decide what a user is entitled to rather than describing them. ` +
               `If RLS currently has no UPDATE policy on this table then nothing can be written today, and this is not an active breach. It is a dependency: the day someone adds a policy as ordinary as "users can update their own profile", these columns become user-writable too, and a customer can grant themselves whatever ${[...detail.entitlement][0]} means. ` +
               `That is a self-serve upgrade with no code change on your side and nothing unusual in your logs. ` +
               `Fix: revoke write privileges on this table and grant them back per column, so a future policy cannot widen more than you intended.`

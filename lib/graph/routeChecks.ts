@@ -54,7 +54,7 @@ export function checkUnauthenticatedMutations(routes: RouteFact[]): GithubFindin
           "WARNING",
           `${route.path} accepts ${mutating.join("/")} and we could not read what guards it`,
           `${route.path} writes to ${route.tables.slice(0, 3).join(", ")}, and ${route.identityGap}. ` +
-            `That means we cannot tell you whether this endpoint is protected -- not that it is unprotected. ` +
+            `That means we cannot tell you whether this endpoint is protected, not that it is unprotected. ` +
             `Open ${route.file} and confirm the caller is checked before the write.`,
         ),
       );
@@ -66,10 +66,10 @@ export function checkUnauthenticatedMutations(routes: RouteFact[]): GithubFindin
         `github:unauthenticated_mutation:${route.path}`,
         "CRITICAL",
         `${route.path} accepts ${mutating.join("/")} from anyone and touches your data`,
-        `${route.path} does not identify who is calling it — no session, no token, no signature — and it reaches ${route.tables.join(", ")}. ` +
+        `${route.path} does not identify who is calling it (no session, no token, no signature) and it reaches ${route.tables.join(", ")}. ` +
           `Anyone who finds the URL can call it, and there will be nothing in your logs distinguishing them from a real user. ` +
           `Public GET endpoints are ordinary and we do not flag them; this is flagged because it is a ${mutating.join("/")}, so whatever it does to your data, it does on request from strangers. ` +
-          `If it is meant to be public — a webhook, an ingest endpoint — it still needs to verify a shared secret or signature. If it is not, resolve the caller's session in ${route.file} before doing anything else.`
+          `If it is meant to be public (a webhook, an ingest endpoint) it still needs to verify a shared secret or signature. If it is not, resolve the caller's session in ${route.file} before doing anything else.`
       )
     );
   }
@@ -132,7 +132,7 @@ export function checkUnvalidatedInput(
         "WARNING",
         `${route.path} writes the whole request body to ${route.tables.join(", ")}`,
         `${route.path} parses a request body and passes it straight into a database write, without listing which fields are allowed. ` +
-          `Whatever a caller sends gets written. If your table has a column the user is not supposed to control — role, is_admin, plan, user_id, credits — someone can set it by adding it to the JSON, and the request looks completely ordinary in your logs. ` +
+          `Whatever a caller sends gets written. If your table has a column the user is not supposed to control (role, is_admin, plan, user_id, credits) someone can set it by adding it to the JSON, and the request looks completely ordinary in your logs. ` +
           `We flag this rather than the absence of a validation library, because hand-written checks are fine and common; it is passing the object through WHOLE that creates the problem. ` +
           `Fix in ${route.file} by building the object you write explicitly from the fields you expect, rather than forwarding the parsed body.`
       )

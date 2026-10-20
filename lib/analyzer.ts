@@ -130,15 +130,15 @@ function buildFallback(scan: ScanResult): AnalysisResult {
     issues.push({
       severity:    "INFO",
       title:       "Supabase returns detailed database errors (platform default)",
-      consequence: "Your Supabase API returns detailed Postgres error messages by default, which reveal column names to anyone who already has your public key. This is standard for this stack and low risk — not SQL injection. Optional hardening, not a hole.",
-      fix:         "Optional: reduce PostgREST error verbosity in your Supabase project settings. Not required — RLS, not error opacity, is your real boundary.",
+      consequence: "Your Supabase API returns detailed Postgres error messages by default, which reveal column names to anyone who already has your public key. This is standard for this stack and low risk, not SQL injection. Optional hardening, not a hole.",
+      fix:         "Optional: reduce PostgREST error verbosity in your Supabase project settings. Not required: RLS, not error opacity, is your real boundary.",
     });
   }
   if (scan.corsConfig?.wildcardOrigin) {
     issues.push({
       severity:    "INFO",
       title:       "Supabase API allows any origin (platform default)",
-      consequence: "Supabase's API gateway returns Access-Control-Allow-Origin: * for every project. Because Supabase authenticates by a bearer token in the header — not a cookie — a wildcard origin is not the cross-site (CSRF) risk it would be for a cookie-based app. No action needed.",
+      consequence: "Supabase's API gateway returns Access-Control-Allow-Origin: * for every project. Because Supabase authenticates by a bearer token in the header (not a cookie) a wildcard origin is not the cross-site (CSRF) risk it would be for a cookie-based app. No action needed.",
       fix:         "No action needed for the Supabase API itself. If your own app relays this API using cookie-based sessions, restrict CORS there.",
     });
   }

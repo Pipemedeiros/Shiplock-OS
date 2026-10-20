@@ -23,7 +23,7 @@ export function classifyJwks(keys: unknown): JwtSigningPosture {
     return {
       severity: "INFO",
       ok: true,
-      title: "Session signing — could not determine",
+      title: "Session signing: could not determine",
       detail:
         "Couldn't read your project's JWT signing keys right now. This is informational only; re-check later.",
     };
@@ -41,7 +41,7 @@ export function classifyJwks(keys: unknown): JwtSigningPosture {
       ok: true,
       title: "Session tokens are asymmetrically signed",
       detail:
-        "Your project publishes asymmetric JWT signing keys — session tokens can't be forged without the private key, which never leaves Supabase. This is the safe configuration.",
+        "Your project publishes asymmetric JWT signing keys: session tokens can't be forged without the private key, which never leaves Supabase. This is the safe configuration.",
     };
   }
 

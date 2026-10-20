@@ -208,7 +208,7 @@ export function checkSummary(result: DiffScanResult): { title: string; summary: 
     return {
       title: `${result.filesChanged} files checked, nothing found`,
       summary:
-        "This is not a statement that the pull request is safe — only that the checks that ran found nothing. See Coverage for what they do not cover.",
+        "This is not a statement that the pull request is safe, only that the checks that ran found nothing. See Coverage for what they do not cover.",
     };
   }
 

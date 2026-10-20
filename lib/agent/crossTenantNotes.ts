@@ -236,7 +236,7 @@ export function renderCrossTenantNote(note: CrossTenantNote): string {
   return (
     `${note.path} verifies ${note.mechanism} in ${note.file} before doing anything, ` +
     `and then reads or writes across every tenant. Processing all tenants is what this kind of ` +
-    `endpoint is for. No action needed — it is listed so you can see we read the gate, not ` +
+    `endpoint is for. No action needed; it is listed so you can see we read the gate, not ` +
     `because anything is wrong with it.`
   );
 }

@@ -30,7 +30,7 @@ const INSTRUCTION: Record<string, string> = {
   server_boundary_crossed:
     "Move the privileged access behind a server boundary so no client component can reach it.",
   secret_exposure:
-    "Rotate the credential first -- it is in the history and removing the line does not un-leak it -- then move it out of the repository.",
+    "Rotate the credential first (it is in the history and removing the line does not un-leak it) then move it out of the repository.",
 };
 
 export function fixBranchName(findingId: string): string {
@@ -83,7 +83,7 @@ export function fixDocument(finding: DashboardFinding): string {
     "",
     `Confidence: **${finding.confidence}**.`,
     finding.confidence === "inferred"
-      ? "Read from the code alone -- something outside the repository could compensate for it."
+      ? "Read from the code alone: something outside the repository could compensate for it."
       : "Two or more independent readings of the code agree.",
     "",
     "## What to change",

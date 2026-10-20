@@ -140,7 +140,7 @@ export function judgeFix(
       preserved: "not_run",
       validated: false,
       summary:
-        "We could not reproduce the problem against a copy of your policy — signed in as one tenant, we could not read another tenant's rows. That means the finding is probably wrong, so we are not offering a change. We would rather withdraw a finding than alter your database to fix something we cannot demonstrate.",
+        "We could not reproduce the problem against a copy of your policy: signed in as one tenant, we could not read another tenant's rows. That means the finding is probably wrong, so we are not offering a change. We would rather withdraw a finding than alter your database to fix something we cannot demonstrate.",
     };
   }
 
@@ -165,7 +165,7 @@ export function judgeFix(
       preserved: "pass",
       validated: true,
       summary:
-        `Tested on a copy of your schema with no real data in it. Before the change, signed in as one tenant we could read another tenant's rows — ${before.leaked}. After applying ${candidate.description}, the same attempt returned nothing, and the tenant could still read their own row. ` +
+        `Tested on a copy of your schema with no real data in it. Before the change, signed in as one tenant we could read another tenant's rows: ${before.leaked}. After applying ${candidate.description}, the same attempt returned nothing, and the tenant could still read their own row. ` +
         `So the fix closes the hole without cutting off legitimate access. That second half is the part we check hardest: a policy that blocks everyone would also stop the attack, and would take your users offline with it.`,
     };
   }

@@ -122,7 +122,7 @@ export async function runFixPr(
   const body =
     `Automated by ShipLock for the finding **${finding.title}** (${finding.severity}).\n\n` +
     (lane.method === "migration-pr"
-      ? "Review the migration, then merge — your own deploy applies it. ShipLock never writes to your database directly."
+      ? "Review the migration, then merge: your own deploy applies it. ShipLock never writes to your database directly."
       : "This PR is a fix request describing the exact change. Apply it (your coding agent can, straight from the file), then merge.");
 
   const url = await openFixPr(token, repo.fullName, repo.defaultBranch, artifact, title, body, `${userId}\0${finding.id}\0${artifact.content}`);
@@ -173,13 +173,13 @@ export async function openCodemodPr(
 
   const body =
     `Automated by ShipLock for **${finding.title}** (${finding.severity}).\n\n` +
-    `This PR contains the actual change — ${description} — across ${results.length} file${results.length === 1 ? "" : "s"}, ` +
+    `This PR contains the actual change: ${description}, across ${results.length} file${results.length === 1 ? "" : "s"}, ` +
     `so you are reviewing a diff of your own code rather than instructions.\n\n` +
     `Every change here is mechanical: the correct result is determined by the input, with no judgement about what your app is meant to do. ` +
-    `Anything that needs that judgement is never machine-authored — it comes to you as a draft PR instead.\n\n` +
+    `Anything that needs that judgement is never machine-authored; it comes to you as a draft PR instead.\n\n` +
     `Revert by closing this PR.` +
     (/public_prefixed_secret/.test(finding.id)
-      ? `\n\n**This does not rotate the key.** Renaming the variable stops it being inlined into future builds, but the value that already shipped is public — rotate it with the provider.`
+      ? `\n\n**This does not rotate the key.** Renaming the variable stops it being inlined into future builds, but the value that already shipped is public; rotate it with the provider.`
       : "");
 
   return openPullRequest(token, repo, branch, defaultBranch, title, body);

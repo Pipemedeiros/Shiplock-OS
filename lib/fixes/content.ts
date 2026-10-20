@@ -43,7 +43,7 @@ export function buildMigrationFix(f: FixableFinding, now = new Date()): FixArtif
   const sql = extractSql(f.fix);
   const header =
     `-- ShipLock fix: ${f.title}\n` +
-    `-- Review and adjust if needed, then merge — your own deploy applies it.\n` +
+    `-- Review and adjust if needed, then merge: your own deploy applies it.\n` +
     `-- ShipLock never writes to your database directly.\n`;
   const body = sql
     ? `${header}${sql}\n`
@@ -58,7 +58,7 @@ export function buildCodeFix(f: FixableFinding, now = new Date()): FixArtifact {
     `## What to change\n\n${f.fix}\n\n` +
     `> This PR is a fix request. Apply the change above (your coding agent can do it straight ` +
     `from this file), then delete this file and merge. ShipLock never rewrites application ` +
-    `logic automatically — you stay in control of the actual change.\n`;
+    `logic automatically; you stay in control of the actual change.\n`;
   return { path: `shiplock-fixes/${stamp(now)}-${slug(f.title)}.md`, content };
 }
 

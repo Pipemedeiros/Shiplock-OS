@@ -49,11 +49,11 @@ export function analyzeSpf(domain: string, txt: string[]): EmailAuthFinding[] {
       {
         id: "email_auth:spf_missing",
         severity: "WARNING",
-        title: `${domain} has no SPF record — anyone can send email as you`,
+        title: `${domain} has no SPF record; anyone can send email as you`,
         consequence:
           `There is no SPF record on ${domain}, so nothing tells receiving mail servers which servers are allowed to send as you. ` +
           `Anyone can send email with a From address at your domain, and it can arrive looking genuine. ` +
-          `The realistic attack isn't spam, it's a password-reset or invoice email to your own users from your own domain — they have no way to tell it isn't you. ` +
+          `The realistic attack isn't spam, it's a password-reset or invoice email to your own users from your own domain; they have no way to tell it isn't you. ` +
           `Fix: add one TXT record listing your senders and ending in ~all, e.g. "v=spf1 include:_spf.google.com include:amazonses.com ~all".`,
       },
     ];
@@ -68,7 +68,7 @@ export function analyzeSpf(domain: string, txt: string[]): EmailAuthFinding[] {
         severity: "WARNING",
         title: `${domain} has ${records.length} SPF records, which invalidates all of them`,
         consequence:
-          `SPF allows exactly one record per domain. ${domain} publishes ${records.length}, which is a permanent error — receiving servers discard the lot, ` +
+          `SPF allows exactly one record per domain. ${domain} publishes ${records.length}, which is a permanent error: receiving servers discard the lot, ` +
           `so your domain is currently unprotected despite looking configured. This usually happens when a second email provider is added and appends its own record instead of merging. ` +
           `Fix: combine them into a single "v=spf1 …" record with every include: from both.`,
       },
@@ -97,7 +97,7 @@ export function analyzeSpf(domain: string, txt: string[]): EmailAuthFinding[] {
       severity: "WARNING",
       title: `${domain}'s SPF record is neutral (?all) and enforces nothing`,
       consequence:
-        `${domain}'s SPF ends in "?all", which explicitly means "no opinion" about unlisted senders — receivers treat spoofed mail the same as if you had no record. ` +
+        `${domain}'s SPF ends in "?all", which explicitly means "no opinion" about unlisted senders; receivers treat spoofed mail the same as if you had no record. ` +
         `Change it to ~all or -all so the record actually does something.`,
     });
   } else if (!/[~\-+?]all\b/.test(normalised)) {
@@ -119,7 +119,7 @@ export function analyzeSpf(domain: string, txt: string[]): EmailAuthFinding[] {
       title: `${domain}'s SPF record exceeds the 10-lookup limit`,
       consequence:
         `SPF allows at most ${SPF_LOOKUP_LIMIT} DNS-querying mechanisms; ${domain}'s record has at least ${lookups} before counting anything nested inside its includes. ` +
-        `Over the limit, receivers return a permanent error and stop evaluating — your SPF silently stops working, which is easy to miss because nothing bounces. ` +
+        `Over the limit, receivers return a permanent error and stop evaluating: your SPF silently stops working, which is easy to miss because nothing bounces. ` +
         `Fix: remove providers you no longer use, or flatten the includes.`,
     });
   }
@@ -139,7 +139,7 @@ export function analyzeDmarc(domain: string, txt: string[]): EmailAuthFinding[] 
         severity: "WARNING",
         title: `${domain} has no DMARC record`,
         consequence:
-          `There is no DMARC record at _dmarc.${domain}. DMARC is what tells receiving servers what to DO about mail that fails your SPF or DKIM checks — without it, ` +
+          `There is no DMARC record at _dmarc.${domain}. DMARC is what tells receiving servers what to DO about mail that fails your SPF or DKIM checks, without it, ` +
           `each receiver decides for itself and most will deliver the message anyway. It's also the only one of the three that reports back, so today you have no way to know if anyone is spoofing you. ` +
           `Fix: add a TXT record at _dmarc.${domain} of "v=DMARC1; p=none; rua=mailto:you@${domain}" to start collecting reports, then tighten to p=quarantine and p=reject once you've confirmed your own mail passes.`,
       },
@@ -155,7 +155,7 @@ export function analyzeDmarc(domain: string, txt: string[]): EmailAuthFinding[] 
         severity: "WARNING",
         title: `${domain}'s DMARC policy is p=none, so nothing is blocked`,
         consequence:
-          `${domain} publishes DMARC with p=none, which means "watch but take no action" — mail that fails authentication is still delivered. ` +
+          `${domain} publishes DMARC with p=none, which means "watch but take no action"; mail that fails authentication is still delivered. ` +
           `This is the correct place to START, since it collects reports without risking your real email, but it stops no spoofing on its own. ` +
           `Once your reports show your legitimate senders passing, move to p=quarantine and then p=reject. If you've been on p=none for months, you are getting the reporting and none of the protection.`,
       },
@@ -169,7 +169,7 @@ export function analyzeDmarc(domain: string, txt: string[]): EmailAuthFinding[] 
         severity: "WARNING",
         title: `${domain}'s DMARC record has no policy tag`,
         consequence:
-          `The DMARC record at _dmarc.${domain} is missing the required p= tag, which makes the whole record invalid — receivers ignore it entirely, ` +
+          `The DMARC record at _dmarc.${domain} is missing the required p= tag, which makes the whole record invalid; receivers ignore it entirely, ` +
           `so you have the appearance of DMARC with none of the effect. Add "p=none" (then tighten) to the record.`,
       },
     ];
@@ -217,7 +217,7 @@ export function analyzeDkim(domain: string, selector: string, txt: string[]): Em
         title: `${domain}'s DKIM key for selector "${selector}" is empty (revoked)`,
         consequence:
           `The DKIM record at ${selector}._domainkey.${domain} has an empty p= value, which is how a key is formally revoked. ` +
-          `If anything is still sending signed mail with this selector, every one of those messages fails DKIM — and with a strict DMARC policy, they don't get delivered. ` +
+          `If anything is still sending signed mail with this selector, every one of those messages fails DKIM, and with a strict DMARC policy, they don't get delivered. ` +
           `Either publish the correct public key or remove the record.`,
       },
     ];
@@ -233,7 +233,7 @@ export function analyzeDkim(domain: string, selector: string, txt: string[]): Em
         title: `${domain}'s DKIM key for selector "${selector}" is weak (under 1024 bits)`,
         consequence:
           `The DKIM key at ${selector}._domainkey.${domain} is shorter than 1024 bits. Keys that small are factorable by a motivated attacker, ` +
-          `who could then forge signed mail from your domain that passes every authentication check — strictly worse than no DKIM, because it looks verified. ` +
+          `who could then forge signed mail from your domain that passes every authentication check: strictly worse than no DKIM, because it looks verified. ` +
           `Regenerate at 2048 bits in your email provider's dashboard.`,
       },
     ];

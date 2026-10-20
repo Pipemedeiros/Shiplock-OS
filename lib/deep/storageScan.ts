@@ -92,8 +92,8 @@ export function checkObjectPolicies(
       "CRITICAL",
       `Your private storage buckets are readable by anyone`,
       `A policy on storage.objects (${permissive.map((p) => p.name).join(", ")}) grants read access unconditionally to ${permissive[0].roles}. ` +
-        `You have ${privateBuckets.length} bucket${privateBuckets.length === 1 ? "" : "s"} marked private — ${privateBuckets.map((b) => b.name).join(", ")} — and that setting is not what decides access. Marking a bucket private only stops objects being served from an unauthenticated URL; who may read them is decided by these policies, and this one says everyone. ` +
-        `So the files are reachable by anyone holding your public key, while every place you would look to check — the bucket list, the dashboard — shows "private". ` +
+        `You have ${privateBuckets.length} bucket${privateBuckets.length === 1 ? "" : "s"} marked private: ${privateBuckets.map((b) => b.name).join(", ")}, and that setting is not what decides access. Marking a bucket private only stops objects being served from an unauthenticated URL; who may read them is decided by these policies, and this one says everyone. ` +
+        `So the files are reachable by anyone holding your public key, while every place you would look to check (the bucket list, the dashboard) shows "private". ` +
         `Fix: scope the policy to the owner, e.g. \`using (auth.uid()::text = (storage.foldername(name))[1])\`, or restrict it to the specific bucket it was written for.`
     ),
   ];
@@ -128,9 +128,9 @@ export function checkUploadLimits(buckets: BucketRow[], anyPermissivePolicy: boo
         `The ${bucket.name} bucket accepts uploads with ${missing}`,
         `${bucket.name} is reachable ${bucket.public ? "publicly" : "through a permissive policy"} and has ${missing}. ` +
           (noMime
-            ? `Without a MIME allow-list it accepts any file type. Two consequences that are easy to miss: your domain becomes a place to host other people's files — malware served from your name, with your reputation behind it — and an uploaded .html or .svg served back from your origin runs as script on your site, which is stored XSS with a permanent home. ` +
+            ? `Without a MIME allow-list it accepts any file type. Two consequences that are easy to miss: your domain becomes a place to host other people's files (malware served from your name, with your reputation behind it) and an uploaded .html or .svg served back from your origin runs as script on your site, which is stored XSS with a permanent home. ` +
               `Set \`allowed_mime_types\` to the formats you actually accept. If it is images, say images; the check is one line and it removes the whole class.`
-            : `Without a size limit a single upload can be as large as the caller wants, which is a storage bill rather than a breach — worth setting because nothing else will stop it.`)
+            : `Without a size limit a single upload can be as large as the caller wants, which is a storage bill rather than a breach: worth setting because nothing else will stop it.`)
       )
     );
   }
@@ -174,7 +174,7 @@ export function checkBackups(config: { pitrEnabled: boolean; walgEnabled: boolea
       "storage:no_pitr",
       "INFO",
       "Point-in-time recovery is off",
-      "Your project keeps daily backups but not point-in-time recovery, so the most you can lose to a bad migration, a mistaken delete, or ransomware is a day of data — and you can only return to the backup boundary, not to the moment before it happened. " +
+      "Your project keeps daily backups but not point-in-time recovery, so the most you can lose to a bad migration, a mistaken delete, or ransomware is a day of data, and you can only return to the backup boundary, not to the moment before it happened. " +
         "This is a note, not a vulnerability, and it is genuinely a cost decision rather than a security one. It is here because the scenario people underestimate is not an attacker: it is a `delete` that ran without its `where` clause, where the difference between losing a day and losing four minutes is whether this was on beforehand.",
     ),
   ];

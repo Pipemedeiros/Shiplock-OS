@@ -25,19 +25,19 @@ function status(connected: string[]): LayerStatus {
 describe("describeLayerStatus", () => {
   it("counts what is wired up, and never states a percentage", () => {
     const line = describeLayerStatus(status(["code", "database"]));
-    expect(line).toBe("2 of 4 layers correlated — code, database.");
+    expect(line).toBe("2 of 4 layers correlated: code, database.");
     expect(line).not.toMatch(/%/);
   });
 
   it("names every connected layer, so the claim is checkable", () => {
     expect(describeLayerStatus(status(["code", "database", "traffic", "email/DNS"]))).toBe(
-      "4 of 4 layers correlated — code, database, traffic, email/DNS."
+      "4 of 4 layers correlated: code, database, traffic, email/DNS."
     );
   });
 
   it("says nothing is correlated rather than reporting 0%", () => {
     expect(describeLayerStatus(status([]))).toBe(
-      "No layers correlated yet — connect your stack to begin."
+      "No layers correlated yet: connect your stack to begin."
     );
   });
 

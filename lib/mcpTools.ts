@@ -12,7 +12,7 @@ export const MCP_TOOLS = [
   {
     name: "get_fix",
     description:
-      "Get the full fix for one finding by id. Returns the fix method and, for code/DB fixes, the exact file content + target path to write into the working tree (the developer reviews the git diff and commits). DB/RLS fixes are migration files applied by the developer's own deploy — never write them to production directly. Some fixes return a deep-link URL instead.",
+      "Get the full fix for one finding by id. Returns the fix method and, for code/DB fixes, the exact file content + target path to write into the working tree (the developer reviews the git diff and commits). DB/RLS fixes are migration files applied by the developer's own deploy, never write them to production directly. Some fixes return a deep-link URL instead.",
     inputSchema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
   },
   {

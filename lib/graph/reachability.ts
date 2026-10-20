@@ -187,7 +187,7 @@ export function assessReachability(
     }
     return {
       state: "no_path_found",
-      reason: `We could not find a path from any page, API route or middleware to ${file}. That usually means it is unused, but our import following does not resolve dynamically-built paths or every framework convention — so treat this as "probably not live" rather than proven dead. If it is genuinely unused, deleting it is the cleanest fix.`,
+      reason: `We could not find a path from any page, API route or middleware to ${file}. That usually means it is unused, but our import following does not resolve dynamically-built paths or every framework convention, so treat this as "probably not live" rather than proven dead. If it is genuinely unused, deleting it is the cleanest fix.`,
       scoreDelta: -25,
     };
   }
@@ -206,7 +206,7 @@ export function assessReachability(
     }
     return {
       state: "no_path_found",
-      reason: `No API route we can see reads ${table}. The policy is still wrong and still worth fixing — anything holding your anon key could use it directly — but nothing in your own code is currently exposing this table, so it is less urgent than the ones that are.`,
+      reason: `No API route we can see reads ${table}. The policy is still wrong and still worth fixing (anything holding your anon key could use it directly) but nothing in your own code is currently exposing this table, so it is less urgent than the ones that are.`,
       scoreDelta: -15,
     };
   }
