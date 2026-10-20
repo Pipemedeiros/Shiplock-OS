@@ -10,8 +10,23 @@ name: CI
 on:
   push:
     branches: [main]
+    # Docs, skills and Markdown ship nothing (the same rule as vercel.json's
+    # ignoreCommand); a push that also changes code still runs.
+    paths-ignore:
+      - "docs/**"
+      - ".agents/**"
+      - "**/*.md"
   pull_request:
     branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - ".agents/**"
+      - "**/*.md"
+
+# A newer push on the same branch contains the older one; its run replaces it.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read

@@ -38,3 +38,13 @@ it("builds when anything deployed changes", () => {
 it("builds a push whose newest commit is docs but an earlier one is code", () => {
   expect(skips((dir) => writeFileSync(join(dir, "lib/x.ts"), "b"), "base")).toBe(false);
 });
+
+// Same rule for CI: the repository is private, so Actions minutes count (2,000
+// a month free); 29 runs of about 5 minutes on 2026-10-20 alone. A push of
+// docs only runs nothing, and a newer push on the same branch replaces an
+// older run that is still going.
+it("runs CI only for pushes that change what ships, and only the newest one", () => {
+  const ci = readFileSync(".github/workflows/ci.yml", "utf8");
+  for (const path of ["docs/**", ".agents/**", "**/*.md"]) expect(ci).toContain(`- "${path}"`);
+  expect(ci).toMatch(/concurrency:\n\s+group: ci-\$\{\{ github\.ref \}\}\n\s+cancel-in-progress: true/);
+});
