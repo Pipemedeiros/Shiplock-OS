@@ -57,6 +57,14 @@ describe("pickTargetVersion", () => {
 });
 
 describe("planDependencyBumps", () => {
+  // A package installed at two versions yields one target per version; the
+  // bump must clear both, so the higher fix wins whatever the order.
+  it("bumps to the highest target when one package has several", () => {
+    const pkg = JSON.stringify({ dependencies: { "fast-uri": "^3.1.0" } });
+    const { updated } = planDependencyBumps(pkg, [{ name: "fast-uri", version: "3.2.0" }, { name: "fast-uri", version: "3.1.5" }]);
+    expect(JSON.parse(updated).dependencies["fast-uri"]).toBe("^3.2.0");
+  });
+
   const pkg = JSON.stringify(
     { name: "app", dependencies: { "left-pad": "^1.0.0", react: "19.0.0" }, devDependencies: { vitest: "~4.0.0" } },
     null,

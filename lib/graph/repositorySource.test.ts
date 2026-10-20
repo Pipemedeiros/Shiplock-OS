@@ -66,7 +66,15 @@ describe("Step 2: repository-scoped dependency admission", () => {
       expect(result.every((item) => item.sourceRevision === snapshot.recordedAt)).toBe(true);
     } finally { clock.mockRestore(); }
   });
-  it.each([undefined, null, [{ name: "hono", version: 1 }], [{ name: "hono", version: "1" }, { name: "hono", version: "2" }]])(
+  it("admits one package installed at two versions, since each is checked", async () => {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+    try {
+      const dependencies = [{ name: "hono", version: "1" }, { name: "hono", version: "2" }];
+      reads.graph_facts.mockResolvedValue({ data: { facts: { repositories: [{ ...snapshot, dependencies }] } } });
+      expect((await loadRepositoryDependencies("u"))[0].dependencies).toEqual(dependencies);
+    } finally { clock.mockRestore(); }
+  });
+  it.each([undefined, null, [{ name: "hono", version: 1 }], [{ name: "hono", version: "1" }, { name: "hono", version: "1" }]])(
     "refuses unread or ambiguous dependency payloads", async (dependencies) => {
       const clock = vi.spyOn(Date, "now").mockReturnValue(now);
       try {

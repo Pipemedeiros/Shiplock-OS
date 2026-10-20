@@ -124,7 +124,7 @@ export async function loadRepositoryReachability(userId: string, now = Date.now(
 const dependenciesSchema = z.array(z.object({
   name: z.string().min(1).max(214).regex(/^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+$/i),
   version: z.string().min(1).max(256).regex(/^[^\x00-\x1f]+$/),
-})).max(5000).refine((items) => new Set(items.map((item) => item.name)).size === items.length);
+})).max(5000).refine((items) => new Set(items.map((item) => `${item.name}@${item.version}`)).size === items.length);
 
 /** Partial inventories can add findings but cannot retire absent advisories. */
 export async function loadRepositoryDependencies(userId: string) {

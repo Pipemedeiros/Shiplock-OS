@@ -570,7 +570,10 @@ export function scanSecrets(files: RepoFile[]): GithubFinding[] {
 // Prefer the lockfile (exact, resolved versions — what OSV needs). Fall back to
 // package.json ranges with the range operators stripped.
 export function extractDependencies(packageJson: string, packageLock: string | null): Dep[] {
-  const deps = new Map<string, string>();
+  // Keyed by name and version: a package installed at two versions (one
+  // nested) is two things to check, and each must stay visible.
+  const deps = new Map<string, Dep>();
+  const add = (name: string, version: string) => deps.set(`${name}@${version}`, { name, version });
 
   if (packageLock) {
     try {
@@ -584,11 +587,11 @@ export function extractDependencies(packageJson: string, packageLock: string | n
       for (const [key, val] of Object.entries(lock.packages ?? {})) {
         const idx = key.lastIndexOf("node_modules/");
         const name = idx >= 0 ? key.slice(idx + "node_modules/".length) : key;
-        if (name && val?.version) deps.set(name, val.version);
+        if (name && val?.version) add(name, val.version);
       }
       // v1 fallback
       for (const [name, val] of Object.entries(lock.dependencies ?? {})) {
-        if (val?.version && !deps.has(name)) deps.set(name, val.version);
+        if (val?.version && ![...deps.values()].some((dep) => dep.name === name)) add(name, val.version);
       }
     } catch {
       /* fall through to package.json */
@@ -604,7 +607,7 @@ export function extractDependencies(packageJson: string, packageLock: string | n
       for (const block of [pkg.dependencies, pkg.devDependencies]) {
         for (const [name, range] of Object.entries(block ?? {})) {
           const clean = range.replace(/^[\^~>=<\s]+/, "").trim();
-          if (clean && /^\d/.test(clean)) deps.set(name, clean);
+          if (clean && /^\d/.test(clean)) add(name, clean);
         }
       }
     } catch {
@@ -612,7 +615,7 @@ export function extractDependencies(packageJson: string, packageLock: string | n
     }
   }
 
-  return [...deps].map(([name, version]) => ({ name, version }));
+  return [...deps.values()];
 }
 
 // OSV vuln for a package, as returned by lib/deep/github.ts's queryOsv.
@@ -631,6 +634,8 @@ export function depFindings(results: { dep: Dep; vulns: OsvVuln[] }[]): GithubFi
   const findings: GithubFinding[] = [];
   for (const { dep, vulns } of results) {
     for (const v of vulns) {
+      // Two installed versions with the same advisory are one thing to fix.
+      if (findings.some((f) => f.id === `github:dep:${dep.name}:${v.id}`)) continue;
       findings.push({
         id: `github:dep:${dep.name}:${v.id}`,
         severity: v.severity,

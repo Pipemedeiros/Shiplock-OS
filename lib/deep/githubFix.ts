@@ -73,7 +73,12 @@ export function planDependencyBumps(
   }
 
   const changes: DepBump[] = [];
-  const targetMap = new Map(targets.map((t) => [t.name, t.version]));
+  // One package installed at two versions gives two targets; the higher clears both.
+  const targetMap = new Map<string, string>();
+  for (const t of targets) {
+    const seen = targetMap.get(t.name);
+    if (!seen || compareSemver(t.version, seen) > 0) targetMap.set(t.name, t.version);
+  }
 
   for (const section of SECTIONS) {
     const block = pkg[section];

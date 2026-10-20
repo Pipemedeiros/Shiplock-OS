@@ -170,6 +170,20 @@ describe("extractDependencies", () => {
     expect(deps.some((d) => d.name.includes("node_modules"))).toBe(false);
   });
 
+  // A package installed at two versions (one nested) is two things to check:
+  // keeping one version per name left the other unchecked, and it would make
+  // "this version is gone" unprovable.
+  it("keeps every installed version of a package, once each", () => {
+    const lock = JSON.stringify({ packages: {
+      "node_modules/fast-uri": { version: "3.1.9" },
+      "node_modules/ajv/node_modules/fast-uri": { version: "3.1.3" },
+      "node_modules/x/node_modules/fast-uri": { version: "3.1.3" },
+    } });
+    expect(extractDependencies("{}", lock)).toEqual([
+      { name: "fast-uri", version: "3.1.9" }, { name: "fast-uri", version: "3.1.3" },
+    ]);
+  });
+
   it("falls back to package.json ranges when no lockfile", () => {
     const pkg = JSON.stringify({ dependencies: { react: "^19.2.4" }, devDependencies: { vitest: "~4.1.0" } });
     const deps = extractDependencies(pkg, null);
@@ -183,6 +197,13 @@ describe("extractDependencies", () => {
 });
 
 describe("depFindings", () => {
+  it("reports one finding per package and advisory when two installed versions share it", () => {
+    const v: OsvVuln = { id: "GHSA-y", cveId: null, summary: "S.", severity: "WARNING", fixedVersion: "3.2.0" };
+    const f = depFindings([{ dep: { name: "fast-uri", version: "3.1.3" }, vulns: [v] }, { dep: { name: "fast-uri", version: "3.1.4" }, vulns: [v] }]);
+    expect(f.map((x) => x.id)).toEqual(["github:dep:fast-uri:GHSA-y"]);
+  });
+
+
   it("builds one finding per vuln with a stable id", () => {
     const vulns: OsvVuln[] = [
       { id: "GHSA-xxxx", cveId: "CVE-2025-0001", summary: "RCE.", severity: "CRITICAL", fixedVersion: "1.0.1" },

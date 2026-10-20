@@ -1,6 +1,6 @@
 import { scanPublicCredentialValues } from "./clientExposure";
 import { listTree, getFile, queryOsv, listRecentCommitPatches, type Repo } from "./github";
-import { scanSecrets, extractDependencies, depFindings, type RepoFile, type GithubFinding } from "./githubScan";
+import { scanSecrets, extractDependencies, depFindings, type Dep, type RepoFile, type GithubFinding } from "./githubScan";
 import { scanCredentialHandling } from "./credentialHandling";
 import { scanNextConfigEnv } from "./nextConfigEnv";
 import { checkRepoVisibility } from "./repoVisibility";
@@ -53,7 +53,7 @@ async function scanRepo(
   repo: Repo,
   routeSink?: RouteFact[],
   liveFileSink?: Set<string>,
-  depSink?: Map<string, string>,
+  depSink?: Map<string, Dep>,
   readStats?: { filesAttempted: number; filesRead: number },
   historySink?: string[]
 ): Promise<GithubFinding[]> {
@@ -104,7 +104,7 @@ async function scanRepo(
   if (packageJson) {
     const deps = extractDependencies(packageJson, packageLock);
     // Kept for the scheduled CVE re-check (F1), which must work without a push.
-    if (depSink) for (const d of deps) depSink.set(d.name, d.version);
+    if (depSink) for (const d of deps) depSink.set(`${d.name}@${d.version}`, d);
     try {
       findings.push(...depFindings(await queryOsv(deps)));
     } catch {
@@ -173,7 +173,7 @@ export async function collectRepositorySource(
 ): Promise<CollectedRepositorySource> {
   const routes: RouteFact[] = [];
   const liveFiles = new Set<string>();
-  const dependencies = new Map<string,string>();
+  const dependencies = new Map<string,Dep>();
   const stats = { filesAttempted: 0, filesRead: 0 };
   const historyRead: string[] = [];
   const findings = await scanRepo(token,repo,routes,liveFiles,dependencies,stats,historyRead);
@@ -192,7 +192,7 @@ export async function collectRepositorySource(
       routes,
       liveFiles: [...liveFiles],
       hasEntryPoints: liveFiles.size > 0,
-      dependencies: [...dependencies].map(([name,version]) => ({name,version})),
+      dependencies: [...dependencies.values()],
     },
   };
 }
