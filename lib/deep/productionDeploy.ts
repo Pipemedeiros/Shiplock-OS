@@ -45,12 +45,18 @@ async function get(token: string, path: string): Promise<unknown> {
   return res.json();
 }
 
-const isProduction = (x: Deploy) => x.production_environment === true || /^production$/i.test(x.environment);
+// "Production", or "Production – <project>" when one repository feeds several
+// Vercel projects: each name is its own stream, and the newest one is read.
+const isProduction = (x: Deploy) => x.production_environment === true || /^production\b/i.test(x.environment);
+function productionStream<T extends Deploy>(deploys: readonly T[]): T[] {
+  const production = deploys.filter(isProduction);
+  return production.filter((x) => x.environment === production[0]?.environment).slice(0, MAX_DEPLOYS);
+}
 const hostOf = (login: string | undefined) => login?.replace(/\[bot\]$/, "").split(/[-_]/)[0]?.toLowerCase().slice(0, 40) || null;
 
 /** Pure: the live and newest production deploy from deployments (newest first) and each one's latest status. */
 export function summarizeDeploys(deploys: readonly Deploy[], statuses: ReadonlyMap<number, Status>) {
-  const production = deploys.filter(isProduction).slice(0, MAX_DEPLOYS);
+  const production = productionStream(deploys);
   const newest = production[0];
   if (!newest) return null;
   const stateOf = (x: Deploy) => {
@@ -72,7 +78,7 @@ export async function readProductionDeploy(token: string, fullName: string, head
     const deploys = z.array(z.object({ id: z.number(), sha: Sha, environment: z.string(), production_environment: z.boolean().optional(),
       created_at: z.string(), creator: z.object({ login: z.string().optional() }).nullable().optional() }).loose())
       .parse(await get(token, `/repos/${fullName}/deployments?per_page=20`));
-    const production = deploys.filter(isProduction).slice(0, MAX_DEPLOYS);
+    const production = productionStream(deploys);
     if (production.length === 0) return { state: "none" };
     const statuses = new Map<number, Status>();
     // The first status listed is the newest.

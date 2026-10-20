@@ -28,6 +28,18 @@ describe("summarizeDeploys", () => {
   });
 });
 
+// One repository feeding several Vercel projects reports "Production – <project>"
+// per project: each is its own stream, and the newest one's stream is read.
+describe("summarizeDeploys with named production environments", () => {
+  it("reads only the newest deploy's own production stream", () => {
+    const out = summarizeDeploys([d(9, "c", "2026-10-20T12:00:00Z", { environment: "Production – web" }),
+      d(8, "b", "2026-10-20T11:00:00Z", { environment: "Production – docs" }), d(7, "a", "2026-10-20T10:00:00Z", { environment: "Production – web" })],
+      new Map([[9, { state: "failure", created_at: "2026-10-20T12:01:00Z" }], [8, { state: "success", created_at: "2026-10-20T11:01:00Z" }],
+        [7, { state: "success", created_at: "2026-10-20T10:01:00Z" }]]));
+    expect(out).toMatchObject({ environment: "Production – web", live: { sha: sha("a") }, latest: { sha: sha("c"), state: "failure" } });
+  });
+});
+
 describe("readProductionDeploy", () => {
   const fetchMock = vi.fn();
   afterEach(() => { vi.unstubAllGlobals(); fetchMock.mockReset(); });
