@@ -54,7 +54,20 @@ export interface VerifiedReportData {
   openCritical: number;
   openTotal: number;
   hasDatabase: boolean;
+  /** The live site's last read, only when its address is bound to this repository. */
+  live?: VerifiedLiveData | null;
   nowMs: number;
+}
+
+/** Counts from the outside view; never the address or a path. */
+export interface VerifiedLiveData {
+  readAt: string | null;
+  complete: boolean;
+  pages: number;
+  scriptsRead: number;
+  scriptsSeen: number;
+  /** Open findings for a secret key found in the shipped JavaScript. */
+  shippedSecrets: number;
 }
 
 export type VerifiedStatus = "assessed" | "never_assessed";
@@ -88,6 +101,8 @@ export interface VerifiedReport {
   openTotal: number;
   /** What this assessment did not look at, in the reader's terms. */
   notCovered: string[];
+  /** What the live site showed, as sentences with counts only; null when it was not read for this report. */
+  live: string[] | null;
   /** The one-sentence result, with the limitation inside it. */
   headline: string;
   disclaimer: string;
@@ -99,20 +114,35 @@ const DISCLAIMER =
   "and no automated review can establish that an application is free of vulnerabilities. " +
   "It is published by the repository's owner for information only.";
 
-function notCoveredFor(hasDatabase: boolean): string[] {
+function notCoveredFor(hasDatabase: boolean, liveRead: boolean): string[] {
   return [
     ...(hasDatabase
       ? []
       : ["The access rules in the database itself. Row-level policies live there, not in the code, and no database is connected to this report."]),
+    ...(liveRead
+      ? []
+      : ["What the live site ships to visitors. Its address is not linked to this repository, so it was not read for this report."]),
     "Runtime configuration: environment variable values, provider dashboard settings, and anything that is not in the repository.",
     "Business logic specific to this application, where correct behaviour is a matter of intent rather than structure.",
     "Anything that needs the application running. This is a read of source code, not a penetration test, and nothing was attacked.",
   ];
 }
 
+const day = (iso: string | null) => iso && !Number.isNaN(Date.parse(iso))
+  ? new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" }) : "an unrecorded date";
+
+/** The live site in two sentences: how much was read, and what it showed. */
+function liveLines(l: VerifiedLiveData): string[] {
+  const scripts = l.complete ? `${l.scriptsRead} scripts` : `${l.scriptsRead} of ${l.scriptsSeen} scripts`;
+  const read = `${l.complete ? "Read completely" : "Partly read"} on ${day(l.readAt)}: ${l.pages} ${l.pages === 1 ? "page" : "pages"} and ${scripts}, as any visitor gets them.`;
+  const found = l.shippedSecrets > 0 ? `${l.shippedSecrets} found` : "none found";
+  return [read, `Secret keys in that JavaScript: ${found}${l.complete ? "." : ", and the rest is unknown."}`];
+}
+
 /** Pure projection. Everything the public page renders comes from here. */
 export function buildVerifiedReport(d: VerifiedReportData): VerifiedReport {
-  const notCovered = notCoveredFor(d.hasDatabase);
+  const notCovered = notCoveredFor(d.hasDatabase, Boolean(d.live));
+  const live = d.live ? liveLines(d.live) : null;
 
   if (!d.run) {
     return {
@@ -128,6 +158,7 @@ export function buildVerifiedReport(d: VerifiedReportData): VerifiedReport {
       openCritical: 0,
       openTotal: 0,
       notCovered,
+      live,
       headline: "No completed assessment. Nothing on this page has been checked.",
       disclaimer: DISCLAIMER,
     };
@@ -180,6 +211,7 @@ export function buildVerifiedReport(d: VerifiedReportData): VerifiedReport {
     openCritical: Math.max(0, d.openCritical),
     openTotal: Math.max(0, d.openTotal),
     notCovered,
+    live,
     headline,
     disclaimer: DISCLAIMER,
   };
@@ -203,20 +235,33 @@ export function confirmedCounts(rows: { severity: unknown; confidence: unknown; 
   return { openCritical: confirmed.filter((r) => r.severity === "CRITICAL").length, openTotal: confirmed.length };
 }
 
+/** The live site's counts for this report, only under a current binding to
+ * the report's repository and for a read of that same address (P5 rules). */
+export function verifiedLive(input: { url: unknown; boundUrl: unknown; boundRepository: string | null; reportRepository: string | null;
+  surface: Record<string, unknown> | null; recordedAt: string | null; openFindingIds: readonly string[] }): VerifiedLiveData | null {
+  const { url, surface } = input;
+  if (typeof url !== "string" || input.boundUrl !== url || !input.boundRepository || !input.reportRepository
+    || input.boundRepository.toLowerCase() !== input.reportRepository.toLowerCase() || !surface || surface.url !== url) return null;
+  const count = (v: unknown) => (typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : 0);
+  return { readAt: input.recordedAt, complete: surface.complete === true, pages: count(surface.pagesRead),
+    scriptsRead: count(surface.scriptsRead), scriptsSeen: count(surface.scriptsSeen),
+    shippedSecrets: input.openFindingIds.filter((id) => id.startsWith("bundle:shipped_secret:")).length };
+}
+
 export async function getVerifiedReport(token: string): Promise<VerifiedReport | null> {
   if (!token) return null;
   const admin = getSupabaseAdmin();
 
   const { data: profile } = await admin
     .from("user_profiles")
-    .select("id, verified_report_enabled, supabase_project_ref, postgres_display")
+    .select("id, verified_report_enabled, supabase_project_ref, postgres_display, monitored_app_url, monitored_app_bound_url, monitored_app_repository_id")
     .eq("verified_report_token", token)
     .maybeSingle();
 
   if (!profile || !profile.verified_report_enabled) return null;
   const userId = profile.id as string;
 
-  const [runRes, openRes] = await Promise.all([
+  const [runRes, openRes, boundRes, factsRes] = await Promise.all([
     admin
       .from("audit_runs")
       .select("full_name, commit_sha, finished_at, trigger, files_read, entries_found, tables_found, unassessed")
@@ -231,10 +276,20 @@ export async function getVerifiedReport(token: string): Promise<VerifiedReport |
       .eq("user_id", userId)
       .is("archived_at", null)
       .limit(2000),
+    profile.monitored_app_repository_id
+      ? admin.from("repositories").select("full_name").eq("id", profile.monitored_app_repository_id).eq("user_id", userId).eq("selected", true).maybeSingle()
+      : Promise.resolve({ data: null }),
+    admin.from("graph_facts").select("facts").eq("user_id", userId).eq("collector", "runtime").maybeSingle(),
   ]);
   const counts = confirmedCounts((openRes.data ?? []) as Parameters<typeof confirmedCounts>[0]);
 
   const row = runRes.data as Record<string, unknown> | null;
+  const facts = (factsRes.data?.facts ?? null) as { appSurface?: Record<string, unknown>; _evidence?: { fields?: { appSurface?: { recordedAt?: unknown } } } } | null;
+  const recordedAt = facts?._evidence?.fields?.appSurface?.recordedAt;
+  const live = verifiedLive({ url: profile.monitored_app_url, boundUrl: profile.monitored_app_bound_url,
+    boundRepository: (boundRes.data as { full_name?: string } | null)?.full_name ?? null, reportRepository: row ? String(row.full_name) : null,
+    surface: facts?.appSurface ?? null, recordedAt: typeof recordedAt === "string" ? recordedAt : null,
+    openFindingIds: ((openRes.data ?? []) as { finding_id?: unknown }[]).map((r) => String(r.finding_id ?? "")) });
 
   return buildVerifiedReport({
     enabled: true,
@@ -253,6 +308,7 @@ export async function getVerifiedReport(token: string): Promise<VerifiedReport |
     openCritical: counts.openCritical,
     openTotal: counts.openTotal,
     hasDatabase: Boolean(profile.supabase_project_ref || profile.postgres_display),
+    live,
     nowMs: Date.now(),
   });
 }

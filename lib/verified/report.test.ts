@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildVerifiedReport, type VerifiedReportData } from "./report";
+import { buildVerifiedReport, verifiedLive, type VerifiedReportData } from "./report";
 
 /**
  * The Verified report is the one surface a stranger reads. A technical
@@ -167,5 +167,55 @@ describe("open counts on the public report", () => {
     const live = (source: string, finding_id: string, severity = "CRITICAL") => ({ source, finding_id, severity, confidence: null, attack_class: null, claims: null });
     expect(confirmedCounts([live("proven", "proof:rls:orders"), live("exposed-path", "exposed:git_exposed"),
       live("exposed-path", "email_auth:spf_missing", "WARNING"), live("github", "github:dep:x")])).toEqual({ openCritical: 2, openTotal: 2 });
+  });
+});
+
+// The live site (outside view), on the public report: counts only, never the
+// address or a path, and only when the founder bound it to this repository.
+describe("what the live site showed, when its address is bound to this repository", () => {
+  const live = { readAt: "2026-09-02T09:00:00.000Z", complete: true, pages: 8, scriptsRead: 14, scriptsSeen: 14, shippedSecrets: 0 };
+
+  it("says a complete read found no secret keys in what the site ships, as a read, not a verdict", () => {
+    const r = buildVerifiedReport(data({ live }));
+    expect(r.live).toEqual(["Read completely on September 2, 2026: 8 pages and 14 scripts, as any visitor gets them.",
+      "Secret keys in that JavaScript: none found."]);
+    expect(JSON.stringify(r)).not.toMatch(/\bsecure\b|\bsafe\b/i);
+  });
+
+  it("says a partial read is partial, and counts shipped secrets without naming them", () => {
+    const r = buildVerifiedReport(data({ live: { ...live, complete: false, scriptsRead: 24, scriptsSeen: 30, shippedSecrets: 1 } }));
+    expect(r.live?.[0]).toMatch(/^Partly read on September 2, 2026: 8 pages and 24 of 30 scripts/);
+    expect(r.live?.[1]).toBe("Secret keys in that JavaScript: 1 found, and the rest is unknown.");
+  });
+
+  it("is absent with no bound address, and moves the live site out of not covered only when read", () => {
+    expect(buildVerifiedReport(data()).live).toBeNull();
+    expect(buildVerifiedReport(data()).notCovered.join(" ")).toMatch(/live site/i);
+    expect(buildVerifiedReport(data({ live })).notCovered.join(" ")).not.toMatch(/live site/i);
+  });
+
+  it("never carries the address or a path", () => {
+    const everything = JSON.stringify(buildVerifiedReport(data({ live })));
+    expect(everything).not.toMatch(/https?:\/\/|\/api\//);
+  });
+});
+
+describe("verifiedLive joins the live read only under the report's own binding", () => {
+  const base = { url: "https://app.acme.com", boundUrl: "https://app.acme.com", boundRepository: "Acme/App", reportRepository: "acme/app",
+    surface: { url: "https://app.acme.com", complete: true, pagesRead: 3, scriptsRead: 9, scriptsSeen: 9 }, recordedAt: "2026-09-02T09:00:00.000Z",
+    openFindingIds: ["bundle:shipped_secret:stripe_live_secret", "acme/app::github:x", "headers:hsts_missing"] };
+
+  it("counts the read and the open shipped secrets", () => {
+    expect(verifiedLive(base)).toEqual({ readAt: "2026-09-02T09:00:00.000Z", complete: true, pages: 3, scriptsRead: 9, scriptsSeen: 9, shippedSecrets: 1 });
+  });
+
+  it.each([
+    ["the address changed after the binding", { boundUrl: "https://old.acme.com" }],
+    ["it is bound to another repository", { boundRepository: "acme/other" }],
+    ["nothing is bound", { boundRepository: null }],
+    ["the read was of another address", { surface: { ...base.surface, url: "https://old.acme.com" } }],
+    ["nothing was read", { surface: null }],
+  ])("is null when %s", (_why, over) => {
+    expect(verifiedLive({ ...base, ...over })).toBeNull();
   });
 });

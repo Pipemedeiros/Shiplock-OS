@@ -141,6 +141,15 @@ function ReportBody({ report }: { report: VerifiedReport }) {
         </>
       )}
 
+      {report.live ? (
+        <section aria-label="The live site" style={{ marginBottom: 30 }}>
+          <h2 className="dxd-mono" style={S.eyebrow}>WHAT THE LIVE SITE SHIPS</h2>
+          {report.live.map((line) => (
+            <p key={line} style={{ fontSize: 14, lineHeight: 1.7, color: "var(--d-muted)", maxWidth: "70ch", margin: "0 0 6px" }}>{line}</p>
+          ))}
+        </section>
+      ) : null}
+
       <section aria-label="Not covered" style={{ marginBottom: 30 }}>
         <h2 className="dxd-mono" style={S.eyebrow}>NOT COVERED BY THIS ASSESSMENT</h2>
         <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 10 }}>
