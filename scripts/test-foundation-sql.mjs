@@ -1683,5 +1683,31 @@ try {
     }
     await db.query("delete from public.deep_findings where finding_id = any($1)",[Object.values(ids)]);
   });
+  // 110: a finding the scan reports again takes the scan's current wording;
+  // its severity, identity and open state stay as they were.
+  await check("a re-reported source finding takes the current title and consequence, nothing else (110)", async () => {
+    await db.exec("reset role");
+    await db.exec(await readFile(new URL("../supabase/migrations/110_refresh_reported_finding_text.sql", import.meta.url), "utf8"));
+    const repo=(await db.query("select full_name,default_branch,github_repo_id from public.repositories where id=$1",[r1])).rows[0];
+    const install=(await db.query("select github_installation_id from public.user_profiles where id=$1",[u1])).rows[0].github_installation_id;
+    const snapshot=JSON.stringify({...sourceSnapshot(),repositoryFullName:repo.full_name,ref:repo.default_branch,
+      providerRepositoryId:String(repo.github_repo_id),installationId:String(install),recordedAt:new Date().toISOString()});
+    const fid=`${repo.full_name}::github:dep:left-pad:1.0.0:CVE-1`;
+    await db.query("insert into public.deep_findings(user_id,repository_id,source,finding_id,severity,title,consequence,detected_at) values($1,$2,'github',$3,'CRITICAL','left-pad@1.0.0 \u2014 CVE-1','old -- copy','2026-09-01')",[u1,r1,fid]);
+    await db.query("update public.execution_jobs set status='succeeded',lease_token=null,lease_until=null,finished_at=now() where status='running'");
+    await db.exec("set role service_role");
+    await db.query("select public.enqueue_execution_job($1,$2,'source','refresh-110')",[u1,r1]);
+    const job=(await db.query("select * from public.claim_execution_job('source',120)")).rows[0];
+    const result=(await db.query("select public.persist_repository_source($1,$2,$3,$4,$5::jsonb,$6::jsonb,'{}'::text[]) as r",
+      [u1,r1,job.id,job.lease_token,snapshot,JSON.stringify([{finding_id:fid,severity:"WARNING",title:"left-pad@1.0.0: CVE-1",consequence:"new copy"}])])).rows[0].r;
+    assert.equal(result.newCount,0);
+    await db.exec("reset role");
+    const rows=(await db.query("select severity,title,consequence,detected_at::date::text d from public.deep_findings where finding_id=$1 and archived_at is null",[fid])).rows;
+    assert.deepEqual(rows,[{severity:"CRITICAL",title:"left-pad@1.0.0: CVE-1",consequence:"new copy",d:"2026-09-01"}]);
+    for (const role of ["anon","authenticated"]) {
+      assert.equal((await db.query("select has_function_privilege($1,'public.persist_repository_source(uuid,uuid,uuid,uuid,jsonb,jsonb,text[])','execute') ok",[role])).rows[0].ok,false,`${role} cannot persist`);
+    }
+    await db.query("delete from public.deep_findings where finding_id=$1",[fid]);
+  });
   console.log(`${checks} SQL checks passed. Single-connection PostgreSQL WASM; multi-session contention and hosted Supabase remain unverified.`);
 } finally { await db.close(); }
