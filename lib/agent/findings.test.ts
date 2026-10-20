@@ -128,6 +128,24 @@ describe("buildFindings", () => {
     expect(findings[0].fixKind).toBe("manual");
   });
 
+  // Dogfood 2026-10-20: "Security token generated with Math.random()" carried
+  // the verified claim that "the value matches a real credential shape and is
+  // committed", which is false for a pattern with no committed value.
+  it("states the credential claims only for findings that hold a committed value", () => {
+    const d = (id: string) => ({ id, severity: "WARNING" as const, title: "t", consequence: "c",
+      packageName: null, version: null, vulnId: null, cveId: null });
+    const findings = buildFindings({ ...base, admitted: [], deterministic: [
+      d("github:secret:aws_access_key:lib/a.ts"), d("github:insecure_random:lib/b.ts"),
+      d("github:secret_in_url:lib/c.ts"), d("github:next_config_env:KEY:next.config.js"),
+      d("github:public_prefixed_service_jwt:NEXT_PUBLIC_X:.env"),
+    ] });
+    const credential = (f: (typeof findings)[number]) => f.claims.some((c) => /real credential shape/.test(c.claim));
+    expect(Object.fromEntries(findings.map((f) => [f.id.split(":")[1], credential(f)]))).toEqual({
+      secret: true, insecure_random: false, secret_in_url: false, next_config_env: false, public_prefixed_service_jwt: true });
+    for (const f of findings) expect(f.claims.every((c) => c.verified)).toBe(true);
+    expect(findings.find((f) => f.id.includes("insecure_random"))!.claims[0].claim).toContain("lib/b.ts");
+  });
+
   it("orders critical findings first", () => {
     const findings = buildFindings({
       ...base,

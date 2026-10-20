@@ -225,6 +225,9 @@ export interface BuildFindingsInput {
   openByDesign?: OpenByDesign | null;
 }
 
+// Deterministic kinds that read a committed credential value out of a file.
+const COMMITTED_VALUE = /^github:(secret|committed_env|next_config_env_credential|public_prefixed_secret_value|public_prefixed_service_jwt):/;
+
 export function buildFindings(input: BuildFindingsInput): AgentFinding[] {
   const byPath = new Map(input.routes.map((r) => [r.path, r]));
   const findings: AgentFinding[] = [];
@@ -411,6 +414,7 @@ export function buildFindings(input: BuildFindingsInput): AgentFinding[] {
   }
 
   for (const d of input.deterministic) {
+    const file = d.id.split(":").pop() ?? null;
     findings.push({
       id: d.id,
       title: d.title,
@@ -421,14 +425,18 @@ export function buildFindings(input: BuildFindingsInput): AgentFinding[] {
       confidence: "corroborated",
       attackClass: "committed_secret",
       entry: null,
-      file: d.id.split(":").pop() ?? null,
+      file,
       blastRadius: null,
       // Rotating a leaked key is the customer's to do; we cannot rotate a
       // credential we do not hold, and a PR removing it does not un-leak it.
       fixKind: "manual",
-      claims: [
+      // Only a finding that holds a committed value makes the credential
+      // claims; a Math.random() token or a value named in a URL holds none.
+      claims: COMMITTED_VALUE.test(d.id) ? [
         { claim: "The value matches a real credential shape and is committed to the repository.", origin: "secrets", verified: true },
         { claim: "Anyone with read access to this repository, now or in its history, has it.", origin: "secrets", verified: true },
+      ] : [
+        { claim: `The pattern is read directly from ${file ?? "the repository"}; nothing was run.`, origin: "secrets", verified: true },
       ],
     });
   }
