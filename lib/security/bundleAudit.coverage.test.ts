@@ -32,7 +32,7 @@ describe("auditShippedBundle readability", () => {
   });
 
   it("marks secrets and source maps unread when more chunks exist than are read", async () => {
-    guarded.mockImplementation(async (url: string) => url.endsWith(".js") ? ok("var a=1;") : ok(page(25)));
+    guarded.mockImplementation(async (url: string) => url.endsWith(".js") ? ok("var a=1;") : ok(page(49)));
     const unread: string[] = [];
     await auditShippedBundle("https://app.example.com", undefined, unread);
     expect([...new Set(unread)].sort()).toEqual(["bundle:shipped_secret:", "bundle:source_map_exposed:"]);
@@ -142,5 +142,24 @@ describe("auditShippedBundle linked pages", () => {
     });
     await auditShippedBundle("https://app.example.com", undefined, []);
     expect(fetched().some((u) => u.includes("sso.js"))).toBe(false);
+  });
+});
+
+describe("auditShippedBundle pacing", () => {
+  it("never has more than 8 scripts in flight and still reads all 48", async () => {
+    let inFlight = 0, peak = 0;
+    guarded.mockImplementation(async (url: string) => {
+      if (!url.endsWith(".js")) return ok(page(48));
+      inFlight++; peak = Math.max(peak, inFlight);
+      await new Promise((r) => setTimeout(r, 2));
+      inFlight--;
+      return ok("var a=1;");
+    });
+    const shipped = read();
+    const unread: string[] = [];
+    await auditShippedBundle("https://app.example.com", undefined, unread, shipped);
+    expect(peak).toBe(8);
+    expect(shipped.scriptsRead).toBe(48);
+    expect(unread).toEqual([]);
   });
 });

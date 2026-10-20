@@ -255,7 +255,9 @@ export function linkedPages(html: string, pageUrl: string): string[] {
 const TIMEOUT_MS = 8_000;
 const PAGE_TIMEOUT_MS = 5_000;
 const MAX_PAGES = 8;
-const MAX_SCRIPTS = 24;
+const MAX_SCRIPTS = 48;
+// Scripts in flight at once: a pass reads like a visitor, not a burst.
+const CONCURRENCY = 8;
 const MAX_JS_BYTES = 2_000_000; // a big Next.js chunk; beyond this we read a prefix
 const MAX_MAP_BYTES = 4_000_000;
 
@@ -359,8 +361,8 @@ export async function auditShippedBundle(
   const scripts = allScripts.slice(0, MAX_SCRIPTS);
   if (shipped) shipped.scriptsSeen = allScripts.length;
 
-  await Promise.all(
-    scripts.map(async (jsUrl) => {
+  await forEachLimited(
+    scripts, CONCURRENCY, async (jsUrl) => {
       let js: string;
       try {
         const res = await guardedFetch(jsUrl, { signal: requestSignal(signal, TIMEOUT_MS) });
@@ -389,10 +391,17 @@ export async function auditShippedBundle(
       } catch {
         unread.push("bundle:source_map_exposed:");
       }
-    })
-  );
+    });
 
   return [...found.values()];
+}
+
+/** Runs work over items with at most `limit` in flight. */
+async function forEachLimited<T>(items: readonly T[], limit: number, work: (item: T) => Promise<void>): Promise<void> {
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) await work(items[next++]);
+  }));
 }
 
 // Exposed for tests.
