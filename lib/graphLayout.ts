@@ -9,6 +9,23 @@ export type Point = { x: number; y: number };
 export type LayoutEdge = { from: string; to: string };
 
 const GOLDEN = Math.PI * (3 - Math.sqrt(5));
+const TAU = 2 * Math.PI;
+
+/** Cosine and sine from arithmetic alone. Math.cos and Math.sin differ in the
+ * last bit between Node and the browser, and the layout runs in both (server
+ * render, then hydration); the iterations amplify that into a different
+ * picture. Range reduced to [-pi, pi], then Taylor series. */
+export function cosSin(angle: number): [number, number] {
+  const a = angle - TAU * Math.floor(angle / TAU + 0.5);
+  const a2 = a * a;
+  let c = 0, s = 0, termC = 1, termS = a;
+  for (let n = 0; n < 16; n++) {
+    c += termC; s += termS;
+    termC *= -a2 / ((2 * n + 1) * (2 * n + 2));
+    termS *= -a2 / ((2 * n + 2) * (2 * n + 3));
+  }
+  return [c, s];
+}
 
 export function forceLayout(ids: readonly string[], edges: readonly LayoutEdge[],
   { radius = 320, iterations = 300, gravity = 1 }: { radius?: number; iterations?: number; gravity?: number } = {}): Map<string, Point> {
@@ -24,8 +41,9 @@ export function forceLayout(ids: readonly string[], edges: readonly LayoutEdge[]
   const x = new Float64Array(n), y = new Float64Array(n);
   for (let i = 0; i < n; i++) {
     const r = k * Math.sqrt(i + 0.5);
-    x[i] = r * Math.cos(i * GOLDEN);
-    y[i] = r * Math.sin(i * GOLDEN);
+    const [c, s] = cosSin(i * GOLDEN);
+    x[i] = r * c;
+    y[i] = r * s;
   }
 
   const dx = new Float64Array(n), dy = new Float64Array(n);
