@@ -38,11 +38,12 @@ export function calledPaths(js: string): string[] {
 }
 
 // A literal handed straight to a request: the first argument of fetch, an
-// HTTP client verb, useSWR or new Request, or a url or href value. Built on
-// any other base (endpointFor, this.url + "/x", pathname = "/x"), a path
-// belongs to whatever host that base names, which is how bundled SDKs reach
-// their own servers.
-const REQUEST_CONTEXT = /(?:\bfetch|\.(?:get|post|put|patch|delete|head|request)|\buseSWR|\bnew Request)\(\s*$|\b(?:url|href)\s*[:=]\s*$/;
+// HTTP client verb, useSWR or new Request; a url, href, src or form action
+// value; or the path after an upper-case method name ("POST", "/api/x").
+// Built on any other base (endpointFor, this.url + "/x", pathname = "/x"), a
+// path belongs to whatever host that base names, which is how bundled SDKs
+// reach their own servers.
+const REQUEST_CONTEXT = /(?:\bfetch|\.(?:get|post|put|patch|delete|head|request)|\buseSWR|\bnew Request)\(\s*$|\b(?:url|href|src|action)\s*[:=]\s*$|["'](?:GET|POST|PUT|PATCH|DELETE)["']\s*,\s*$/;
 
 /** The paths the app itself requests on its own origin (shadow routes read these). */
 export function requestedPaths(js: string): string[] {
