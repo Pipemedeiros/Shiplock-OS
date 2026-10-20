@@ -54,7 +54,7 @@ async function scanRepo(
   routeSink?: RouteFact[],
   liveFileSink?: Set<string>,
   depSink?: Map<string, Dep>,
-  readStats?: { filesAttempted: number; filesRead: number },
+  readStats?: { filesAttempted: number; filesRead: number; lockfile: string | null },
   historySink?: string[]
 ): Promise<GithubFinding[]> {
   const { fullName, defaultBranch: branch } = repo;
@@ -83,12 +83,15 @@ async function scanRepo(
     .filter((file) => /(^|\/)package\.json$/.test(file.path))
     .sort((a, b) => a.path.split("/").length - b.path.split("/").length)[0];
   const packageJson = manifest?.content ?? null;
-  const packageLock = manifest
-    ? files.find((file) => file.path === manifest.path.replace(/package\.json$/, "package-lock.json"))?.content ?? null
+  const lockfile = manifest
+    ? files.find((file) => file.path === manifest.path.replace(/package\.json$/, "package-lock.json")) ?? null
     : null;
+  const packageLock = lockfile?.content ?? null;
   if (readStats) {
     readStats.filesAttempted = candidates.length;
     readStats.filesRead = files.length;
+    // Named only when its packages formed the inventory, not range guesses.
+    readStats.lockfile = lockfile && extractDependencies("{}", lockfile.content).length > 0 ? lockfile.path : null;
   }
 
   const findings: GithubFinding[] = [
@@ -174,7 +177,7 @@ export async function collectRepositorySource(
   const routes: RouteFact[] = [];
   const liveFiles = new Set<string>();
   const dependencies = new Map<string,Dep>();
-  const stats = { filesAttempted: 0, filesRead: 0 };
+  const stats: { filesAttempted: number; filesRead: number; lockfile: string | null } = { filesAttempted: 0, filesRead: 0, lockfile: null };
   const historyRead: string[] = [];
   const findings = await scanRepo(token,repo,routes,liveFiles,dependencies,stats,historyRead);
   return {

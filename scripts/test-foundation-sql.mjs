@@ -1687,7 +1687,7 @@ try {
   // its severity, identity and open state stay as they were.
   await check("a re-reported source finding takes the current title and consequence, nothing else (110)", async () => {
     await db.exec("reset role");
-    await db.exec(await readFile(new URL("../supabase/migrations/110_refresh_reported_finding_text.sql", import.meta.url), "utf8"));
+    await db.exec(await readFile(new URL("../supabase/migrations/110_finding_text_and_dependency_retirement.sql", import.meta.url), "utf8"));
     const repo=(await db.query("select full_name,default_branch,github_repo_id from public.repositories where id=$1",[r1])).rows[0];
     const install=(await db.query("select github_installation_id from public.user_profiles where id=$1",[u1])).rows[0].github_installation_id;
     const snapshot=JSON.stringify({...sourceSnapshot(),repositoryFullName:repo.full_name,ref:repo.default_branch,
@@ -1708,6 +1708,50 @@ try {
       assert.equal((await db.query("select has_function_privilege($1,'public.persist_repository_source(uuid,uuid,uuid,uuid,jsonb,jsonb,text[])','execute') ok",[role])).rows[0].ok,false,`${role} cannot persist`);
     }
     await db.query("delete from public.deep_findings where finding_id=$1",[fid]);
+  });
+  // 110: a dependency finding retires only when the lockfile it came from was
+  // read again in full and that exact package and version is gone from it.
+  await check("a dependency finding retires only when its own lockfile no longer holds that version (110)", async () => {
+    await db.exec("reset role");
+    const repo=(await db.query("select full_name,default_branch,github_repo_id from public.repositories where id=$1",[r1])).rows[0];
+    const install=(await db.query("select github_installation_id from public.user_profiles where id=$1",[u1])).rows[0].github_installation_id;
+    const fid=(name)=>`${repo.full_name}::github:dep:${name}:GHSA-110`;
+    const rows=[["upgraded","1.0.0","package-lock.json"],["installed","2.0.0","package-lock.json"],
+      ["sub","1.0.0","mcp/package-lock.json"],["unbound","1.0.0",null],["reported","1.0.0",null]];
+    for (const [name,version,file] of rows) {
+      await db.query("insert into public.deep_findings(user_id,repository_id,source,finding_id,severity,title,consequence,package_name,version,file) values($1,$2,'zero-day',$3,'WARNING','t','c',$4,$5,$6)",[u1,r1,fid(name),name,version,file]);
+    }
+    const run=async(key,lockfile,findings)=>{
+      await db.exec("reset role");
+      await db.query("update public.execution_jobs set status='succeeded',lease_token=null,lease_until=null,finished_at=now() where status='running'");
+      await db.exec("set role service_role");
+      const snapshot={...sourceSnapshot(),repositoryFullName:repo.full_name,ref:repo.default_branch,providerRepositoryId:String(repo.github_repo_id),
+        installationId:String(install),recordedAt:new Date().toISOString(),lockfile,
+        dependencies:[{name:"upgraded",version:"1.0.1"},{name:"installed",version:"2.0.0"},{name:"reported",version:"1.0.0"}]};
+      await db.query("select public.enqueue_execution_job($1,$2,'source',$3)",[u1,r1,`${key}-source`]);
+      const source=(await db.query("select * from public.claim_execution_job('source',120)")).rows[0];
+      await db.query("select public.persist_repository_source($1,$2,$3,$4,$5::jsonb,'[]'::jsonb,'{}'::text[])",[u1,r1,source.id,source.lease_token,JSON.stringify(snapshot)]);
+      await db.query("select public.advance_execution_job($1,$2,0,'succeeded')",[source.id,source.lease_token]);
+      await db.query("select public.enqueue_execution_job($1,$2,'dependency',$3)",[u1,r1,`${key}-dependency`]);
+      const dependency=(await db.query("select * from public.claim_execution_job('dependency',120)")).rows[0];
+      const result=(await db.query("select public.persist_repository_dependency_findings($1,$2,$3,$4,$5,$6::jsonb) as r",
+        [u1,r1,dependency.id,dependency.lease_token,snapshot.recordedAt,JSON.stringify(findings)])).rows[0].r;
+      await db.query("select public.advance_execution_job($1,$2,0,'succeeded')",[dependency.id,dependency.lease_token]);
+      await db.exec("reset role");
+      return result;
+    };
+    const reported=[{finding_id:fid("reported"),severity:"WARNING",title:"reported@1.0.0: GHSA-110",consequence:"c2",package_name:"reported",version:"1.0.0",vuln_id:"GHSA-110",cve_id:null}];
+    assert.equal((await run("dep-110-unread",null,reported)).resolvedCount,0,"no lockfile read retires nothing");
+    assert.equal((await run("dep-110-escape","../package-lock.json",reported)).resolvedCount,0,"a malformed lockfile path is no lockfile");
+    assert.equal((await run("dep-110-read","package-lock.json",reported)).resolvedCount,1);
+    const state=Object.fromEntries((await db.query("select package_name,archived_at is null open,file,title from public.deep_findings where finding_id like $1",[`%:GHSA-110`])).rows
+      .map((row)=>[row.package_name,[row.open,row.file,row.title]]));
+    assert.deepEqual(state,{upgraded:[false,"package-lock.json","t"],installed:[true,"package-lock.json","t"],sub:[true,"mcp/package-lock.json","t"],
+      unbound:[true,null,"t"],reported:[true,"package-lock.json","reported@1.0.0: GHSA-110"]});
+    for (const role of ["anon","authenticated"]) {
+      assert.equal((await db.query("select has_function_privilege($1,'public.persist_repository_dependency_findings(uuid,uuid,uuid,uuid,text,jsonb)','execute') ok",[role])).rows[0].ok,false,`${role} cannot persist`);
+    }
+    await db.query("delete from public.deep_findings where finding_id like $1",[`%:GHSA-110`]);
   });
   console.log(`${checks} SQL checks passed. Single-connection PostgreSQL WASM; multi-session contention and hosted Supabase remain unverified.`);
 } finally { await db.close(); }

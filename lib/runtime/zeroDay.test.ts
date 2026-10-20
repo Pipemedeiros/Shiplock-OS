@@ -31,7 +31,7 @@ it("collects and namespaces current advisories without persisting", async () => 
     id: "acme/one::github:dep:left-pad:GHSA-x",
     severity: "CRITICAL",
   });
-  expect(findings[0].consequence).toContain("Source coverage is partial");
+  expect(findings[0].consequence).toContain("an advisory feed going quiet never closes it");
 });
 
 it("does no provider work for an observed empty inventory", async () => {

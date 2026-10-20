@@ -80,6 +80,13 @@ it("rechecks one repository and persists only through its live revision and leas
   });
 });
 
+// 110: a lockfile read in full can retire findings for versions it no
+// longer installs, so a nonzero count is a success, not a malformed answer.
+it("accepts findings the database retired for versions no longer installed", async () => {
+  state.rpc.mockResolvedValue({ data: { total: 1, newCount: 0, resolvedCount: 2 }, error: null });
+  await expect(executeDependencyJob(job)).resolves.toBeUndefined();
+});
+
 it("permanently refuses missing repository evidence and no-ops on observed emptiness", async () => {
   state.inventories.mockResolvedValue([]);
   await expect(executeDependencyJob(job)).rejects.toBeInstanceOf(PermanentJobError);

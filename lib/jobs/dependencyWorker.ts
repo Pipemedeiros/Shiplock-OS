@@ -13,7 +13,7 @@ import {
 const resultSchema = z.object({
   total: z.number().int().nonnegative(),
   newCount: z.number().int().nonnegative(),
-  resolvedCount: z.literal(0),
+  resolvedCount: z.number().int().nonnegative(),
 });
 
 function payload(findings: Awaited<ReturnType<typeof collectDependencyFindings>>) {

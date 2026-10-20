@@ -75,6 +75,9 @@ export interface RepositorySourceSnapshot {
   liveFiles: string[];
   hasEntryPoints: boolean;
   dependencies: { name: string; version: string }[];
+  /** The lockfile read in full whose packages are `dependencies`; null when
+   * versions came from package.json ranges or nothing was read. */
+  lockfile?: string | null;
 }
 
 /** Transport-local observation; connection provenance is not a repository link. */

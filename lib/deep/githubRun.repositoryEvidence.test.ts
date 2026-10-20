@@ -70,6 +70,7 @@ describe("repository source collection", () => {
       hasEntryPoints: true,
       liveFiles: [routePath],
       dependencies: [{ name: "shared", version: "1.0.0" }],
+      lockfile: null,
       filesRead: 2,
       filesAttempted: 2,
     });
@@ -117,6 +118,9 @@ describe("repository source collection", () => {
     } as Record<string, string>)[path] ?? null);
     const { snapshot } = await collect();
     expect(snapshot.dependencies).toEqual([{ name: "vitest", version: "4.1.12" }]);
+    // The inventory came from this lockfile, read in full: a later read of it
+    // can show a version is gone (migration 110).
+    expect(snapshot.lockfile).toBe("package-lock.json");
     expect(api.getFile).not.toHaveBeenCalledWith(expect.anything(), expect.anything(), "lib/big.json", expect.anything());
   });
 

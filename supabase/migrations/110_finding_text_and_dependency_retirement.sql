@@ -5,6 +5,12 @@
 -- carried wording from before the no-dash sweep, though every daily scan
 -- reported them again. Same function and signature as 109, with one change:
 -- an open row the scan reports again takes its title and consequence.
+--
+-- Dependency findings never retired (065: absence proves nothing), so a
+-- package the founder upgraded stayed open. A lockfile read in full does
+-- prove one thing: which versions it installs. The source snapshot now names
+-- that lockfile; persist_repository_dependency_findings binds each finding to
+-- it and retires a finding of that lockfile whose package and version are gone.
 create or replace function public.persist_repository_source(
   p_user uuid,
   p_repository uuid,
@@ -195,3 +201,124 @@ revoke all on function public.persist_repository_source(uuid,uuid,uuid,uuid,json
   from public,anon,authenticated;
 grant execute on function public.persist_repository_source(uuid,uuid,uuid,uuid,jsonb,jsonb,text[])
   to service_role;
+
+create or replace function public.persist_repository_dependency_findings(
+  p_user uuid,
+  p_repository uuid,
+  p_job uuid,
+  p_token uuid,
+  p_source_revision text,
+  p_findings jsonb
+)
+returns jsonb language plpgsql security definer set search_path = pg_catalog, public as $$
+declare
+  job public.execution_jobs;
+  repository public.repositories;
+  profile public.user_profiles;
+  finding record;
+  total_count integer:=0;
+  new_count integer:=0;
+  resolved_count integer:=0;
+  snapshot jsonb;
+  lockfile text;
+begin
+  if p_source_revision is null or length(p_source_revision) not between 20 and 40
+    or p_findings is null or jsonb_typeof(p_findings)<>'array'
+    or jsonb_array_length(p_findings)>500 or pg_column_size(p_findings)>2097152
+    then raise exception 'invalid dependency payload'; end if;
+
+  select * into job from public.execution_jobs where id=p_job for update;
+  if not found or job.user_id<>p_user or job.repository_id is distinct from p_repository
+    or job.kind<>'dependency' or job.status<>'running'
+    or job.lease_token is distinct from p_token or job.lease_until<=now()
+    then raise exception 'dependency lease unavailable'; end if;
+  select * into profile from public.user_profiles where id=p_user for update;
+  if not found or profile.github_installation_id is null
+    or profile.github_connected_at is null then
+    raise exception 'installation unavailable';
+  end if;
+  -- Reconnect invalidation locks profile then repository through its trigger.
+  -- Keep the same order here to avoid a profile↔repository deadlock.
+  select * into repository from public.repositories
+    where id=p_repository and user_id=p_user and selected=true for update;
+  if not found then raise exception 'repository unavailable'; end if;
+
+  select source_snapshot into snapshot from (select entry as source_snapshot from public.graph_facts facts
+    cross join lateral jsonb_array_elements(case
+      when jsonb_typeof(facts.facts->'repositories')='array'
+      then facts.facts->'repositories' else '[]'::jsonb end) entry
+    where facts.user_id=p_user and facts.collector='source'
+      and entry->>'repositoryId'=p_repository::text
+      and entry->>'recordedAt'=p_source_revision
+      and lower(entry->>'repositoryFullName')=lower(repository.full_name)
+      and entry->>'ref'=repository.default_branch
+      and (repository.github_repo_id is null
+        or entry->>'providerRepositoryId'=repository.github_repo_id::text)
+      and entry->>'installationId'=profile.github_installation_id::text
+      and (entry->>'recordedAt')::timestamptz>=profile.github_connected_at
+      and repository.last_source_scan_at is not null
+      and repository.last_source_scan_at>=(entry->>'recordedAt')::timestamptz
+    limit 1) admitted;
+  if snapshot is null then raise exception 'source revision changed'; end if;
+  -- 110: the lockfile the inventory was read from, in full. Only a plain
+  -- repository path counts; anything else is no lockfile.
+  lockfile:=case when snapshot->>'lockfile' ~ '^([A-Za-z0-9_@][A-Za-z0-9._@-]*/)*package-lock\.json$'
+    then snapshot->>'lockfile' end;
+
+  for finding in select * from jsonb_to_recordset(p_findings) as value(
+    finding_id text,severity text,title text,consequence text,
+    package_name text,version text,vuln_id text,cve_id text
+  ) loop
+    total_count:=total_count+1;
+    if finding.finding_id is null or length(finding.finding_id) not between 1 and 1000
+      or left(finding.finding_id,length(repository.full_name)+2)<>repository.full_name||'::'
+      or finding.severity not in ('CRITICAL','WARNING','INFO')
+      or finding.title is null or length(finding.title) not between 1 and 1000
+      or finding.consequence is null or length(finding.consequence) not between 1 and 20000
+      then raise exception 'invalid dependency finding'; end if;
+    if not exists(select 1 from public.deep_findings existing
+      where existing.user_id=p_user and existing.repository_id=p_repository
+        and existing.source in ('github','zero-day')
+        and existing.finding_id=finding.finding_id and existing.archived_at is null) then
+      insert into public.deep_findings(
+        user_id,repository_id,source,finding_id,severity,title,consequence,
+        package_name,version,vuln_id,cve_id,file
+      ) values(
+        p_user,p_repository,'zero-day',finding.finding_id,finding.severity,
+        finding.title,finding.consequence,finding.package_name,finding.version,
+        finding.vuln_id,finding.cve_id,lockfile
+      );
+      new_count:=new_count+1;
+    else
+      -- 110: reported again, so it takes this run's words and version and,
+      -- when a lockfile was read, the lockfile it is now known to come from.
+      update public.deep_findings existing set title=finding.title, consequence=finding.consequence,
+          package_name=coalesce(finding.package_name,existing.package_name),
+          version=coalesce(finding.version,existing.version), file=coalesce(lockfile,existing.file)
+        where existing.user_id=p_user and existing.repository_id=p_repository
+          and existing.source in ('github','zero-day')
+          and existing.finding_id=finding.finding_id and existing.archived_at is null;
+    end if;
+  end loop;
+  -- An advisory feed going quiet proves nothing. What can be proven is that
+  -- a lockfile read in full no longer installs a version: a finding bound to
+  -- that same lockfile, for a package and version it no longer holds, and not
+  -- reported by this run, is fixed. Other lockfiles, unbound rows, and runs
+  -- that read no lockfile retire nothing.
+  if lockfile is not null then
+    with retired as (
+      update public.deep_findings d set archived_at=now()
+        where d.user_id=p_user and d.repository_id=p_repository
+          and d.source in ('github','zero-day') and d.archived_at is null
+          and starts_with(d.finding_id, repository.full_name || '::github:dep:')
+          and d.file=lockfile and d.package_name is not null and d.version is not null
+          and not exists(select 1 from jsonb_array_elements(case when jsonb_typeof(snapshot->'dependencies')='array'
+              then snapshot->'dependencies' else '[]'::jsonb end) installed
+            where installed->>'name'=d.package_name and installed->>'version'=d.version)
+          and not exists(select 1 from jsonb_to_recordset(p_findings) as current(finding_id text)
+            where current.finding_id=d.finding_id)
+        returning 1
+    ) select count(*) into resolved_count from retired;
+  end if;
+  return jsonb_build_object('total',total_count,'newCount',new_count,'resolvedCount',resolved_count);
+end $$;

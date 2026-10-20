@@ -26,6 +26,6 @@ export async function collectDependencyFindings(
     ...finding,
     id: prefix + finding.id,
     consequence: `${finding.consequence}\n\nFound by re-checking recorded dependencies for ${inventory.repositoryFullName}. `
-      + "Source coverage is partial; absent advisories do not resolve earlier findings.",
+      + "It closes when that lockfile is read again and no longer installs this version; an advisory feed going quiet never closes it.",
   }));
 }
