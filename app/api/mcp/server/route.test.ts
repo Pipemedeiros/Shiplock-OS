@@ -27,6 +27,12 @@ vi.mock("@/app/api/mcp/fix/pr/route", () => ({ POST: reply("fixPr", { receiptId:
 vi.mock("@/app/api/mcp/fix/receipts/[id]/route", () => ({ GET: reply("receipt", { status: "opened" }) }));
 vi.mock("@/app/api/mcp/self-check/route", () => ({ POST: reply("selfCheck", { recorded: true }) }));
 vi.mock("@/app/api/mcp/scan/route", () => ({ POST: () => { throw new Error("never reachable"); } }));
+// The handshake checks the token itself, so a wrong one fails at connect.
+vi.mock("@/lib/mcpAuth", async () => {
+  const { NextResponse } = await import("next/server");
+  return { authMcp: async (req: Request) => req.headers.get("authorization") === "Bearer slp_test"
+    ? { userId: "u1" } : { error: NextResponse.json({ error: "Invalid token." }, { status: 401 }) } };
+});
 
 import { GET, POST } from "./route";
 
@@ -44,6 +50,16 @@ describe("/api/mcp/server", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ jsonrpc: "2.0", id: 1, result: { protocolVersion: "2025-06-18",
       capabilities: { tools: {}, resources: {} }, serverInfo: { name: "shiplock", version: "0.3.0" } } });
+  });
+
+  it("refuses the handshake with a token that is missing or not valid, in words any host can follow", async () => {
+    const init = { jsonrpc: "2.0", id: 1, method: "initialize", params: {} };
+    const bad = await rpc(init, "Bearer shiplock_pat_wrong");
+    expect(bad.status).toBe(401);
+    expect((await bad.json()).error.message).toMatch(/not valid.*Settings, Your AI/);
+    const missing = await rpc(init, null);
+    expect(missing.status).toBe(401);
+    expect((await missing.json()).error.message).not.toMatch(/--header/);
   });
 
   it("accepts a notification with no body", async () => {

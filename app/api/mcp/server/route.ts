@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { authMcp } from "@/lib/mcpAuth";
 import { GET as findings } from "@/app/api/mcp/findings/route";
 import { GET as fix } from "@/app/api/mcp/fix/route";
 import { GET as context } from "@/app/api/mcp/context/route";
@@ -92,13 +93,21 @@ export async function POST(request: NextRequest) {
 
   const auth = request.headers.get("authorization") ?? "";
   if (!/^Bearer \S+$/.test(auth)) {
-    return fail(msg.id, -32001, "Add your ShipLock token: --header \"Authorization: Bearer <token>\". Generate one in Settings, Your AI.", 401);
+    return fail(msg.id, -32001, "Send your ShipLock token as a Bearer token in the Authorization header. Generate one in Settings, Your AI.", 401);
   }
   const origin = new URL(request.url).origin;
   const params = msg.params ?? {};
 
   switch (msg.method) {
     case "initialize": {
+      // Check the token at connect, so a wrong one fails here rather than
+      // reading as connected until the first call (every call checks again).
+      const ctx = await authMcp(request);
+      if ("error" in ctx) {
+        return ctx.error.status === 401
+          ? fail(msg.id, -32001, "That ShipLock token is not valid or was revoked. Generate a new one in Settings, Your AI.", 401)
+          : fail(msg.id, -32001, "This ShipLock account cannot use the agent connection right now.", ctx.error.status);
+      }
       const asked = typeof params.protocolVersion === "string" ? params.protocolVersion : PROTOCOL;
       return ok(msg.id, { protocolVersion: SUPPORTED.has(asked) ? asked : PROTOCOL,
         capabilities: { tools: {}, resources: {} }, serverInfo: { name: "shiplock", version: "0.3.0" } });
