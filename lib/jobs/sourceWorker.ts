@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { collectRepositorySource } from "@/lib/deep/githubRun";
-import { getInstallationToken, listRepos } from "@/lib/deep/github";
+import { getBranchSha, getInstallationToken, listRepos, type Repo } from "@/lib/deep/github";
+import { readProductionDeploy, type ProductionDeploy } from "@/lib/deep/productionDeploy";
 import {
   claimJob,
   enqueueJob,
@@ -79,18 +80,29 @@ export async function executeSourceJob(job: ClaimedJob): Promise<void> {
       repositoryId,
       profile.data.github_installation_id,
     );
+    // "Is it live?" rides with the snapshot; its failure is its own state.
+    const snapshot = { ...collected.snapshot, deploy: await productionDeploy(token, visible) };
     const { data, error } = await admin.rpc("persist_repository_source", {
       p_user: job.user_id,
       p_repository: repositoryId,
       p_job: job.id,
       p_token: job.lease_token,
-      p_snapshot: collected.snapshot,
+      p_snapshot: snapshot,
       p_findings: findingPayload(collected.findings),
       p_history_read: collected.historyRead,
     });
     if (error) throw new Error("Source evidence could not be saved");
     resultSchema.parse(data);
   });
+}
+
+/** The production deploy against the default branch head (lib/deep/productionDeploy.ts). */
+async function productionDeploy(token: string, repo: Repo): Promise<ProductionDeploy> {
+  try {
+    return await readProductionDeploy(token, repo.fullName, await getBranchSha(token, repo.fullName, repo.defaultBranch));
+  } catch {
+    return { state: "unreadable", why: "The default branch head could not be read." };
+  }
 }
 
 /** Downstream jobs are separate retry/fencing domains. Keys bind manual and

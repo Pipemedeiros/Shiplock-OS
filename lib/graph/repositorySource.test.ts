@@ -14,7 +14,7 @@ vi.mock("@/lib/supabase", () => ({
   } }),
 }));
 
-import { loadRepositoryReachability, loadRepositoryDependencies } from "./repositorySource";
+import { loadRepositoryReachability, loadRepositoryDependencies, loadRepositoryDeploy } from "./repositorySource";
 // Traffic binding has its own test (trafficBinding.test.ts); no traffic here.
 vi.mock("@/lib/traffic/graphFacts", () => ({ collectTrafficFacts: async () => [] }));
 import { loadReachabilityIndex, loadGraphInput, canRetireGraphFindings } from "./graphRun";
@@ -284,5 +284,27 @@ describe("Step 2C-3-A: selected-repository source admission", () => {
       expect(assessReachability(finding("acme/one"), await loadRepositoryReachability("u", now)).state).toBe("unknown");
       expect(JSON.stringify(log.mock.calls)).not.toContain("private-value-do-not-log");
     } finally { log.mockRestore(); }
+  });
+});
+
+// "Is it live?": the deploy the newest admitted snapshot read, for that repository only.
+describe("loadRepositoryDeploy", () => {
+  const deploy = { state: "read", environment: "Production", host: "vercel", headSha: "f".repeat(40),
+    live: { sha: "b".repeat(40), at: "2026-09-16T09:00:00Z" }, latest: { sha: "b".repeat(40), state: "success", at: "2026-09-16T09:00:00Z" }, behindBy: 2 };
+  const load = async (repositoryId: string) => {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+    try { return await loadRepositoryDeploy("u", repositoryId); } finally { clock.mockRestore(); }
+  };
+
+  it("returns the stored deploy with the branch and when it was checked", async () => {
+    reads.graph_facts.mockResolvedValue({ data: { facts: { repositories: [{ ...snapshot, deploy }] } }, error: null });
+    expect(await load("repo-one")).toEqual({ deploy, ref: "main", checkedAt: "2026-09-16T10:00:00Z" });
+    expect(await load("repo-two")).toBeNull();
+  });
+
+  it("is null for a snapshot without a deploy or with a malformed one", async () => {
+    expect(await load("repo-one")).toBeNull();
+    reads.graph_facts.mockResolvedValue({ data: { facts: { repositories: [{ ...snapshot, deploy: { ...deploy, headSha: "main" } }] } }, error: null });
+    expect(await load("repo-one")).toBeNull();
   });
 });

@@ -1,3 +1,4 @@
+import type { ProductionDeploy } from "@/lib/deep/productionDeploy";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { findAttackPaths } from "./attackPaths";
 import type { GraphInput } from "./graph";
@@ -78,6 +79,8 @@ export interface RepositorySourceSnapshot {
   /** The lockfile read in full whose packages are `dependencies`; null when
    * versions came from package.json ranges or nothing was read. */
   lockfile?: string | null;
+  /** The production deploy against the default branch head (lib/deep/productionDeploy.ts). */
+  deploy?: ProductionDeploy;
 }
 
 /** Transport-local observation; connection provenance is not a repository link. */

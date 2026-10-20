@@ -68,6 +68,17 @@ export async function POST(req: NextRequest) {
     return recheckAfterPush({ ref: `refs/heads/${suite.check_suite.head_branch}`, after: suite.check_suite.head_sha,
       installation: suite.installation, repository: suite.repository });
   }
+  // Is it live? A finished production deploy re-reads the repository so the
+  // stored deploy (lib/deep/productionDeploy.ts) names what visitors now get.
+  if (event === "deployment_status") {
+    let status: { installation?: { id?: number }; repository?: { full_name?: string; default_branch?: string };
+      deployment_status?: { id?: number; state?: string }; deployment?: { environment?: string } };
+    try { status = JSON.parse(raw); } catch { return NextResponse.json({ ok: true }); }
+    const id = status.deployment_status?.id;
+    if (!/^production$/i.test(status.deployment?.environment ?? "") || !Number.isSafeInteger(id)
+      || !["success", "failure", "error"].includes(status.deployment_status?.state ?? "")) return NextResponse.json({ ok: true });
+    return queueSourceRead(status.installation?.id, status.repository?.full_name, (repositoryId) => `deploy-source:${repositoryId}:${id}`);
+  }
   if (event !== "pull_request") {
     // The event name only, never the payload: which deliveries arrive unused.
     console.info("[monitor/github] ignored event", String(event).slice(0, 40));
@@ -240,6 +251,14 @@ async function recheckAfterPush(payload: {
     || !payload.after || !/^[a-f0-9]{40}$/i.test(payload.after) || /^0+$/.test(payload.after)) {
     return NextResponse.json({ ok: true });
   }
+  const bucket = Math.floor(Date.now() / COALESCE_WINDOW_MS);
+  return queueSourceRead(installationId, fullName, (repositoryId) => `webhook-source:${repositoryId}:${bucket}`);
+}
+
+/** Queue one source read of a selected repository of a paying installation, keyed by the caller. */
+async function queueSourceRead(installationId: number | undefined, fullName: string | undefined,
+  key: (repositoryId: string) => string): Promise<NextResponse> {
+  if (!installationId || !fullName) return NextResponse.json({ ok: true });
   try {
     const admin = getSupabaseAdmin();
     const { data: profile, error: profileError } = await admin.from("user_profiles")
@@ -251,14 +270,13 @@ async function recheckAfterPush(payload: {
     if (repositoryError) return NextResponse.json({ error: "webhook temporarily unavailable" }, { status: 503 });
     if (!repository) return NextResponse.json({ ok: true });
 
-    const bucket = Math.floor(Date.now() / COALESCE_WINDOW_MS);
-    await enqueueJob(profile.id as string, repository.id as string, "source", `webhook-source:${repository.id}:${bucket}`);
+    await enqueueJob(profile.id as string, repository.id as string, "source", key(repository.id as string));
     after(async () => {
       try { await runNextJob(); } catch { console.error("[monitor/github] worker wake failed"); }
     });
     return NextResponse.json({ ok: true });
   } catch {
-    console.error("[monitor/github] push recheck admission failed");
+    console.error("[monitor/github] source read admission failed");
     return NextResponse.json({ error: "webhook temporarily unavailable" }, { status: 503 });
   }
 }

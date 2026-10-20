@@ -1,13 +1,14 @@
 import { beforeEach,expect,it,vi } from "vitest";
 import { z } from "zod";
 const state=vi.hoisted(()=>({
-  reads:{user_profiles:vi.fn(),repositories:vi.fn()},filters:vi.fn(),rpc:vi.fn(),token:vi.fn(),repos:vi.fn(),collect:vi.fn(),claim:vi.fn(),enqueue:vi.fn(),execute:vi.fn(),
+  reads:{user_profiles:vi.fn(),repositories:vi.fn()},filters:vi.fn(),rpc:vi.fn(),token:vi.fn(),repos:vi.fn(),head:vi.fn(),deploy:vi.fn(),collect:vi.fn(),claim:vi.fn(),enqueue:vi.fn(),execute:vi.fn(),
 }));
 vi.mock("@/lib/supabase",()=>({getSupabaseAdmin:()=>({from:(table:keyof typeof state.reads)=>{
   const query={eq:(key:string,value:unknown)=>{state.filters(table,key,value);return query;},maybeSingle:()=>state.reads[table]()};
   return {select:()=>query};
 },rpc:state.rpc})}));
-vi.mock("@/lib/deep/github",()=>({getInstallationToken:state.token,listRepos:state.repos}));
+vi.mock("@/lib/deep/github",()=>({getInstallationToken:state.token,listRepos:state.repos,getBranchSha:state.head}));
+vi.mock("@/lib/deep/productionDeploy",()=>({readProductionDeploy:state.deploy}));
 vi.mock("@/lib/deep/githubRun",()=>({collectRepositorySource:state.collect}));
 vi.mock("./queue",()=>{class PermanentJobError extends Error{} class StaleJobError extends PermanentJobError{} return {PermanentJobError,StaleJobError,claimJob:state.claim,enqueueJob:state.enqueue,executeClaimedJob:state.execute,withLeaseHeartbeat:(_job:unknown,work:()=>Promise<unknown>)=>work(),JobKind:z.enum(["audit","source","monitor","dependency","graph","pr-check"])};});
 import {enqueueFollowUpsAfterSource,executeSourceJob,runNextSourceJob} from "./sourceWorker";
@@ -23,6 +24,19 @@ beforeEach(()=>{
   state.collect.mockResolvedValue({snapshot:{repositoryId:job.repository_id,providerRepositoryId:"9",repositoryFullName:"acme/app",installationId:"42",ref:"main",recordedAt:"2026-09-22T00:00:00Z",completeness:"partial",filesAttempted:1,filesRead:1,routes:[],liveFiles:[],hasEntryPoints:false,dependencies:[]},findings:[{id:"acme/app::github:secret:key:file",severity:"CRITICAL",title:"Secret",consequence:"Rotate",packageName:null,version:null,vulnId:null,cveId:null}]});
   state.rpc.mockResolvedValue({data:{total:1,newCount:1,resolvedCount:0},error:null});
   state.enqueue.mockResolvedValue("66666666-6666-4666-8666-666666666666");
+  state.head.mockResolvedValue("f".repeat(40));
+  state.deploy.mockResolvedValue({state:"none"});
+});
+
+// "Is it live?": the production deploy rides with the snapshot and never fails the job.
+it("adds the production deploy against the default branch head to the snapshot",async()=>{
+  state.deploy.mockResolvedValue({state:"unreadable",why:"no permission"});
+  await executeSourceJob(job);
+  expect(state.deploy).toHaveBeenCalledWith("token","acme/app","f".repeat(40));
+  expect(state.rpc).toHaveBeenCalledWith("persist_repository_source",expect.objectContaining({p_snapshot:expect.objectContaining({deploy:{state:"unreadable",why:"no permission"}})}));
+  state.head.mockRejectedValue(new Error("GitHub get ref HTTP 502"));
+  await executeSourceJob(job);
+  expect(state.rpc).toHaveBeenLastCalledWith("persist_repository_source",expect.objectContaining({p_snapshot:expect.objectContaining({deploy:expect.objectContaining({state:"unreadable"})})}));
 });
 
 it("collects one exact current repository and persists through the live lease",async()=>{

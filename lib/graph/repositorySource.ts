@@ -2,6 +2,7 @@ import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { ReachabilityIndex } from "./reachability";
 import type { GraphInput } from "./graph";
+import { productionDeploySchema, type ProductionDeploy } from "@/lib/deep/productionDeploy";
 
 const repositoryName = z.string().regex(/^[\w.-]+\/[\w.-]+$/);
 const installationId = z.union([
@@ -34,6 +35,7 @@ const snapshotSchema = z.object({
   // Each consumer validates only the payload it actually uses.
   routes: z.unknown().optional(),
   dependencies: z.unknown().optional(),
+  deploy: z.unknown().optional(),
 }).refine((value) => value.filesRead <= value.filesAttempted && value.liveFiles.length <= value.filesRead);
 
 // Postgres returns timestamptz with up to microseconds; Date.parse keeps the
@@ -164,4 +166,13 @@ export async function loadRepositoryGraphSource(userId: string, repositoryId: st
   const routes = routesSchema.safeParse(admitted?.snapshot.routes);
   if (!admitted || !routes.success) return { repositoryId, sourceCoverage: "unknown", correlationScope: "source-only" };
   return { repositoryId, sourceCoverage: "partial", correlationScope: "source-only", routes: routes.data };
+}
+
+export type RepositoryDeploy = { deploy: ProductionDeploy; ref: string; checkedAt: string };
+
+/** The production deploy the newest admitted source snapshot read, or null when none was recorded. */
+export async function loadRepositoryDeploy(userId: string, repositoryId: string): Promise<RepositoryDeploy | null> {
+  const admitted = (await loadSelectedRepositorySources(userId)).get(repositoryId);
+  const deploy = productionDeploySchema.safeParse(admitted?.snapshot.deploy);
+  return admitted && deploy.success ? { deploy: deploy.data, ref: admitted.snapshot.ref, checkedAt: admitted.snapshot.recordedAt } : null;
 }

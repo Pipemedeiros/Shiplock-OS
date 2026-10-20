@@ -4,10 +4,10 @@ import { NextRequest } from "next/server";
 // Felipe (2026-09-30): the customer's own agent should have ShipLock's context
 // before it edits: stack, guardrails, open findings, and what was NOT read.
 // Read only, PAT authenticated, selected repositories only; no model call.
-const s = vi.hoisted(() => ({ auth: vi.fn(), repos: vi.fn(), runs: vi.fn(), findings: vi.fn(), source: vi.fn(), loop: vi.fn(), hot: vi.fn(), live: vi.fn(), reports: vi.fn() }));
+const s = vi.hoisted(() => ({ auth: vi.fn(), repos: vi.fn(), runs: vi.fn(), findings: vi.fn(), source: vi.fn(), loop: vi.fn(), hot: vi.fn(), live: vi.fn(), reports: vi.fn(), deploy: vi.fn() }));
 vi.mock("@/lib/mcpAuth", () => ({ authMcp: s.auth }));
 vi.mock("@/lib/agent/dashboardData", () => ({ getRepositories: s.repos, getRuns: s.runs, getOpenFindings: s.findings }));
-vi.mock("@/lib/graph/repositorySource", () => ({ loadRepositoryGraphSource: s.source }));
+vi.mock("@/lib/graph/repositorySource", () => ({ loadRepositoryGraphSource: s.source, loadRepositoryDeploy: s.deploy }));
 vi.mock("@/lib/agent/securityLoopData", () => ({ loadSecurityLoopInput: s.loop }));
 vi.mock("@/lib/traffic/hotRoutes", () => ({ getHotRoutes: s.hot }));
 vi.mock("@/lib/chain/liveReach", () => ({ loadLiveReach: s.live }));
@@ -37,6 +37,7 @@ describe("GET /api/mcp/context", () => {
     s.hot.mockReset().mockResolvedValue({});
     s.live.mockReset().mockResolvedValue(null);
     s.reports.mockReset().mockResolvedValue(new Map());
+    s.deploy.mockReset().mockResolvedValue(null);
   });
 
   // Felipe 2026-10-06: the agent sees the same loop and progress as the
@@ -115,6 +116,18 @@ describe("GET /api/mcp/context", () => {
     expect(other.chain.links[0].state).toBe("unknown");
     s.live.mockRejectedValue(new Error("down"));
     expect((await get("?repository=acme/app")).status).toBe(200);
+  });
+
+  // Is it live? The production deploy against the default branch head.
+  it("tells the agent which commit production runs and how many are not live", async () => {
+    expect((await (await get("?repository=acme/app")).json()).production).toEqual({ summary: "What production runs has not been checked yet.", checkedAt: null });
+    s.deploy.mockResolvedValue({ ref: "main", checkedAt: "2026-10-20T12:00:00Z", deploy: { state: "read", environment: "Production", host: "vercel",
+      headSha: "f".repeat(40), live: { sha: "b".repeat(40), at: "2026-10-20T11:03:00Z" },
+      latest: { sha: "b".repeat(40), state: "success", at: "2026-10-20T11:03:00Z" }, behindBy: 2 } });
+    const body = await (await get("?repository=acme/app")).json();
+    expect(body.production).toMatchObject({ liveCommit: "b".repeat(40), headCommit: "f".repeat(40), commitsNotLive: 2, checkedAt: "2026-10-20T12:00:00Z" });
+    expect(body.production.summary).toMatch(/2 commits ahead of it/);
+    expect(s.deploy).toHaveBeenCalledWith("u", "r1");
   });
 
   // Shadow routes: what the live site requests that this repository has no route for.

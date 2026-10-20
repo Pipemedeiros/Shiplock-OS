@@ -2,7 +2,8 @@ import { checkMethods, selfCheck } from "@/lib/proof/selfCheck";
 import { NextRequest, NextResponse } from "next/server";
 import { authMcp } from "@/lib/mcpAuth";
 import { getOpenFindings, getRepositories, getRuns } from "@/lib/agent/dashboardData";
-import { loadRepositoryGraphSource } from "@/lib/graph/repositorySource";
+import { loadRepositoryDeploy, loadRepositoryGraphSource } from "@/lib/graph/repositorySource";
+import { productionLine } from "@/lib/chain/productionLine";
 import { deriveGuardrails } from "@/lib/guardrails/guardrails";
 import { loadSecurityLoopInput } from "@/lib/agent/securityLoopData";
 import { securityLoop } from "@/lib/securityLoop";
@@ -30,9 +31,10 @@ export async function GET(req: NextRequest) {
       : NextResponse.json({ error: "Name a repository.", repositories: repos.map((r) => r.fullName) }, { status: 400 });
   }
 
-  const [runs, findings, source, loop, hot, live, reports] = await Promise.all([getRuns(ctx.userId, 20), getOpenFindings(ctx.userId),
+  const [runs, findings, source, loop, hot, live, reports, deploy] = await Promise.all([getRuns(ctx.userId, 20), getOpenFindings(ctx.userId),
     loadRepositoryGraphSource(ctx.userId, repo.id), loadSecurityLoopInput(ctx.userId), getHotRoutes(ctx.userId).catch(() => ({})),
-    loadLiveReach(ctx.userId).catch(() => null), loadSelfCheckReports(ctx.userId).catch(() => new Map())]);
+    loadLiveReach(ctx.userId).catch(() => null), loadSelfCheckReports(ctx.userId).catch(() => new Map()),
+    loadRepositoryDeploy(ctx.userId, repo.id).catch(() => null)]);
   // The last FINISHED audit of this repository; one still running has read
   // nothing yet and is reported as in progress, never as nothing unread.
   const { current, finished: run } = auditState(runs.filter((r) => r.fullName === repo.fullName));
@@ -74,6 +76,10 @@ export async function GET(req: NextRequest) {
         // Which layers back it, and the next safe step for the agent (lib/chain/evidenceChain.ts).
         chain: (({ links, next }) => ({ links: links.map((l) => ({ link: l.id, state: l.state, evidence: l.evidence })), next }))(
           evidenceChain(f, chainContext(f))) })),
+    // Is it live? What production runs against the default branch (lib/deep/productionDeploy.ts).
+    production: { summary: productionLine(deploy), checkedAt: deploy?.checkedAt ?? null,
+      ...(deploy?.deploy.state === "read" ? { liveCommit: deploy.deploy.live?.sha ?? null, headCommit: deploy.deploy.headSha,
+        commitsNotLive: deploy.deploy.behindBy, newestDeploy: deploy.deploy.latest } : {}) },
     liveSite: shadow.state === "read" && boundLive
       ? { host: boundLive.host, observedAt: boundLive.observedAt, notInRepository: shadow.paths, removedFromRepository: shadow.removed,
         partial: shadow.partial }
@@ -82,6 +88,6 @@ export async function GET(req: NextRequest) {
       ...(shadow.state === "read" ? shadow.paths.map((p) => shadow.removed.includes(p)
         ? `Live site request ${p}: an earlier audit read a route for it that this repository no longer has, so the deployed build may be older than this code.`
         : `Live site request ${p}: no route in this repository serves it, so its code was not read.`) : [])],
-    howToUse: "Keep every guardrail when you edit. Fix open findings only with the change they describe; a finding with confirmed false is a candidate to verify, not a proven issue. Anything under notRead, and any route without a rule, is not known to be safe. ShipLock's pull request check re-checks your change. To fix one, call open_fix_pull_request with its id where the customer turned agent pull requests on, or make the change in your own checkout and open the pull request yourself. Each finding's chain says which layers back it (reach, gap, proof, pressure) and its next safe step; an unknown link was not read, never cleared. liveSite.notInRepository lists backend addresses the live site requests that this repository has no route for; find what serves each one (a rewrite, another service, an older deploy) before treating it as safe; removedFromRepository are routes this code deleted that the live site still requests, so check the deploy before trusting a fix. Where a finding has a selfCheck, run it on a local or preview app, never production, and call report_self_check with the status you got; it is shown as a test you ran, never as proof.",
+    howToUse: "Keep every guardrail when you edit. Fix open findings only with the change they describe; a finding with confirmed false is a candidate to verify, not a proven issue. Anything under notRead, and any route without a rule, is not known to be safe. ShipLock's pull request check re-checks your change. To fix one, call open_fix_pull_request with its id where the customer turned agent pull requests on, or make the change in your own checkout and open the pull request yourself. Each finding's chain says which layers back it (reach, gap, proof, pressure) and its next safe step; an unknown link was not read, never cleared. liveSite.notInRepository lists backend addresses the live site requests that this repository has no route for; find what serves each one (a rewrite, another service, an older deploy) before treating it as safe; removedFromRepository are routes this code deleted that the live site still requests, so check the deploy before trusting a fix. production says which commit is live; a fix in a commit that is not live has not reached users. Where a finding has a selfCheck, run it on a local or preview app, never production, and call report_self_check with the status you got; it is shown as a test you ran, never as proof.",
   });
 }

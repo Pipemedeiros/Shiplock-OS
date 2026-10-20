@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireDashboardSession } from "@/lib/dashboard";
 import { getRepositories, getRuns } from "@/lib/agent/dashboardData";
-import { loadRepositoryGraphSource } from "@/lib/graph/repositorySource";
+import { loadRepositoryDeploy, loadRepositoryGraphSource } from "@/lib/graph/repositorySource";
 import { deriveGuardrails } from "@/lib/guardrails/guardrails";
 import { GuardrailList } from "@/components/v3/GuardrailList";
 import { getEvidenceCoverage } from "@/lib/graph/evidenceCoverage";
@@ -18,6 +18,7 @@ import { auditState } from "@/lib/verdict";
 import { loadLiveReach } from "@/lib/chain/liveReach";
 import { shadowRoutes } from "@/lib/chain/shadowRoutes";
 import { LiveSite, liveSiteStatus } from "@/components/v3/LiveSite";
+import { productionLine } from "@/lib/chain/productionLine";
 
 export const metadata = { title: "Coverage" };
 
@@ -48,6 +49,9 @@ export default async function Coverage() {
   const bound = live ? repos.find((r) => r.id === live.repositoryId) ?? null : null;
   const routeSets = bound ? runs.filter((r) => r.fullName === bound.fullName && r.routeFacts).map((r) => r.routeFacts!) : [];
   const shadow = shadowRoutes(bound ? live : null, routeSets[0] ?? null, routeSets.slice(1));
+  // Is it live? The production deploy of the bound repository, else the audited one.
+  const deployRepo = bound ?? repo;
+  const deploy = deployRepo ? await loadRepositoryDeploy(userId, deployRepo.id).catch(() => null) : null;
 
   const aiStatus = !ai.available ? "Unavailable" : ai.paused ? "Not running" : `${ai.checks.length} ${ai.checks.length === 1 ? "check" : "checks"}`;
   const providerStatus = !providers.available ? "Unavailable"
@@ -108,6 +112,7 @@ export default async function Coverage() {
         <Fold title="AI checks" status={aiStatus}><AiChecks activity={ai} /></Fold>
         <Fold title="Guardrails" status={guardrails ? `${guardrails.rules.length} rules` : "Not derived"}><GuardrailList guardrails={guardrails} /></Fold>
         <Fold title="Live site" status={liveSiteStatus(bound ? live : null, shadow)}>
+          {deployRepo ? <p className="v3-small" style={{ marginBottom: 12 }}><strong>{deployRepo.fullName}</strong>: {productionLine(deploy)}</p> : null}
           <LiveSite live={bound ? live : null} repository={bound?.fullName ?? null} shadow={shadow} />
         </Fold>
         {/* Latest read per connected provider (5A-3). */}

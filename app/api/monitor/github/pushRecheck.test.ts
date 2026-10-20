@@ -90,3 +90,24 @@ describe("recheck on the check suite GitHub opens for a push", () => {
     expect(mocks.job).not.toHaveBeenCalled();
   });
 });
+
+// Is it live? A production deploy that finished re-reads the repository so the
+// stored deploy names what visitors now get. Inert until the App subscribes
+// to deployment statuses (needs the deployments read permission).
+describe("re-read when a production deploy finishes", () => {
+  const status = (state: string, environment = "Production", id = 7) => ({ installation: { id: 42 },
+    repository: { full_name: "acme/app", default_branch: "main" },
+    deployment_status: { id, state }, deployment: { id: 3, sha: "f".repeat(40), environment } });
+  it("queues one source read per finished production deploy status", async () => {
+    expect((await POST(req(status("success"), undefined, "deployment_status"))).status).toBe(200);
+    await POST(req(status("failure", "production", 8), undefined, "deployment_status"));
+    expect(mocks.job).toHaveBeenNthCalledWith(1, owner, repo, "source", `deploy-source:${repo}:7`);
+    expect(mocks.job).toHaveBeenNthCalledWith(2, owner, repo, "source", `deploy-source:${repo}:8`);
+  });
+  it("ignores previews and deploys still running", async () => {
+    await POST(req(status("success", "Preview"), undefined, "deployment_status"));
+    await POST(req(status("in_progress"), undefined, "deployment_status"));
+    await POST(req(status("pending"), undefined, "deployment_status"));
+    expect(mocks.job).not.toHaveBeenCalled();
+  });
+});
