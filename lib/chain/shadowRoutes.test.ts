@@ -6,7 +6,7 @@ import type { LiveReach } from "./liveReach";
 // its own origin that the bound repository declares no route for. Code alone
 // cannot see them; they are listed as not checked, never as an issue.
 const live = (requests: string[] | null, read = { pages: 3, scriptsSeen: 5, scriptsRead: 5 }): LiveReach =>
-  ({ repositoryId: "r1", host: "app.acme.com", observedAt: "2026-10-20T09:00:00.000Z", paths: requests ?? [], requests, read });
+  ({ repositoryId: "r1", host: "app.acme.com", observedAt: "2026-10-20T09:00:00.000Z", paths: requests ?? [], requests, read, change: null });
 const routes = ["/api/me", "/api/notes/[id]", "/api/orders/[id]/share", "/dashboard", "action:app/a.ts#save"].map((path) => ({ path }));
 
 describe("shadowRoutes", () => {

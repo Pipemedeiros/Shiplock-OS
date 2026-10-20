@@ -13,6 +13,10 @@ const namesMock = vi.fn();
 vi.mock("./exposedPaths", () => ({ probeExposedPaths: probeMock }));
 vi.mock("./bundleAudit", () => ({ auditShippedBundle: auditMock }));
 vi.mock("./certificateNames", () => ({ readCertificateNames: namesMock }));
+// No network in this suite: the header probe and the stored last read are mocked.
+const previousMock = vi.fn();
+vi.mock("./responseHeaders", () => ({ auditResponseHeaders: vi.fn(async () => []) }));
+vi.mock("./surfaceChange", async (original) => ({ ...await original<typeof import("./surfaceChange")>(), loadPreviousSurface: previousMock }));
 // Mocked so the suite never performs real DNS lookups; the origin probe then
 // fails closed and is reported unread.
 vi.mock("./emailAuth", () => ({ auditEmailAuth: emailMock, nodeTxtResolver: vi.fn() }));
@@ -30,6 +34,7 @@ beforeEach(() => {
   auditMock.mockReset().mockResolvedValue([]);
   emailMock.mockReset().mockResolvedValue([]);
   namesMock.mockReset().mockResolvedValue(undefined);
+  previousMock.mockReset().mockResolvedValue(null);
   commitMock.mockReset().mockImplementation(async (result: ProviderResult) => result.findings);
 });
 
@@ -92,8 +97,29 @@ describe("runExposedPathScan", () => {
       return [];
     });
     await run();
-    expect(sent().facts).toEqual({ appSurface: { url, pagesRead: 3, scriptsSeen: 9, scriptsRead: 8,
+    expect(sent().facts).toEqual({ appSurface: { url, complete: true, change: { comparable: false, since: null }, pagesRead: 3, scriptsSeen: 9, scriptsRead: 8,
       paths: ["/api/me", "/api/orders/", "/api/surveys/"], requests: ["/api/me", "/api/orders/"] } });
+  });
+
+  // Watch: what the live site started or stopped requesting since the last read.
+  it("records what changed since the last complete read of the same address", async () => {
+    previousMock.mockResolvedValue({ url, complete: true, requests: ["/api/me", "/api/old"], recordedAt: "2026-10-19T09:00:00.000Z" });
+    auditMock.mockImplementation(async (_u: string, _s: unknown, _unread: string[], shipped: { pageRead: boolean; requests: Set<string> }) => {
+      shipped.pageRead = true;
+      shipped.requests.add("/api/me").add("/api/new");
+      return [];
+    });
+    await run();
+    expect((sent().facts as { appSurface: Record<string, unknown> }).appSurface.change)
+      .toEqual({ comparable: true, since: "2026-10-19T09:00:00.000Z", added: ["/api/new"], removed: ["/api/old"] });
+    auditMock.mockImplementation(async (_u: string, _s: unknown, unread: string[], shipped: { pageRead: boolean }) => {
+      shipped.pageRead = true;
+      unread.push("bundle:shipped_secret:");
+      return [];
+    });
+    commitMock.mockClear();
+    await run();
+    expect((sent().facts as { appSurface: Record<string, unknown> }).appSurface).toMatchObject({ complete: false, change: { comparable: false } });
   });
 
   // Other names on the founder's own domain, from certificate transparency.

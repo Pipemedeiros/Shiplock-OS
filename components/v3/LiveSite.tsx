@@ -36,6 +36,16 @@ export function LiveSite({ live, repository, shadow }: { live: LiveReach | null;
         {": "}{pages !== null ? `${pages} ${pages === 1 ? "page" : "pages"}, ` : ""}{scripts}.
         {shadow.state === "read" && shadow.partial ? " Addresses in the rest are unknown." : null}
       </p>
+      {live.change?.comparable && (live.change.added.length > 0 || live.change.removed.length > 0) ? (
+        <p style={{ marginBottom: 12 }}>
+          {live.change.since ? <>Since {utc(live.change.since)}, </> : "Since the last read, "}
+          {live.change.added.length > 0 ? <>your live site started requesting {live.change.added.map((p, i) =>
+            <span key={p}>{i > 0 ? ", " : ""}<code style={{ overflowWrap: "anywhere" }}>{p}</code></span>)}{live.change.removed.length > 0 ? "; " : "."}</> : null}
+          {live.change.removed.length > 0 ? <>{live.change.added.length > 0 ? "it" : "your live site"} stopped requesting {live.change.removed.map((p, i) =>
+            <span key={p}>{i > 0 ? ", " : ""}<code style={{ overflowWrap: "anywhere" }}>{p}</code></span>)}.</> : null}
+          {live.change.added.length > 0 ? " A new address is surface nobody has reviewed yet." : null}
+        </p>
+      ) : null}
       {shadow.state === "unknown" ? (
         <p>Addresses your live site requests outside {repository}: unknown. {shadow.why}</p>
       ) : shadow.paths.length === 0 ? (

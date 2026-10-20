@@ -2,6 +2,7 @@ import type { ProviderCommit } from "@/lib/monitoring/registry";
 import { probeExposedPaths, type ExposedFinding } from "./exposedPaths";
 import { auditShippedBundle } from "./bundleAudit";
 import { auditResponseHeaders } from "./responseHeaders";
+import { loadPreviousSurface, surfaceChange } from "./surfaceChange";
 import { MAX_PATHS, type ShippedRead } from "./shippedCalls";
 import { readCertificateNames } from "./certificateNames";
 import { auditEmailAuth, nodeTxtResolver, domainFromUrl, isSharedHost } from "./emailAuth";
@@ -37,7 +38,7 @@ export async function runExposedPathScan(
   const unread: string[] = [];
   const failed = (prefix: string) => () => { unread.push(prefix); return []; };
   const shipped: ShippedRead = { pageRead: false, pagesRead: 0, scriptsSeen: 0, scriptsRead: 0, paths: new Set(), requests: new Set() };
-  const [paths, bundle, email, origin, certificateNames, headers] = await Promise.all([
+  const [paths, bundle, email, origin, certificateNames, headers, previous] = await Promise.all([
     probeExposedPaths(appUrl, signal, unread).catch(failed("exposed:")),
     auditShippedBundle(appUrl, signal, unread, shipped).catch(failed("bundle:")),
     auditEmailAuth(appUrl, nodeTxtResolver, unread).catch(failed("email_auth:")),
@@ -57,6 +58,8 @@ export async function runExposedPathScan(
     readCertificateNames(appUrl, signal).catch(() => null),
     // Frame protection and HTTPS pinning on the home page (INFO).
     auditResponseHeaders(appUrl, signal, unread).catch(failed("headers:")),
+    // The last read, before this one replaces it, for what changed since.
+    loadPreviousSurface(userId).catch(() => null),
   ]);
   // Probes resolve to [] on network failure, and an empty pass archives every
   // active finding below. A cancelled pass must therefore write nothing at all.
@@ -68,9 +71,13 @@ export async function runExposedPathScan(
   // report an archive count, so none is claimed here.
   // The paths the live site names (P5), kept only from a read page: a failed
   // read sends no fact, so the last observation stands with its own time.
-  const facts = shipped.pageRead ? { facts: { appSurface: { url: appUrl, pagesRead: shipped.pagesRead, scriptsSeen: shipped.scriptsSeen,
+  // Complete: every linked page and script read, so a missing request is gone.
+  const complete = shipped.pageRead && !unread.some((u) => u.startsWith("bundle:"));
+  const requests = [...shipped.requests].sort().slice(0, MAX_PATHS);
+  const change = surfaceChange(previous, requests, complete, appUrl);
+  const facts = shipped.pageRead ? { facts: { appSurface: { url: appUrl, complete, change, pagesRead: shipped.pagesRead, scriptsSeen: shipped.scriptsSeen,
     scriptsRead: shipped.scriptsRead, paths: [...shipped.paths].sort().slice(0, MAX_PATHS),
-    requests: [...shipped.requests].sort().slice(0, MAX_PATHS),
+    requests,
     ...(certificateNames !== undefined ? { certificateNames } : {}) } } } : {};
   const created = await commit({ transport: "app-surface", identity: appUrl, ...facts, findings, retire: true, unread,
     snapshot: { scope: new URL(appUrl).host, failed: unread } });

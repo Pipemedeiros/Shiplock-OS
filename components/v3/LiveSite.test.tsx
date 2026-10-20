@@ -4,7 +4,7 @@ import { LiveSite, liveSiteStatus } from "./LiveSite";
 import type { LiveReach } from "@/lib/chain/liveReach";
 
 const live: LiveReach = { repositoryId: "r1", host: "app.acme.com", observedAt: "2026-10-20T09:21:04.709Z", paths: [],
-  requests: ["/api/me"], read: { pages: 4, scriptsSeen: 11, scriptsRead: 11 } };
+  requests: ["/api/me"], read: { pages: 4, scriptsSeen: 11, scriptsRead: 11 }, change: null };
 const html = (props: Parameters<typeof LiveSite>[0]) => renderToStaticMarkup(<LiveSite {...props} />);
 
 describe("LiveSite (outside view, shadow routes)", () => {
@@ -42,6 +42,17 @@ describe("LiveSite (outside view, shadow routes)", () => {
   it("says when the audit left files unread, so a listed address may be a route it never saw", () => {
     const out = html({ live, repository: "acme/app", shadow: { state: "read", paths: ["/api/x"], partial: false, removed: [], codeUnread: true } });
     expect(out).toMatch(/did not read every file/);
+  });
+
+  it("says what the live site started and stopped requesting since the last read", () => {
+    const changed = { ...live, change: { comparable: true as const, since: "2026-10-19T09:00:00.000Z", added: ["/api/export"], removed: ["/api/old"] } };
+    const out = html({ live: changed, repository: "acme/app", shadow: { state: "read", paths: [], partial: false, removed: [], codeUnread: false } });
+    expect(out).toContain("Since 2026-10-19 09:00 UTC");
+    expect(out).toContain("/api/export");
+    expect(out).toContain("/api/old");
+    const same = html({ live: { ...live, change: { comparable: true, since: "x", added: [], removed: [] } }, repository: "acme/app",
+      shadow: { state: "read", paths: [], partial: false, removed: [], codeUnread: false } });
+    expect(same).not.toMatch(/Since/);
   });
 
   it("offers the binding when no address is bound", () => {

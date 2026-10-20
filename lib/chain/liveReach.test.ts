@@ -13,7 +13,13 @@ describe("liveReachFrom", () => {
   it("admits the live paths under a current binding to a selected repository", () => {
     expect(liveReachFrom(profile, runtime, ["r1"])).toEqual({ repositoryId: "r1", host: "app.acme.com",
       observedAt: "2026-10-17T10:00:00.000Z", paths: ["/api/notes/"], requests: null,
-      read: { pages: null, scriptsSeen: 3, scriptsRead: 3 } });
+      read: { pages: null, scriptsSeen: 3, scriptsRead: 3 }, change: null });
+  });
+
+  it("carries a well formed change and drops a malformed one", () => {
+    const change = { comparable: true, since: "2026-10-19T09:00:00.000Z", added: ["/api/new"], removed: [] };
+    expect(liveReachFrom(profile, { ...runtime, appSurface: { ...runtime.appSurface, change } }, ["r1"])?.change).toEqual(change);
+    expect(liveReachFrom(profile, { ...runtime, appSurface: { ...runtime.appSurface, change: { comparable: true, added: ["https://x"] } } }, ["r1"])?.change).toBeNull();
   });
 
   it("carries the own-origin requests and pages read once the fact records them", () => {

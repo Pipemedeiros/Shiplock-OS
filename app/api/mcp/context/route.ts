@@ -81,7 +81,8 @@ export async function GET(req: NextRequest) {
         commitsNotLive: deploy.deploy.behindBy, newestDeploy: deploy.deploy.latest } : {}) },
     liveSite: shadow.state === "read" && boundLive
       ? { host: boundLive.host, observedAt: boundLive.observedAt, notInRepository: shadow.paths, removedFromRepository: shadow.removed,
-        partial: shadow.partial, auditLeftFilesUnread: shadow.codeUnread }
+        partial: shadow.partial, auditLeftFilesUnread: shadow.codeUnread,
+        changeSinceLastRead: boundLive.change?.comparable ? { since: boundLive.change.since, added: boundLive.change.added, removed: boundLive.change.removed } : null }
       : { unknown: shadow.state === "unknown" ? shadow.why : "Not read." },
     notRead: [...(run?.coverage ?? []).map((c) => `${c.name}: ${c.effect}`),
       ...(shadow.state === "read" ? shadow.paths.map((p) => shadow.removed.includes(p)
