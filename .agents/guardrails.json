@@ -219,7 +219,7 @@
       "testName": "renders every page per request so the CSP nonce reaches its scripts",
       "assertionDigest": "d63798fc60e0f8d6a848a27a1e8f517df7407d03bc6e0aecae11db7f366ec13d",
       "sourcePins": {
-        "app/layout.tsx": "50614b4f738b0f457fc04612550f283198d44751c229845f97ebc2c90efc95af"
+        "app/layout.tsx": "bb34dd56e2cd920b28d570e0ed7bdbf6df2d8dca26c21b1570a142ab060cb95a"
       }
     },
     {
