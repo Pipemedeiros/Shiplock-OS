@@ -1753,5 +1753,17 @@ try {
     }
     await db.query("delete from public.deep_findings where finding_id like $1",[`%:GHSA-110`]);
   });
+  // 111: the minute worker writes a cron.job_run_details row every minute and
+  // nothing pruned them (2026-10-20: 29,327 rows, 33 MB, the largest table).
+  const pruneSql = await readFile(new URL("../supabase/migrations/111_prune_scheduler_history.sql", import.meta.url), "utf8");
+  await check("111 is a no-op without pg_cron and prunes only scheduler run history older than 7 days", async () => {
+    await db.exec("reset role");
+    await db.exec(pruneSql);
+    assert.equal((await db.query("select count(*)::int n from pg_namespace where nspname = 'cron'")).rows[0].n, 0);
+    assert.match(pruneSql, /cron\.schedule\(\s*'shiplock-prune-scheduler-history',\s*'17 3 \* \* \*'/);
+    assert.match(pruneSql, /delete from cron\.job_run_details where end_time < now\(\) - interval '7 days'/);
+    // Nothing else is deleted: one delete statement, on the scheduler's own log.
+    assert.equal(pruneSql.match(/\bdelete from\b/gi)?.length, 1);
+  });
   console.log(`${checks} SQL checks passed. Single-connection PostgreSQL WASM; multi-session contention and hosted Supabase remain unverified.`);
 } finally { await db.close(); }
