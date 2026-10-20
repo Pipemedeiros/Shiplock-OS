@@ -8,7 +8,8 @@ import type { NextRequest } from "next/server";
 // push now queues the repository's source scan (secrets, dependencies,
 // history), coalesced with the pull request path in the same 10-minute bucket.
 const mocks = vi.hoisted(() => ({ audit: vi.fn(), job: vi.fn(), check: vi.fn(), intel: vi.fn(), worker: vi.fn(),
-  profile: vi.fn(), repository: vi.fn(), rpc: vi.fn() }));
+  profile: vi.fn(), repository: vi.fn(), rpc: vi.fn(), monitor: vi.fn() }));
+vi.mock("@/lib/jobs/scheduler", () => ({ enqueueMonitoringPass: mocks.monitor }));
 vi.mock("next/server", async (original) => ({ ...(await original<typeof import("next/server")>()), after: () => {} }));
 vi.mock("@/lib/jobs/queue", () => ({ enqueueAuditJob: mocks.audit, enqueueJob: mocks.job,
   enqueuePullRequestCheck: mocks.check, enqueuePullRequestIntelligence: mocks.intel }));
@@ -104,10 +105,21 @@ describe("re-read when a production deploy finishes", () => {
     expect(mocks.job).toHaveBeenNthCalledWith(1, owner, repo, "source", `deploy-source:${repo}:7`);
     expect(mocks.job).toHaveBeenNthCalledWith(2, owner, repo, "source", `deploy-source:${repo}:8`);
   });
+  it("re-reads the live site after a successful production deploy, with no customer setup", async () => {
+    await POST(req(status("success"), undefined, "deployment_status"));
+    await POST(req(status("failure", "Production", 8), undefined, "deployment_status"));
+    expect(mocks.monitor).toHaveBeenCalledTimes(1);
+    expect(mocks.monitor).toHaveBeenCalledWith(owner, "deploy", "deploy-monitor:github:7");
+    // A monitoring quota refusal never costs the source read.
+    mocks.monitor.mockRejectedValueOnce(new Error("quota"));
+    expect((await POST(req(status("success", "Production", 9), undefined, "deployment_status"))).status).toBe(200);
+    expect(mocks.job).toHaveBeenCalledWith(owner, repo, "source", `deploy-source:${repo}:9`);
+  });
   it("ignores previews and deploys still running", async () => {
     await POST(req(status("success", "Preview"), undefined, "deployment_status"));
     await POST(req(status("in_progress"), undefined, "deployment_status"));
     await POST(req(status("pending"), undefined, "deployment_status"));
     expect(mocks.job).not.toHaveBeenCalled();
+    expect(mocks.monitor).not.toHaveBeenCalled();
   });
 });

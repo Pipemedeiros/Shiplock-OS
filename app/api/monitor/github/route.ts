@@ -4,6 +4,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { hasProductAccess } from "@/lib/access";
 import { enqueueAuditJob, enqueueJob, enqueuePullRequestCheck, enqueuePullRequestIntelligence } from "@/lib/jobs/queue";
+import { enqueueMonitoringPass } from "@/lib/jobs/scheduler";
 import { runNextJob } from "@/lib/jobs/worker";
 
 // GitHub App webhook — durably admits repository work for qualifying pull
@@ -77,7 +78,10 @@ export async function POST(req: NextRequest) {
     const id = status.deployment_status?.id;
     if (!/^production$/i.test(status.deployment?.environment ?? "") || !Number.isSafeInteger(id)
       || !["success", "failure", "error"].includes(status.deployment_status?.state ?? "")) return NextResponse.json({ ok: true });
-    return queueSourceRead(status.installation?.id, status.repository?.full_name, (repositoryId) => `deploy-source:${repositoryId}:${id}`);
+    // A successful one also re-reads the live site (the "deploy" trigger),
+    // which before needed a webhook the founder pasted into Vercel by hand.
+    return queueSourceRead(status.installation?.id, status.repository?.full_name, (repositoryId) => `deploy-source:${repositoryId}:${id}`,
+      status.deployment_status?.state === "success" ? `deploy-monitor:github:${id}` : undefined);
   }
   if (event !== "pull_request") {
     // The event name only, never the payload: which deliveries arrive unused.
@@ -257,7 +261,7 @@ async function recheckAfterPush(payload: {
 
 /** Queue one source read of a selected repository of a paying installation, keyed by the caller. */
 async function queueSourceRead(installationId: number | undefined, fullName: string | undefined,
-  key: (repositoryId: string) => string): Promise<NextResponse> {
+  key: (repositoryId: string) => string, monitorKey?: string): Promise<NextResponse> {
   if (!installationId || !fullName) return NextResponse.json({ ok: true });
   try {
     const admin = getSupabaseAdmin();
@@ -271,6 +275,11 @@ async function queueSourceRead(installationId: number | undefined, fullName: str
     if (!repository) return NextResponse.json({ ok: true });
 
     await enqueueJob(profile.id as string, repository.id as string, "source", key(repository.id as string));
+    if (monitorKey) {
+      // Its own quota; a refusal never costs the source read.
+      try { await enqueueMonitoringPass(profile.id as string, "deploy", monitorKey); }
+      catch { console.warn("[monitor/github] deploy monitoring not queued"); }
+    }
     after(async () => {
       try { await runNextJob(); } catch { console.error("[monitor/github] worker wake failed"); }
     });
