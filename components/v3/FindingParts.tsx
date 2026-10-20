@@ -68,7 +68,7 @@ export function Chain({
         <div className="v3-chain-step">
           <span className="v3-chain-arrow">→</span>
           <div className="v3-node gap">
-            <b>the check that is missing</b>
+            <b>Missing check</b>
             <small>{file ?? "see the evidence"}</small>
           </div>
         </div>

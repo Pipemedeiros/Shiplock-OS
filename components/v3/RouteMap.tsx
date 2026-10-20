@@ -283,6 +283,21 @@ export function RouteMap({ map }: { map: RouteMapData }) {
     return s;
   }, [focus, map.edges]);
 
+  // Frame what is drawn. The layout keeps every node's place (so a filter
+  // never reshuffles it), which leaves the drawn subset small in the middle;
+  // this fits its bounds to the stage, under the reader's own pan and zoom.
+  const fit = useMemo(() => {
+    const points = [...visible].map((id) => layout.get(id)).filter((p): p is { x: number; y: number } => Boolean(p));
+    if (points.length < 2) return HOME;
+    const xs = points.map((p) => p.x), ys = points.map((p) => p.y);
+    const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+    // Room on the right for labels, which sit to the right of their node.
+    const k = Math.max(0.6, Math.min(2.4, (2 * BOX * stage.aspect * 0.7) / Math.max(x1 - x0, 1), (2 * BOX * 0.78) / Math.max(y1 - y0, 1)));
+    return { x: -((x0 + x1) / 2) * k - BOX * stage.aspect * 0.08, y: -((y0 + y1) / 2) * k, k };
+  }, [visible, layout, stage.aspect]);
+  const K = view.k * fit.k;
+  const tx = view.k * fit.x + view.x, ty = view.k * fit.y + view.y;
+
   const node = map.nodes.find((n) => n.id === selected);
   const info = node ? describe(node) : null;
   const hops = sim ? sim.path.length - 1 : 0;
@@ -310,17 +325,23 @@ export function RouteMap({ map }: { map: RouteMapData }) {
   }
 
   // Labels, Obsidian style: the nodes that matter always try; the rest appear
-  // as you zoom in, or when lit. Placed in screen space so they never collide.
-  const font = 11;
+  // as you zoom in, or when lit. Placed in screen space so they never collide,
+  // and sized to 12 screen pixels whatever the stage scale.
+  const font = (12 * 2 * BOX) / stage.height;
+  const marks = map.nodes.filter((n) => visible.has(n.id)).map((n) => {
+    const p = layout.get(n.id)!, r = radiusOf(n) * K;
+    return { x: p.x * K - r, y: p.y * K - r, w: 2 * r, h: 2 * r };
+  });
   const shown = placeLabels(map.nodes.filter((n) => visible.has(n.id)).map((n) => {
     const p = layout.get(n.id)!;
     const important = n.kind !== "route" && n.kind !== "helper" || Boolean(n.finding) || Boolean(n.hot) || Boolean(n.attacked);
     const force = n.id === selected || onPath.has(n.id) || n.id === focus;
     const wanted = important || view.k >= 1.8 || (lit?.has(n.id) ?? false);
     const r = radiusOf(n);
-    return { id: n.id, x: (p.x * view.k) + r * view.k + 4, y: (p.y * view.k) - font / 2, w: labelText(n).length * font * 0.6 + 4, h: font + 4,
+    const w = labelText(n).length * font * 0.6 + 4;
+    return { id: n.id, x: (p.x * K) + r * K + 4, leftX: (p.x * K) - r * K - 4 - w, y: (p.y * K) - font / 2, w, h: font + 4,
       priority: wanted ? (n.kind === "control" ? 6 : n.kind === "source" ? 5 : n.finding ? 5 : n.kind === "provider" ? 4 : n.hot ? 3 : lit?.has(n.id) ? 2 : 1) : -1, force };
-  }).filter((b) => b.force || b.priority >= 0));
+  }).filter((b) => b.force || b.priority >= 0), marks);
 
   function nudge(dx: number, dy: number) { setView((v) => ({ ...v, x: v.x + dx, y: v.y + dy })); }
 
@@ -377,7 +398,7 @@ export function RouteMap({ map }: { map: RouteMapData }) {
             </defs>
             <rect x={-BOX * stage.aspect} y={-BOX} width={2 * BOX * stage.aspect} height={2 * BOX} fill="url(#v3-graph-glow)" />
             <g className={drifting ? "v3-graph-drift" : undefined}>
-              <g transform={`translate(${view.x} ${view.y}) scale(${view.k})`}>
+              <g transform={`translate(${tx} ${ty}) scale(${K})`}>
                 {map.edges.map((e) => {
                   if (!visible.has(e.from) || !visible.has(e.to)) return null;
                   const p = layout.get(e.from), q = layout.get(e.to);
@@ -395,7 +416,7 @@ export function RouteMap({ map }: { map: RouteMapData }) {
                       className={risky && motionOk ? `v3-flow${e.risk === "open" ? " fast" : ""}` : undefined} />
                   );
                 })}
-                {pulse ? <circle cx={pulse.x} cy={pulse.y} r={5 / view.k} fill="#ffe2a8" /> : null}
+                {pulse ? <circle cx={pulse.x} cy={pulse.y} r={5 / K} fill="#ffe2a8" /> : null}
                 {map.nodes.filter((n) => visible.has(n.id)).map((n) => {
                   const p = layout.get(n.id)!;
                   const r = radiusOf(n);
@@ -423,7 +444,8 @@ export function RouteMap({ map }: { map: RouteMapData }) {
                       {picked ? <circle r={r + 4} fill="none" stroke="#eef2f7" strokeOpacity={0.55} strokeWidth={1.5} vectorEffect="non-scaling-stroke" /> : null}
                       <Mark n={n} r={r} />
                       {shown.has(n.id) ? (
-                        <text x={r + 4 / view.k} y={4 / view.k} fontSize={font / view.k}
+                        <text x={shown.get(n.id) === "left" ? -(r + 4 / K) : r + 4 / K} y={font / 3 / K} fontSize={font / K}
+                          textAnchor={shown.get(n.id) === "left" ? "end" : undefined}
                           className={`v3-graph-label${n.kind === "route" || n.kind === "helper" ? " mono" : ""}`}>
                           {labelText(n)}
                         </text>

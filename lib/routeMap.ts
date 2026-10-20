@@ -232,17 +232,32 @@ export function simulateRequest(route: MapRoute, attacker: Attacker): Simulation
   return { outcome: "reaches", reached: route.tables, steps: [...steps, `Nothing narrows the query to the caller. It reaches every row of ${route.tables.join(", ")}.`] };
 }
 
-export interface LabelBox { id: string; x: number; y: number; w: number; h: number; priority: number; force?: boolean }
+export interface LabelBox {
+  id: string; x: number; y: number; w: number; h: number; priority: number; force?: boolean;
+  /** Where the box starts when placed to the left of its node instead. */
+  leftX?: number;
+}
+type Rect = { x: number; y: number; w: number; h: number };
 
 /** Greedy label placement: forced labels (the picked node, the simulated
- * path) always show; others show in priority order unless they would cover a
- * label already placed. */
-export function placeLabels(boxes: LabelBox[]): Set<string> {
-  const placed: LabelBox[] = [];
-  const hit = (a: LabelBox, b: LabelBox) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+ * path) always show; others show in priority order, to the right of their
+ * node, else to its left, unless both would cover a label already placed or
+ * a node's mark. Returns each shown label's side. */
+export function placeLabels(boxes: LabelBox[], marks: readonly Rect[] = []): Map<string, "right" | "left"> {
+  const placed: Rect[] = [];
+  const out = new Map<string, "right" | "left">();
+  const hit = (a: Rect, b: Rect) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  const free = (r: Rect) => !placed.some((p) => hit(p, r)) && !marks.some((m) => hit(m, r));
   const order = [...boxes].sort((a, b) => Number(!!b.force) - Number(!!a.force) || b.priority - a.priority);
-  for (const box of order) if (box.force || !placed.some((p) => hit(p, box))) placed.push(box);
-  return new Set(placed.map((p) => p.id));
+  for (const box of order) {
+    const left = box.leftX === undefined ? null : { ...box, x: box.leftX };
+    // A forced label always shows, on its free side when it has one.
+    const side = free(box) ? "right" : left && free(left) ? "left" : box.force ? "right" : null;
+    if (!side) continue;
+    placed.push(side === "left" ? left! : box);
+    out.set(box.id, side);
+  }
+  return out;
 }
 
 /** A flagged traffic source, as the Traffic page has it (lib/traffic/attackView.ts). */

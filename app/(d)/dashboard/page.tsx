@@ -130,7 +130,7 @@ export default async function Overview() {
                     <td className="hide-sm route">{f.entry ?? f.file ?? ""}</td>
                     <td className="hide-sm">
                       {f.fixPrUrl ? <a href={f.fixPrUrl} target="_blank" rel="noreferrer" className="v3-tag ok">PR #{f.fixPrNumber}</a>
-                        : <span className="v3-tag">{f.confirmed ? "Confirmed" : "To review"}</span>}
+                        : <span className={f.confirmed ? "v3-tag crit" : "v3-tag"}>{f.confirmed ? "Confirmed" : "To review"}</span>}
                     </td>
                   </tr>
                 ))}

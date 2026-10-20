@@ -6,9 +6,11 @@ import type { Chain, Link } from "@/lib/chain/evidenceChain";
  * whether someone is trying it. Each state is said in words; "Unknown" means
  * not read, never cleared. It orders and explains; it never sets the status.
  */
+// Each link is a step of the attack, so one that holds is the risk standing
+// up: "Yes" in the critical tone, never green.
 const STATE: Record<Link["state"], { label: string; tone: string }> = {
-  met: { label: "Met", tone: " ok" },
-  open: { label: "Not yet", tone: " warn" },
+  met: { label: "Yes", tone: " crit" },
+  open: { label: "Not yet", tone: "" },
   unknown: { label: "Unknown", tone: "" },
 };
 

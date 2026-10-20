@@ -148,13 +148,24 @@ describe("label placement (UX pass 2026-10-01: no overlapping labels)", () => {
       { id: "c", x: 200, y: 0, w: 80, h: 14, priority: 1 },
       { id: "d", x: 400, y: 0, w: 40, h: 14, priority: 0, force: true },
     ]);
-    expect([...shown].sort()).toEqual(["b", "c", "d"]);
+    expect([...shown.keys()].sort()).toEqual(["b", "c", "d"]);
+  });
+
+  // Design pass 2026-10-20: a label ran into a neighbouring node's mark.
+  it("moves a label to the left of its node when the right side covers a mark, and drops it if both do", async () => {
+    const { placeLabels } = await import("./routeMap");
+    const node = { x: 100, y: 0, w: 10, h: 10 };
+    expect(placeLabels([{ id: "a", x: 20, y: 0, w: 100, h: 14, priority: 1, leftX: -110 }], [node]).get("a")).toBe("left");
+    expect(placeLabels([{ id: "a", x: 20, y: 0, w: 100, h: 14, priority: 1, leftX: -110 }], []).get("a")).toBe("right");
+    expect(placeLabels([{ id: "a", x: 20, y: 0, w: 100, h: 14, priority: 1, leftX: 60 }], [node]).has("a")).toBe(false);
+    expect(placeLabels([{ id: "f", x: 20, y: 0, w: 100, h: 14, priority: 0, force: true }], [node]).get("f")).toBe("right");
+    expect(placeLabels([{ id: "f", x: 20, y: 0, w: 100, h: 14, priority: 0, force: true, leftX: -110 }], [node]).get("f")).toBe("left");
   });
 });
 
 it("hides a label that would cover a forced one", async () => {
   const { placeLabels } = await import("./routeMap");
-  expect([...placeLabels([{ id: "x", x: 0, y: 0, w: 50, h: 14, priority: 9 }, { id: "f", x: 5, y: 0, w: 50, h: 14, priority: 0, force: true }])]).toEqual(["f"]);
+  expect([...placeLabels([{ id: "x", x: 0, y: 0, w: 50, h: 14, priority: 9 }, { id: "f", x: 5, y: 0, w: 50, h: 14, priority: 0, force: true }]).keys()]).toEqual(["f"]);
 });
 
 // A4 (Felipe 2026-10-07): the map shows only the routes that are wrong, red or

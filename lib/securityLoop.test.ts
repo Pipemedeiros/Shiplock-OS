@@ -50,6 +50,7 @@ describe("security loop", () => {
   it("shows tasks waiting on the agent as waiting, never as done", () => {
     const s = stage({ ...base, agent: { available: true, paused: null, pending: 3, answered: 1 } }, "attack");
     expect(s).toMatchObject({ state: "waiting", headline: "3 tasks wait for your agent" });
+    expect(securityLoop({ ...base, agent: { ...base.agent, pending: 1 } })[1].headline).toBe("1 task waits for your agent");
   });
 
   it("counts answers the server checked against the code", () => {

@@ -12,9 +12,12 @@ describe("EvidenceLinks", () => {
   const chain = evidenceChain(finding, { calledBy: ["components/Note.tsx"], trafficConnected: false });
   const html = renderToStaticMarkup(<EvidenceLinks chain={chain} />);
 
-  it("shows each link with its state in words, not color alone", () => {
+  // Design pass 2026-10-20: a link that holds is the risk standing up, so it
+  // reads "Yes" in the critical tone, never a reassuring green.
+  it("shows each link with its state in words, not color alone, and a holding link in the critical tone", () => {
     for (const t of ["A stranger can reach it", "The check is missing", "It was reproduced", "Someone is trying it"]) expect(html).toContain(t);
-    expect(html).toContain("Met");
+    expect(html).toContain('<span class="v3-tag crit">Yes</span>');
+    expect(html).not.toContain("v3-tag ok");
     expect(html).toContain("Not yet");
     expect(html).toContain("Unknown");
     expect(html).toMatch(/2 of 4/);

@@ -44,7 +44,7 @@ function attack({ finished, agent }: LoopInput): LoopStage {
     detail: "Attack reasoning runs on your own agent over MCP. ShipLock makes no AI calls.", action: "Connect your agent" };
   if (agent.paused) return { ...at, href: "/dashboard/settings", state: "attention", headline: "Paused",
     detail: agent.paused === "revoked" ? "Your agent's approval was withdrawn." : "Today's task budget is used up." };
-  if (agent.pending > 0) return { ...at, state: "waiting", headline: `${n(agent.pending, "task")} wait for your agent`,
+  if (agent.pending > 0) return { ...at, state: "waiting", headline: `${n(agent.pending, "task")} ${agent.pending === 1 ? "waits" : "wait"} for your agent`,
     detail: "They run when your agent picks them up; until then they count as not run." };
   if (agent.answered > 0) return { ...at, state: "done", headline: `${n(agent.answered, "answer")} checked`,
     detail: "Only claims proved by quoted lines in your code become issues." };
