@@ -58,7 +58,11 @@ export async function POST(req: NextRequest) {
   if (event === "push") {
     try { return await recheckAfterPush(JSON.parse(raw)); } catch { return NextResponse.json({ ok: true }); }
   }
-  if (event !== "pull_request") return NextResponse.json({ ok: true });
+  if (event !== "pull_request") {
+    // The event name only, never the payload: which deliveries arrive unused.
+    console.info("[monitor/github] ignored event", String(event).slice(0, 40));
+    return NextResponse.json({ ok: true });
+  }
 
   let payload: {
     action?: string;
