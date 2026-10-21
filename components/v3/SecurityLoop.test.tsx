@@ -29,3 +29,24 @@ describe("security loop strip", () => {
     expect(html).toContain("View issues");
   });
 });
+
+// Design pass 2026-10-20: the five stages read as one loop, numbered, with
+// the connector after a finished stage drawn solid.
+const stage = (key: LoopStage["key"], title: string, state: LoopStage["state"]): LoopStage =>
+  ({ key, title, state, headline: `${title} headline`, detail: "detail", href: "/dashboard" } as LoopStage);
+
+describe("SecurityLoop as one loop", () => {
+  const html = renderToStaticMarkup(<SecurityLoop stages={[stage("read", "Read", "done"), stage("attack", "Attack", "waiting"),
+    stage("map", "Map", "off"), stage("fix", "Fix", "attention"), stage("watch", "Watch", "working")]} />);
+
+  it("numbers the stages for the eye, leaving the list's own numbering to screen readers", () => {
+    for (const [n, t] of [[1, "Read"], [2, "Attack"], [3, "Map"], [4, "Fix"], [5, "Watch"]] as const) {
+      expect(html).toContain(`<span class="v3-loop-n" aria-hidden="true">${n}</span>${t}`);
+    }
+  });
+
+  it("marks a finished stage so the connector after it is solid", () => {
+    expect(html.match(/<li class="done">/g)).toHaveLength(1);
+    expect(html.match(/<li class="">/g)).toHaveLength(4);
+  });
+});

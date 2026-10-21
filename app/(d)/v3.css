@@ -626,7 +626,16 @@
 .v3-metric-link { font-size: 13px; color: var(--bronze); }
 /* Security loop (Felipe 2026-10-06): read, attack, map, fix, watch. */
 .v3-loop { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; list-style: none; margin: 0; padding: 0; }
-.v3-loop > li { display: flex; min-width: 0; }
+.v3-loop > li { display: flex; min-width: 0; position: relative; }
+.v3-loop .v3-tag { white-space: nowrap; }
+.v3-loop-n { font-family: var(--dx-font-geist-mono), monospace; font-size: 11px; color: var(--muted-2); margin-right: 7px; }
+/* The run as one line: a hairline across each gap, solid after a finished
+   stage. Only where the five sit in one row. */
+@media (min-width: 1101px) {
+  .v3-loop > li:not(:last-child)::after { content: ""; position: absolute; top: 30px; right: -12px; width: 12px;
+    border-top: 1px dashed var(--muted-2); }
+  .v3-loop > li.done:not(:last-child)::after { border-top: 1px solid var(--ink); }
+}
 .v3-loop-stage { flex: 1; min-width: 0; color: inherit; text-decoration: none; }
 .v3-loop-stage:focus-visible { outline: 2px solid var(--bronze); outline-offset: 2px; }
 .v3-loop-stage.off { background: transparent; }
