@@ -211,17 +211,17 @@ export function AuthForm({
   }
 
   return (
-    <div className="dxd-onb-card" style={{ maxWidth: 380, margin: 0 }}>
-      <h1 className="dxd-serif" style={{ textAlign: "center", fontSize: 22, fontWeight: 600, margin: 0 }}>
+    <div className="v3-card v3-auth">
+      <h1 className="v3-serif">
         {mode === "sign-in" ? "Sign in" : "Create your account"}
       </h1>
 
-      <div className="dxd-oauth" style={{ marginTop: 24 }}>
+      <div className="v3-auth-oauth">
         <button
           type="button"
           disabled={oauthLoading !== null}
           onClick={() => handleOAuth("google")}
-          className="dxd-oauth-btn"
+          className="v3-btn v3-ghost v3-auth-wide"
         >
           {oauthLoading === "google" ? (
             <Loader2 className="size-4 animate-spin" />
@@ -234,7 +234,7 @@ export function AuthForm({
           type="button"
           disabled={oauthLoading !== null}
           onClick={() => handleOAuth("github")}
-          className="dxd-oauth-btn"
+          className="v3-btn v3-ghost v3-auth-wide"
         >
           {oauthLoading === "github" ? (
             <Loader2 className="size-4 animate-spin" />
@@ -245,14 +245,15 @@ export function AuthForm({
         </button>
       </div>
 
-      <div className="dxd-divider">or</div>
+      <div className="v3-auth-or">or</div>
 
       <form onSubmit={handleSubmit}>
-        <div className="dxd-field">
-          <label htmlFor="dxd-auth-email">Email</label>
+        <div className="v3-auth-field">
+          <label htmlFor="auth-email">Email</label>
           <input
-            id="dxd-auth-email"
+            id="auth-email"
             type="email"
+            className="v3-input"
             required
             placeholder="you@company.com"
             value={email}
@@ -261,11 +262,12 @@ export function AuthForm({
             autoComplete="email"
           />
         </div>
-        <div className="dxd-field">
-          <label htmlFor="dxd-auth-pass">Password</label>
+        <div className="v3-auth-field">
+          <label htmlFor="auth-pass">Password</label>
           <input
-            id="dxd-auth-pass"
+            id="auth-pass"
             type="password"
+            className="v3-input"
             required
             minLength={6}
             placeholder="••••••••••••"
@@ -277,13 +279,13 @@ export function AuthForm({
         </div>
 
         {error && (
-          <p style={{ fontSize: 13, color: "var(--d-signal)", margin: "0 0 14px" }}>{error}</p>
+          <p className="v3-auth-error" role="alert">{error}</p>
         )}
         {notice && (
-          <p style={{ fontSize: 13, color: "var(--d-verified)", margin: "0 0 14px" }}>{notice}</p>
+          <p className="v3-auth-notice" role="status">{notice}</p>
         )}
 
-        <button type="submit" disabled={loading} className="dxd-btn" style={{ width: "100%" }}>
+        <button type="submit" disabled={loading} className="v3-btn v3-primary v3-auth-wide">
           {loading ? (
             <Loader2 className="size-4 animate-spin" />
           ) : mode === "sign-in" ? (
@@ -294,7 +296,7 @@ export function AuthForm({
         </button>
       </form>
 
-      <p style={{ marginTop: 22, textAlign: "center", fontSize: 13, color: "var(--d-muted)" }}>
+      <p className="v3-auth-switch">
         {mode === "sign-in" ? "Don't have an account? " : "Already have an account? "}
         <button
           type="button"
@@ -303,7 +305,6 @@ export function AuthForm({
             setError("");
             setNotice("");
           }}
-          style={{ color: "var(--d-bronze)", fontWeight: 600, background: "none", border: "none", cursor: "pointer" }}
         >
           {mode === "sign-in" ? "Sign up" : "Sign in"}
         </button>

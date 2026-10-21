@@ -32,29 +32,18 @@ export default async function AuthPage({
   }
 
   return (
-    <main
-      className="dxd"
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "64px 24px",
-      }}
-    >
+    <main className="v3">
       <GoogleOneTap next={nextPath} />
-      <Link
-        href="/"
-        className="dxd-wordmark"
-        style={{ marginBottom: 40, display: "inline-flex", alignItems: "center", gap: 8 }}
-      >
-        <span className="dxd-wordmark-lock">
-          <LockMark size={19} />
-        </span>
-        ShipLock
-      </Link>
-      <AuthForm oauthError={params.error === "oauth_failed"} nextPath={nextPath} />
+      <div className="v3-band">
+        <div className="v3-shell">
+          <nav className="v3-nav-top">
+            <Link href="/" className="v3-mark"><LockMark size={20} /> ShipLock</Link>
+          </nav>
+        </div>
+      </div>
+      <div className="v3-auth-wrap">
+        <AuthForm oauthError={params.error === "oauth_failed"} nextPath={nextPath} />
+      </div>
     </main>
   );
 }
