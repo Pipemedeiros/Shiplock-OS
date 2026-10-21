@@ -35,4 +35,14 @@ describe("connectionFor", () => {
     expect(soon).not.toContain("href");
     expect(renderToStaticMarkup(<StackConnection connection={{ state: "none" }} />)).toBe("");
   });
+
+  // A founder who already connected the database must not be told to connect it.
+  it("says connected, with no button, once that provider is connected", () => {
+    const connected = new Set(["Supabase"] as const);
+    expect(connectionFor({ id: "supabase", kind: "database" }, connected)).toEqual({ state: "connected", provider: "Supabase" });
+    expect(connectionFor({ id: "prisma", kind: "database" }, connected)).toMatchObject({ state: "available", provider: "Postgres" });
+    const html = renderToStaticMarkup(<StackConnection connection={{ state: "connected", provider: "Supabase" }} />);
+    expect(html).toContain("Supabase connected read only");
+    expect(html).not.toContain("href");
+  });
 });

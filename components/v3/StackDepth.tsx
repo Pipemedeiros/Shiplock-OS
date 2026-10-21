@@ -52,12 +52,14 @@ export function StackDepth({ depth }: { depth: Depth }) {
  * we cannot read yet are named and marked coming soon; other kinds make no
  * connection claim.
  */
+export type LiveProvider = "Supabase" | "Postgres";
 export type Connection =
-  | { state: "available"; provider: "Supabase" | "Postgres" }
+  | { state: "connected"; provider: LiveProvider }
+  | { state: "available"; provider: LiveProvider }
   | { state: "coming_soon" }
   | { state: "none" };
 
-const LIVE: Record<string, "Supabase" | "Postgres"> = {
+const LIVE: Record<string, LiveProvider> = {
   supabase: "Supabase",
   "supabase-auth": "Supabase",
   postgres: "Postgres",
@@ -66,14 +68,17 @@ const LIVE: Record<string, "Supabase" | "Postgres"> = {
 };
 const CONNECTABLE_KINDS: StackKind[] = ["database", "auth", "payments", "hosting"];
 
-export function connectionFor(tool: { id: string; kind: StackKind }): Connection {
+export function connectionFor(tool: { id: string; kind: StackKind }, connected: ReadonlySet<LiveProvider> = new Set()): Connection {
   const provider = LIVE[tool.id];
-  if (provider) return { state: "available", provider };
+  if (provider) return { state: connected.has(provider) ? "connected" : "available", provider };
   return CONNECTABLE_KINDS.includes(tool.kind) ? { state: "coming_soon" } : { state: "none" };
 }
 
 export function StackConnection({ connection }: { connection: Connection }) {
   if (connection.state === "none") return null;
+  if (connection.state === "connected") {
+    return <p className="v3-small" style={{ marginTop: 8 }}>{connection.provider} connected read only</p>;
+  }
   if (connection.state === "coming_soon") {
     return (
       <p className="v3-small" style={{ marginTop: 8 }} title="We detected it in your code. Reading its live configuration is not built yet.">

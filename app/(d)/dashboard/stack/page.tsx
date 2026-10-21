@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { requireDashboardSession } from "@/lib/dashboard";
+import { getSupabaseAdmin } from "@/lib/supabase";
 import { getRuns } from "@/lib/agent/dashboardData";
-import { StackConnection, StackDepth, connectionFor, depthOf } from "@/components/v3/StackDepth";
+import { StackConnection, StackDepth, connectionFor, depthOf, type LiveProvider } from "@/components/v3/StackDepth";
 import { When } from "@/components/v3/When";
 
 /**
@@ -25,7 +26,16 @@ export const metadata = { title: "Stack" };
 
 export default async function Stack() {
   const { userId } = await requireDashboardSession();
-  const runs = await getRuns(userId, 1);
+  const [runs, { data: profile }] = await Promise.all([
+    getRuns(userId, 1),
+    getSupabaseAdmin().from("user_profiles")
+      .select("supabase_mgmt_token_encrypted, monitored_project_url, monitored_anon_key_encrypted, postgres_dsn_encrypted")
+      .eq("id", userId).maybeSingle(),
+  ]);
+  // The same tests Settings uses: a founder who connected must not be asked to connect.
+  const connected = new Set<LiveProvider>();
+  if (profile?.supabase_mgmt_token_encrypted || (profile?.monitored_project_url && profile?.monitored_anon_key_encrypted)) connected.add("Supabase");
+  if (profile?.postgres_dsn_encrypted) connected.add("Postgres");
   const latest = runs[0];
   const stack = latest?.stack ?? null;
   const domain = latest?.domain ?? null;
@@ -98,7 +108,7 @@ export default async function Stack() {
                         {tool.usedIn.length > 1 ? ` +${tool.usedIn.length - 1} more` : ""}
                       </p>
                     ) : null}
-                    <StackConnection connection={connectionFor(tool)} />
+                    <StackConnection connection={connectionFor(tool, connected)} />
                   </div>
                 );
               })}
@@ -127,24 +137,26 @@ export default async function Stack() {
             </div>
           )}
 
-          <div className="v3-card">
-            <div className="v3-hd">
-              <h2 className="v3-eyebrow">Needs a live connection</h2>
+          {connected.size > 0 ? null : (
+            <div className="v3-card">
+              <div className="v3-hd">
+                <h2 className="v3-eyebrow">Needs a live connection</h2>
+              </div>
+              <div className="v3-card-p">
+                <p className="v3-sub" style={{ maxWidth: 720, fontSize: 14 }}>
+                  Row policies, bucket permissions and production settings live outside your repository.
+                  Connect your database read only to verify them. Optional.
+                </p>
+                <Link
+                  href="/dashboard/settings"
+                  className="v3-btn v3-btn-sm v3-ghost"
+                  style={{ marginTop: 14 }}
+                >
+                  Connect a database
+                </Link>
+              </div>
             </div>
-            <div className="v3-card-p">
-              <p className="v3-sub" style={{ maxWidth: 720, fontSize: 14 }}>
-                Row policies, bucket permissions and production settings live outside your repository.
-                Connect your database read only to verify them. Optional.
-              </p>
-              <Link
-                href="/dashboard/settings"
-                className="v3-btn v3-btn-sm v3-ghost"
-                style={{ marginTop: 14 }}
-              >
-                Connect a database
-              </Link>
-            </div>
-          </div>
+          )}
         </div>
       )}
     </>
