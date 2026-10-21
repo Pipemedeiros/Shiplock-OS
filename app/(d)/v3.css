@@ -82,6 +82,10 @@
 /* `.v3 a { color: inherit }` outranks the two classes above, so a Link styled
    as a button lost its text colour (dark on bronze). Anchors keep theirs. */
 .v3 a.v3-primary { color: #fff; }
+/* Same for size: `.v3 button { font: inherit }` outranks .v3-btn, so a <button>
+   took the 15px body size while a Link styled as a button kept 14px or 13px. */
+.v3 button.v3-btn { font-size: 14px; font-weight: 500; }
+.v3 button.v3-btn-sm { font-size: 13px; }
 .v3 a.v3-ondark { color: #eef2f7; }
 
 /* ── labels ────────────────────────────────────────────────────────────── */

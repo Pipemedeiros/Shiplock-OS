@@ -94,15 +94,15 @@ export function PostgresPanel({
   }
 
   return (
-    <div className="dxd-surface">
+    <div>
       <h3 style={{ margin: "0 0 10px", fontSize: 15 }}>Your database, policy access</h3>
-      <p style={{ margin: "0 0 12px", fontSize: 12.5, lineHeight: 1.7, color: "var(--d-muted)" }}>
+      <p style={{ margin: "0 0 12px", fontSize: 12.5, lineHeight: 1.7, color: "var(--muted)" }}>
         Any Postgres works: Neon, Railway, Render, RDS, Fly, your own hardware. We read your Row
         Level Security policies so we can tell you whether the protection is <em>correct</em>, not
         just whether it exists. A policy that lets every signed-in user read every row looks
         identical from outside.
       </p>
-      <p style={{ margin: "0 0 12px", fontSize: 12.5, lineHeight: 1.7, color: "var(--d-muted)" }}>
+      <p style={{ margin: "0 0 12px", fontSize: 12.5, lineHeight: 1.7, color: "var(--muted)" }}>
         <b>Give us a read-only role, and we&apos;ll check that you did.</b>{" "}
         We refuse the
         connection if the role can write, or if it can bypass Row Level Security, so
@@ -114,23 +114,21 @@ export function PostgresPanel({
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <button
             type="button"
-            className="dxd-btn"
+            className="v3-btn v3-btn-sm v3-primary"
             onClick={() => post({ action: "scan" })}
             disabled={busy || associationBusy}
-            style={{ fontSize: 12, padding: "6px 12px" }}
           >
             {busy ? "…" : "Check policies now"}
           </button>
           <button
             type="button"
-            className="dxd-btn dxd-btn-ghost"
+            className="v3-btn v3-btn-sm v3-ghost"
             onClick={() => post({ action: "disconnect" })}
             disabled={busy || associationBusy}
-            style={{ fontSize: 12, padding: "6px 12px" }}
           >
             Disconnect
           </button>
-          <span className="dxd-mono" style={{ fontSize: 11, color: "var(--d-verified)" }}>
+          <span className="v3-mono" style={{ fontSize: 11, color: "var(--ok)" }}>
             ● Connected{shown ? ` · ${shown}` : ""}
           </span>
         </div>
@@ -141,17 +139,17 @@ export function PostgresPanel({
             void post({ action: "connect", connectionString: dsn });
           }}
         >
-          <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--d-muted)" }}>
+          <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--muted)" }}>
             Create the role, then paste its connection string:
           </p>
           <pre
-            className="dxd-mono"
+            className="v3-mono"
             style={{
               fontSize: 11,
               lineHeight: 1.7,
               padding: 10,
               overflowX: "auto",
-              background: "var(--d-surface-2, rgba(0,0,0,0.15))",
+              background: "var(--porcelain)",
               borderRadius: 6,
               margin: "0 0 10px",
             }}
@@ -166,13 +164,13 @@ export function PostgresPanel({
             autoComplete="off"
             spellCheck={false}
             required
-            className="dxd-mono"
+            className="v3-mono"
             style={{
               width: "100%",
               fontSize: 12,
               padding: "8px 10px",
               borderRadius: 6,
-              border: "1px solid var(--d-border, rgba(255,255,255,0.15))",
+              border: "1px solid var(--line)",
               background: "transparent",
               color: "inherit",
               marginBottom: 10,
@@ -181,21 +179,19 @@ export function PostgresPanel({
           <div style={{ display: "flex", gap: 8 }}>
             <button
               type="submit"
-              className="dxd-btn"
+              className="v3-btn v3-btn-sm v3-primary"
               disabled={busy || dsn.length === 0}
-              style={{ fontSize: 12, padding: "6px 12px" }}
             >
               {busy ? "Checking…" : "Connect"}
             </button>
             <button
               type="button"
-              className="dxd-btn dxd-btn-ghost"
+              className="v3-btn v3-btn-sm v3-ghost"
               onClick={() => {
                 setDsn("");
                 setShowForm(false);
               }}
               disabled={busy}
-              style={{ fontSize: 12, padding: "6px 12px" }}
             >
               Cancel
             </button>
@@ -205,13 +201,12 @@ export function PostgresPanel({
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <button
             type="button"
-            className="dxd-btn"
+            className="v3-btn v3-btn-sm v3-primary"
             onClick={() => setShowForm(true)}
-            style={{ fontSize: 12, padding: "6px 12px" }}
           >
             Connect read-only access
           </button>
-          <span className="dxd-mono" style={{ fontSize: 11, color: "var(--d-muted-light)" }}>
+          <span className="v3-mono" style={{ fontSize: 11, color: "var(--muted)" }}>
             ○ Not connected
           </span>
         </div>
@@ -221,7 +216,7 @@ export function PostgresPanel({
         <p
           style={{
             fontSize: 12,
-            color: error ? "var(--d-critical, #e5484d)" : "var(--d-muted)",
+            color: error ? "var(--crit)" : "var(--muted)",
             marginTop: 10,
             lineHeight: 1.6,
           }}

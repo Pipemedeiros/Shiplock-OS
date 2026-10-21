@@ -56,22 +56,22 @@ export function SupabasePanel({
   }
 
   return (
-    <div className="dxd-surface">
+    <div>
       <h3 style={{ margin: "0 0 10px", fontSize: 15 }}>Supabase, policy access</h3>
-      <p style={{ margin: "0 0 12px", fontSize: 12.5, lineHeight: 1.7, color: "var(--d-muted)" }}>
+      <p style={{ margin: "0 0 12px", fontSize: 12.5, lineHeight: 1.7, color: "var(--muted)" }}>
         Your anon key shows us whether a table is protected. It can&apos;t show us whether the
         protection is <em>correct</em>. A policy that lets every signed-in user read every row
         looks identical from outside. Connecting read-only access lets us check the policies
         themselves.
       </p>
-      <p style={{ margin: "0 0 14px", fontSize: 12.5, lineHeight: 1.7, color: "var(--d-muted)" }}>
+      <p style={{ margin: "0 0 14px", fontSize: 12.5, lineHeight: 1.7, color: "var(--muted)" }}>
         <b>We only ever read.</b> ShipLock never writes to your production database. Database
         and access-control fixes always arrive as a migration pull request you review and merge.
         You can disconnect at any time, which deletes the token.
       </p>
 
       {!configured ? (
-        <p className="dxd-mono" style={{ fontSize: 11.5, color: "var(--d-muted-light)" }}>
+        <p className="v3-mono" style={{ fontSize: 11.5, color: "var(--muted)" }}>
           Management API connection is not available yet.
         </p>
       ) : (
@@ -80,42 +80,39 @@ export function SupabasePanel({
             <>
               <button
                 type="button"
-                className="dxd-btn"
+                className="v3-btn v3-btn-sm v3-primary"
                 onClick={() => post("/api/deep/supabase/scan")}
                 disabled={busy || associationBusy}
-                style={{ fontSize: 12, padding: "6px 12px" }}
               >
                 {busy ? "…" : "Check policies now"}
               </button>
               <button
                 type="button"
-                className="dxd-btn dxd-btn-ghost"
+                className="v3-btn v3-btn-sm v3-ghost"
                 onClick={() => post("/api/deep/supabase/disconnect")}
                 disabled={busy || associationBusy}
-                style={{ fontSize: 12, padding: "6px 12px" }}
               >
                 Disconnect
               </button>
-              <span className="dxd-mono" style={{ fontSize: 11, color: "var(--d-verified)" }}>
+              <span className="v3-mono" style={{ fontSize: 11, color: "var(--ok)" }}>
                 ● Connected{projectRef ? ` · ${projectRef}` : ""}
               </span>
             </>
           ) : (
             <>
               {associationBusy ? (
-                <button type="button" className="dxd-btn" disabled style={{ fontSize: 12, padding: "6px 12px" }}>
+                <button type="button" className="v3-btn v3-btn-sm v3-primary" disabled>
                   Connect read-only access
                 </button>
               ) : (
                 <a
                   href="/api/deep/supabase/connect"
-                  className="dxd-btn"
-                  style={{ fontSize: 12, padding: "6px 12px" }}
+                  className="v3-btn v3-btn-sm v3-primary"
                 >
                   Connect read-only access
                 </a>
               )}
-              <span className="dxd-mono" style={{ fontSize: 11, color: "var(--d-muted-light)" }}>
+              <span className="v3-mono" style={{ fontSize: 11, color: "var(--muted)" }}>
                 ○ Not connected
               </span>
             </>
@@ -124,7 +121,7 @@ export function SupabasePanel({
       )}
 
       {message && (
-        <p style={{ fontSize: 12, color: "var(--d-muted)", marginTop: 10 }}>{message}</p>
+        <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 10 }}>{message}</p>
       )}
       <SupabaseRepositoryAssociations disabled={busy} onMutationBusyChange={setAssociationBusy} />
     </div>

@@ -19,7 +19,7 @@ export function SignOutButton() {
       type="button"
       disabled={loading}
       onClick={handleSignOut}
-      className="dxd-btn dxd-btn-ghost dxd-btn-sm"
+      className="v3-btn v3-btn-sm v3-ghost"
     >
       {loading && <Loader2 className="size-3.5 animate-spin" />}
       Sign out

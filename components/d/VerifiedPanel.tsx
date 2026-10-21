@@ -11,7 +11,7 @@ import { buildBadgeSnippet, reportUrl } from "@/lib/verified/badge";
 
 const preStyle = {
   margin: "8px 0 0", fontSize: 10.5, lineHeight: 1.5, maxHeight: 140, overflow: "auto" as const,
-  background: "var(--d-porcelain)", border: "1px solid var(--d-line)", borderRadius: 8,
+  background: "var(--porcelain)", border: "1px solid var(--line)", borderRadius: 8,
   padding: "10px 12px", userSelect: "all" as const, whiteSpace: "pre-wrap" as const, wordBreak: "break-all" as const,
 };
 
@@ -93,9 +93,9 @@ export function VerifiedPanel({
   const badge = enabled && token ? buildBadgeSnippet(token, appUrl) : null;
 
   return (
-    <div className="dxd-surface">
+    <div>
       <h3 style={{ margin: "0 0 10px", fontSize: 15 }}>Verified report</h3>
-      <p style={{ margin: "0 0 12px", fontSize: 12.5, lineHeight: 1.7, color: "var(--d-muted)" }}>
+      <p style={{ margin: "0 0 12px", fontSize: 12.5, lineHeight: 1.7, color: "var(--muted)" }}>
         A public page you can send to a customer or investor who asks a security question. It shows
         what your last audit assessed, how much of the surface it could not judge, and how many
         findings are open. Counts only, never a finding, an endpoint or a table. It claims nothing
@@ -105,66 +105,64 @@ export function VerifiedPanel({
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
         <button
           type="button"
-          className={enabled ? "dxd-btn dxd-btn-ghost" : "dxd-btn"}
+          className={enabled ? "v3-btn v3-btn-sm v3-ghost" : "v3-btn v3-btn-sm v3-primary"}
           onClick={() => call(enabled ? "disable" : "enable")}
           disabled={busy}
-          style={{ fontSize: 12, padding: "6px 12px" }}
         >
           {busy ? "…" : enabled ? "Disable sharing" : "Enable & get link"}
         </button>
         {enabled && (
-          <button type="button" className="dxd-btn dxd-btn-ghost" onClick={() => call("rotate")} disabled={busy} style={{ fontSize: 12, padding: "6px 12px" }}>
+          <button type="button" className="v3-btn v3-btn-sm v3-ghost" onClick={() => call("rotate")} disabled={busy}>
             Rotate link
           </button>
         )}
-        <span className="dxd-mono" style={{ fontSize: 11, color: enabled ? "var(--d-verified)" : "var(--d-muted-light)" }}>
+        <span className="v3-mono" style={{ fontSize: 11, color: enabled ? "var(--ok)" : "var(--muted)" }}>
           {enabled ? "● Public" : "○ Private"}
         </span>
       </div>
 
-      {error && <p role="alert" style={{ fontSize: 12, color: "var(--d-signal)", marginTop: 10 }}>{error}</p>}
+      {error && <p role="alert" style={{ fontSize: 12, color: "var(--crit)", marginTop: 10 }}>{error}</p>}
 
       {link && (
         <>
           <div style={{ marginTop: 14 }}>
-            <div className="dxd-mono" style={{ fontSize: 11, color: "var(--d-muted)" }}>Live report link</div>
-            <pre className="dxd-mono" style={preStyle}>{link}</pre>
-            <a href={link} target="_blank" rel="noopener noreferrer" className="dxd-mono" style={{ fontSize: 12 }}>
+            <div className="v3-mono" style={{ fontSize: 11, color: "var(--muted)" }}>Live report link</div>
+            <pre className="v3-mono" style={preStyle}>{link}</pre>
+            <a href={link} target="_blank" rel="noopener noreferrer" className="v3-mono" style={{ fontSize: 12 }}>
               Preview →
             </a>
           </div>
           <div style={{ marginTop: 14 }}>
-            <div className="dxd-mono" style={{ fontSize: 11, color: "var(--d-muted)" }}>Embed badge (paste on your site)</div>
-            <pre className="dxd-mono" style={preStyle}>{badge}</pre>
+            <div className="v3-mono" style={{ fontSize: 11, color: "var(--muted)" }}>Embed badge (paste on your site)</div>
+            <pre className="v3-mono" style={preStyle}>{badge}</pre>
 
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginTop: 10 }}>
               <button
                 type="button"
-                className="dxd-btn dxd-btn-ghost"
+                className="v3-btn v3-btn-sm v3-ghost"
                 onClick={checkBadge}
                 disabled={checking}
-                style={{ fontSize: 12, padding: "6px 12px" }}
               >
                 {checking ? "Checking…" : "Check it's live"}
               </button>
               {install && (
                 <span
-                  className="dxd-mono"
+                  className="v3-mono"
                   style={{
                     fontSize: 11,
                     color:
                       install.state === "installed"
-                        ? "var(--d-verified)"
+                        ? "var(--ok)"
                         : install.state === "not_found"
-                          ? "var(--d-attention)"
-                          : "var(--d-muted)",
+                          ? "var(--warn)"
+                          : "var(--muted)",
                   }}
                 >
                   {install.state === "installed" ? "●" : "○"} {install.detail}
                 </span>
               )}
             </div>
-            <p style={{ margin: "8px 0 0", fontSize: 11.5, lineHeight: 1.6, color: "var(--d-muted-light)" }}>
+            <p style={{ margin: "8px 0 0", fontSize: 11.5, lineHeight: 1.6, color: "var(--muted)" }}>
               We fetch your app&apos;s homepage and look for a link back to your report. That
               confirms the badge is real, not that it&apos;s on every page.
             </p>

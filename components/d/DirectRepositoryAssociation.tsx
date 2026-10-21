@@ -4,7 +4,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { createDirectRepositoryConfirmation, type DirectRepositoryConfirmationState } from "@/lib/connections/directRepositoryConfirmation";
 
 type Actions = Pick<ReturnType<typeof createDirectRepositoryConfirmation>, "review" | "cancel" | "load" | "approve">;
-const textStyle = { fontSize: 12, lineHeight: 1.7, color: "var(--d-muted)" };
+const textStyle = { fontSize: 12, lineHeight: 1.7, color: "var(--muted)" };
 
 /** Pure view also exercised with server rendering; context identifiers are
  * never interpolated into DOM attributes, URLs or customer security claims. */
@@ -18,10 +18,10 @@ export function DirectRepositoryAssociationView({ state, actions, disabled = fal
   const busy = disabled || state.status === "loading" || state.status === "saving";
   const repository = state.context?.repositories.find((candidate) => candidate.id === state.decision?.repositoryId);
   return (
-    <section aria-label={copy.sectionLabel} aria-busy={busy} style={{ marginTop: 20, borderTop: "1px solid var(--d-border)", paddingTop: 16 }}>
+    <section aria-label={copy.sectionLabel} aria-busy={busy} style={{ marginTop: 20, borderTop: "1px solid var(--line)", paddingTop: 16 }}>
       <h4 style={{ margin: "0 0 8px", fontSize: 13 }}>{copy.heading}</h4>
       <p style={textStyle}>{copy.intro}</p>
-      {state.context && <p style={{ ...textStyle, overflowWrap: "anywhere" }}>{copy.currentLabel}: <span className="dxd-mono">{state.context.databaseDisplay}</span></p>}
+      {state.context && <p style={{ ...textStyle, overflowWrap: "anywhere" }}>{copy.currentLabel}: <span className="v3-mono">{state.context.databaseDisplay}</span></p>}
       <div role="status" aria-live="polite" style={textStyle}>
         {state.status === "loading" && "Loading repository associations…"}
         {state.status === "saving" && "Saving your decision and checking the current association…"}
@@ -35,10 +35,10 @@ export function DirectRepositoryAssociationView({ state, actions, disabled = fal
               const confirmed = state.context?.bindings.some((binding) => binding.repositoryId === candidate.id);
               return <li key={candidate.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
                 <div style={{ minWidth: 0, ...textStyle }}>
-                  <span className="dxd-mono" style={{ overflowWrap: "anywhere" }}>{candidate.fullName}</span>
+                  <span className="v3-mono" style={{ overflowWrap: "anywhere" }}>{candidate.fullName}</span>
                   <span style={{ display: "block" }}>{confirmed ? "Confirmed by you" : "Not confirmed"}</span>
                 </div>
-                <button type="button" className="dxd-btn dxd-btn-ghost" disabled={busy}
+                <button type="button" className="v3-btn v3-btn-sm v3-ghost" disabled={busy}
                   aria-label={`${confirmed ? "Review removal for" : "Review association for"} ${candidate.fullName}`}
                   onClick={() => actions.review(candidate.id, confirmed ? "remove" : "confirm")}>
                   {confirmed ? "Review removal" : "Review association"}
@@ -53,14 +53,14 @@ export function DirectRepositoryAssociationView({ state, actions, disabled = fal
             ? `Confirm that ${repository.fullName} uses this connected database?`
             : `Remove your database association for ${repository.fullName}? This does not disconnect the database.`}</p>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button type="button" className="dxd-btn" disabled={busy} onClick={() => { void actions.approve(); }}>
+            <button type="button" className="v3-btn v3-btn-sm v3-primary" disabled={busy} onClick={() => { void actions.approve(); }}>
               {state.decision.action === "confirm" ? "Confirm association" : "Remove association"}
             </button>
-            <button type="button" className="dxd-btn dxd-btn-ghost" disabled={busy} onClick={actions.cancel}>Cancel</button>
+            <button type="button" className="v3-btn v3-btn-sm v3-ghost" disabled={busy} onClick={actions.cancel}>Cancel</button>
           </div>
         </div>
       )}
-      {state.status !== "review" && <button type="button" className="dxd-btn dxd-btn-ghost" disabled={busy} onClick={() => { void actions.load(); }}>Reload associations</button>}
+      {state.status !== "review" && <button type="button" className="v3-btn v3-btn-sm v3-ghost" disabled={busy} onClick={() => { void actions.load(); }}>Reload associations</button>}
     </section>
   );
 }
