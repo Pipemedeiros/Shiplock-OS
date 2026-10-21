@@ -5,7 +5,7 @@ import { aiCheckForPullRequest, type AiActivity } from "@/lib/intelligence/activ
 import type { PullRequestReviewView } from "@/lib/agent/pullRequestReviews";
 
 const verdictLabel: Record<PullRequestReviewView["verdict"], { text: string; tone: string }> = {
-  block: { text: "Failed", tone: "crit" },
+  block: { text: "Blocked", tone: "crit" },
   warn: { text: "Warning", tone: "warn" },
   pass: { text: "Passed", tone: "ok" },
 };

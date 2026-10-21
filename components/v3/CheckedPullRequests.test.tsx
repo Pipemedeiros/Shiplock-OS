@@ -24,7 +24,7 @@ describe("CheckedPullRequests", () => {
 
   it("shows a failed check as failed, and partial alongside", () => {
     const html = renderToStaticMarkup(<CheckedPullRequests reviews={[review({ verdict: "block", coverageComplete: false })]} ai={ai} />);
-    expect(html).toContain(">Failed<");
+    expect(html).toContain(">Blocked<");
     expect(html).toContain(">Partial<");
   });
 });

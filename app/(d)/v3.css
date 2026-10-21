@@ -290,6 +290,15 @@
   padding: 3px 11px; font-size: 12.5px; color: var(--muted); text-transform: capitalize; }
 .v3-filter button.on { background: var(--ink); border-color: var(--ink); color: #fff; }
 
+/* ── settings: groups and the jump list ─────────────────────────────────── */
+.v3-jump { display: flex; flex-wrap: wrap; gap: 6px; margin: -6px 0 22px; }
+.v3-jump a { display: inline-flex; align-items: center; min-height: 32px; padding: 4px 13px; border: 1px solid var(--line);
+  border-radius: 100px; background: var(--paper); font-size: 12.5px; color: var(--muted); }
+.v3-jump a:hover { color: var(--ink); border-color: var(--muted-2); }
+.v3-group { scroll-margin-top: 24px; }
+.v3-group + .v3-group { margin-top: 14px; }
+.v3-group-hd { font-size: 15px; font-weight: 500; color: var(--ink); }
+
 /* ── coverage: seen vs not seen ────────────────────────────────────────── */
 .v3-cov { display: flex; flex-direction: column; }
 /* minmax(0, 1fr), not 1fr. A bare 1fr refuses to go below its min-content width,

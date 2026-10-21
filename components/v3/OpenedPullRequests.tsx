@@ -44,7 +44,7 @@ export function OpenedPullRequests({ opened, ci = {} }: {
                       : "Waiting for your review. ShipLock never merges."}
                   </p>
                   {!pr.mergedAt && ci[pr.id] ? (
-                    <p className="v3-small" style={{ marginTop: 2 }}>CI, not run by ShipLock: {CI[ci[pr.id]]}</p>
+                    <p className="v3-small" style={{ marginTop: 2 }}>Your CI, not ShipLock&apos;s: {CI[ci[pr.id]]}</p>
                   ) : null}
                 </div>
                 <ArrowUpRight size={15} className="v3-pr-go" />

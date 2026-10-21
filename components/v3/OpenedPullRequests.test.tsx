@@ -23,10 +23,10 @@ describe("OpenedPullRequests (Q1 / 8-R2)", () => {
   it("shows the customer's CI for open pull requests, labeled as not run by ShipLock", () => {
     const html = renderToStaticMarkup(<OpenedPullRequests opened={{ available: true, items: [item(), item({ id: "b" }), item({ id: "c" }), item({ id: "d" }), item({ id: "e" })] }}
       ci={{ a: "passing", b: "failing", c: "pending", d: "none_visible", e: "unknown" }} />);
-    expect(html).toContain("CI, not run by ShipLock: passing");
-    expect(html).toContain("CI, not run by ShipLock: failing");
-    expect(html).toContain("CI, not run by ShipLock: still running");
-    expect(html).toContain("CI, not run by ShipLock: no checks visible");
-    expect(html).toContain("CI, not run by ShipLock: unknown");
+    expect(html).toContain("Your CI, not ShipLock&#x27;s: passing");
+    expect(html).toContain("Your CI, not ShipLock&#x27;s: failing");
+    expect(html).toContain("Your CI, not ShipLock&#x27;s: still running");
+    expect(html).toContain("Your CI, not ShipLock&#x27;s: no checks visible");
+    expect(html).toContain("Your CI, not ShipLock&#x27;s: unknown");
   });
 });
