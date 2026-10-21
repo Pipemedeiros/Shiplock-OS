@@ -1,15 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ProximityText, Reveal, RevealList, SpotlightCard } from "@/components/d/bits";
 import { LockMark } from "@/components/d/Brand";
 
-// Real educational content page — grounded in the official OWASP Top
+// Real educational content page, grounded in the official OWASP Top
 // 10:2025 (fetched directly from owasp.org/Top10/2025/ during research, not
-// reconstructed from memory or a secondary source). Each entry's "ShipLock
-// coverage" line is honest about the gap between the category and what our
-// 15 live checks (lib/scanner.ts; the mass-assignment write probe is retired) actually test — several categories are
-// genuinely uncovered today, and that's stated plainly rather than
-// stretched into a false mapping.
+// reconstructed from memory or a secondary source). Each "ShipLock coverage"
+// line follows the same code as /coverage (rewritten 2026-10-20, when this page
+// still described the retired external scanner and claimed injection checks
+// that had been withdrawn): the repository audit and merge check
+// (lib/agent, lib/graph), source scanning (lib/deep/githubRun.ts), the live
+// site (lib/security/exposedPathsRun.ts), and, only when a Supabase project URL
+// and anon key are connected, the endpoint scan (lib/scanner.ts).
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
@@ -23,72 +24,72 @@ const CATEGORIES = [
   {
     id: "A01",
     name: "Broken Access Control",
-    body: "Someone can see or change data they shouldn't be able to reach, a stranger reading another user's rows, or an anonymous request hitting an endpoint that should require login. In an AI-written app this is almost always a table with Row Level Security left off, or off by default.",
+    body: "Someone can see or change data they shouldn't be able to reach, a stranger reading another user's rows, or an anonymous request hitting an endpoint that should require login. In an AI-written app this is almost always a table with Row Level Security left off, or a route that never checks who is calling.",
     coverage:
-      "This is the category ShipLock is built around. Covered directly: row-level security, unauthenticated table access, IDOR on user data, auth admin endpoint exposure, and public storage buckets.",
+      "the category ShipLock is built around. From your repository: every route traced to whether it identifies its caller and narrows the query to that caller, routes that change data without identifying the caller, and mass assignment; the merge check flags a new route that reaches data anonymously. With a Supabase project URL and anon key connected: tables readable without signing in, rows readable across users, the auth admin endpoint, and public storage buckets. With read-only database access: the policies themselves.",
   },
   {
     id: "A02",
     name: "Security Misconfiguration",
     body: "Settings shipped at their insecure defaults and never revisited, wildcard CORS, no HTTPS redirect, verbose error pages, missing security headers. Nothing was \"hacked\"; nobody ever changed the setting.",
     coverage:
-      "Covered directly: CORS wildcard policy, HTTPS enforcement, bot-protection headers, secrets & .env exposure, service-role key exposure.",
+      "covered on your live site: a readable .env file, Git metadata, database dumps and credential files at fixed paths, public source maps, and whether framing and HTTPS-only are enforced (reported as information). From your repository: Next.js configuration that hands a server value to client builds, and GitHub Actions workflows with no stated permissions. With a Supabase endpoint connected: its CORS policy.",
   },
   {
     id: "A03",
     name: "Software Supply Chain Failures",
     body: "A dependency you pulled in, sometimes one an AI coding tool invented or mis-typed, turns out to be malicious, compromised, or simply doesn't exist and is sitting there waiting for someone to register it. See our incidents page for a real 2025 npm worm that spread exactly this way.",
     coverage:
-      "Partial: we flag invented or suspiciously new dependencies, the failure mode behind AI-hallucinated package names, but this needs your app's live URL, which is optional on the scan form. Known-CVE matching against your installed versions requires source access; connect GitHub and that comes with it.",
+      "partial. Dependencies matched by package and version against public vulnerability advisories, and third-party GitHub Actions pinned to a moveable tag rather than a commit. Whether the vulnerable code path is reachable in your app is not determined.",
   },
   {
     id: "A04",
     name: "Cryptographic Failures",
     body: "Sensitive data transmitted or stored without adequate encryption, plaintext traffic, weak key management, secrets that aren't actually secret.",
     coverage:
-      "Partial: our HTTPS enforcement check covers encryption in transit. We don't assess encryption at rest or key-management practices, your database host manages that layer internally, outside what we can see from a read-only connection.",
+      "partial. A token or one-time code built from Math.random(), a credential carried in a URL query string, and secret keys committed to the repository or shipped in your site's JavaScript. Encryption at rest and key management are not assessed.",
   },
   {
     id: "A05",
     name: "Injection",
     body: "Crafted input reaches a query or command in a way the developer didn't intend, the classic SQL injection, plus its modern variants.",
     coverage:
-      "Partial: we test your endpoints for the signals that indicate injection is reachable, and our source scan covers SQL, command, path, and redirect injection in your own code. It's strong coverage of the common shapes, not exhaustive fuzzing of every endpoint and parameter.",
+      "mostly not covered. SQL, command and cross-site scripting pattern checks were withdrawn: a per-file pattern cannot tell whether the value reaching a dangerous call is attacker controlled. With a Supabase endpoint connected, one probe checks whether a malformed filter makes the API return a raw database error.",
   },
   {
     id: "A06",
     name: "Insecure Design",
     body: "The vulnerability isn't a bug, it's the architecture. Missing threat modeling, a business-logic flow that was never designed with abuse in mind.",
     coverage:
-      "Not covered. This is exactly the kind of thing a real audit's methodology catches and an automated external scan structurally can't, no check here today, and we're not going to pretend otherwise.",
+      "not covered. Business logic is a matter of intent, and no automated read of the code can judge intent. The questions further down are what to ask instead.",
   },
   {
     id: "A07",
     name: "Authentication Failures",
     body: "Weak session handling, credential stuffing with no resistance, brute-forceable logins.",
     coverage:
-      "Covered directly: login rate limiting, auth admin endpoint exposure, service-role key exposure (a compromised master key is an authentication failure at the most severe end).",
+      "partial. From your repository: whether each route identifies its caller, where a missing login check shows up. A service-role key in the repository or the shipped JavaScript is reported as critical. With a Supabase endpoint connected: whether five failed logins in a row are throttled, and whether a public key can reach the admin user list.",
   },
   {
     id: "A08",
     name: "Software or Data Integrity Failures",
     body: "Unsigned or unverified updates, a compromised build pipeline, deserializing data from a source you shouldn't trust.",
     coverage:
-      "Partially covered once you connect GitHub: our source scan flags vulnerable and outdated dependencies, the software-supply-chain slice of this category. Deeper build-pipeline integrity (unsigned updates, insecure deserialization) is beyond the current scan.",
+      "partial. A pull_request_target workflow that runs a pull request's own code, third-party actions on moveable tags, and dependency advisories. Unsigned updates and insecure deserialization are not checked.",
   },
   {
     id: "A09",
     name: "Security Logging and Alerting Failures",
     body: "An incident happens and nobody finds out, no logs, no alerting, no one watching.",
     coverage:
-      "We don't scan whether your own app logs correctly. But this is the category our continuous-monitoring product exists to backstop for you specifically: every pull request re-audited, an hourly critical-check pass, a deep audit every 48 hours, and alerts the moment something new appears.",
+      "we don't check whether your app logs correctly. Watching is what ShipLock adds: the merge check on every pull request the GitHub App reports, source checks at most every 48 hours, the live site every 48 hours and after a reported production deploy, and with a Supabase endpoint connected an hourly pass of its critical checks. New findings appear in your dashboard and to your agent.",
   },
   {
     id: "A10",
     name: "Mishandling of Exceptional Conditions",
     body: "Error handling that leaks internals, or business logic that fails open instead of closed when something goes wrong.",
     coverage:
-      "Partial: our stack trace exposure check catches the specific case of a malformed request leaking file paths, line numbers, or internal error detail back to the client.",
+      "partial. With a Supabase endpoint connected: whether a malformed request returns file paths, line numbers or internal error detail.",
   },
 ];
 
@@ -124,112 +125,80 @@ const NOT_SCANNABLE = [
 
 export default function OwaspPage() {
   return (
-    <main className="dxd">
-      <div className="dxd-band">
-        <div className="dxd-shell">
-          <nav className="dxd-nav" aria-label="Main">
-            <Link href="/" className="dxd-wordmark">
-              <span className="dxd-wordmark-lock">
-                <LockMark size={19} />
-              </span>
-              ShipLock
-            </Link>
-            <div className="dxd-nav-links">
-              <Link href="/incidents">Real incidents</Link>
-              <Link href="/auth" className="dxd-btn dxd-btn-ghost">
-                Sign in
-              </Link>
+    <main className="v3">
+      <div className="v3-band">
+        <div className="v3-shell">
+          <nav className="v3-nav-top" aria-label="Main">
+            <Link href="/" className="v3-mark"><LockMark size={20} /> ShipLock</Link>
+            <div className="v3-nav-links">
+              <Link className="v3-nav-secondary" href="/coverage">What it covers</Link>
+              <Link className="v3-nav-secondary" href="/incidents">Real incidents</Link>
+              <Link href="/auth" className="v3-btn v3-btn-sm v3-ondark">Sign in</Link>
             </div>
           </nav>
 
-          <header className="dxd-hero" style={{ gridTemplateColumns: "1fr" }}>
-            <div>
-              <p className="dxd-eyebrow">Learn the risks</p>
-              <h1 className="dxd-display" style={{ fontSize: "clamp(32px,5vw,52px)" }}>
-                <ProximityText text="The OWASP Top 10:2025, in plain English." />
-              </h1>
-              <p className="dxd-lede">
-                OWASP is the industry-standard list of the ten risk categories that cause the
-                most real-world application breaches. This page explains each one for people who
-                didn&apos;t write their own backend by hand, what it means, what it looks like in
-                an app whose code was largely AI-written, and, honestly, which of our 15 live checks
-                actually cover it today and which don&apos;t yet.
-              </p>
-            </div>
+          <header className="v3-hero">
+            <p className="v3-vr-kicker">Learn the risks</p>
+            <h1 className="v3-serif">The OWASP Top 10:2025, in plain English.</h1>
+            <p>
+              OWASP is the industry-standard list of the ten risk categories behind the most
+              real-world application breaches. Here is what each one means, what it looks like in an
+              app whose code was largely AI-written, and which parts of ShipLock cover it today and
+              which don&apos;t.
+            </p>
           </header>
         </div>
       </div>
 
-      <div className="dxd-shell">
-        <section className="dxd-section">
-          <div className="dxd-steps" style={{ flexDirection: "column" }}>
-            <RevealList step={60}>
-              {CATEGORIES.map((c) => (
-                <div className="dxd-step" key={c.id}>
-                  <span className="dxd-step-num dxd-serif">{c.id}</span>
-                  <div>
-                    <h3>{c.name}</h3>
-                    <p>{c.body}</p>
-                    <p className="dxd-keynote" style={{ marginTop: 8 }}>
-                      ShipLock coverage, {c.coverage}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </RevealList>
-          </div>
-        </section>
-
-        <section className="dxd-section" id="not-scannable">
-          <Reveal>
-            <p className="dxd-eyebrow">Honest about the gap</p>
-            <h2 className="dxd-h2">What we can&apos;t scan, and what to ask instead.</h2>
-            <p className="dxd-lede" style={{ marginBottom: 8 }}>
-              A handful of the categories above have no real automated check behind them, by
-              nature, business logic, deploy integrity, and whether anyone would notice if
-              something went wrong are judgment calls, not configuration flags. We&apos;d rather
-              hand you the questions than pretend we already ask them for you.
-            </p>
-          </Reveal>
-          <div className="dxd-surfaces">
-            <RevealList step={90}>
-              {NOT_SCANNABLE.map((n) => (
-                <SpotlightCard className="dxd-surface" key={n.surface}>
-                  <h3>{n.surface}</h3>
-                  <p>{n.intro}</p>
-                  <pre className="dxd-code" style={{ marginTop: 12, whiteSpace: "pre-wrap" }}>
-                    {n.prompt}
-                  </pre>
-                </SpotlightCard>
-              ))}
-            </RevealList>
-          </div>
-        </section>
-
-        <section className="dxd-section" id="get-started">
-          <Reveal>
-            <p className="dxd-eyebrow">Want the honest scan</p>
-            <h2 className="dxd-h2">See exactly what these look like in your app.</h2>
-            <p className="dxd-lede">
-              ShipLock runs 15 real checks against your live app and the database behind it.
-              No invented categories, no vague grades.
-            </p>
-            <div style={{ marginTop: 20 }}>
-              <Link href="/#pricing" className="dxd-btn dxd-btn-paper">
-                See pricing
-              </Link>
+      <div className="v3-shell v3-scope">
+        {CATEGORIES.map((c) => (
+          <section key={c.id} className="v3-scope-area" aria-labelledby={`cat-${c.id}`}>
+            <div className="v3-scope-hd">
+              <span className="v3-mono">{c.id}</span>
+              <h2 id={`cat-${c.id}`} className="v3-serif">{c.name}</h2>
             </div>
-          </Reveal>
+            <p className="v3-scope-lead">{c.body}</p>
+            <div className="v3-card v3-scope-limit">
+              <p className="v3-eyebrow">ShipLock coverage</p>
+              <p>{c.coverage.charAt(0).toUpperCase() + c.coverage.slice(1)}</p>
+            </div>
+          </section>
+        ))}
+
+        <section id="not-scannable" className="v3-scope-area" aria-labelledby="not-scannable-title">
+          <p className="v3-eyebrow">Honest about the gap</p>
+          <h2 id="not-scannable-title" className="v3-serif v3-owasp-h2">What we can&apos;t check, and what to ask instead.</h2>
+          <p className="v3-scope-lead">
+            Business logic, deploy integrity, and whether anyone would notice if something went
+            wrong are judgment calls, not configuration flags. We&apos;d rather hand you the
+            questions than pretend we already ask them for you.
+          </p>
+          <div className="v3-stack">
+            {NOT_SCANNABLE.map((n) => (
+              <div className="v3-card v3-card-p" key={n.surface}>
+                <h3 className="v3-owasp-h3">{n.surface}</h3>
+                <p className="v3-small" style={{ marginTop: 6 }}>{n.intro}</p>
+                <pre className="v3-code v3-owasp-prompt">{n.prompt}</pre>
+              </div>
+            ))}
+          </div>
         </section>
 
-        <footer className="dxd-footer">
-          <span className="dxd-serif" style={{ fontSize: 15 }}>
-            ShipLock<span style={{ color: "var(--d-bronze)" }}>.</span>
-          </span>
-          <span>
-            <Link href="/">Home</Link> · <Link href="/incidents">Real incidents</Link> ·{" "}
-            <Link href="/terms">Terms</Link> · <Link href="/privacy">Privacy</Link>
-          </span>
+        <section id="get-started" aria-labelledby="get-started-title">
+          <h2 id="get-started-title" className="v3-serif v3-owasp-h2">See what these look like in your app.</h2>
+          <p className="v3-scope-lead">
+            Connect GitHub and ShipLock reads your repository, then your live site and database if
+            you add them. Every limit is stated on the scope page.
+          </p>
+          <div className="v3-row">
+            <Link href="/onboarding" className="v3-btn v3-primary">Get started</Link>
+            <Link href="/coverage" className="v3-btn v3-ghost">What it covers</Link>
+          </div>
+        </section>
+
+        <footer className="v3-owasp-foot v3-small">
+          <Link href="/">Home</Link> · <Link href="/incidents">Real incidents</Link> ·{" "}
+          <Link href="/terms">Terms</Link> · <Link href="/privacy">Privacy</Link>
         </footer>
       </div>
     </main>

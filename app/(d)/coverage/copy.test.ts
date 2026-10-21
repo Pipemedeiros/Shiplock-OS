@@ -239,3 +239,25 @@ describe("coverage page states its own shape", () => {
     expect(COVERAGE).toMatch(/<main className="v3">/);
   });
 });
+
+// 2026-10-20: /owasp still described the retired external scanner ("15 live
+// checks", a scan form, pricing) and claimed injection pattern coverage that
+// /coverage says was withdrawn. Its claims follow the same code as /coverage.
+describe("OWASP page claims match the product", () => {
+  const OWASP = read("app/(d)/owasp/page.tsx");
+
+  it("makes no claim the scope page contradicts", () => {
+    expect(OWASP).not.toMatch(/source scan covers SQL|command, path, and redirect injection/i);
+    expect(OWASP).not.toMatch(/\b15 (real|live) checks\b/);
+    expect(OWASP).not.toMatch(/#pricing|scan form|alerts the moment/i);
+  });
+
+  it("states that injection pattern checks were withdrawn", () => {
+    expect(OWASP).toMatch(/pattern checks were withdrawn/);
+  });
+
+  it("wears v3, with no scroll animation", () => {
+    expect(OWASP).not.toMatch(/dxd|Reveal|Spotlight|Proximity/);
+    expect(OWASP).toMatch(/<main className="v3">/);
+  });
+});

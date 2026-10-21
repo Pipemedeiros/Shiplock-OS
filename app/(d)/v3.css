@@ -749,3 +749,9 @@
 .v3-hero .v3-vr-kicker { font-size: 11px; }
 @media (max-width: 560px) { .v3-scope-hd h2 { font-size: 22px; } }
 .v3-scope-detail li::marker { color: var(--muted-2); }
+/* OWASP mapping (/owasp) reuses the scope page's areas. */
+.v3-owasp-h2 { font-size: 26px; margin: 10px 0 0; }
+.v3-owasp-h3 { font-size: 15px; }
+.v3 .v3-owasp-prompt { margin-top: 12px; white-space: pre-wrap; }
+.v3-owasp-foot { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line); }
+.v3-owasp-foot a { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--muted-2); }
