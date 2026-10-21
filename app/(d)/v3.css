@@ -730,3 +730,18 @@
 .v3 .v3-auth-switch { margin-top: 22px; text-align: center; font-size: 13px; color: var(--muted); }
 .v3-auth-switch button { background: none; border: 0; padding: 4px 2px; color: var(--ink); font-weight: 500;
   text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--muted-2); }
+/* Scope of engagement (/coverage): numbered areas, each with its boundary. */
+.v3-scope { padding-top: 56px; padding-bottom: 80px; }
+.v3-scope-area { max-width: 760px; padding-bottom: 44px; margin-bottom: 44px; border-bottom: 1px solid var(--line); }
+.v3-scope-hd { display: flex; gap: 14px; align-items: baseline; }
+.v3-scope-hd .v3-mono { font-size: 12px; color: var(--muted-2); }
+.v3-scope-hd h2 { font-size: 25px; }
+.v3 .v3-scope-lead { font-size: 16.5px; line-height: 1.6; margin: 12px 0 18px; max-width: 64ch; }
+.v3 .v3-scope-detail { padding-left: 18px; list-style: disc; display: grid; gap: 12px; font-size: 14.5px; line-height: 1.75; color: var(--muted); max-width: 70ch; }
+.v3-scope-limit { margin-top: 20px; padding: 16px 18px; background: var(--sand); max-width: 70ch; }
+.v3-scope-limit .v3-eyebrow { margin-bottom: 6px; }
+.v3-scope-limit p:last-child { font-size: 14px; line-height: 1.75; color: var(--muted); }
+.v3-scope-terms { display: grid; gap: 12px; font-size: 14.5px; line-height: 1.8; color: var(--muted); max-width: 70ch; }
+.v3-hero .v3-vr-kicker { font-size: 11px; }
+@media (max-width: 560px) { .v3-scope-hd h2 { font-size: 22px; } }
+.v3-scope-detail li::marker { color: var(--muted-2); }

@@ -218,3 +218,24 @@ describe("the owner's voice rules", () => {
     }
   });
 });
+
+// 2026-10-20: the heading said "Four areas" over five sections, and the live
+// site (the outside view) was missing although the landing names it.
+describe("coverage page states its own shape", () => {
+  it("counts the areas it lists", () => {
+    const ids = [...COVERAGE.matchAll(/^\s+id: "(\d\d)",$/gm)].map((m) => m[1]);
+    const words = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight"];
+    expect(COVERAGE).toContain(`${words[ids.length]} areas, and the edge of each.`);
+  });
+
+  it("describes the live site read with its boundary", () => {
+    expect(COVERAGE).toMatch(/name: "Live site"/);
+    expect(COVERAGE).toMatch(/anonymous GET/);
+    expect(COVERAGE).toMatch(/reported as unread rather than clean/);
+  });
+
+  it("wears v3, with no scroll animation", () => {
+    expect(COVERAGE).not.toMatch(/dxd|Reveal/);
+    expect(COVERAGE).toMatch(/<main className="v3">/);
+  });
+});

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Reveal, RevealList } from "@/components/d/bits";
 import { LockMark } from "@/components/d/Brand";
 
 // What the engagement actually covers, stated at the level of detail a technical
@@ -105,39 +104,53 @@ const AREAS = [
     // app/api/deep/supabase/* (read-only Management API OAuth, inert without
     // SUPABASE_OAUTH_CLIENT_ID), lib/deep/postgresDirect.ts (role verified
     // read-only, BEGIN TRANSACTION READ ONLY), lib/exposure/model.ts (column
-    // names and row counts, never a value). No account has connected one.
+    // names and row counts, never a value). Production 2026-10-20: no account
+    // has a Management API token or a Postgres role; one has an endpoint key.
     lead: "Row-level security policies live in your database, not your repository. Without a connection we infer them from code and say so; with one we read them.",
     detail: [
       "If you connect a database, configuration is read through Supabase's Management API in read-only mode or through a Postgres role we verify cannot write, inside a transaction that cannot write either. The exposure model reads column names and row counts and none of your data: never a value, never a row.",
       "What the database itself can reach: an extension able to open outbound HTTP connections and callable by a public API key, which is server-side request forgery from inside your network, and a scheduled job with a credential written into its own command text.",
-      "No account has connected a database yet. Every audit to date has run on the repository alone, and every finding that depends on a policy is labelled as inferred.",
+      "No account has connected the Management API or a Postgres role yet, so no policy has been read directly. Every finding that depends on a policy is labelled as inferred.",
     ],
     limit:
       "We will not ask you to buy or upgrade a third-party plan to connect. Where a provider gates its configuration behind a paid tier, we read the code instead and say so.",
+  },
+  {
+    id: "06",
+    name: "Live site",
+    // lib/security/exposedPathsRun.ts via the app-surface collector
+    // (lib/monitoring/collectors.ts): bundleAudit.ts (8 pages, 48 scripts, source
+    // maps), exposedPaths.ts (fixed paths, redirect manual, signature confirmed),
+    // responseHeaders.ts (INFO), shippedCalls.ts + lib/chain/shadowRoutes.ts and
+    // surfaceChange.ts (joined only to the repository the founder confirmed).
+    lead: "Give us your app's address and we read it the way a visitor's browser does: the page, up to eight pages it links to on the same site, and up to 48 scripts they load, including your framework's chunks on a CDN.",
+    detail: [
+      "In the shipped JavaScript: secret keys that must never reach a browser (a service-role key, not a publishable one) and public source maps that hand out your original source. At fixed paths: a readable .env file, Git metadata, database dumps and credential files, each confirmed by the file's own contents rather than by a 200 status. In the response: whether framing and HTTPS-only are enforced, reported as information.",
+      "Once you confirm the address serves a repository, the two are compared: requests the site makes to its own origin that the repository has no route for, routes the code removed that the site still calls, and what the site started or stopped requesting since the read before. Only complete reads are compared.",
+    ],
+    limit:
+      "Every request is an anonymous GET, as a visitor would make it. We do not sign in, submit forms or send attack payloads, and a probe that redirects is not taken as the file. A path assembled at run time from variables is not seen, and anything past eight pages or 48 scripts is reported as unread rather than clean. The read runs every 48 hours, when you ask for a recheck, and after a production deployment your host or the GitHub App reports.",
   },
 ] as const;
 
 export default function CoveragePage() {
   return (
-    <main className="dxd">
-      <div className="dxd-band">
-        <div className="dxd-shell">
-          <nav className="dxd-nav" aria-label="Main">
-            <Link href="/" className="dxd-wordmark">
-              <span className="dxd-wordmark-lock"><LockMark size={19} /></span>
-              ShipLock
-            </Link>
-            <div className="dxd-nav-links">
-              <Link href="/owasp">OWASP</Link>
-              <Link href="/incidents">Incidents</Link>
-              <Link href="/auth" className="dxd-btn dxd-btn-paper">Sign in</Link>
+    <main className="v3">
+      <div className="v3-band">
+        <div className="v3-shell">
+          <nav className="v3-nav-top" aria-label="Main">
+            <Link href="/" className="v3-mark"><LockMark size={20} /> ShipLock</Link>
+            <div className="v3-nav-links">
+              <Link className="v3-nav-secondary" href="/owasp">OWASP</Link>
+              <Link className="v3-nav-secondary" href="/incidents">Incidents</Link>
+              <Link href="/auth" className="v3-btn v3-btn-sm v3-ondark">Sign in</Link>
             </div>
           </nav>
 
-          <header className="dxd-dash-hero">
-            <p className="dxd-eyebrow">Scope of engagement</p>
-            <h1 className="dxd-statement">Four areas, and the edge of each.</h1>
-            <p className="dxd-lede" style={{ margin: "18px 0 0", maxWidth: "62ch" }}>
+          <header className="v3-hero">
+            <p className="v3-vr-kicker">Scope of engagement</p>
+            <h1 className="v3-serif">Six areas, and the edge of each.</h1>
+            <p>
               What follows is the whole of what we do, including where each capability stops.
               A security engagement whose limits are unstated is not one you can plan around.
             </p>
@@ -145,50 +158,37 @@ export default function CoveragePage() {
         </div>
       </div>
 
-      <div className="dxd-shell dxd-dash-body">
-        <RevealList>
-          {AREAS.map((area) => (
-            <section key={area.id} style={{ marginBottom: 52 }} aria-label={area.name}>
-              <div style={{ display: "flex", gap: 14, alignItems: "baseline" }}>
-                <span className="dxd-mono" style={{ fontSize: 12, color: "var(--d-bronze)" }}>{area.id}</span>
-                <h2 className="dxd-serif" style={{ margin: 0, fontSize: 23 }}>{area.name}</h2>
-              </div>
-
-              <p className="dxd-lede" style={{ margin: "12px 0 18px", maxWidth: "64ch" }}>{area.lead}</p>
-
-              <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 12 }}>
-                {area.detail.map((line) => (
-                  <li key={line} style={{ fontSize: 14.5, lineHeight: 1.75, color: "var(--d-muted)", maxWidth: "70ch" }}>
-                    {line}
-                  </li>
-                ))}
-              </ul>
-
-              <div className="dxd-surface" style={{ marginTop: 18, padding: 14, maxWidth: "70ch" }}>
-                <p className="dxd-mono" style={{ margin: "0 0 6px", fontSize: 11, color: "var(--d-bronze)" }}>
-                  BOUNDARY
-                </p>
-                <p style={{ margin: 0, fontSize: 14, lineHeight: 1.75, color: "var(--d-muted)" }}>{area.limit}</p>
-              </div>
-            </section>
-          ))}
-        </RevealList>
-
-        <Reveal>
-          <section aria-label="Engagement terms" style={{ marginTop: 8 }}>
-            <p style={{ fontSize: 14.5, lineHeight: 1.8, color: "var(--d-muted)", maxWidth: "70ch" }}>
-              While the product is in its open period, any signed-in account gets everything above
-              and is not charged. Billing is built and switched off; when it is switched on, the
-              price will be on this page before it applies to anyone.
-            </p>
-            <p style={{ fontSize: 14.5, lineHeight: 1.8, color: "var(--d-muted)", maxWidth: "70ch", marginTop: 12 }}>
-              Nothing here writes to your systems. The only thing we create is a pull request on
-              your repository, and you decide whether it merges. Full terms are on the{" "}
-              <Link href="/terms">terms page</Link>, and what we store is described on the{" "}
-              <Link href="/privacy">privacy page</Link>.
-            </p>
+      <div className="v3-shell v3-scope">
+        {AREAS.map((area) => (
+          <section key={area.id} className="v3-scope-area" aria-labelledby={`area-${area.id}`}>
+            <div className="v3-scope-hd">
+              <span className="v3-mono">{area.id}</span>
+              <h2 id={`area-${area.id}`} className="v3-serif">{area.name}</h2>
+            </div>
+            <p className="v3-scope-lead">{area.lead}</p>
+            <ul className="v3-scope-detail">
+              {area.detail.map((line) => <li key={line}>{line}</li>)}
+            </ul>
+            <div className="v3-card v3-scope-limit">
+              <p className="v3-eyebrow">Boundary</p>
+              <p>{area.limit}</p>
+            </div>
           </section>
-        </Reveal>
+        ))}
+
+        <section aria-label="Engagement terms" className="v3-scope-terms">
+          <p>
+            While the product is in its open period, any signed-in account gets everything above
+            and is not charged. Billing is built and switched off; when it is switched on, the
+            price will be on this page before it applies to anyone.
+          </p>
+          <p>
+            Nothing here writes to your systems. The only thing we create is a pull request on
+            your repository, and you decide whether it merges. Full terms are on the{" "}
+            <Link href="/terms" className="v3-vr-link">terms page</Link>, and what we store is described on the{" "}
+            <Link href="/privacy" className="v3-vr-link">privacy page</Link>.
+          </p>
+        </section>
       </div>
     </main>
   );
