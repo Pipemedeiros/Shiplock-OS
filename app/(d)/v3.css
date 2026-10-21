@@ -681,3 +681,30 @@
 .v3-traffic-bars rect { fill: var(--navy); opacity: .78; }
 .v3-traffic-latest { list-style: none; margin: 0; display: grid; gap: 6px; font-size: 13px; }
 .v3-traffic-latest .route { overflow-wrap: anywhere; }
+/* Verified report (/verified/[token]): read by a reviewer outside the company. */
+.v3-vr-head { padding: 26px 0 44px; max-width: 640px; }
+.v3-vr-head h1 { font-size: 32px; line-height: 1.22; margin: 12px 0 14px; color: #fff; }
+.v3-vr-kicker { font: 11px/1.4 var(--dx-font-geist-mono), ui-monospace, monospace; letter-spacing: .1em; text-transform: uppercase; color: var(--muted-navy); }
+.v3-vr-prov { font-size: 12.5px; color: var(--muted-navy); overflow-wrap: anywhere; }
+.v3-vr-body { padding-top: 32px; padding-bottom: 72px; }
+.v3-vr-figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.v3-vr-figs:last-child { margin-bottom: 0; }
+.v3-vr-figs .v3-metric:hover { border-color: var(--line); }
+.v3-vr-p { font-size: 14px; line-height: 1.7; color: var(--muted); max-width: 70ch; }
+.v3-vr-p + .v3-vr-p { margin-top: 6px; }
+.v3-vr-p strong { color: var(--ink); font-weight: 500; }
+.v3-vr-list { list-style: none; padding: 0; font-size: 14px; line-height: 1.65; color: var(--muted); }
+.v3-vr-terms { border-top: 1px solid var(--line); padding-top: 20px; }
+.v3-vr-terms .v3-eyebrow { margin-bottom: 8px; }
+.v3 a.v3-vr-link { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--muted-2); }
+.v3-vr-list .v3-row-pad:first-child { padding-top: 0; }
+.v3-vr-list .v3-row-pad:last-child { padding-bottom: 0; }
+.v3-vr-stale { max-width: none; }
+@media (max-width: 560px) {
+  .v3-vr .v3-narrow { padding-left: 16px; padding-right: 16px; }
+  .v3-vr-head h1 { font-size: 26px; }
+  .v3-vr .v3-card-p { padding: 18px 16px; }
+  .v3-vr-figs { grid-template-columns: 1fr; gap: 8px; }
+  .v3-vr-figs .v3-metric { flex-direction: row; align-items: baseline; gap: 12px; padding: 12px 16px; }
+  .v3-vr-figs .v3-metric-value { font-size: 22px; min-width: 72px; }
+}
