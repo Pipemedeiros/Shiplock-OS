@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import Landing from "./page";
+import { MCP_TOOLS } from "@/lib/mcpTools";
 
 // Felipe (2026-09-30): the landing said too much, hedged every line and talked
 // down to the reader. It now states the product in technical, plain words,
@@ -34,5 +35,16 @@ describe("landing page", () => {
     expect(words, `words: ${words}`).toBeLessThan(520);
     expect((text.match(/\bsupported\b/gi) ?? []).length).toBeLessThanOrEqual(1);
     expect(text).not.toMatch(/not describing a threat model|nobody has time|not a shipped claim/i);
+  });
+
+  // Felipe 2026-10-21: the agent is the reader. The example session may only
+  // name tools ShipLock serves, and it stops at the person's click.
+  it("shows only real MCP tools in the agent session, ending at the customer's click", () => {
+    const names = new Set(MCP_TOOLS.map((t) => t.name));
+    const shown = [...text.matchAll(/shiplock · (\w+)/g)].map((m) => m[1]);
+    expect(shown.length).toBeGreaterThan(2);
+    for (const n of shown) expect(names.has(n), n).toBe(true);
+    expect(text).not.toContain("open_fix_pull_request(");
+    expect(text).toMatch(/one click, one receipt/);
   });
 });

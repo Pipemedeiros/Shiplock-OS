@@ -8,10 +8,13 @@ const css = readFileSync("app/(d)/v3.css", "utf8");
 const block = (selector: string) => css.match(new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{([^}]*)\\}`))?.[1] ?? "";
 
 describe("landing accessibility", () => {
-  it("keeps pending animation steps legible: full opacity, muted colours only", () => {
-    expect(block(".v3-reason-step")).not.toMatch(/opacity:\s*\.?[0-2]/);
-    expect(block(".v3-reason-step:not(.on) b")).toMatch(/color:\s*var\(--muted-navy\)/);
-    expect(block(".v3-reason-step:not(.on) small")).toMatch(/color:\s*#7f8fa3/);
+  // 2026-10-21: the agent session replaced the reasoning animation; its muted
+  // text keeps 4.5:1 on #0a1422 (#8a9bb0 is 6.5:1, #7f8fa3 is 5.6:1).
+  it("keeps the agent session's muted text legible on its dark panel", () => {
+    expect(block(".v3-sess")).toMatch(/background:\s*#0a1422/);
+    expect(block(".v3-sess-line small")).toMatch(/color:\s*#8a9bb0/);
+    expect(block(".v3-sess-tag")).toMatch(/color:\s*#7f8fa3/);
+    expect(block(".v3-sess-line")).not.toMatch(/opacity:\s*\.?[0-2]/);
   });
 
   it("hides the secondary header links on phones so the header stays on one line", () => {
