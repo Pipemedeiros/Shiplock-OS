@@ -5,8 +5,8 @@
 
 // The badge MARK is the micro cut of the mark in components/d/Brand.tsx
 // (LockGlyphMicro) — the badge renders at 14px on someone else's site, where the
-// open keyhole and the diagonal sweep both fill in. Bronze (#c9a961), the dark-
-// theme accent from design-d.css, because the badge always sits on the navy
+// open keyhole and the diagonal sweep both fill in. Bronze (#c9a961), v3's
+// --bronze-l, the accent used on navy, because the badge always sits on the navy
 // chip below. Swap here and in Brand.tsx together; nothing else embeds the mark.
 const BADGE_MARK =
   '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c9a961" ' +

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Newsreader, Geist, Geist_Mono } from "next/font/google";
 import "./design-base.css";
-import "./design-d.css";
 import "./v3.css";
 import { CookieConsent } from "@/components/CookieConsent";
 

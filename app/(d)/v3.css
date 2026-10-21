@@ -1,6 +1,6 @@
 /* ── PROTOTYPE v3 · ShipLock ───────────────────────────────────────────────
    Everything is scoped under .v3 so nothing here can leak into the product.
-   Palette taken from design-d.css so the sketch reads as the same firm.
+   Palette carried over from Design D (retired 2026-10-20) so the firm reads the same.
 
    Rules this stylesheet holds to, from PROTO-V3-SYNTHESIS.md:
    · one accent (bronze), used for the primary action and nothing else
@@ -328,10 +328,12 @@
 .v3-qa p { font-size: 13.5px; color: var(--muted); }
 
 /* ── settings ──────────────────────────────────────────────────────────── */
-.v3-setting { display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: center;
+.v3-setting { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px; align-items: center;
   padding: 17px 0; border-bottom: 1px solid var(--line-2); }
 .v3-setting:last-child { border-bottom: 0; }
-.v3-setting b { font-weight: 500; font-size: 14.5px; display: block; }
+.v3-setting b { font-weight: 500; font-size: 14.5px; display: block; overflow-wrap: anywhere; }
+.v3-setting small { overflow-wrap: anywhere; }
+@media (max-width: 560px) { .v3-setting { grid-template-columns: minmax(0, 1fr); gap: 10px; justify-items: start; } }
 .v3-setting small { font-size: 13px; color: var(--muted); }
 .v3-switch { width: 40px; height: 23px; border-radius: 100px; border: 1px solid var(--line);
   background: var(--porcelain); position: relative; transition: background 140ms ease, border-color 140ms ease; }
@@ -755,3 +757,11 @@
 .v3 .v3-owasp-prompt { margin-top: 12px; white-space: pre-wrap; }
 .v3-owasp-foot { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line); }
 .v3-owasp-foot a { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--muted-2); }
+.v3 .v3-incident-p { font-size: 15.5px; line-height: 1.7; margin-top: 14px; max-width: 68ch; }
+.v3 .v3-incident-src { margin-top: 12px; }
+/* Accessibility statement (/accessibility). */
+.v3-a11y { display: grid; gap: 36px; }
+.v3-a11y section { max-width: 72ch; }
+.v3-a11y h2 { font-size: 22px; margin-bottom: 10px; }
+.v3 .v3-a11y p { font-size: 14.5px; line-height: 1.8; color: var(--muted); }
+.v3 .v3-a11y p + p { margin-top: 12px; }

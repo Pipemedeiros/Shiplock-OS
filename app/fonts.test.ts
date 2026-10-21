@@ -24,7 +24,7 @@ describe("fonts", () => {
   });
 
   it("keeps no styles that point at a font the layouts no longer load", () => {
-    for (const css of ["app/(d)/design-base.css", "app/(d)/design-d.css", "app/(d)/v3.css"]) {
+    for (const css of ["app/(d)/design-base.css", "app/(d)/v3.css"]) {
       expect(src(css), css).not.toMatch(/--dx-font-(hanken|fragment|chakra|jetbrains|bricolage|figtree)/);
     }
   });

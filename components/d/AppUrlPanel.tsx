@@ -58,8 +58,8 @@ export function AppUrlView({ current, repository, repositories, otherNames, sugg
       </p>
 
       {current ? (
-        <div className="v3-between" style={{ fontSize: 13.5, marginBottom: 10 }}>
-          <span>ShipLock reads {current}{repository ? ` for ${repository}` : ""}</span>
+        <div className="v3-between" style={{ fontSize: 13.5, marginBottom: 10, flexWrap: "wrap", rowGap: 8 }}>
+          <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>ShipLock reads {current}{repository ? ` for ${repository}` : ""}</span>
           <button type="button" className="v3-btn v3-btn-sm v3-ghost" onClick={onClear} disabled={busy}>Stop reading it</button>
         </div>
       ) : null}

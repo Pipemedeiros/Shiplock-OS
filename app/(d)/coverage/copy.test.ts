@@ -261,3 +261,30 @@ describe("OWASP page claims match the product", () => {
     expect(OWASP).toMatch(/<main className="v3">/);
   });
 });
+
+// 2026-10-20: /incidents promised "check 1 of our 16 … on retainer", called
+// dependency advisories "a roadmap item", and a GitHub App "not yet built".
+describe("incidents page claims match the product", () => {
+  const INCIDENTS = read("app/(d)/incidents/page.tsx");
+
+  it("drops the retired scanner's framing", () => {
+    expect(INCIDENTS).not.toMatch(/of (our|the) 16|retainer|#pricing|roadmap item|not-yet-built|slop-squatting check/i);
+  });
+
+  it("names the dependency advisory check that does run", () => {
+    expect(INCIDENTS).toMatch(/public vulnerability advisories/);
+  });
+
+  it("wears v3, with no scroll animation", () => {
+    expect(INCIDENTS).not.toMatch(/dxd|Reveal|Spotlight|Proximity/);
+    expect(INCIDENTS).toMatch(/<main className="v3">/);
+  });
+});
+
+describe("accessibility statement matches the interface", () => {
+  it("names the surfaces v3 has, not two themes, and wears v3", () => {
+    expect(ACCESSIBILITY).not.toMatch(/both themes|dxd|Reveal/);
+    expect(ACCESSIBILITY).toMatch(/<main className="v3">/);
+    expect(ACCESSIBILITY).toMatch(/Last reviewed 20 October 2026/);
+  });
+});
