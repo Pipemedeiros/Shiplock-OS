@@ -29,6 +29,8 @@ const PROOF_FILES = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // next dev would otherwise append a Next.js rules block to AGENTS.md, which only Felipe edits.
+  agentRules: false,
   outputFileTracingIncludes: Object.fromEntries(PROOF_ROUTES.map((route) => [route, PROOF_FILES])),
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];

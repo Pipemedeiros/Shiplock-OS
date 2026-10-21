@@ -32,4 +32,9 @@ describe("next.config.ts — baseline security headers are present on every path
   it("does not advertise the framework via X-Powered-By", () => {
     expect(nextConfig.poweredByHeader).toBe(false);
   });
+
+  // AGENTS.md is Felipe's gate; next dev must not append its own block to it.
+  it("keeps next dev from writing agent rules into AGENTS.md", () => {
+    expect(nextConfig.agentRules).toBe(false);
+  });
 });
