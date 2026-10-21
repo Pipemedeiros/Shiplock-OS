@@ -26,6 +26,12 @@ const ONBOARDING = read("components/v3/OnboardingFlow.tsx");
 const ACCESS = read("lib/access.ts");
 
 describe("the landing page while the MVP is open", () => {
+  // 2026-10-20: the outside view reads the founder's live site, so the
+  // thesis names it beside the database and traffic.
+  it("names the live site as one of the layers code alone misses", () => {
+    expect(LANDING).toMatch(/live site can call addresses your repository does not have/);
+  });
+
   it("shows no price and no plan", () => {
     // Pricing returns with billing. Until then a number on this page is a
     // promise the product does not keep.

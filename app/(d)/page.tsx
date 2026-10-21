@@ -91,9 +91,10 @@ export default function Landing() {
               <p className="v3-eyebrow">Why code alone is not enough</p>
               <h2 className="v3-serif" style={{ fontSize: 29, margin: "11px 0 14px" }}>Code is half the picture.</h2>
               <p className="v3-sub" style={{ fontSize: 15.5 }}>
-                A route can look correct and still leak. Row policies live in your database, not your repository. A
-                small hole matters when it is hit 2,000 times a minute. Connect your database read only and add the
-                traffic snippet, and ShipLock reads all three together.
+                A route can look correct and still leak. Row policies live in your database, not your repository. Your
+                live site can call addresses your repository does not have. A small hole matters when it is hit 2,000
+                times a minute. Connect your database read only, confirm your app&apos;s address and add the traffic
+                snippet, and ShipLock reads them together.
               </p>
             </div>
             <LayersAnimation />
