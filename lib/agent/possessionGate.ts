@@ -5,8 +5,8 @@ import type { RouteFact } from "@/lib/graph/routeInventory";
 /**
  * POSSESSION GATES: A VOCABULARY FIX, NOT A DETECTOR.
  *
- * Six of corpus-b's eight historically admitted criticals were false (see
- * the Step 1 quality baseline in docs/MASTER-PLAN-PROGRESS.md), and five share one mechanism: the endpoint admits whoever presents
+ * Six of corpus-b's eight historically admitted criticals were false (the
+ * Step 1 quality baseline), and five share one mechanism: the endpoint admits whoever presents
  * a row id, looks the row up, and refuses the request unless the row also
  * matches another resource the same request names. That is a share-link
  * design. The only sentence the product had for it was `missing_authentication`,

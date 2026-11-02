@@ -7,7 +7,8 @@ deprecation notices.
 # ShipLock contract
 
 The stable product, architecture and working contract. Status lives only in
-`docs/MASTER-PLAN-PROGRESS.md` (the ledger). Code and executable tests decide
+`docs/MASTER-PLAN-PROGRESS.md` (the ledger), a local file git ignores: it
+names production state and is never published. Code and executable tests decide
 implementation truth; if they conflict with this file, report it and ask
 Felipe before editing here. Claude Code is the only agent; it reads this file
 and the ledger fully before any work.
@@ -226,8 +227,8 @@ index before building workflow tools:
 
 ## Documents
 
-Only two project Markdown files exist: this one and the ledger (skill files
-excepted). The ledger is working memory: goals with why and acceptance,
+Only two project Markdown files exist: this one and the local, untracked
+ledger (skill files excepted). The ledger is working memory: goals with why and acceptance,
 measured state, the plan, production snapshot, Felipe's steps, decisions waiting. Under
-150 lines. Delete what is finished; history is git. Never add another guide,
+150 lines. Delete what is finished; history is the commit log. Never add another guide,
 plan, handoff or `.claude` tree.

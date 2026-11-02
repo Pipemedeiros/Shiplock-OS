@@ -64,3 +64,6 @@ docs/evaluation/runs/*
 # python
 __pycache__/
 *.pyc
+
+# local working memory: names production state, never published
+docs/MASTER-PLAN-PROGRESS.md
