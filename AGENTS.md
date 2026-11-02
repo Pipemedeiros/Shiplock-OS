@@ -125,8 +125,10 @@ Freeze identities, populations, prompts and budgets before any detector
 change. Report TP, FP, FN, precision, recall, false criticals, unread
 coverage, sample size and uncertainty; a zero denominator is unavailable, not
 100%. Held-out labels only; thresholds are set before the run, never after.
-Results are JSON under `docs/evaluation/`. System benchmarks name workload
-and environment. Paid runs need Felipe's approval.
+Results are JSON under `docs/evaluation/`. Per-repository labels and run
+extracts of third-party code never enter the tree: findings in other
+people's projects are unreported, so only manifests, plants and aggregates
+are published. System benchmarks name workload and environment. Paid runs need Felipe's approval.
 
 ## Code map
 

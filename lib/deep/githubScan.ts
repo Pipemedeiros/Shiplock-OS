@@ -309,7 +309,7 @@ export function envFileHasSecret(content: string): boolean {
   return envSecretValues(content).length > 0;
 }
 
-// Census 2026-10-06 (docs/evaluation/shown-without-agent-2026-10-06.json): 8
+// Census 2026-10-06 (withheld census shown-without-agent-2026-10-06): 8
 // of 9 committed-env criticals held no live credential: a generator
 // template's SQLite path and local emulator defaults. CRITICAL now needs a
 // value shaped like a live credential. A filled value we cannot judge stays a

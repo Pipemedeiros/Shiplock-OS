@@ -404,7 +404,7 @@ describe("values that cannot be a usable credential", () => {
   });
 });
 
-// Census 2026-10-06 (docs/evaluation/shown-without-agent-2026-10-06.json): 8 of
+// Census 2026-10-06 (withheld census shown-without-agent-2026-10-06): 8 of
 // 9 committed-env criticals held no live credential (generator templates, local
 // emulator defaults). CRITICAL needs a value shaped like a live credential;
 // a value we cannot judge stays a WARNING, never silent.

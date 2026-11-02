@@ -105,7 +105,7 @@ describe("next.config env entries", () => {
 
 });
 
-// Census 2026-10-06 (docs/evaluation/shown-without-agent-2026-10-06.json):
+// Census 2026-10-06 (withheld census shown-without-agent-2026-10-06):
 // corpus-i's GOOGLE_CLIENT_ID and NEXTAUTH_URL warnings were false; its
 // GOOGLE_CLIENT_SECRET and NEXTAUTH_SECRET were real. A public-by-design name
 // is stated as a fact; a credential name, or any name we cannot place, stays

@@ -74,7 +74,7 @@ const SENSITIVE_QUERY_RE =
   /[?&](access_?token|auth_?token|api_?key|apikey|password|passwd|secret|session_?id)=(?!\{[A-Z0-9_]+\})/i;
 const URLISH_RE = /(https?:\/\/|fetch\s*\(|redirect\s*\(|\.href\s*=|new URL\(|["'`]\/)/;
 
-// Census 2026-10-06 (docs/evaluation/shown-without-agent-2026-10-06.json): most
+// Census 2026-10-06 (withheld census shown-without-agent-2026-10-06): most
 // URL-query hits were calls to outside providers that require the token in the
 // query (Meta Graph, WeChat, Bing), session or job ids, local addresses and
 // placeholder text. Each call is judged where it is made. A credential in the

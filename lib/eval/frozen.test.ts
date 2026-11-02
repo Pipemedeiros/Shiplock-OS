@@ -6,7 +6,7 @@ import { scoreBenchmark, type BenchFinding, type BenchLabel } from "./benchmark"
 // precision regression in what a founder sees fails the build. Each case is a
 // shape read by hand in the 2026-10-06 census or on CORPUS-5 (values are
 // synthetic). Only shapes fixed today are here; the known open false shapes
-// are listed in docs/evaluation/labels-corpus5-deterministic-2026-10-06.json
+// are listed in the withheld labels-corpus5-deterministic-2026-10-06
 // and join this set when fixed.
 type Case = { name: string; real: boolean; files: { path: string; content: string }[] };
 const LIVE_DB = ["postgresql://app:", "Zq8vLm2Rt5Xw", "@ep-gentle-scene-pooler.us-east-2.aws.neon.tech/neondb"].join("");

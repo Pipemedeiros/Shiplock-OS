@@ -1,0 +1,24 @@
+{
+  "experiment": "held-out-route-labels-thresholds",
+  "recordedAt": "2026-09-24",
+  "recordedBefore": "any evaluation of docs/evaluation/labels-corpus-a-holdout-2026-09.json",
+  "status": "proposed by Claude; release thresholds need Felipe's approval (PARK: product review and metrics)",
+  "scope": "Deterministic candidate stage only (routes ShipLock selects for reasoning). No model is called; model-stage precision and recall need an approved paid run.",
+  "definitions": {
+    "positives": "labels with verdict vulnerable (both labelers agree)",
+    "negatives": "labels with verdict benign (both labelers agree)",
+    "contested": "reported separately, never counted as positive or negative",
+    "candidateRecall": "positives selected as candidates / positives",
+    "falseCandidateRate": "negatives selected as candidates / negatives",
+    "unobserved": "labeled routes ShipLock's route inventory did not find at all (a coverage failure, reported, never counted as correct)"
+  },
+  "proposedReleaseThresholds": {
+    "minimumPositives": 20,
+    "minimumNegatives": 40,
+    "candidateRecall": ">= 0.80",
+    "falseCandidateRate": "<= 0.30",
+    "unobservedRoutes": "0",
+    "admittedFalseCriticals": "0 on negatives (model stage, when run)"
+  },
+  "thisSetCanSupport": "Directional reading only: 1 agreed positive and 16 agreed negatives are below minimumPositives and minimumNegatives, so no pass or fail is declared from this set."
+}

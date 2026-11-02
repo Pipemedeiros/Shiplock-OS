@@ -1,9 +1,9 @@
 {
   "version": 1,
   "experiment": "step-1d-offline-2026-09-16",
-  "prediction": "Two labeled vulnerable corpus-b routes remain in the prompted candidate set. Replaying the eight historical missing-authentication proposals retains the original denominator; possession rewording is a vocabulary change, not a precision gain. Every run is offline after checksum-verified acquisition.",
+  "prediction": "Offline baseline: pinned archives, deterministic route inventory and candidate selection. Its hand labels are withheld from the public tree.",
   "scope": "Next.js repository facts, candidate coverage and deterministic guard replay. No model precision or whole-repository recall claim.",
-  "labelProvenance": "Previously exposed, hand-read corpus-b judgments in docs/STATE.md (2026-09-13 correction). Not independent holdout labels or newly captured model responses.",
+  "labelProvenance": "Withheld: the 8 hand verdicts named routes in a third-party repository and were never reported upstream.",
   "loader": { "files": 4000, "fileBytes": 400000, "sourceBytes": 25165824, "inflatedBytes": 125829120 },
   "repositories": [
     { "id": "corpus-b", "repository": "corpus-b/corpus-b", "commit": "ed19717ec02a1ac79aecf5569159aa9d2d869312", "archiveSha256": "e934340949660e8cdb367f2f212360d42b89844ed31931d9e4266a07fc1ad7cd" },
@@ -14,14 +14,5 @@
     { "id": "corpus-af", "repository": "corpus-af/cal.diy", "commit": "e91bb0c38251b0ee6f87eec70ce4940822fb0cf3", "archiveSha256": "14826d905baed67d58f1ce0001cf534dfde820366b3a6b3945965d7d8d241406" },
     { "id": "corpus-ai", "repository": "baptisteArno/corpus-ai.io", "commit": "b4eaf55ae043f3c4b59bf05bb4d65d24b4a22a53", "archiveSha256": "e84aafe006ddd48a4782d5232c335a56ce08a680e3f9d12006e08a3a3bb02f83" }
   ],
-  "labels": [
-    { "repository": "corpus-b", "route": "/api/conversations/[[...conversations]]", "verdict": "vulnerable", "mechanism": "Caller-controlled viewerId becomes senderUserId without session identity; route-wide method collapse remains a limitation." },
-    { "repository": "corpus-b", "route": "/api/teams/[teamId]/documents/document-processing-status", "verdict": "vulnerable", "mechanism": "No identity gate; documentVersionId supplied by caller and teamId not used to bind the query." },
-    { "repository": "corpus-b", "route": "/api/links/generate-index", "verdict": "benign", "mechanism": "Bound viewId/linkId lookup and group-based document removal restrict the index." },
-    { "repository": "corpus-b", "route": "/api/report", "verdict": "benign", "mechanism": "View is bound to both linkId and documentId; body validation and per-view dedup." },
-    { "repository": "corpus-b", "route": "/api/links/[id]/annotations", "verdict": "benign", "mechanism": "View is bound to the link; visible annotations only; deleted links refused." },
-    { "repository": "corpus-b", "route": "/api/feedback", "verdict": "benign", "mechanism": "Possession of the view is bound to feedback.linkId. Residual abuse/dedup concern is not missing authentication." },
-    { "repository": "corpus-b", "route": "/api/record_reaction", "verdict": "benign", "mechanism": "Single-resource capability write through View FK. Abuse bounds remain separate from the missing-authentication judgment." },
-    { "repository": "corpus-b", "route": "/api/auth/saml/verify", "verdict": "benign", "mechanism": "Deliberate pre-authentication SSO discovery returning teamId." }
-  ]
+  "labels": []
 }

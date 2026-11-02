@@ -1,11 +1,9 @@
 name: CI
 
 # No test/build pipeline existed before this — the only other workflow in this
-# repo was the hourly-monitor cron trigger, since removed. Added per
-# .claude/rules/testing.md
-# ("Before every commit: npm run build must pass, npm run lint must pass") so
-# that rule is actually enforced on every push/PR, not just something a human
-# has to remember to run locally. secmax's negative-test suite (SSRF, auth,
+# repo was the hourly-monitor cron trigger, since removed. It enforces the
+# AGENTS.md gate on every push and PR, not just something a human has to
+# remember to run locally. secmax's negative-test suite (SSRF, auth,
 # paywall, webhook-forgery, etc.) runs here as part of `npm test`.
 on:
   push:

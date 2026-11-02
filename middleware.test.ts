@@ -17,22 +17,22 @@ const SESSION_COOKIE = /^sb-.+-auth-token(\.\d+)?$/;
 
 describe("session cookie detection", () => {
   it("recognises a Supabase session cookie", () => {
-    expect(SESSION_COOKIE.test("sb-project-ref-auth-token")).toBe(true);
+    expect(SESSION_COOKIE.test("sb-abcdefghijklmnopqrst-auth-token")).toBe(true);
   });
 
   it("recognises the chunked form, which is what a real session uses", () => {
     // A session longer than 3180 characters is split, and the unchunked name
     // never appears. Missing this would skip the refresh for exactly the users
     // who are signed in.
-    expect(SESSION_COOKIE.test("sb-project-ref-auth-token.0")).toBe(true);
-    expect(SESSION_COOKIE.test("sb-project-ref-auth-token.1")).toBe(true);
+    expect(SESSION_COOKIE.test("sb-abcdefghijklmnopqrst-auth-token.0")).toBe(true);
+    expect(SESSION_COOKIE.test("sb-abcdefghijklmnopqrst-auth-token.1")).toBe(true);
   });
 
   it("ignores cookies that are not a session", () => {
     for (const name of [
       "sl_sb_state",
       "posthog",
-      "sb-project-ref-auth-token-code-verifier",
+      "sb-abcdefghijklmnopqrst-auth-token-code-verifier",
       "auth-token",
       "sb-auth",
     ]) {

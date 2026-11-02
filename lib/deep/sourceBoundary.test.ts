@@ -256,7 +256,7 @@ describe("restored 2026-09-07 — the file decides its own claim", () => {
   });
 });
 
-// Census 2026-10-06 (docs/evaluation/shown-without-agent-2026-10-06.json): of 52
+// Census 2026-10-06 (withheld census shown-without-agent-2026-10-06): of 52
 // URL-query warnings, most were calls to outside providers that require the
 // token in the query (Meta Graph, WeChat, Bing), job ids named sessionId, and
 // Stripe's session_id. The app's own risk is a credential in the query of a
