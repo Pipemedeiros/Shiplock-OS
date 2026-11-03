@@ -8,6 +8,7 @@ type Win = { dataLayer?: unknown[]; gtag?: (...args: unknown[]) => void };
 
 const MEASUREMENT_ID = /^G-[A-Z0-9]{4,16}$/;
 
+/** Installs gtag once for a valid measurement id; false when skipped. */
 export function startGoogleAnalytics(doc: Doc, win: Win, id: string | undefined): boolean {
   if (!id || !MEASUREMENT_ID.test(id) || win.gtag) return false;
   const dataLayer = (win.dataLayer ??= []);

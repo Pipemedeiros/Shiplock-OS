@@ -127,7 +127,7 @@ export function resolveViaTsconfigPaths(fromPath: string, spec: string, byPath: 
 }
 
 /** Names of packages declared inside this repository (workspace packages). */
-export function workspacePackageNames(byPath: Map<string, RepoFile>): Set<string> {
+function workspacePackageNames(byPath: Map<string, RepoFile>): Set<string> {
   return indexFor(byPath).packages;
 }
 

@@ -22,12 +22,12 @@
 // round trip on the hottest path in the product, and that trade is not obviously
 // right at this stage.
 
-export interface Bucket {
+interface Bucket {
   tokens: number;
   updatedAt: number;
 }
 
-export interface LimiterOptions {
+interface LimiterOptions {
   /** Requests allowed in a burst. */
   capacity: number;
   /** Sustained requests per second, refilled continuously. */

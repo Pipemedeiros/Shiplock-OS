@@ -16,7 +16,7 @@ import type { Claim, Confidence } from "./findings";
  * read live but not a way in: To review.
  */
 export const LIVE_SOURCES = ["proven", "policy", "postgres-direct", "exposed-path", "vercel", "runtime", "graph"] as const;
-export type LiveSource = (typeof LIVE_SOURCES)[number];
+type LiveSource = (typeof LIVE_SOURCES)[number];
 
 const WHERE: Record<LiveSource, string> = {
   proven: "Reproduced on a disposable replica with synthetic data, never your production database.",
@@ -41,10 +41,14 @@ const OBSERVED_EXPOSURE: Partial<Record<LiveSource, RegExp>> = {
   vercel: /:client_exposed_secret$/,
 };
 
+/** Whether a stored finding came from the live stack rather than the
+ * repository. */
 export function isLiveSource(source: string): source is LiveSource {
   return (LIVE_SOURCES as readonly string[]).includes(source);
 }
 
+/** Confidence and evidence for a live finding: proven from the replica,
+ * corroborated when observed, otherwise inferred. */
 export function liveEvidence(row: { source: string; finding_id: string }): { confidence: Confidence; attackClass: string; claims: Claim[] } {
   const source = row.source as LiveSource;
   if (source === "proven") {

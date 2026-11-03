@@ -1,6 +1,6 @@
 import type { Severity } from "@/lib/types";
 
-// D12 from CHECK-SPEC.md — SPF, DKIM and DMARC on the customer's domain.
+// SPF, DKIM and DMARC on the customer's domain.
 //
 // Why a security product cares about DNS records: without them, anyone can send
 // email that says it comes from the customer's domain, and it will land in
@@ -22,7 +22,7 @@ import type { Severity } from "@/lib/types";
 //  - SPF lookup limits are only flagged when the DIRECT mechanism count already
 //    exceeds the limit, which is unambiguous without recursive resolution.
 
-export interface EmailAuthFinding {
+interface EmailAuthFinding {
   id: string;
   severity: Severity;
   title: string;
@@ -30,7 +30,7 @@ export interface EmailAuthFinding {
 }
 
 /** What a resolver must provide. Injected so every classifier is unit-testable. */
-export interface TxtResolver {
+interface TxtResolver {
   (name: string): Promise<string[]>;
 }
 
@@ -40,6 +40,8 @@ export interface TxtResolver {
 const SPF_LOOKUP_LIMIT = 10;
 const SPF_LOOKUP_MECHANISMS = /\b(include:|a[:\s]|a$|mx[:\s]|mx$|ptr|exists:|redirect=)/g;
 
+/** SPF findings for a domain: missing, duplicated, too permissive or over the
+ * lookup limit. */
 export function analyzeSpf(domain: string, txt: string[]): EmailAuthFinding[] {
   // Case-insensitive: "v=SPF1" is valid.
   const records = txt.filter((r) => /^v=spf1\b/i.test(r.trim()));
@@ -202,6 +204,7 @@ export const DKIM_SELECTORS = [
   "zmail",
 ];
 
+/** DKIM findings for one selector, such as a revoked or weak key. */
 export function analyzeDkim(domain: string, selector: string, txt: string[]): EmailAuthFinding[] {
   const record = txt.map((r) => r.trim()).find((r) => /\bp\s*=/.test(r) || /^v=dkim1\b/i.test(r));
   if (!record) return [];
@@ -265,6 +268,8 @@ export function domainFromUrl(appUrl: string): string | null {
 const SHARED_HOSTS =
   /(^|\.)(vercel\.app|netlify\.app|pages\.dev|fly\.dev|onrender\.com|railway\.app|herokuapp\.com|github\.io|web\.app|firebaseapp\.com|supabase\.co|workers\.dev|surge\.sh|glitch\.me|replit\.(app|dev))$/;
 
+/** Whether a domain belongs to a shared host whose mail records the customer
+ * does not control. */
 export function isSharedHost(domain: string): boolean {
   return SHARED_HOSTS.test(domain);
 }
@@ -342,6 +347,8 @@ export async function auditEmailAuth(
  */
 const ABSENCE_CODES = new Set(["ENODATA", "ENOTFOUND", "NXDOMAIN"]);
 
+/** Whether a DNS error means the record does not exist, as opposed to a lookup
+ * that failed. */
 export function isAbsenceError(err: unknown): boolean {
   const code = (err as { code?: unknown } | null)?.code;
   return typeof code === "string" && ABSENCE_CODES.has(code);

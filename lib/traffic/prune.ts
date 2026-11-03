@@ -11,6 +11,7 @@ const EVENT_RETENTION_MS = 48 * 60 * 60 * 1000; // 48h
 const BLOCK_GRACE_MS = 24 * 60 * 60 * 1000; // keep expired blocks 24h for the UI
 const ALERT_RETENTION_MS = 7 * 24 * 60 * 60 * 1000; // 7d
 
+/** Deletes traffic data past its retention window. */
 export async function pruneOldTraffic(): Promise<{ ok: boolean }> {
   const admin = getSupabaseAdmin();
   const now = Date.now();

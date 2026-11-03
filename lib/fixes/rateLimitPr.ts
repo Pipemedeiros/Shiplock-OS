@@ -19,6 +19,8 @@ const repositorySchema = z.object({ full_name: z.string(), default_branch: z.str
 const observationSchema = z.array(z.object({ path: z.string(), suspicious_requests: z.number().int().positive() }));
 const sha = (s: string) => createHash("sha256").update(s).digest("hex");
 
+/** Opens a pull request adding a rate limit to a route that observed traffic
+ * hit hard. */
 export async function openRateLimitPr(userId: string, findingId: string, repositoryId: string): Promise<RepairOutcome> {
   const routeFile = /^traffic:(\S+)$/.exec(findingId)?.[1];
   if (!routeFile) return { status: "failed", code: "finding_unavailable" };

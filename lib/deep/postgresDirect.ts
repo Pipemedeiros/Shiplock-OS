@@ -64,7 +64,7 @@ export class PostgresConnectionError extends Error {
   }
 }
 
-export interface ParsedConnection {
+interface ParsedConnection {
   host: string;
   port: number;
   database: string;
@@ -327,7 +327,7 @@ const GRANT_SQL = `
    WHERE table_schema = 'public'
      AND grantee IN ('anon', 'authenticated', 'PUBLIC')`;
 
-export interface DirectDbFacts {
+interface DirectDbFacts {
   columns?: import("./schemaColumns").SchemaColumn[];
   policies: PgPolicy[];
   scanTables: { name: string; rlsEnabled: boolean }[];

@@ -8,7 +8,7 @@ import {
 
 // ── Result types ──────────────────────────────────────────────────────────────
 
-export interface RLSPolicy {
+interface RLSPolicy {
   policyName: string;
   tableName:  string;
   command:    string;
@@ -18,7 +18,7 @@ export interface RLSPolicy {
   withCheck:  string | null;
 }
 
-export interface TableResult {
+interface TableResult {
   name: string;
   rlsEnabled:        boolean;
   /** False when rlsEnabled is only the conservative compatibility fallback. */
@@ -29,7 +29,7 @@ export interface TableResult {
 
 // Check 2 & 5: key analysis — covers both the legacy JWT anon/service_role
 // keys and Supabase's current sb_publishable_/sb_secret_ key model.
-export interface KeyAnalysis {
+interface KeyAnalysis {
   role:          string | null;
   isServiceRole: boolean;
   jwtValid:      boolean;
@@ -38,7 +38,7 @@ export interface KeyAnalysis {
 }
 
 // Check 3: Rate limiting
-export interface RateLimitCheck {
+interface RateLimitCheck {
   tested:      boolean;
   endpoint:    string;
   requests:    number;
@@ -47,92 +47,92 @@ export interface RateLimitCheck {
 }
 
 // Check 4: Unauthenticated access
-export interface UnauthAccessResult {
+interface UnauthAccessResult {
   tableName:  string;
   accessible: boolean;
   rowCount:   number;
 }
-export interface UnauthAccessCheck {
+interface UnauthAccessCheck {
   tested:  boolean;
   results: UnauthAccessResult[];
 }
 
 // Check 5: Slop squatting
-export interface SuspiciousPackage {
+interface SuspiciousPackage {
   name:       string;
   reason:     "NOT_FOUND" | "VERY_NEW" | "ZERO_DOWNLOADS";
   createdAt?: string;
 }
-export interface SlopSquattingCheck {
+interface SlopSquattingCheck {
   tested:                boolean;
   packageJsonAccessible: boolean;
   suspiciousPackages:    SuspiciousPackage[];
 }
 
 // Check 6: Mass assignment
-export interface MassAssignmentResult {
+interface MassAssignmentResult {
   tableName:  string;
   vulnerable: boolean;
 }
-export interface MassAssignmentCheck {
+interface MassAssignmentCheck {
   tested:  boolean;
   results: MassAssignmentResult[];
 }
 
 // Check 7: Auth security — admin endpoint accessibility
-export interface AuthSecurityCheck {
+interface AuthSecurityCheck {
   tested:               boolean;
   adminEndpointBlocked: boolean; // true = good (blocked), false = bad (accessible)
 }
 
 // Check 8: IDOR — user-sensitive tables readable without user context
-export interface IdorResult {
+interface IdorResult {
   tableName:      string;
   rowsAccessible: boolean;
 }
-export interface IdorCheck {
+interface IdorCheck {
   tested:  boolean;
   results: IdorResult[];
 }
 
 // Check 9: Secrets exposure — env files publicly reachable
-export interface SecretsExposureCheck {
+interface SecretsExposureCheck {
   tested:       boolean;
   exposedFiles: string[];
 }
 
 // Check 10: Secure auth — login endpoint rate limiting
-export interface SecureAuthCheck {
+interface SecureAuthCheck {
   tested:           boolean;
   loginRateLimited: boolean;
 }
 
 // Check 11: HTTPS enforcement
-export interface HttpsCheck {
+interface HttpsCheck {
   tested:   boolean;
   enforced: boolean;
 }
 
 // Check 15: Stack trace exposure
-export interface StackTraceCheck {
+interface StackTraceCheck {
   tested:  boolean;
   exposed: boolean;
 }
 
 // Check 12: Bot protection — rate-limit response headers
-export interface BotProtectionCheck {
+interface BotProtectionCheck {
   tested:                  boolean;
   rateLimitHeadersPresent: boolean;
 }
 
 // Check 13: Input validation — SQL injection in query params
-export interface InputValidationCheck {
+interface InputValidationCheck {
   tested:          boolean;
   sqlErrorExposed: boolean;
 }
 
 // Check 14: CORS configuration — wildcard Access-Control-Allow-Origin
-export interface CorsConfigCheck {
+interface CorsConfigCheck {
   tested:          boolean;
   wildcardOrigin:  boolean;
   allowOriginValue: string | null;
@@ -184,7 +184,7 @@ export interface ScanResult {
 
 // ── Error types ───────────────────────────────────────────────────────────────
 
-export type ScanErrorCode =
+type ScanErrorCode =
   | "INVALID_CREDENTIALS"
   | "NETWORK_TIMEOUT"
   | "PROJECT_NOT_FOUND"
@@ -1034,6 +1034,8 @@ export interface FastScanResult {
   timestamp:        string;
 }
 
+/** The fast endpoint scan: only the critical checks on a Supabase URL and anon
+ * key. */
 export async function scanCriticalChecks(
   rawUrl: string, rawAnonKey: string, signal?: AbortSignal, unread: string[] = [],
 ): Promise<FastScanResult> {

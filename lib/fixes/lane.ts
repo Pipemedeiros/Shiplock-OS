@@ -5,7 +5,7 @@ import type { Severity } from "@/lib/types";
 // silently — it goes through a reviewable migration PR the customer merges.
 // Pure + unit-tested.
 
-export type FixMethod =
+type FixMethod =
   | "migration-pr" // DB/RLS/policy → new migration file in a PR the customer merges
   | "dep-pr" // dependency bump PR (existing githubFix flow)
   | "code-pr" // templatable code edit (headers, secret removal) in a PR
@@ -55,7 +55,7 @@ export interface FixableFinding {
   correlation?: { surfaces: string[]; proven?: boolean };
 }
 
-export interface FixLane {
+interface FixLane {
   method: FixMethod;
   label: string; // button label
   editable: boolean; // show the editable preview
@@ -97,6 +97,8 @@ export function stripRepoNamespace(id: string): string {
   return /^[\w.-]+\/[\w.-]+$/.test(prefix) ? id.slice(sep + 2) : id;
 }
 
+/** How a finding can be fixed: a migration, dependency or code pull request, or
+ * guidance only. */
 export function fixLane(f: FixableFinding): FixLane {
   const id = stripRepoNamespace(f.id.toLowerCase());
 

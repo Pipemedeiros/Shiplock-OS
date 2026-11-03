@@ -1,7 +1,7 @@
 import { parse } from "yaml";
 import type { GithubFinding, RepoFile } from "./githubScan";
 
-// C20 — GitHub Actions workflow security.
+// GitHub Actions workflow security.
 //
 // CI is a live attack path, and an under-appreciated one: a workflow runs with a
 // token that can write to the repository, and usually with every secret the repo
@@ -24,6 +24,7 @@ const f = (
   packageName: null, version: null, vulnId: null, cveId: null,
 });
 
+/** Whether a path is a GitHub Actions workflow. */
 export function isWorkflowFile(path: string): boolean {
   return /^\.github\/workflows\/[^/]+\.ya?ml$/i.test(path);
 }
@@ -81,7 +82,7 @@ function steps(workflow: Workflow): { job: string; step: Step }[] {
  * PR's own head inside that context executes an outsider's code with those
  * privileges. It is the single most exploited GitHub Actions mistake.
  */
-export function checkPullRequestTarget(path: string, workflow: Workflow): GithubFinding[] {
+function checkPullRequestTarget(path: string, workflow: Workflow): GithubFinding[] {
   if (!triggerNames(workflow.on).includes("pull_request_target")) return [];
 
   const checkoutsPrHead = steps(workflow).some(({ step }) => {
@@ -116,7 +117,7 @@ const FIRST_PARTY = /^(actions|github)\//i;
  * time, and so can anyone who compromises the author's account. The npm
  * supply-chain worm on /incidents is the same shape of attack.
  */
-export function checkUnpinnedActions(path: string, workflow: Workflow): GithubFinding[] {
+function checkUnpinnedActions(path: string, workflow: Workflow): GithubFinding[] {
   const unpinned = new Set<string>();
 
   for (const { step } of steps(workflow)) {
@@ -151,7 +152,7 @@ export function checkUnpinnedActions(path: string, workflow: Workflow): GithubFi
  * default is already read-only, so this is frequently a non-issue — and saying
  * so is more useful than implying a problem we cannot confirm from the file.
  */
-export function checkPermissions(path: string, workflow: Workflow): GithubFinding[] {
+function checkPermissions(path: string, workflow: Workflow): GithubFinding[] {
   if (workflow.permissions !== undefined) return [];
   const jobsDeclare = Object.values(workflow.jobs ?? {}).every((j) => j?.permissions !== undefined);
   if (jobsDeclare && Object.keys(workflow.jobs ?? {}).length > 0) return [];

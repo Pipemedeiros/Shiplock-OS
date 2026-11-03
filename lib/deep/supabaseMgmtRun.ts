@@ -44,7 +44,7 @@ import type { GithubFinding } from "./githubScan";
 import type { Finding } from "@/lib/monitoring/findings";
 import type { EdgeTrafficRecord, ProviderCommit } from "@/lib/monitoring/registry";
 
-export interface PolicyScanOutcome {
+interface PolicyScanOutcome {
   ok: boolean;
   findings: number;
   newFindings?: GithubFinding[];
@@ -63,6 +63,8 @@ function graphAuthConfig(config: Awaited<ReturnType<typeof fetchAuthConfig>>): S
 
 const ABORTED: PolicyScanOutcome = { ok: false, findings: 0, reason: "aborted" };
 
+/** One read-only Supabase pass: policies, grants, auth, storage and advisors,
+ * committed under the monitor job's lease. */
 export async function runPolicyScan(
   userId: string,
   { signal, commit, recordEdgeTraffic }: { signal?: AbortSignal; commit: ProviderCommit; recordEdgeTraffic?: EdgeTrafficRecord },
@@ -172,20 +174,20 @@ export async function runPolicyScan(
     unread = unreadSupabaseFamilies({ advisorsOk, authConfig, grants, capabilities, storage, backups, realtime });
     findings = [
       ...mergePolicyFindings(analyzePolicies(policies), mapAdvisors(advisors)),
-      // B7 + Site URL. fetchAuthConfig returns null when the request fails, and
+      // Redirect allow-list and Site URL. fetchAuthConfig returns null when the request fails, and
       // scanAuthConfig treats null as "we learned nothing" rather than as a
       // clean bill of health — a failed fetch must never look like a pass.
       ...scanAuthConfig(authConfig),
-      // B1/B2/B4/B5/B11 — same config object, no extra request.
+      // Same config object, no extra request.
       ...scanAuthPolicy(authConfig),
-      // A5 — column grants to anon/authenticated. The bug we shipped ourselves.
+      // Column grants to anon/authenticated. The bug we shipped ourselves.
       ...analyzeGrants(grants ?? []),
-      // A8/A15/A16/A17 — what the database itself can reach.
+      // What the database itself can reach.
       ...scanExtensions(capabilities),
-      // A12/A13 storage, A19 recovery posture.
+      // Storage and recovery posture.
       ...scanStorage(storage),
       ...checkBackups(backups),
-      // A14 Realtime authorisation, A20 auth-hook claim integrity.
+      // Realtime authorisation and auth-hook claim integrity.
       ...scanRealtimeAndHooks(realtime),
     ];
 
@@ -206,7 +208,7 @@ export async function runPolicyScan(
       policies, authConfig: storedAuthConfig, ...(advisorsOk ? { advisors } : {}), supabaseManagementSnapshot,
     };
 
-    // A21 exposure inventory. SCHEMA ONLY — column names and row counts, never
+    // Exposure inventory. SCHEMA ONLY — column names and row counts, never
     // a value. Best-effort: a project we cannot enumerate simply has no
     // inventory, which the model reports as "we don't know" rather than zero.
     try {
@@ -324,7 +326,7 @@ export async function runPolicyScan(
       );
     }
 
-    // E5-E7 runtime detection from the auth audit log. Zero friction: this
+    // Runtime detection from the auth audit log. Zero friction: this
     // needs no snippet installed, only the Supabase connection they already
     // made. Best-effort — the log endpoint is experimental.
     signal?.throwIfAborted();

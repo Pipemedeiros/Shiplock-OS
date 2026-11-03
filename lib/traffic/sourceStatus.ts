@@ -19,6 +19,8 @@ export type TrafficSourceInput = {
   edge: { completeness: "complete" | "partial" | "failed"; observedAt: string; scope: string | null } | null;
 };
 
+/** Per repository, where traffic evidence comes from: snippet sites and the
+ * Supabase gateway, with each one's state. */
 export function summarizeTrafficSources(input: TrafficSourceInput): TrafficSourceStatus[] {
   const edge = input.edge && input.supabase && input.edge.scope === input.supabase.projectRef ? input.edge : null;
   return input.repositories.map((repository) => {
@@ -35,6 +37,7 @@ export function summarizeTrafficSources(input: TrafficSourceInput): TrafficSourc
   });
 }
 
+/** Traffic sources for the account's selected repositories. */
 export async function getTrafficSources(userId: string): Promise<{ available: boolean; items: TrafficSourceStatus[] }> {
   const admin = getSupabaseAdmin();
   try {

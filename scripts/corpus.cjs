@@ -522,7 +522,7 @@ function labelPack(records) {
   for (const r of records) {
     for (const f of r.findings) {
       if (f.severity === "INFO") continue;
-      // A1: the gate measures what sets the status, confirmed issues only.
+      // The gate measures what sets the status, confirmed issues only.
       if (f.confirmed === false) continue;
       pack.push({ key: sha(`${r.id}\u0000${f.id}`).slice(0, 12), repo: r.id, id: f.id, repository: r.repository, commit: r.commit,
         file: f.file ?? null, statement: f.consequence ? `${f.title}. ${f.consequence}` : f.title });
@@ -561,7 +561,7 @@ function releaseGate() {
     minimumLabeledFindings: g.statusSetting.minimumLabeledFindings, repositoriesWithCorrectStatusAtLeast: g.statusCorrectness.repositoriesWithCorrectStatusAtLeast };
 }
 
-// A8's running total, recomputed from the batch run directories (each with
+// The batched run's running total, recomputed from the batch run directories (each with
 // shown.json, pack.json and answers-*.json), in the order given. Re-check
 // directories go after the batch they re-read; a finding counts once.
 async function gateTotal(outArg, dirs) {

@@ -6,7 +6,7 @@
  * numbers, and two visits draw the same picture. Pure and dependency free.
  */
 export type Point = { x: number; y: number };
-export type LayoutEdge = { from: string; to: string };
+type LayoutEdge = { from: string; to: string };
 
 const GOLDEN = Math.PI * (3 - Math.sqrt(5));
 const TAU = 2 * Math.PI;
@@ -27,6 +27,8 @@ export function cosSin(angle: number): [number, number] {
   return [c, s];
 }
 
+/** A deterministic force-directed layout (Fruchterman-Reingold) for the route
+ * map. */
 export function forceLayout(ids: readonly string[], edges: readonly LayoutEdge[],
   { radius = 320, iterations = 300, gravity = 1 }: { radius?: number; iterations?: number; gravity?: number } = {}): Map<string, Point> {
   const n = ids.length;

@@ -51,6 +51,8 @@ export interface MgmtToken {
   expiresAt: string | null;
 }
 
+/** Whether the Supabase OAuth app is configured; without it the connection is
+ * hidden. */
 export function isSupabaseMgmtConfigured(): boolean {
   return Boolean(process.env.SUPABASE_OAUTH_CLIENT_ID && process.env.SUPABASE_OAUTH_CLIENT_SECRET);
 }
@@ -83,6 +85,7 @@ function toToken(json: {
   };
 }
 
+/** Exchanges an OAuth code for Supabase Management API tokens. */
 export async function exchangeCodeForToken(code: string, appUrl: string): Promise<MgmtToken> {
   const res = await fetch(TOKEN_URL, {
     method: "POST",
@@ -153,6 +156,8 @@ export async function getUsableToken(row: {
 const WRITE_KEYWORDS =
   /\b(insert|update|delete|drop|truncate|alter|create|grant|revoke|comment|copy|call|do|vacuum|reindex|refresh|set|reset|begin|commit|rollback|security\s+label)\b/i;
 
+/** Throws unless the SQL is a single SELECT or WITH statement. Every query on a
+ * customer database passes through it. */
 export function assertReadOnly(sql: string): void {
   const trimmed = sql.trim().replace(/;+\s*$/, "");
 
@@ -206,6 +211,7 @@ export interface MgmtProject {
   name: string;
 }
 
+/** The Supabase projects the token can see. */
 export async function listProjects(accessToken: string): Promise<MgmtProject[]> {
   const res = await fetch(`${API}/v1/projects`, {
     headers: { authorization: `Bearer ${accessToken}` },
@@ -299,6 +305,7 @@ export interface SupabaseAuthConfig {
   [key: string]: unknown;
 }
 
+/** The project's auth configuration, or null when unreadable. */
 export async function fetchAuthConfig(
   accessToken: string,
   projectRef: string,
@@ -325,7 +332,7 @@ export async function fetchAuthConfig(
   }
 }
 
-// ── Schema inventory for the exposure model (A21) ──────────────────────────
+// ── Schema inventory for the exposure model ──────────────────────────
 //
 // SCHEMA ONLY. These two queries return column NAMES and row COUNTS. They never
 // select a column's contents, and they must never be extended to — "ShipLock
@@ -334,6 +341,7 @@ export async function fetchAuthConfig(
 
 export type { SchemaColumn } from "./schemaColumns";
 
+/** Every public table's column names and types; never values. */
 export async function fetchSchemaColumns(
   accessToken: string,
   projectRef: string,
@@ -376,6 +384,7 @@ export function buildRowCountSql(tables: string[]): string | null {
     .join(" union all ");
 }
 
+/** Row counts for the given tables; counts only, never rows. */
 export async function fetchRowCounts(
   accessToken: string,
   projectRef: string,
@@ -398,7 +407,7 @@ export async function fetchRowCounts(
   }
 }
 
-// ── Auth audit log (E5-E7) ─────────────────────────────────────────────────
+// ── Auth audit log ─────────────────────────────────────────────────
 //
 // Supabase's log endpoint is EXPERIMENTAL: the path, the query shape and the
 // field names have all moved between versions, and we cannot verify this against
@@ -413,6 +422,7 @@ export async function fetchRowCounts(
 
 const AUTH_LOG_HOURS = 24; // the endpoint's documented maximum range
 
+/** Recent auth audit log events for runtime detection. */
 export async function fetchAuthAuditLog(
   accessToken: string,
   projectRef: string,
@@ -456,6 +466,8 @@ export async function fetchAuthAuditLog(
 // shape reads as "unread", never as quiet.
 const EDGE_LOG_HOURS = 6;
 
+/** Recent API gateway requests (method, path, status), with ok false when the
+ * log could not be read. */
 export async function fetchEdgeRequestLog(
   accessToken: string,
   projectRef: string,
@@ -488,7 +500,7 @@ export async function fetchEdgeRequestLog(
   }
 }
 
-/** A5 — column grants held by the roles a browser can reach. */
+/** Column grants held by the roles a browser can reach. */
 export async function fetchColumnGrants(
   accessToken: string,
   projectRef: string,
@@ -516,7 +528,7 @@ export async function fetchColumnGrants(
 }
 
 /**
- * A8/A15/A16/A17 — what the database can reach.
+ * What the database can reach.
  *
  * Each query is independent and best-effort: cron.job does not exist unless
  * pg_cron is installed, and a failure there must not cost us the others. A
@@ -554,7 +566,7 @@ export async function fetchDatabaseCapabilities(
   return { extensions, networkGrants, cronJobs, foreignServers };
 }
 
-/** A12/A13 — storage buckets and the policies governing their objects. */
+/** Storage buckets and the policies governing their objects. */
 export async function fetchStorageConfig(
   accessToken: string,
   projectRef: string,
@@ -578,7 +590,7 @@ export async function fetchStorageConfig(
 }
 
 /**
- * A19 — point-in-time recovery.
+ * Point-in-time recovery.
  *
  * Read-only GET. Returns null when the endpoint is unavailable, which includes
  * the very common case of a plan that does not offer PITR — and "not available
@@ -607,7 +619,7 @@ export async function fetchBackupConfig(
   }
 }
 
-/** A14/A20 — Realtime publication state and auth hook definitions. */
+/** Realtime publication state and auth hook definitions. */
 export async function fetchRealtimeAndHooks(
   accessToken: string,
   projectRef: string,

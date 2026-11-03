@@ -35,6 +35,8 @@ export async function resolveTrafficSiteById(siteId: string): Promise<TrafficIde
     siteId: site.id as string, repositoryId: site.repository_id as string };
 }
 
+/** The account and repository behind a traffic ingest token, or null when
+ * revoked or not entitled. */
 export async function resolveTrafficToken(token: string): Promise<TrafficIdentity | null> {
   if (!UUID.safeParse(token).success) return null;
   const admin = getSupabaseAdmin();
@@ -55,6 +57,7 @@ export async function resolveTrafficToken(token: string): Promise<TrafficIdentit
 
 const created = z.array(z.object({ site_id: z.uuid(), ingest_token: z.uuid() })).length(1);
 
+/** Binds a public app host to a repository and returns its ingest token. */
 export async function createTrafficSite(userId: string, repositoryId: string, host: string): Promise<{ siteId: string; ingestToken: string }> {
   const { data, error } = await getSupabaseAdmin().rpc("create_traffic_site", { p_user: userId, p_repository: repositoryId, p_host: host });
   if (error) {
@@ -65,6 +68,7 @@ export async function createTrafficSite(userId: string, repositoryId: string, ho
   return { siteId: row.site_id, ingestToken: row.ingest_token };
 }
 
+/** Revokes a traffic site; false when it was not the account's. */
 export async function revokeTrafficSite(userId: string, siteId: string): Promise<boolean> {
   const { data, error } = await getSupabaseAdmin().rpc("revoke_traffic_site", { p_user: userId, p_site: siteId });
   if (error) throw new Error("traffic_site_unwritable");

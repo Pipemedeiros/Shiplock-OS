@@ -8,12 +8,12 @@
  * rejected even when the headline number rises. The holdout is reached only
  * through Thresholdout (./thresholdout.ts). Pure: no I/O, no model.
  */
-export type RuleRow = { truth: boolean; moved: boolean };
-export type RuleScore = {
+type RuleRow = { truth: boolean; moved: boolean };
+type RuleScore = {
   labeled: number; tp: number; moved: number; movedTp: number; kept: number; keptTp: number;
   baselinePrecision: number | null; keptPrecision: number | null; movedPrecision: number | null;
 };
-export type KeepIf = { developmentPrecisionGainAtLeast: number; developmentTrueMovedToReviewAtMost: number };
+type KeepIf = { developmentPrecisionGainAtLeast: number; developmentTrueMovedToReviewAtMost: number };
 
 const share = (a: number, b: number) => (b ? a / b : null);
 

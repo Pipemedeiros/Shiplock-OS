@@ -19,7 +19,7 @@ const MAX_SOURCES = 500;
 const MAX_EVENTS = 5_000;
 const MAX_PATHS = 20;
 
-export interface TrafficHotPath {
+interface TrafficHotPath {
   path: string;
   suspiciousRequests: number;
 }

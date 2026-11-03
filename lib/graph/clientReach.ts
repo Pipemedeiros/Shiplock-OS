@@ -14,9 +14,9 @@ import type { RepoFile } from "@/lib/deep/githubScan";
  * directly. So reach only ever adds evidence; its absence never lowers a
  * finding.
  */
-export type ReachEntry = { path: string; file: string; via?: readonly string[] };
+type ReachEntry = { path: string; file: string; via?: readonly string[] };
 export type Reach = { reached: boolean; by: string[] };
-export type ReachIndex = { literals: { text: string; file: string }[]; trpcCalls: Map<string, Set<string>> };
+type ReachIndex = { literals: { text: string; file: string }[]; trpcCalls: Map<string, Set<string>> };
 
 const MAX_BY = 5;
 const NOT_SHIPPED = /(^|\/)(__tests__|tests?|e2e|cypress|playwright|scripts|supabase|prisma|migrations|seed)(\/|$)|\.(test|spec)\.[cm]?[jt]sx?$|\.d\.ts$/;
@@ -41,6 +41,8 @@ export function buildReachIndex(files: readonly RepoFile[]): ReachIndex {
   return { literals, trpcCalls };
 }
 
+/** A test for whether a string in client code names this route, dynamic
+ * segments included; null for the root. */
 export function routeMatcher(path: string): ((text: string) => boolean) | null {
   // A duplicated route is named "<app root or file>:/path" (routeInventory).
   const bare = path.startsWith("/") ? path : path.slice(path.indexOf(":/") + 1);
@@ -55,6 +57,7 @@ export function routeMatcher(path: string): ((text: string) => boolean) | null {
   return (t) => t.startsWith(prefix);
 }
 
+/** Which shipped client files call this route, action or tRPC procedure. */
 export function reachOf(entry: ReachEntry, index: ReachIndex): Reach {
   const done = (files: Iterable<string>) => {
     const by = [...new Set(files)].filter((f) => f !== entry.file && !NOT_SHIPPED.test(f)).sort();
@@ -67,6 +70,7 @@ export function reachOf(entry: ReachEntry, index: ReachIndex): Reach {
   return done(index.literals.filter((l) => matches(l.text)).map((l) => l.file));
 }
 
+/** reachOf for one route, building the index from the files. */
 export function reachFromCode(entry: ReachEntry, files: readonly RepoFile[]): Reach {
   return reachOf(entry, buildReachIndex(files));
 }

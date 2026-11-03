@@ -6,10 +6,11 @@ import type { JevRequest, JevResponse } from "../lib/judge/jev";
 // from his environment, never logged) with --confirm-paid and a dollar cap,
 // to measure whether a calibrated judge predicts the blind labels. The
 // request is the product's own (lib/judge/jev.ts).
-export const JEV_ENDPOINT = "https://api.typesafe.ai/v1/systemone";
+const JEV_ENDPOINT = "https://api.typesafe.ai/v1/systemone";
 /** Published price: $0.042 per million input tokens; output is not billed. */
 export const JEV_USD_PER_INPUT_TOKEN = 0.042 / 1e6;
 
+/** Calls the JEV judge (evaluation harness only, never product code). */
 export async function systemOne(request: JevRequest, apiKey: string, timeoutMs = 60_000): Promise<JevResponse> {
   const res = await fetch(JEV_ENDPOINT, {
     method: "POST",

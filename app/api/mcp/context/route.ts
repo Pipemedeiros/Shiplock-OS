@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
     stack: (run?.stack?.tools ?? []).map((t) => ({ name: t.name, kind: t.kind })),
     guardrails: source.routes ? deriveGuardrails(source.routes, { repository: repo.fullName, commit: null }) : null,
     openFindings: repoFindings.slice(0, 50)
-      // confirmed: an issue proven by the agent, a replica or a live fact; false is a candidate to review (A1).
+      // confirmed: an issue proven by the agent, a replica or a live fact; false is a candidate to review.
       // id and fixKind feed open_fix_pull_request (manual gets none); selfCheck is one harmless request to run on a local or preview app.
       .map((f) => ({ id: f.id, title: f.title, severity: f.severity, route: f.entry, file: f.file, consequence: f.consequence,
         confirmed: f.confirmed === true, fixKind: f.fixKind,

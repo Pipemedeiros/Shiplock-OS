@@ -410,7 +410,7 @@ describe("gate classification — user session vs machine secret vs open", () =>
     expect(routes[0].machineGated).toBe(true);
   });
 
-  // corpus-owner/corpus-d house-keeping: Hono's bearerAuth checks the token.
+  // corpus-d house-keeping: Hono's bearerAuth checks the token.
   it("credits Hono bearerAuth given the cron secret", () => {
     const routes = collectRoutes(
       files(["app/api/house/route.ts", `const app = new Hono(); app.use("*", (c, next) => bearerAuth({ token: process.env.CRON_SECRET })(c, next)); app.get("/x", async (c) => c.json(await admin.from("jobs").delete())); export const GET = handle(app);`])
@@ -580,7 +580,7 @@ export default async function handler(req: any, res: any) { res.json(await listP
   });
 });
 
-// E3 (release attempt 4, 2026-10-14, both labelers): a starter kit's
+// Release attempt 4 ( 2026-10-14, both labelers): a starter kit's
 // examples/with-prisma/app/api/users/route.ts was reported as the deployed
 // app's open user list. A route under an examples, demo, sample, template,
 // starter or playground directory is not the app's own endpoint; the same

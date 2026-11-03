@@ -1,8 +1,8 @@
 import type { GithubFinding } from "./githubScan";
 
-// A14 — Realtime authorisation, and A20 — custom JWT claim hooks.
+// Realtime authorisation, and custom JWT claim hooks.
 //
-// A14 is the check CHECK-SPEC.md notes nobody performs, and the reason it gets
+// Realtime authorisation is the check almost nobody performs, and the reason it gets
 // missed is structural: Realtime is a SECOND read path into the same tables, and
 // it is configured somewhere else entirely. A developer secures their REST
 // surface, tests it, and never thinks about the fact that adding a table to the
@@ -15,7 +15,7 @@ import type { GithubFinding } from "./githubScan";
 // is strictly worse than a leaky SELECT because it arrives continuously and
 // leaves no query in any log the developer reads.
 //
-// A20 covers auth hooks. A custom access-token hook writes claims INTO the JWT
+// The second check covers auth hooks. A custom access-token hook writes claims INTO the JWT
 // that policies then trust. If that function is writable, or runs with a
 // search_path an attacker can influence, it becomes a way to mint your own
 // claims — privilege escalation that every downstream policy honours, because
@@ -70,7 +70,7 @@ export interface AuthHookRow {
 }
 
 /**
- * A14 — a table streaming to anyone who subscribes.
+ * A table streaming to anyone who subscribes.
  *
  * Two states, and they are different problems. RLS off means every change goes
  * to every subscriber. RLS on with NO policies means the opposite — Realtime
@@ -116,7 +116,7 @@ export function checkRealtimeTables(rows: RealtimeTableRow[]): GithubFinding[] {
 }
 
 /**
- * A20 — auth hooks that shape the token policies trust.
+ * Auth hooks that shape the token policies trust.
  *
  * A hook without a pinned search_path is the finding. `search_path` decides
  * which schema an unqualified name resolves to, so a function without one can be
@@ -142,12 +142,12 @@ export function checkAuthHooks(rows: AuthHookRow[]): GithubFinding[] {
   ];
 }
 
-export interface RealtimeInput {
+interface RealtimeInput {
   realtimeTables?: RealtimeTableRow[];
   authHooks?: AuthHookRow[];
 }
 
-/** A14 + A20. Absent input means the query did not run, which is not a pass. */
+/** Both checks. Absent input means the query did not run, which is not a pass. */
 export function scanRealtimeAndHooks(input: RealtimeInput): GithubFinding[] {
   return [
     ...(input.realtimeTables ? checkRealtimeTables(input.realtimeTables) : []),

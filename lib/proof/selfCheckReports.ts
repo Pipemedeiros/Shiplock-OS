@@ -7,6 +7,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
  */
 export type SelfCheckReport = { status: number; host: string; reportedAt: string | null };
 
+/** Self-check results the customer reported, by finding. */
 export async function loadSelfCheckReports(userId: string): Promise<Map<string, SelfCheckReport>> {
   const { data, error } = await getSupabaseAdmin().from("self_check_reports")
     .select("finding_row_id, status, target_host, reported_at").eq("user_id", userId).limit(500);

@@ -20,7 +20,7 @@ import type { MonitoredProfile, TriggerSource } from "./types";
 export type Layer = "code" | "db" | "app-surface" | "traffic" | "runtime";
 
 /** Graph collector namespaces — constrained by migration 039's CHECK. */
-export type GraphCollector = "source" | "db" | "traffic" | "runtime";
+type GraphCollector = "source" | "db" | "traffic" | "runtime";
 
 export interface CollectorContext {
   profile: MonitoredProfile;
@@ -137,14 +137,14 @@ export interface CollectorSpec {
 }
 
 /** Outcome of one collector in one pass, for logging and for the snapshot. */
-export interface CollectorOutcome {
+interface CollectorOutcome {
   id: string;
   layer: Layer;
   status: "ok" | "skipped" | "failed" | "timeout";
   durationMs: number;
 }
 
-export interface RegistryRunResult {
+interface RegistryRunResult {
   results: CollectorResult[];
   outcomes: CollectorOutcome[];
 }

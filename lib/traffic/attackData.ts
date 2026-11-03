@@ -12,6 +12,8 @@ const MAX_BLOCKS = 200;
 const MAX_SOURCES = 60;
 const MAX_EVENTS = 4000;
 
+/** Recent traffic alerts, blocks and events for the attack view, with whether
+ * the read was capped. */
 export async function loadAttackRows(userId: string, now = Date.now()):
   Promise<{ available: true; now: number; alerts: AlertRow[]; blocks: BlockRow[]; events: EventRow[]; capped: boolean } | { available: false }> {
   const admin = getSupabaseAdmin();

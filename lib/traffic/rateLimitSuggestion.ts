@@ -7,8 +7,8 @@
  * fails open: any error lets the request through. ShipLock never blocks
  * traffic itself and never merges.
  */
-export type HotRoute = { file: string; pattern: string; suspiciousRequests: number; paths: string[] };
-export type RateLimitSuggestion =
+type HotRoute = { file: string; pattern: string; suspiciousRequests: number; paths: string[] };
+type RateLimitSuggestion =
   | { kind: "pr"; title: string; body: string; files: { path: string; content: string }[] }
   | { kind: "refused"; reason: "helper_exists" };
 
@@ -22,6 +22,8 @@ const WINDOW_MS = 60_000;
 const LIMIT = 60;
 const hits = new Map<string, { count: number; resetAt: number }>();
 
+/** The rate limiter written into the customer's app by the rate-limit pull
+ * request. Off unless SHIPLOCK_RATE_LIMIT is "on". */
 export function shiplockRateLimit(request: Request): Response | null {
   try {
     if (process.env.SHIPLOCK_RATE_LIMIT !== "on") return null;
@@ -46,6 +48,8 @@ export function shiplockRateLimit(request: Request): Response | null {
 }
 `;
 
+/** The rate-limit pull request for a hot route: the helper file, the edit and
+ * the evidence that justifies it. */
 export function buildRateLimitSuggestion(hot: HotRoute, repositoryFiles: string[], evidence: { windowHours: number }): RateLimitSuggestion {
   const base = hot.file.startsWith("src/") ? "src/lib" : "lib";
   const path = `${base}/shiplock-rate-limit.ts`;

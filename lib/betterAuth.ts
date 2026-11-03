@@ -29,10 +29,12 @@ function createInstance() {
 
 let instance: ReturnType<typeof createInstance> | null = null;
 
+/** Whether the optional Better Auth 2FA layer has its secret and database. */
 export function isBetterAuthConfigured(): boolean {
   return Boolean(process.env.BETTER_AUTH_SECRET && process.env.DATABASE_URL);
 }
 
+/** The Better Auth instance, created once. Throws when it is not configured. */
 export function getBetterAuth() {
   if (!isBetterAuthConfigured()) {
     throw new Error("BETTER_AUTH_SECRET and DATABASE_URL must be set to use 2FA (see AGENTS.md).");

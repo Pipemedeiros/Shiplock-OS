@@ -27,8 +27,8 @@ export const WINDOW_HOURS = 48; // traffic_events retention (lib/traffic/prune.t
 export type AlertRow = { source_id: string; reason: string; alerted_at: string; action: string };
 export type BlockRow = { source_id: string; reason: string; blocked_at: string; expires_at: string };
 export type EventRow = { source_id: string; path: string; created_at: string; method?: string | null; status?: number | null };
-export type ViewRoute = { path: string; file: string };
-export type ViewFinding = { file: string | null; title: string; severity: Severity; confirmed: boolean };
+type ViewRoute = { path: string; file: string };
+type ViewFinding = { file: string | null; title: string; severity: Severity; confirmed: boolean };
 
 export type Attacker = {
   alias: string; sourceId: string; kinds: string[]; reasons: string[]; status: "blocked" | "flagged";
@@ -36,7 +36,7 @@ export type Attacker = {
   routes: { pattern: string; file: string; requests: number }[]; unmatchedPaths: number;
 };
 export type Outcome = { kind: "worked" | "answered" | "errored" | "refused" | "unreported"; detail: string };
-export type AttackedRoute = {
+type AttackedRoute = {
   pattern: string; file: string; requests: number; attackers: number;
   finding: { title: string; severity: Severity; confirmed: boolean } | null;
   outcome: Outcome;
@@ -47,9 +47,9 @@ export type AttackView = {
 };
 
 /** One source answered with success on this many different record ids is a walk that got records back. */
-export const ANSWERED_IDS_THRESHOLD = 10;
+const ANSWERED_IDS_THRESHOLD = 10;
 /** Failed sign ins before a success that make it look like a guessed password. */
-export const FAILURES_BEFORE_SIGN_IN = 5;
+const FAILURES_BEFORE_SIGN_IN = 5;
 
 const ok = (s: number) => s >= 200 && s < 300;
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -94,9 +94,13 @@ export function routeOutcome(events: readonly EventRow[], hasIssue: boolean): Ou
 const MAX_ATTACKERS = 25;
 const SEVERITY_RANK: Record<string, number> = { CRITICAL: 0, WARNING: 1, INFO: 2 };
 
+/** A short display name for a hashed traffic source. */
 export const sourceAlias = (sourceId: string) => `Source ${sourceId.slice(0, 4)}`;
+/** The attack kind from a detection reason. */
 export const attackKind = (reason: string) => reason.split(":")[0].trim() || "Flagged";
 
+/** The attack view: flagged sources, what they tried and which routes and
+ * findings they hit. */
 export function buildAttackView(input: {
   now: number; alerts: AlertRow[]; blocks: BlockRow[]; events: EventRow[]; routes: ViewRoute[]; findings: ViewFinding[];
 }): AttackView {

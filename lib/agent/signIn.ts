@@ -15,7 +15,7 @@ import type { StackReport } from "./stack";
  * deliberately broad: a wrong "present" keeps a finding as it was, a wrong
  * "absent" would move a real one to To review.
  */
-export type SignIn = "present" | "absent" | "unknown";
+type SignIn = "present" | "absent" | "unknown";
 
 const USER_TABLE = /^(auth_)?(users?|usuarios?|utilisateurs?|benutzer|profiles?|accounts?|members?|sessions?)$/i;
 const SIGN_IN_PATH = /(^|[/(_.-])(login|log-in|signin|sign-in|signup|sign-up|register|logout|auth|session|password)([/)_.-]|$)/i;
@@ -28,6 +28,8 @@ const SIGN_IN_CODE = new RegExp([
 ].join("|"), "i");
 const SCHEMA_FILE = /(^|\/)schema\.prisma$|\.sql$|(^|\/)schema\.[cm]?[jt]s$/;
 
+/** Whether the app has accounts at all: an auth tool, a signed-in route, a
+ * sign-in page or a users table. */
 export function appSignIn(input: {
   routes: readonly Pick<RouteFact, "path" | "file" | "authenticated">[];
   stack: Pick<StackReport, "tools">;

@@ -27,7 +27,7 @@ import type { StackReport } from "./stack";
 
 export type Verdict = "pass" | "warn" | "block";
 
-export interface DiffFinding {
+interface DiffFinding {
   id: string;
   severity: "CRITICAL" | "WARNING";
   title: string;
@@ -55,7 +55,7 @@ export interface DiffScanResult {
  */
 const INERT = /\.(md|mdx|txt|svg|png|jpe?g|gif|webp|ico|woff2?|ttf|csv)$|(^|\/)(CHANGELOG|LICENSE)/i;
 
-export interface DiffScanInput {
+interface DiffScanInput {
   /** Files as they are AFTER the change, restricted to what the PR touched. */
   changed: ArchiveFile[];
   /** The rest of the repository, for comparison. Not scanned. */
@@ -88,6 +88,8 @@ export function siblingsScopingTable(routes: RouteFact[], table: string): { scop
   return { scoped: touching.filter((r) => r.ownershipFiltered).length, total: touching.length };
 }
 
+/** Checks a pull request's changed files: committed credentials, new or changed
+ * routes and their gates. Inert files are skipped. */
 export function scanDiff(input: DiffScanInput): DiffScanResult {
   const changed = input.changed.filter((f) => !INERT.test(f.path));
   if (changed.length === 0) {

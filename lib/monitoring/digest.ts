@@ -39,7 +39,7 @@ export interface DigestData {
   worthSending: boolean;
 }
 
-export async function collectDigest(userId: string): Promise<DigestData> {
+async function collectDigest(userId: string): Promise<DigestData> {
   const admin = getSupabaseAdmin();
   const weekAgo = new Date(Date.now() - WEEK_MS).toISOString();
   const trafficSince = new Date(Date.now() - TRAFFIC_WINDOW_HOURS * 60 * 60 * 1000).toISOString();
@@ -113,6 +113,7 @@ export async function collectDigest(userId: string): Promise<DigestData> {
   };
 }
 
+/** The plain-text monitoring digest email. */
 export function buildDigestText(d: DigestData, appUrl: string): string {
   const lines: string[] = [];
 

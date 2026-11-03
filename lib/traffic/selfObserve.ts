@@ -10,14 +10,16 @@ import { resolveTrafficSiteById, type TrafficIdentity } from "@/lib/traffic/site
  * only names where ShipLock's own traffic is filed, and the site must exist,
  * be unrevoked, entitled and bound to a selected repository.
  */
-export const SELF_TRAFFIC_SITE = process.env.SHIPLOCK_SELF_TRAFFIC_SITE ?? "f5b95d52-77fa-4e37-9f65-be133d889420";
+const SELF_TRAFFIC_SITE = process.env.SHIPLOCK_SELF_TRAFFIC_SITE ?? "f5b95d52-77fa-4e37-9f65-be133d889420";
 
 const SKIP = /^\/(?:_next\/|api\/traffic\/|api\/health(?:\/|$))|\.(?:txt|xml|ico|png|svg|jpe?g|webp|gif|css|js|map|woff2?)$/i;
 const CACHE_MS = 5 * 60 * 1000;
 let cached: { siteId: string; identity: TrafficIdentity | null; at: number } | null = null;
 
+/** Clears the cached self-observation site (tests). */
 export function resetSelfSiteCache(): void { cached = null; }
 
+/** Whether ShipLock records its own request: never prefetches or static assets. */
 export function shouldObserve(request: Request): boolean {
   if (request.headers.get("next-router-prefetch") || request.headers.get("purpose") === "prefetch") return false;
   return !SKIP.test(new URL(request.url).pathname);
@@ -29,6 +31,8 @@ export async function visitorId(ip: string, salt: string): Promise<string> {
   return btoa(String.fromCharCode(...new Uint8Array(digest))).slice(0, 22);
 }
 
+/** Records ShipLock's own traffic through the same path as a customer's
+ * snippet. */
 export async function observeSelf(request: Request, siteId: string | undefined = SELF_TRAFFIC_SITE): Promise<void> {
   try {
     if (!siteId || !shouldObserve(request)) return;

@@ -20,9 +20,9 @@ export type MapRoute = {
   /** HTTP methods the route file exports; the self-check names one it serves. */
   methods?: string[];
 };
-export type MapTool = { id: string; name: string; kind: StackKind };
+type MapTool = { id: string; name: string; kind: StackKind };
 /** confirmed: a proven issue (lib/agent/confirmed.ts); otherwise a candidate. */
-export type MapFinding = { entry: string | null; severity: "CRITICAL" | "WARNING" | "INFO"; title: string; confirmed?: boolean };
+type MapFinding = { entry: string | null; severity: "CRITICAL" | "WARNING" | "INFO"; title: string; confirmed?: boolean };
 
 export type Exposure = "open" | "unscoped" | "scoped" | "secret" | "unknown" | "none";
 export type Risk = "open" | "unknown" | "unscoped" | "guarded";
@@ -55,7 +55,7 @@ export type MapNode = {
   fact?: MapRoute;
   exposure?: Exposure;
   /**
-   * What is wrong with a route (A4, Felipe 2026-10-07: the map shows only the
+   * What is wrong with a route (Felipe 2026-10-07: the map shows only the
    * routes that are wrong, red or yellow by degree). red: a confirmed issue.
    * yellow: a candidate, or an open or unscoped exposure, nothing confirmed.
    * Absent: nothing wrong was read, or the route could not be read.
@@ -109,6 +109,8 @@ const DATABASE_IDS = ["supabase", "postgres", "prisma", "drizzle", "firebase", "
 
 const rank = { CRITICAL: 0, WARNING: 1, INFO: 2 } as const;
 
+/** The dashboard route map from one audit's facts: wrong routes and what they
+ * reach. */
 export function buildRouteMap(input: { routes: MapRoute[]; tools: MapTool[]; findings: MapFinding[]; hotFiles: string[] }): RouteMap {
   const hot = new Set(input.hotFiles);
   const confirmedEntries = new Set(input.findings.filter((f) => f.confirmed && f.entry && f.severity !== "INFO").map((f) => f.entry!));
@@ -232,7 +234,7 @@ export function simulateRequest(route: MapRoute, attacker: Attacker): Simulation
   return { outcome: "reaches", reached: route.tables, steps: [...steps, `Nothing narrows the query to the caller. It reaches every row of ${route.tables.join(", ")}.`] };
 }
 
-export interface LabelBox {
+interface LabelBox {
   id: string; x: number; y: number; w: number; h: number; priority: number; force?: boolean;
   /** Where the box starts when placed to the left of its node instead. */
   leftX?: number;
@@ -261,7 +263,7 @@ export function placeLabels(boxes: LabelBox[], marks: readonly Rect[] = []): Map
 }
 
 /** A flagged traffic source, as the Traffic page has it (lib/traffic/attackView.ts). */
-export type MapSource = { alias: string; kinds: string[]; requests: number; status: "blocked" | "flagged"; routes: { file: string }[] };
+type MapSource = { alias: string; kinds: string[]; requests: number; status: "blocked" | "flagged"; routes: { file: string }[] };
 const MAX_SOURCES = 8;
 
 /**

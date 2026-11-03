@@ -1,6 +1,6 @@
 import type { GithubFinding } from "./githubScan";
 
-// A8, A15, A16, A17 — what the database itself is able to do.
+// What the database itself is able to do.
 //
 // Every other database check asks who can read which rows. These ask a different
 // question: what can the database REACH, and who can make it reach. A Postgres
@@ -65,9 +65,9 @@ order by 1`;
 export interface ExtensionRow { name: string; schema: string }
 export interface NetworkGrantRow { schema: string; name: string; grantee: string }
 export interface CronJobRow { name: string | null; schedule: string; runs_as: string; command: string }
-export interface FdwRow { server: string; wrapper: string }
+interface FdwRow { server: string; wrapper: string }
 
-/** A8 — an extension installed into `public`. */
+/** An extension installed into `public`. */
 export function checkExtensionSchemas(rows: ExtensionRow[]): GithubFinding[] {
   const inPublic = rows.filter((r) => r.schema === "public").map((r) => r.name);
   if (inPublic.length === 0) return [];
@@ -85,7 +85,7 @@ export function checkExtensionSchemas(rows: ExtensionRow[]): GithubFinding[] {
 }
 
 /**
- * A15 — outbound HTTP reachable from a browser-facing role.
+ * Outbound HTTP reachable from a browser-facing role.
  *
  * pg_net being installed is ordinary; Supabase uses it for webhooks. The finding
  * is that `anon` or `authenticated` can EXECUTE it, which turns a public API key
@@ -110,7 +110,7 @@ export function checkNetworkGrants(rows: NetworkGrantRow[]): GithubFinding[] {
   ];
 }
 
-/** A16 — scheduled jobs: what runs unattended, as whom. */
+/** Scheduled jobs: what runs unattended, as whom. */
 export function checkCronJobs(rows: CronJobRow[]): GithubFinding[] {
   if (rows.length === 0) return [];
   const out: GithubFinding[] = [];
@@ -149,7 +149,7 @@ export function checkCronJobs(rows: CronJobRow[]): GithubFinding[] {
   return out;
 }
 
-/** A17 — foreign data wrappers: the database reaching another system. */
+/** Foreign data wrappers: the database reaching another system. */
 export function checkForeignServers(rows: FdwRow[]): GithubFinding[] {
   if (rows.length === 0) return [];
 
@@ -165,7 +165,7 @@ export function checkForeignServers(rows: FdwRow[]): GithubFinding[] {
   ];
 }
 
-export interface ExtensionInput {
+interface ExtensionInput {
   extensions?: ExtensionRow[];
   networkGrants?: NetworkGrantRow[];
   cronJobs?: CronJobRow[];

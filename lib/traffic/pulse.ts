@@ -60,6 +60,7 @@ interface PulseRow {
   bucket_count: number;
 }
 
+/** Request counts per time bucket and recent blocks, for the traffic chart. */
 export async function getTrafficPulse(userId: string): Promise<TrafficPulse> {
   const admin = getSupabaseAdmin();
 

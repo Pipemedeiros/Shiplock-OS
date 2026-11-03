@@ -10,6 +10,7 @@ import { EMAIL_ALERTS_ENABLED } from "@/lib/access";
 // still tells the customer something happened.
 const DEDUP_WINDOW_MS = 6 * 60 * 60 * 1000; // 6h — attacker sources churn faster than scan findings
 
+/** Emails the customer about a blocked or alerting traffic source. */
 export async function sendThreatAlert(
   userId: string,
   email: string | null,

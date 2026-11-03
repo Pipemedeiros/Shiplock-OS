@@ -22,7 +22,7 @@ import ts from "typescript";
  * never ship. Everything above that floor is why a human approves the merge.
  */
 
-export type RejectionReason =
+type RejectionReason =
   | "unchanged"
   | "unsupported_language"
   | "does_not_parse"
@@ -30,7 +30,7 @@ export type RejectionReason =
   | "too_large"
   | "unknown_identifier";
 
-export type EditVerdict =
+type EditVerdict =
   | { safe: true; added: number; removed: number }
   | { safe: false; reason: RejectionReason; detail: string };
 
@@ -138,7 +138,7 @@ export function identifiersIn(path: string, source: string): Set<string> {
  * customer's repository. An edit that writes `const and = ...` and then calls
  * it is fine. Both introduce the identifier `and`; only the first is a bug.
  */
-export function declaredIn(path: string, source: string): Set<string> {
+function declaredIn(path: string, source: string): Set<string> {
   const file = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, scriptKind(path));
   const names = new Set<string>();
 
@@ -166,6 +166,8 @@ export function declaredIn(path: string, source: string): Set<string> {
   return names;
 }
 
+/** Whether a proposed edit is safe to offer: it must change something, parse,
+ * and stay within what a mechanical fix may touch. */
 export function judgeEdit(path: string, before: string, after: string): EditVerdict {
   if (before === after) {
     return { safe: false, reason: "unchanged", detail: "The change is a no-op." };

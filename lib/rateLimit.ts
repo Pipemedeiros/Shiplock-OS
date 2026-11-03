@@ -1,10 +1,5 @@
 import { createHash } from "crypto";
-import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAdmin } from "@/lib/supabase";
-
-export type RateLimitResult =
-  | { limited: false; ipHash: string }
-  | { limited: true; response: NextResponse };
+import type { NextRequest } from "next/server";
 
 // x-forwarded-for is a comma-separated hop chain: "client-claimed, ..., nearest-proxy".
 // Each hop APPENDS its own observed peer IP rather than replacing what came before,
@@ -20,56 +15,4 @@ export function getClientIpHash(req: NextRequest): string {
   const lastHop = forwardedChain?.split(",").pop()?.trim();
   const ip = realIp || lastHop || "anonymous";
   return createHash("sha256").update(ip).digest("hex");
-}
-
-async function checkDbRateLimit(
-  table: string,
-  ipHash: string,
-  windowMs: number,
-  maxRequests: number,
-  limitedResponse: () => NextResponse
-): Promise<RateLimitResult> {
-  try {
-    const db = getSupabaseAdmin();
-    const windowStart = new Date(Date.now() - windowMs).toISOString();
-
-    const { count, error } = await db
-      .from(table)
-      .select("id", { count: "exact", head: true })
-      .eq("ip_hash", ipHash)
-      .gte("created_at", windowStart);
-
-    if (error) {
-      console.error(`[rateLimit] Supabase query error on ${table}:`, error.message);
-      return { limited: false, ipHash }; // fail open
-    }
-
-    if ((count ?? 0) >= maxRequests) {
-      return { limited: true, response: limitedResponse() };
-    }
-
-    return { limited: false, ipHash };
-  } catch (err) {
-    // Fail open — never block legitimate traffic due to a DB error
-    console.error(`[rateLimit] Unexpected error on ${table}:`, err);
-    return { limited: false, ipHash };
-  }
-}
-
-export async function checkScanRateLimit(req: NextRequest): Promise<RateLimitResult> {
-  const ipHash = getClientIpHash(req);
-  return checkDbRateLimit("scan_logs", ipHash, 60 * 60 * 1000, 1, () =>
-    NextResponse.json(
-      { error: "Rate limit exceeded: one scan per hour. Please retry later." },
-      {
-        status: 429,
-        headers: {
-          "Cache-Control": "no-store",
-          "Retry-After": "3600",
-          "X-RateLimit-Limit": "1",
-          "X-RateLimit-Remaining": "0",
-        },
-      }
-    )
-  );
 }

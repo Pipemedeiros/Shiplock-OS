@@ -15,6 +15,8 @@ export interface DeepBriefFinding {
   consequence: string;
 }
 
+/** A Markdown security brief of the latest scan, written for the customer's
+ * coding agent. */
 export function buildAgentBrief(scan: LatestScan, deepFindings: DeepBriefFinding[] = []): string {
   const issues = (scan.full_issues ?? []) as FullIssue[];
   const sorted = [...issues].sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity]);

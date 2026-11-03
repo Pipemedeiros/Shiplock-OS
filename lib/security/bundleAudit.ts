@@ -4,10 +4,10 @@ import { guardedFetch } from "@/lib/security/ssrfGuard";
 import { requestSignal } from "@/lib/abort";
 import { API_PATH, calledPaths, requestedPaths, type ShippedRead } from "./shippedCalls";
 
-// D6 + D7 from CHECK-SPEC.md §4 — audit what the customer's app ACTUALLY ships
+// Audit what the customer's app ACTUALLY ships
 // to a browser, fetched from the public internet the way a visitor gets it.
 //
-// Why this exists alongside C10/C11, which look for the same class of mistake in
+// Why this exists alongside the source checks, which look for the same class of mistake in
 // source: those two need GitHub connected, and they reason about what SHOULD end
 // up in the bundle. This one reads the bundle itself. It therefore catches the
 // cases source analysis structurally cannot:
@@ -27,7 +27,7 @@ import { API_PATH, calledPaths, requestedPaths, type ShippedRead } from "./shipp
 // the anon/publishable key — which is SUPPOSED to be in the bundle — is
 // explicitly not a finding.
 
-export interface BundleFinding {
+interface BundleFinding {
   id: string;
   severity: Severity;
   title: string;
@@ -191,7 +191,7 @@ const BUNDLE_SECRETS: { id: string; label: string; re: RegExp; rotate: string }[
 ];
 
 /**
- * D7 — secrets in the shipped JavaScript.
+ * Secrets in the shipped JavaScript.
  *
  * Two passes: known credential prefixes, and any Supabase JWT whose decoded
  * role isn't `anon`. The second is the one that matters most and the one no
@@ -237,7 +237,7 @@ export function scanBundleSecrets(js: string, jsUrl: string): BundleFinding[] {
 const NOT_A_PAGE = /(?:log|sign)[-_]?out|delete|remove|unsubscribe|callback|confirm|verify|reset|invite|accept|download|export/i;
 
 /** Same-origin pages the home page links to, absolute, sorted, excluding itself. */
-export function linkedPages(html: string, pageUrl: string): string[] {
+function linkedPages(html: string, pageUrl: string): string[] {
   let home: URL;
   try { home = new URL(pageUrl); } catch { return []; }
   const out = new Set<string>();
@@ -287,7 +287,7 @@ export async function readCapped(res: Response, limit: number): Promise<string> 
 }
 
 /**
- * D6 + D7 against a live app URL: its page, the same-origin pages it links to,
+ * The bundle audit against a live app URL: its page, the same-origin pages it links to,
  * and the scripts they load.
  *
  * Best-effort throughout: any network failure means "we could not prove a

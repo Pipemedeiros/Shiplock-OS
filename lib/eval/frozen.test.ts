@@ -51,7 +51,7 @@ const cases: Case[] = [
   { name: "a count of LLM tokens from Math.random (corpus-p)", real: false,
     files: [{ path: "app/workflows/page.tsx", content: "const tokens = data.tokens ?? Math.floor(Math.random() * 800 + 200);\n" }] },
   { name: "a chat session id from Math.random (corpus-al)", real: false,
-    files: [{ path: "lib/client.ts", content: "this.sessionId = `corpus-r21-${Date.now()}-${Math.random().toString(36).slice(2)}`;\n" }] },
+    files: [{ path: "lib/client.ts", content: "this.sessionId = `chat-${Date.now()}-${Math.random().toString(36).slice(2)}`;\n" }] },
   { name: "an outside provider behind an unresolved base (corpus-q)", real: false,
     files: [{ path: "server/oauth.ts", content: "await fetch(`${IFLOW_CONFIG.userInfoUrl}?accessToken=${encodeURIComponent(token)}`);\n" }] },
   { name: "a placeholder API key in a code sample (corpus-r)", real: false,

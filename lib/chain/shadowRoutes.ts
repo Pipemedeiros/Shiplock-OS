@@ -31,6 +31,8 @@ const TRPC = /^\/(?:api\/)?trpc(?:\/|$)/;
 
 type Routes = readonly { path: string }[];
 
+/** API paths the live site requests that no audited route declares, or the
+ * reason this cannot be told. */
 export function shadowRoutes(live: LiveReach | null, routes: Routes | null, earlier: readonly Routes[] = [], codeUnread = false): ShadowRoutes {
   if (!live) return { state: "unknown", why: "No app address is bound to this repository." };
   if (!live.requests) return { state: "unknown", why: "The live site has not been read since requests were recorded." };

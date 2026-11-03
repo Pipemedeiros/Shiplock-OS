@@ -42,6 +42,8 @@ const MAX_TOTAL_CHARS = 300_000;
 
 const numbered = (content: string) => content.split("\n").map((line, i) => `${i + 1}: ${line}`).join("\n");
 
+/** The evaluation harness request for the second judge: numbered source within
+ * a character budget. */
 export function jevRequest(evidence: JudgeEvidence): JevRequest {
   let budget = MAX_TOTAL_CHARS;
   const files: { path: string; numbered: string }[] = [];

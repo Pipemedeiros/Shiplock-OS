@@ -1,4 +1,4 @@
-export interface AuditTraceStep { time: string; label: string; note?: string; found?: boolean }
+interface AuditTraceStep { time: string; label: string; note?: string; found?: boolean }
 export interface AuditRunState {
   status: "queued" | "running" | "complete" | "failed";
   trace: AuditTraceStep[];

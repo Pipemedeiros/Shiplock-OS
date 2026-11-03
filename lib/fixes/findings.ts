@@ -64,7 +64,7 @@ export async function getFixFindings(userId: string): Promise<FixableFinding[]> 
     });
   }
 
-  // C6 reachability triage. Admitted repository snapshots can promote observed
+  // Reachability triage. Admitted repository snapshots can promote observed
   // source paths, but bounded coverage never demotes an unobserved path and
   // does not establish current deployment or a database/provider binding.
   //

@@ -97,6 +97,8 @@ export async function getSupabaseRepositoryBindings(userId: string, collector: C
     repositories: context.repositories.map((repository) => ({ id: repository.id, fullName: repository.full_name, githubRepoId: repository.github_repo_id })), bindings };
 }
 
+/** Binds or unbinds a Supabase project and a repository on the customer's
+ * confirmation. Any field that changed since the page loaded makes it stale. */
 export async function changeSupabaseRepositoryBinding(userId: string, input: z.infer<typeof SupabaseRepositoryConfirmation>): Promise<"ok" | "stale"> {
   const context = await currentContext(userId, input.collector);
   const repository = context?.repositories.find((candidate) => candidate.id === input.repositoryId);

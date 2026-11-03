@@ -48,7 +48,7 @@ export function pickTargetVersion(vulns: OsvVuln[]): string | null {
   return fixed.reduce((max, v) => (compareSemver(v, max) > 0 ? v : max));
 }
 
-export interface DepBump {
+interface DepBump {
   name: string;
   from: string; // the original range string, e.g. "^1.0.0"
   to: string; // the new range string, e.g. "^1.4.2"

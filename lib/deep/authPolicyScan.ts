@@ -1,8 +1,8 @@
 import type { GithubFinding } from "./githubScan";
 import type { SupabaseAuthConfig } from "./supabaseMgmt";
 
-// B1, B2, B4, B5, B11 — the authentication posture, from the config we already
-// fetch for B7. No new connection, no new permission, one extra pass over data
+// The authentication posture, from the config we already
+// fetch for the redirect allow-list. No new connection, no new permission, one extra pass over data
 // already in memory.
 //
 // These are cheap to check and expensive to get wrong, and they share a shape:
@@ -84,7 +84,7 @@ export function isUnrecognisedAuthConfig(config: SupabaseAuthConfig): boolean {
   );
 }
 
-/** B1 — anonymous sign-ins. */
+/** Anonymous sign-ins. */
 export function checkAnonymousSignIns(config: SupabaseAuthConfig): GithubFinding[] {
   if (readBool(config, ANON_KEYS) !== true) return [];
   return [
@@ -99,7 +99,7 @@ export function checkAnonymousSignIns(config: SupabaseAuthConfig): GithubFinding
   ];
 }
 
-/** B2 — email confirmation. */
+/** Email confirmation. */
 export function checkEmailConfirmation(config: SupabaseAuthConfig): GithubFinding[] {
   if (readBool(config, AUTOCONFIRM_KEYS) !== true) return [];
   return [
@@ -115,7 +115,7 @@ export function checkEmailConfirmation(config: SupabaseAuthConfig): GithubFindin
   ];
 }
 
-/** B4 — password policy. */
+/** Password policy. */
 export function checkPasswordPolicy(config: SupabaseAuthConfig): GithubFinding[] {
   const out: GithubFinding[] = [];
   const minLength = readNumber(config, PW_LENGTH_KEYS);
@@ -148,7 +148,7 @@ export function checkPasswordPolicy(config: SupabaseAuthConfig): GithubFinding[]
   return out;
 }
 
-/** B5 — MFA availability. */
+/** MFA availability. */
 export function checkMfa(config: SupabaseAuthConfig): GithubFinding[] {
   const factors = readNumber(config, MFA_KEYS);
   if (factors === null || factors > 0) return [];
@@ -164,7 +164,7 @@ export function checkMfa(config: SupabaseAuthConfig): GithubFinding[] {
   ];
 }
 
-/** B11 — session lifetime and refresh-token handling. */
+/** Session lifetime and refresh-token handling. */
 export function checkSessionPolicy(config: SupabaseAuthConfig): GithubFinding[] {
   const out: GithubFinding[] = [];
   const jwtExp = readNumber(config, JWT_EXP_KEYS);

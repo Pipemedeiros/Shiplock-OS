@@ -1,6 +1,6 @@
 import type { GithubFinding } from "./githubScan";
 
-// C22 from CHECK-SPEC.md — a repository that is public when it shouldn't be.
+// A repository that is public when it shouldn't be.
 //
 // On its own, a public repo is NOT a vulnerability. Plenty of people open-source
 // deliberately, and a scanner that shouts about it looks like it doesn't
@@ -32,11 +32,12 @@ const SECRET_FINDING_PREFIXES = [
   "github:public_prefixed_secret",
 ];
 
+/** Whether a finding id names a committed secret. */
 export function isSecretFinding(id: string): boolean {
   return SECRET_FINDING_PREFIXES.some((prefix) => id.startsWith(prefix));
 }
 
-export interface RepoVisibility {
+interface RepoVisibility {
   fullName: string;
   isPrivate: boolean | null;
   visibility: string | null;

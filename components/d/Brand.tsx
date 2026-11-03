@@ -22,7 +22,7 @@ export function LockGlyph() {
   );
 }
 
-export function LockGlyphDisplay() {
+function LockGlyphDisplay() {
   // Adds the diagonal sweep from the reference lockup. Only legible >=40px.
   return (
     <>

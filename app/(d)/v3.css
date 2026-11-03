@@ -2,7 +2,7 @@
    Everything is scoped under .v3 so nothing here can leak into the product.
    Palette carried over from Design D (retired 2026-10-20) so the firm reads the same.
 
-   Rules this stylesheet holds to, from PROTO-V3-SYNTHESIS.md:
+   Rules this stylesheet holds to:
    · one accent (bronze), used for the primary action and nothing else
    · severity colour appears as a dot or a word, never as a filled surface
    · motion only on state change — no ambient animation, no decoration

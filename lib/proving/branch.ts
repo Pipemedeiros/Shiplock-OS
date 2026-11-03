@@ -31,6 +31,7 @@ export interface BranchAttempt {
   failure?: BranchFailure;
 }
 
+/** Creates a disposable Supabase branch for proving, or null when it could not. */
 export async function createProvingBranch(
   accessToken: string,
   productionRef: string,

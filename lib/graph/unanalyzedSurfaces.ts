@@ -12,6 +12,8 @@ const CODE = /\.[cm]?[jt]sx?$/;
 const USE_SERVER = /(^|\n)\s*["']use server["'];?\s*(\n|$)|\{\s*["']use server["'];?/;
 const TRPC = /\b(?:publicProcedure|protectedProcedure|authedProcedure|adminProcedure|createTRPCRouter|t\.procedure|initTRPC)\b/;
 
+/** Files with server actions or tRPC routers, counted so the Coverage page can
+ * say what deep analysis did not read. */
 export function countUnanalyzedSurfaces(files: { path: string; content: string }[]): { serverActionFiles: number; trpcFiles: number } {
   let serverActionFiles = 0, trpcFiles = 0;
   for (const file of files) {

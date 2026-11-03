@@ -35,7 +35,7 @@ import { resolveImport } from "@/lib/deep/clientExposure";
  * and that is survivable in a way a false reassurance is not.
  */
 
-export interface CrossTenantNote {
+interface CrossTenantNote {
   /** The route this is about. */
   path: string;
   /** The file the gate is written in — required by rule 1. */

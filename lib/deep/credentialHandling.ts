@@ -135,6 +135,8 @@ function queryCalls(content: string): QueryCall[] {
   return calls;
 }
 
+/** Findings for credentials handled unsafely in code: credentials sent in a URL
+ * query, and tokens or codes drawn from insecure randomness. */
 export function scanCredentialHandling(files: RepoFile[]): GithubFinding[] {
   const out: GithubFinding[] = [];
 

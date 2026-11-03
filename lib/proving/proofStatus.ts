@@ -7,7 +7,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
  * row the worker recorded (091); until then it is pending, and a job that died
  * without recording is shown as failed rather than pending forever.
  */
-export type ProofOutcome = "could_not_test" | "ran" | "reproduced" | "aborted";
+type ProofOutcome = "could_not_test" | "ran" | "reproduced" | "aborted";
 export type ProofView =
   | { state: "pending" }
   | { state: "failed" }
@@ -19,6 +19,7 @@ type JobRow = { deduplication_key: string; status: string };
 
 const STOPPED_JOB = new Set(["dead", "failed", "cancelled"]);
 
+/** The latest proof per finding: authorization, run and job state combined. */
 export function summarizeProofs(authorizations: AuthorizationRow[], runs: RunRow[], jobs: JobRow[]): Map<string, ProofView> {
   const runByAuthorization = new Map(runs.map((run) => [run.authorization_id, run]));
   const jobByKey = new Map(jobs.map((job) => [job.deduplication_key, job.status]));
@@ -78,6 +79,7 @@ export async function provingEnabled(userId: string): Promise<boolean> {
   return data?.proving_ground_enabled === true && data?.autonomy_kill_switch !== true;
 }
 
+/** The latest proof per finding for the account, for the Risks board. */
 export async function getProofViews(userId: string): Promise<Map<string, ProofView>> {
   const admin = getSupabaseAdmin();
   const { data: authorizations } = await admin.from("proof_authorizations")

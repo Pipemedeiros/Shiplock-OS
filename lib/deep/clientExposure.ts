@@ -6,6 +6,7 @@ import { resolveViaTsconfigPaths } from "@/lib/graph/tsconfigPaths";
 // Only direct credential values are findings; names and import reachability are not.
 const CODE_RE = /\.(ts|tsx|js|jsx|mjs|cjs)$/i;
 
+/** Removes JavaScript comments so a token in a comment is not read as code. */
 export function stripComments(src: string): string {
   return src.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[^:'"`\\])\/\/[^\n]*/g, "$1");
 }

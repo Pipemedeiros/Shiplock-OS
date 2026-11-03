@@ -94,7 +94,7 @@ const CATEGORIES = [
 ];
 
 // Real, generic, usable-today guidance for exactly the categories above
-// that CATEGORIES already marks as uncovered or partial (A06/A08/A09) —
+// that CATEGORIES already marks as uncovered or partial —
 // deliberately not scan-specific, since there's no real check behind it.
 // This is the on-ramp to a future GitHub-integrated, personalized version
 // of the same idea (source access + the owner's own review prompts) —

@@ -109,6 +109,8 @@ function hasOpenSshKeyMaterial(body: string): boolean {
   }
 }
 
+/** Whether the content holds a PEM private key that actually parses, so a
+ * truncated or example block is not reported as a key. */
 export function hasParseablePrivateKey(content: string): boolean {
   // PEM values are commonly JSON-escaped or pasted in line/block comments.
   // Decode line separators only, without evaluating customer source.
@@ -305,7 +307,7 @@ function describeShapes(content: string): string {
   return ` Its credentials, described without their values: ${listed}${rest > 0 ? `, and ${rest} other credential${rest === 1 ? "" : "s"}` : ""}. The file has ${entries} entries in all.`;
 }
 
-export function envFileHasSecret(content: string): boolean {
+function envFileHasSecret(content: string): boolean {
   return envSecretValues(content).length > 0;
 }
 
@@ -326,7 +328,7 @@ const LOCAL_HOST_RE = /localhost|127\.0\.0\.1|0\.0\.0\.0|host\.docker\.internal/
 /** A template's host: db.your-project.supabase.co, [region], <host>, example. */
 const PLACEHOLDER_HOST_RE = /@[^\s"'/]*(your[-_]|\[|<|example|xxx|changeme)/i;
 
-export function envFileHasLiveCredential(path: string, content: string): boolean {
+function envFileHasLiveCredential(path: string, content: string): boolean {
   const values = envSecretValues(content);
   // An inline-credential URL that survived the harmless-host filter points
   // at a real host, unless the host is a template's placeholder (CORPUS-6).
@@ -459,6 +461,8 @@ function lineOf(content: string, index: number): string {
   return content.slice(start, end === -1 ? undefined : end);
 }
 
+/** Committed credentials in the repository: env files with values, private keys
+ * and known token formats. */
 export function scanSecrets(files: RepoFile[]): GithubFinding[] {
   const findings: GithubFinding[] = [];
   const seen = new Set<string>();

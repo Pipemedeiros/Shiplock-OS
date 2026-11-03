@@ -33,6 +33,7 @@ const PLAIN = /^\/[A-Za-z0-9_\-.~/[\]:@]+$/;
 const ASSET = /^\/_next(?:\/|$)|\.(?:js|mjs|css|map|png|jpe?g|gif|svg|ico|webp|avif|woff2?|ttf|otf|txt|xml|json)$/i;
 const CATCH_ALL = /^\[\[?\.\.\./;
 
+/** Every same-site path the shipped JavaScript requests. */
 export function calledPaths(js: string): string[] {
   return plainPaths(js, () => true);
 }

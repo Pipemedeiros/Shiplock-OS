@@ -17,6 +17,7 @@ import Stripe from "stripe";
  */
 let client: Stripe | null = null;
 
+/** The Stripe client, created on first use. Throws when the key is missing. */
 export function getStripe(): Stripe {
   if (client) return client;
 

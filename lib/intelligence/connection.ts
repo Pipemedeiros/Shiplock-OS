@@ -35,6 +35,8 @@ export type ConnectionView =
       // verified; new tasks stop once it reaches the monthly budget.
       monthReportedTokens: number };
 
+/** The account's approved agent host, cadences, budgets and this month's
+ * reported usage. */
 export async function getIntelligenceConnection(userId: string): Promise<ConnectionView> {
   const { data, error } = await getSupabaseAdmin().from("intelligence_connections")
     .select("host,deep_scan_cadence,pr_scan_cadence,run_token_budget,monthly_token_budget,approved_at,revoked_at")
@@ -51,6 +53,8 @@ export async function getIntelligenceConnection(userId: string): Promise<Connect
     approvedAt: r.approved_at, pullRequests: "each_needs_a_click", monthReportedTokens: reported.data };
 }
 
+/** Records the customer's standing approval for their agent host, cadences and
+ * token budgets. */
 export async function approveIntelligenceConnection(userId: string, approval: ConnectionApproval): Promise<void> {
   const { error } = await getSupabaseAdmin().rpc("approve_intelligence_connection", { p_user: userId,
     p_host: approval.host, p_deep: approval.deepScan, p_pr: approval.prScan,
@@ -58,6 +62,7 @@ export async function approveIntelligenceConnection(userId: string, approval: Co
   if (error) throw new Error("connection_unwritable");
 }
 
+/** Revokes the agent approval and cancels its pending tasks; returns how many. */
 export async function revokeIntelligenceConnection(userId: string): Promise<{ cancelledTasks: number }> {
   const { data, error } = await getSupabaseAdmin().rpc("revoke_intelligence_connection", { p_user: userId });
   const n = z.number().int().nonnegative().safeParse(data);

@@ -5,7 +5,7 @@ import { LockMark } from "@/components/d/Brand";
 // What the engagement actually covers, stated at the level of detail a technical
 // founder needs to evaluate it.
 //
-// VOICE (PRODUCT-DESIGN §13): this reader is a competent engineer who has not had
+// VOICE: this reader is a competent engineer who has not had
 // time to own security. They are deciding whether to trust us with their
 // company's data, and the thing that earns that is precision — naming the
 // mechanism, the boundary and the limit — not reassurance. So: intermediate
@@ -71,7 +71,7 @@ const AREAS = [
     name: "Source scanning",
     // lib/deep/githubRun.ts: scanSecrets, scanPublicCredentialValues,
     // scanCredentialHandling, scanNextConfigEnv,
-    // scanWorkflows, scanRouteFacts (lib/graph/routeChecks.ts — C12/C13),
+    // scanWorkflows, scanRouteFacts (lib/graph/routeChecks.ts),
     // historyFindings, depFindings (OSV). Repository-scoped jobs are admitted
     // from GitHub pull-request events and every 48 hours by the daily pass.
     lead: "Deterministic checks on the source itself, after qualifying pull-request activity and at most every 48 hours from the daily pass.",

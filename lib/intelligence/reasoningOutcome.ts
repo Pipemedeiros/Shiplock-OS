@@ -12,6 +12,8 @@ const n = (count: number, one: string, many = `${one}s`) => `${count} ${count ==
 const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
 const NOT_LOOKED = "Committed credentials and dependency advisories were still checked. Attack paths were not looked for in this audit, so this run finding none means nothing.";
 
+/** The Coverage note for attack reasoning: answered, still waiting or lost
+ * pages, never silence. */
 export function reasoningOutcomeNote(tasks: readonly RunTask[], now: number): Omit<CoverageNote, "name"> | null {
   // One reasoning task per page of the route inventory (2026-10-08).
   const pages = tasks.filter((t) => t.kind === "attack_reasoning");

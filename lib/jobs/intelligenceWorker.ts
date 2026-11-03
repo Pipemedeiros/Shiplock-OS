@@ -35,6 +35,7 @@ export function pickDeepScanPaths(paths: string[], rotation: number): string[] {
   return [...middleware, ...[...routes, ...routes].slice(start, start + room)];
 }
 
+/** The code files of a pull request worth sending to the agent, capped. */
 export function pickPullRequestPaths(paths: string[]): string[] {
   return paths.filter((path) => CODE.test(path) && !IGNORED.test(path)).slice(0, MAX_PATHS);
 }
@@ -50,6 +51,8 @@ const RULES = "Cite exact lines with each file's sourceHash. Propose only mechan
   + "who owns data, authorization, or business policy is needs_human with citations and no edits. If you cannot "
   + "finish, answer unavailable with a reason; never report clean for what you did not read.";
 
+/** Creates the agent task for a scheduled or pull request scan, after checking
+ * the repository, installation and approval are current. */
 export async function executeIntelligenceJob(job: ClaimedJob): Promise<void> {
   if (job.kind !== "intelligence" || !job.repository_id || job.audit_run_id) {
     throw new PermanentJobError("Invalid intelligence scan context");
@@ -114,6 +117,7 @@ export async function executeIntelligenceJob(job: ClaimedJob): Promise<void> {
   }
 }
 
+/** Claims and runs one intelligence job; false when the queue had none. */
 export async function runNextIntelligenceJob(): Promise<boolean> {
   const job = await claimJob("intelligence");
   if (!job) return false;

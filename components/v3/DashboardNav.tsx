@@ -15,7 +15,7 @@ const ICONS = {
   settings: Settings,
 } as const;
 
-export interface NavItem {
+interface NavItem {
   href: string;
   label: string;
   icon: keyof typeof ICONS;

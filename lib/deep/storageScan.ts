@@ -1,6 +1,6 @@
 import type { GithubFinding } from "./githubScan";
 
-// A12 / A13 — storage buckets and the policies on their objects.
+// Storage buckets and the policies on their objects.
 //
 // The existing scanner already finds a PUBLIC bucket from the outside (check 16,
 // via the anon key) and lists secret-looking filenames in it. This covers what
@@ -67,7 +67,7 @@ function isPublicRole(roles: string): boolean {
 }
 
 /**
- * A12 — a private bucket whose object policies grant unconditional read.
+ * A private bucket whose object policies grant unconditional read.
  *
  * The combination is the finding. A permissive policy on a bucket that is ALREADY
  * public tells the customer nothing new — check 16 reports that from the outside,
@@ -100,7 +100,7 @@ export function checkObjectPolicies(
 }
 
 /**
- * A13 — upload restrictions.
+ * Upload restrictions.
  *
  * Only reported for buckets that are public or have a permissive read path,
  * because an unrestricted PRIVATE bucket that only the owner can touch is a
@@ -138,7 +138,7 @@ export function checkUploadLimits(buckets: BucketRow[], anyPermissivePolicy: boo
   return out;
 }
 
-export interface StorageInput {
+interface StorageInput {
   buckets?: BucketRow[];
   policies?: StoragePolicyRow[];
 }
@@ -159,7 +159,7 @@ export function scanStorage(input: StorageInput): GithubFinding[] {
 }
 
 /**
- * A19 — recovery posture.
+ * Recovery posture.
  *
  * `null` means we could not read it, which very often means the plan does not
  * offer PITR at all. "Not available on your plan" is not a security finding, and

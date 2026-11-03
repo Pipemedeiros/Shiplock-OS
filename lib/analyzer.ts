@@ -5,13 +5,13 @@ import type { ScanResult } from "./scanner";
 
 // ── Result types ──────────────────────────────────────────────────────────────
 
-export interface CodeFix {
+interface CodeFix {
   file:        string;
   description: string;
   prompt:      string;
 }
 
-export interface AnalysisIssue {
+interface AnalysisIssue {
   severity:    "CRITICAL" | "WARNING" | "INFO";
   title:       string;
   consequence: string;
@@ -19,7 +19,7 @@ export interface AnalysisIssue {
   codefix?:    CodeFix;
 }
 
-export interface AnalysisResult {
+interface AnalysisResult {
   issues: AnalysisIssue[];
   summary: string;
 }

@@ -41,6 +41,7 @@ const PROJECTION_KEYS = new Set(["select", "include", "omit"]);
 const cache = new Map<string, string>();
 const CACHE_LIMIT = 4_000;
 
+/** The TypeScript parser mode for a file's extension. */
 export function scriptKindFor(path: string): ts.ScriptKind {
   if (/\.tsx$/.test(path)) return ts.ScriptKind.TSX;
   if (/\.jsx$/.test(path)) return ts.ScriptKind.JSX;

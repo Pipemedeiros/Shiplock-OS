@@ -176,7 +176,7 @@ const host = z.enum(["codex", "claude-code", "chatgpt"]);
 const usage = z.object({ inputTokens: z.number().int().min(0).max(10_000_000), outputTokens: z.number().int().min(0).max(10_000_000) }).strict().nullable();
 const answered = { version: z.literal(1), identity, host, model: z.string().min(1).max(100), usage };
 
-export const reasoningResultSchema = z.discriminatedUnion("status", [
+const reasoningResultSchema = z.discriminatedUnion("status", [
   z.object({ ...answered, status: z.literal("proposed"), hypotheses: z.array(z.unknown()).max(MAX_HYPOTHESES),
     truncated: z.boolean() }).strict(),
   z.object({ ...answered, status: z.literal("unavailable"), reason: z.enum(["host_offline", "quota_exhausted", "unsupported", "cancelled"]) }).strict(),
@@ -184,7 +184,7 @@ export const reasoningResultSchema = z.discriminatedUnion("status", [
 
 const citation = z.object({ role: z.enum(["reach", "data", "control"]), path: z.string().min(1).max(240), line: z.number().int().min(1),
   quote: z.string().min(1).max(2_000) }).strict();
-export const verificationResultSchema = z.discriminatedUnion("status", [
+const verificationResultSchema = z.discriminatedUnion("status", [
   z.object({ ...answered, status: z.literal("proposed"), verdicts: z.array(z.object({
     id: z.string().max(10), verdict: z.enum(["confirmed", "refuted", "unverified"]), severity: z.enum(["critical", "high", "medium"]),
     statement: z.string().max(600), title: z.string().max(160).optional(), reason: z.string().max(1_000), citations: z.array(citation).max(12),
@@ -314,13 +314,13 @@ export async function submitReasoningResult(userId: string, task: ReasoningTask,
  * handler and cited files together fit in MAX_SOURCES listed files. The
  * schema files the audit read (at most MAX_SCHEMA_SOURCES) go with every
  * batch: a claim on a query the schema rejects, or on a row id the schema
- * mints at random, is judged against it (A8 batch 6, 2026-10-09). */
+ * mints at random, is judged against it (a corpus run, 2026-10-09). */
 const MAX_SCHEMA_SOURCES = 2;
 /** Groups admitted hypotheses into verification batches that fit the source
  * budget, each with the handler, cited files and shared middleware and schema. */
 export function verificationBatches(admitted: (Hypothesis & { attackClass: AttackClass })[], routes: RouteFact[], schema: string[] = [],
   middleware: string[] = []) {
-  // M1 (release attempt 3): the root middleware decides who reaches every
+  // Release attempt 3: the root middleware decides who reaches every
   // route it matches, so it goes with every batch too.
   const shared = [...middleware.slice(0, 1), ...schema.slice(0, MAX_SCHEMA_SOURCES)];
   const room = MAX_SOURCES - shared.length;
@@ -373,7 +373,7 @@ export function verifyItems<H extends Hypothesis & { attackClass: AttackClass }>
 /** The schema files a reasoning context lists, as the audit read them. */
 export const schemaFiles = (files: string[]) => files.filter((f) => /(^|\/)schema\.prisma$|\.sql$|(^|\/)schema\.[cm]?[jt]s$/.test(f));
 
-/** The root middleware (or Next 16 proxy) file the audit read, if any (M1). */
+/** The root middleware (or Next 16 proxy) file the audit read, if any. */
 export const middlewareFiles = (files: string[]) => files.filter((f) => /^(src\/)?(middleware|proxy)\.[cm]?[jt]s$/.test(f));
 
 /**

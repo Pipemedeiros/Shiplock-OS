@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { attackFeed, type AttackTask } from "./attackFeed";
 
-// A3 (Felipe 2026-10-07): "the users should see the agents requesting stuff,
+// Felipe 2026-10-07: "the users should see the agents requesting stuff,
 // attacking, in a safe way they can see it doing something". The feed is the
 // real state of the customer agent's tasks for an audit, never a show:
 // pending is waiting, an answer without proof is "could not tell".

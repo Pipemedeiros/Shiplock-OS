@@ -4,11 +4,11 @@ import { probeSnippetSource } from "./probe";
 // land, and the paths scanners ask for (dotfiles, WordPress and PHP admin,
 // backups, configs, logs), which a Next.js app never serves. Pages, assets
 // and Next.js internals stay out, so volume stays bounded.
-export const WATCH_RE =
+const WATCH_RE =
   /^\/(api|login|signin|sign-in|register|auth)(\/|$)|(^|\/)\.(?!well-known\/)[^/]|^\/(wp-admin|wp-login\.php|wp-content|wp-includes|xmlrpc\.php|phpmyadmin|cgi-bin)(\/|$)|\.(php\d?|aspx?|jsp|cgi|sql|bak|old|swp|ini|log|config|ya?ml|toml|env)$/i;
 // The same scope as a Next.js matcher (checked against WATCH_RE in tests with
 // Next's own matcher).
-export const NEXT_MATCHER = [
+const NEXT_MATCHER = [
   "/api/:path*", "/login", "/signin", "/sign-in", "/register", "/auth/:path*",
   "/((?!\\.well-known/)\\..*)", "/(.*/\\..*)",
   "/(wp-admin|wp-content|wp-includes|phpmyadmin|cgi-bin)/:path*", "/(wp-login\\.php|xmlrpc\\.php)",
@@ -44,6 +44,8 @@ const REFRESH_MS = 30_000;
 // example "sqli") is sent to ShipLock, never the query string.
 ${probeSnippetSource()}
 
+/** The customer-side traffic snippet: blocks known bad sources and sends
+ * minimized metadata, never bodies. */
 export async function middleware(req: NextRequest, ev: NextFetchEvent) {
   const ip =
     req.headers.get("x-forwarded-for")?.split(",").pop()?.trim() ||

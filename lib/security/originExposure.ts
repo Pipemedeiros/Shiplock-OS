@@ -25,7 +25,7 @@ import { isAbsenceError } from "@/lib/security/emailAuth";
 // a firewall rule at their host. That distinction is in the copy, because
 // implying we defend against DDoS would be claiming someone else's capability.
 
-export interface OriginFinding {
+interface OriginFinding {
   id: string;
   severity: Severity;
   title: string;
@@ -114,6 +114,7 @@ export function edgeProviderFromHeaders(headers: Record<string, string>): string
   return null;
 }
 
+/** The edge network (CDN) an IP belongs to, or null. */
 export function edgeProviderFor(ip: string): string | null {
   for (const entry of EDGE_PREFIXES) {
     if (ip.startsWith(entry.prefix)) return entry.provider;
@@ -121,6 +122,7 @@ export function edgeProviderFor(ip: string): string | null {
   return null;
 }
 
+/** The edge CNAME target a host points at, or null. */
 export function isBehindEdgeCname(cnames: string[]): string | null {
   for (const target of cnames) {
     if (EDGE_CNAME.test(target)) return target.replace(/\.$/, "");
@@ -133,7 +135,7 @@ function isNonRoutable(ip: string): boolean {
   return /^(10\.|127\.|0\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(ip);
 }
 
-export interface OriginPosture {
+interface OriginPosture {
   domain: string;
   webIps: string[];
   cnames: string[];

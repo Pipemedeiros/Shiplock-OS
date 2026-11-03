@@ -11,7 +11,7 @@ import { middlewareGap, unrefusedMethods } from "./methodRefusal";
 // tables each one touches, and whether it checks who is asking.
 //
 // This is deliberately NOT a check. It emits no findings and makes no judgements
-// — it produces facts for the graph to reason over (PRODUCT-DESIGN.md §5.1,
+// — it produces facts for the graph to reason over (
 // "collectors: facts, no judgement"). Keeping it judgement-free is what lets the
 // reasoner combine it with database and traffic facts without double-counting.
 //
@@ -672,7 +672,7 @@ function boundFrom(src: string, call: string): { names: string[]; holders: strin
 }
 
 /** Names and holders whose value came out of a verifier: server-established. */
-export function serverEstablishedIdentities(src: string, resolvers: string[] = []): { names: string[]; holders: string[] } {
+function serverEstablishedIdentities(src: string, resolvers: string[] = []): { names: string[]; holders: string[] } {
   const verified = boundFrom(src, VERIFIER_CALL);
   if (resolvers.length === 0) return verified;
   const more = boundFrom(src, `${RECEIVER}(?:${resolvers.map((r) => r.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\s*\\(`);
@@ -687,7 +687,7 @@ export function serverEstablishedIdentities(src: string, resolvers: string[] = [
  * reads a membership table. What they return is the caller's own membership,
  * so its ids are server-established (class C, 2026-10-06).
  */
-export function membershipResolvers(file: string, content: string, byPath: Map<string, RepoFile>): string[] {
+function membershipResolvers(file: string, content: string, byPath: Map<string, RepoFile>): string[] {
   const out: string[] = [];
   for (const [name, path] of importsOf(file, content, byPath)) {
     const helper = byPath.get(path);
@@ -725,7 +725,7 @@ function scopesThroughHelper(file: string, original: string, filterable: string,
 }
 
 /** Names and holders whose value came out of decoding or parsing request data: caller-supplied. */
-export function callerDecodedIdentities(src: string): { names: string[]; holders: string[] } {
+function callerDecodedIdentities(src: string): { names: string[]; holders: string[] } {
   return boundFrom(src, DECODER_CALL);
 }
 
@@ -736,7 +736,7 @@ export function callerDecodedIdentities(src: string): { names: string[]; holders
  * filters by programId. Applied after the identity renames, so it sees the
  * marker and nothing else.
  */
-export function propagateDerived(text: string): string {
+function propagateDerived(text: string): string {
   const names = new Set<string>();
   // The argument list may not nest: `[^()]*` keeps the match inside one call,
   // so `export const GET = withWorkspace(async () => { const x = f(marker) …`
@@ -761,7 +761,7 @@ function renameAll(text: string, names: string[], holders: string[], to: string)
 }
 
 /** Bindings taken straight from a request accessor, by provenance not by name. */
-export function requestSuppliedHolders(src: string): string[] {
+function requestSuppliedHolders(src: string): string[] {
   const out = new Set<string>();
   REQUEST_HOLDER_RE.lastIndex = 0;
   let m: RegExpExecArray | null;
@@ -1039,7 +1039,7 @@ const GATE_LIKE_MODULE_RE = /auth|session|guard|middleware|permission|policy|acl
  * file's name says it may be the gate, the route is unread, never anonymous
  * (corpus-y: route, barrel, validator, then getServerSession three files in).
  */
-export function unfollowedGateGap(unfollowed: string[]): string | null {
+function unfollowedGateGap(unfollowed: string[]): string | null {
   const gate = unfollowed.find((path) => GATE_LIKE_MODULE_RE.test(path));
   return gate ? `the route's code continues into ${gate}, past what we read, and that file may be its gate` : null;
 }
@@ -1050,7 +1050,7 @@ export function unfollowedGateGap(unfollowed: string[]): string | null {
  * Only consulted when the route looks anonymous — a route we DID read as
  * authenticated or machine-gated has no gap to report.
  */
-export function identityGapFor(
+function identityGapFor(
   entrySrc: string,
   unresolvedImports: string[],
   machineGateWitness: string | null = null,
@@ -1127,7 +1127,7 @@ export function identityGapFor(
 }
 
 /** The first match of `re` that does not begin inside a string literal, or null. */
-export function matchOutsideStrings(src: string, re: RegExp): number | null {
+function matchOutsideStrings(src: string, re: RegExp): number | null {
   const scan = new RegExp(re.source, re.flags.includes("g") ? re.flags : re.flags + "g");
   const inString = stringSpans(src);
   scan.lastIndex = 0;
@@ -1143,7 +1143,7 @@ export function matchOutsideStrings(src: string, re: RegExp): number | null {
  * where raw SQL and its `${userId}` filter live, and dropping it would invent
  * attack paths for routes that scope through `sql\`...\``.
  */
-export function matchOutsideQuotes(src: string, re: RegExp): number | null {
+function matchOutsideQuotes(src: string, re: RegExp): number | null {
   const scan = new RegExp(re.source, re.flags.includes("g") ? re.flags : re.flags + "g");
   const inside = new Uint8Array(src.length);
   for (const { start, end, quote } of stringLiteralRanges(src)) {
@@ -1598,7 +1598,7 @@ export function analyzeRouteFile(
   };
 }
 
-// E3 (release attempt 4): a directory before app/ or pages/ that names an
+// Release attempt 4: a directory before app/ or pages/ that names an
 // example, demo, sample, template, starter or playground holds code the
 // project ships for others to copy, not its own deployed endpoints.
 const EXAMPLE_DIR_RE = /(^|\/)(examples?|demos?|samples?|templates?|starters?|playgrounds?)\//i;

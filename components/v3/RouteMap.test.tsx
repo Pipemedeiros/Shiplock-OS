@@ -19,7 +19,7 @@ const map = buildRouteMap({
 // by shape as well as colour, and the same facts are readable as a list.
 describe("RouteMap, the Obsidian-style graph", () => {
   const html = renderToStaticMarkup(<RouteMap map={map} />);
-  // A4: only routes that are wrong (red or yellow) and what their requests reach.
+  // Only routes that are wrong (red or yellow) and what their requests reach.
   const reach = new Set(map.nodes.filter((n) => n.kind === "route" && n.level).map((n) => n.id));
   for (let changed = true; changed;) {
     changed = false;
@@ -78,7 +78,7 @@ describe("RouteMap, the Obsidian-style graph", () => {
     expect(simulationPath(map, me.id, simulateRequest(me.fact!, "signed_in"))).toEqual(["route:/api/me", "control:session", "control:scope", "table:invoices"]);
   });
 
-  // A4 (Felipe 2026-10-07): the map shows only what is wrong, red or yellow.
+  // Felipe 2026-10-07: the map shows only what is wrong, red or yellow.
   it("leaves safe routes off the map and colours the rest by degree", () => {
     expect(html).not.toContain("route /api/me");
     expect(html).toMatch(/class="v3-map-node k-route[^"]*"[^>]*aria-label="route \/api\/invoices[^"]*confirmed issue"/);

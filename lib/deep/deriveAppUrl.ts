@@ -1,7 +1,7 @@
 import { parseAllowList, splitEntry, isLocalEntry } from "./authConfigScan";
 import type { SupabaseAuthConfig } from "./supabaseMgmt";
 
-// Unit 5 from CHECK-SPEC.md §5 — work out the customer's live app URL instead of
+// Unit 5 — work out the customer's live app URL instead of
 // asking for it.
 //
 // The friction budget is two connections, GitHub and Supabase, and nothing else.

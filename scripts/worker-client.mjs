@@ -1,3 +1,4 @@
+/** The drain and schedule endpoints the worker calls. */
 export function workerEndpoints(baseUrl) {
   return {
     drain: new URL("/api/jobs/drain", baseUrl),

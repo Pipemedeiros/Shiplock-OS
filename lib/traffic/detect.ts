@@ -18,14 +18,14 @@ const PROBE_WORDS: Record<ProbeKind, string> = {
 // user never eats a false-positive 429.
 
 // ── Tunable thresholds ─────────────────────────────────────────────────────
-export const AUTH_WINDOW_MS = 60_000; // brute-force / credential-stuffing window
+const AUTH_WINDOW_MS = 60_000; // brute-force / credential-stuffing window
 export const AUTH_ALERT_THRESHOLD = 10; // auth hits/window -> alert (no block)
 export const AUTH_BLOCK_THRESHOLD = 20; // auth hits/window -> block (clear brute-force)
 
 export const SCAN_WINDOW_MS = 300_000; // vuln-scanner path-probing window
 export const SCAN_DISTINCT_THRESHOLD = 5; // distinct suspicious paths -> block
 
-export const FLOOD_WINDOW_MS = 60_000; // raw request flood window
+const FLOOD_WINDOW_MS = 60_000; // raw request flood window
 export const FLOOD_THRESHOLD = 100; // total hits/window from ONE source -> block
 
 export const SESSION_WINDOW_MS = 600_000; // session-hijack window (10m)
@@ -71,6 +71,7 @@ const SUSPICIOUS_PATH_RES: RegExp[] = [
   /^\/(shell|c99|r57)\.php$/i,
 ];
 
+/** Whether a path is a sign-in or account endpoint. */
 export function isAuthPath(path: string): boolean {
   return AUTH_PATH_RE.test(path);
 }

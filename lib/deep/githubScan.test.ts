@@ -259,7 +259,7 @@ describe("fixtures are not leaks", () => {
   });
 
   it("does not report a key whose body is one repeated character, even in shipped code", () => {
-    // E5, release attempt 5: a docs page's env sample read AKIA then sixteen
+    // Release attempt 5: a docs page's env sample read AKIA then sixteen
     // X's, beside "your_aws_secret_access_key", and was reported CRITICAL.
     // A filler run is a shape, not a credential; a real key beside it still reports.
     const filler = "AKIA" + "X".repeat(16);
@@ -357,7 +357,7 @@ describe("committed env severity follows the stated rule", () => {
   });
 
   it("a plain URL is not a secret even under an AUTH-ish key (corpus-ag)", () => {
-    expect(sev("apps/api/.env.development", "CLIENT_SUCCESS_AUTH_REDIRECT=https://dev.web.corpus-ag.co/auth/login\n")).toBe("INFO");
+    expect(sev("apps/api/.env.development", "CLIENT_SUCCESS_AUTH_REDIRECT=https://dev.web.example.co/auth/login\n")).toBe("INFO");
   });
 
   it("a synthetic value is not a secret (outline UTILS_SECRET)", () => {
@@ -430,7 +430,7 @@ describe("a committed env file is CRITICAL only with a live credential", () => {
   // French-named template, .env.exemple, holding the textbook placeholder
   // URL user:password@host was reported CRITICAL.
   it("a template named in another language is a template (corpus-ah .env.exemple)", () => {
-    expect(find(".env.exemple", "DATABASE_URL=\"postgresql://user:password@host:5432/corpus-ah?sslmode=require\"\n")).toBeUndefined();
+    expect(find(".env.exemple", "DATABASE_URL=\"postgresql://user:password@host:5432/app?sslmode=require\"\n")).toBeUndefined();
   });
   it("the textbook placeholder URL user:password@host is not a live credential", () => {
     expect(sev(".env", "DATABASE_URL=\"postgresql://user:password@host:5432/app\"\n")).not.toBe("CRITICAL");

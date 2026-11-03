@@ -9,7 +9,7 @@ export type Severity = 'CRITICAL' | 'WARNING' | 'INFO';
  * layers agree tells you the finding is real; it does not tell you how to fix
  * it, which stays behind the paywall.
  */
-export interface IssueCorrelation {
+interface IssueCorrelation {
   layers: { label: string; agreed: boolean }[];
   /** Demonstrated on an isolated replica rather than inferred from rules. */
   proven?: boolean;
@@ -32,31 +32,7 @@ export interface FullIssue extends PreviewIssue {
   };
 }
 
-export interface ScanResponse {
-  summary: string;
-  isPaid: boolean;
-  issues: PreviewIssue[] | FullIssue[];
-  appUrlChecked: boolean;
-  // False only when enrollment was skipped (service-role key submitted —
-  // we never retain admin credentials for background re-scans).
-  monitoringEnrolled: boolean;
-}
 
-export interface UserProfile {
-  id: string;
-  email: string;
-  is_paid: boolean;
-  stripe_customer_id?: string;
-  monitoring_enabled: boolean;
-  monitored_project_url?: string;
-  monitor_webhook_token: string;
-  traffic_ingest_token: string;
-  bonus_scans: number;
-  // Public "ShipLock Verified" share link — unguessable read-only token,
-  // off by default (migration 030).
-  verified_report_token?: string | null;
-  verified_report_enabled?: boolean;
-}
 
 // ── Edge traffic protection ────────────────────────────────────────────────
 // The customer's middleware snippet mirrors one of these per watched request
@@ -89,14 +65,6 @@ export interface Decision {
   ttlMs: number;
 }
 
-// A currently-active block, as surfaced on the dashboard (metadata only).
-export interface BlockedSource {
-  sourceId: string;
-  reason: string;
-  severity: Severity;
-  blockedAt: string;
-  expiresAt: string;
-}
 
 // Dashboard protection status — is the snippet installed and talking to us,
 // and the token needed to render the install snippet.

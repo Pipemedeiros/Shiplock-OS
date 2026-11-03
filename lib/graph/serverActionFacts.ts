@@ -17,7 +17,7 @@ import { findServerActionEntries } from "./serverActions";
  * middleware put in `ctx` (for example `workspace.id` from `const { workspace }
  * = ctx`) or by the session's user id.
  */
-export type ServerActionFact = {
+type ServerActionFact = {
   file: string; name: string; client: string | null; importedBy: string[];
   identityReadable: boolean; identityGap: string | null; authenticated: boolean;
   tables: string[]; ownershipReadable: boolean; ownershipFiltered: boolean; ownershipGap: string | null;
@@ -43,6 +43,8 @@ export function ownershipGapFor(o: { ownershipReadable: boolean; identityGap: st
 // development data, 2026-09-24.)
 const MIDDLEWARE_LOADER = /\b(?:get(?:Current|Authenticated|Server)?(?:User|Session)\w*|require(?:User|Session|Auth)\w*)\s*\(/;
 const REFUSAL = /\bthrow\b|\bredirect\s*\(|\bunauthorized\b|\bnotFound\s*\(/i;
+/** Whether middleware text signs callers in and refuses those without a
+ * session. */
 export const middlewareAuthenticates = (text: string) =>
   STRONG_USER_AUTH_RE.test(text) || (MIDDLEWARE_LOADER.test(text) && REFUSAL.test(text));
 
@@ -129,6 +131,8 @@ export function whereClauses(text: string): string[] {
   return [...text.matchAll(/\bwhere\s*:\s*\{|\.where\s*\(/g)].map((m) => balanced(text, (m.index ?? 0) + m[0].length - 1));
 }
 
+/** Route facts for exported server actions: who may call them, what they write,
+ * and whether the write is scoped to the caller. */
 export function analyzeServerActions(files: RepoFile[]): ServerActionFact[] {
   const byPath = new Map(files.map((f) => [f.path, f]));
   return findServerActionEntries(files).map((entry) => {

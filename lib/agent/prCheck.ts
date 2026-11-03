@@ -25,7 +25,7 @@ import { checkSummary, scanDiff, type DiffScanResult } from "./diffScan";
  * on a guess gets switched off within a week.
  */
 
-export interface PrCheckResult {
+interface PrCheckResult {
   posted: boolean;
   verdict: DiffScanResult["verdict"];
   findings: number;
@@ -34,7 +34,7 @@ export interface PrCheckResult {
 
 /** What one PR check found, stored for the dashboard, alerts, and a
  * before-merge fix. PR metadata is null when GitHub did not return it. */
-export interface PullRequestReview {
+interface PullRequestReview {
   pullRequestNumber: number;
   headSha: string;
   headRef: string | null;

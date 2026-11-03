@@ -17,7 +17,7 @@ import { SEVERITY_RANK, vocabulary } from "./providers";
 const PUBLIC_PREFIX = /^(NEXT_PUBLIC_|VITE_|PUBLIC_|REACT_APP_)/;
 const SECRETISH = /(SECRET|PRIVATE_KEY|SERVICE_ROLE|_TOKEN|API_KEY|PASSWORD|CREDENTIAL)/i;
 
-// The reasoner (PRODUCT-DESIGN.md §5.2). Walks the graph for paths where facts
+// The reasoner. Walks the graph for paths where facts
 // from DIFFERENT surfaces combine into something none of them says alone.
 //
 // The rule that keeps this honest: **every path must span at least two
@@ -36,7 +36,7 @@ const SECRETISH = /(SECRET|PRIVATE_KEY|SERVICE_ROLE|_TOKEN|API_KEY|PASSWORD|CRED
 // credentials, how reachable. A critical-severity issue nothing exposes ranks
 // below a medium one an anonymous request can reach.
 
-export interface AttackPath {
+interface AttackPath {
   id: string;
   severity: Severity;
   title: string;
@@ -82,17 +82,6 @@ function isAnonymous(route: RouteFact): boolean {
   return !route.authenticated && !route.machineGated && !route.ownershipFiltered;
 }
 
-/**
- * A route we could not read, over data worth protecting.
- *
- * Reported as a gap rather than a breach, and named as ours: the customer
- * learns which endpoint we could not judge and why, instead of either a false
- * alarm or silence. Silence here would be the "thinner audit looks cleaner"
- * failure the Coverage page exists to prevent.
- */
-export function isUnreadable(route: RouteFact): boolean {
-  return !route.identityReadable && !route.authenticated && !route.machineGated;
-}
 
 /**
  * Whether the data store would stop an over-broad query on this asset.
@@ -173,7 +162,7 @@ export function findAttackPaths(input: GraphInput): AttackPath[] {
         continue;
       }
 
-      // ── Path 2: tenant isolation (A4) ──────────────────────────────────
+      // ── Path 2: tenant isolation ──────────────────────────────────
       // A signed-in user reaching every tenant's rows. The single most damaging
       // bug this ICP ships, and invisible to every tool in isolation: the route
       // looks secure (it authenticates) and the policy looks present.

@@ -31,7 +31,7 @@ import type { Severity } from "@/lib/types";
  */
 export type AuthzProvider = "postgres-rls" | "firebase-rules" | "app-layer";
 
-export interface ProviderVocabulary {
+interface ProviderVocabulary {
   id: AuthzProvider;
   /** How the customer would name this connection in conversation. */
   label: string;

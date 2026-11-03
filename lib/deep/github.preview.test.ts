@@ -68,7 +68,7 @@ describe("capturePreview reads on the branch it pretended to create", () => {
   });
 });
 
-// A5 (Felipe 2026-10-07): ShipLock PRs are labeled "ShipLock", so they read as
+// Felipe 2026-10-07: ShipLock PRs are labeled "ShipLock", so they read as
 // ShipLock's in the customer's PR list and CI. Best effort: the label never
 // fails the PR, and preview mode stops before it (the PR write never happens).
 describe("ShipLock label", () => {

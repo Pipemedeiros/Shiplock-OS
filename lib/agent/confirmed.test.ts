@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { isConfirmed } from "./confirmed";
 
-// A1 (Felipe 2026-10-07: "prioritize accuracy"; decision 6). Only a confirmed
+// (Felipe 2026-10-07: "prioritize accuracy"; decision 6). Only a confirmed
 // issue sets the status. Measured on CORPUS-5's whole harness: agent findings
 // proven with quoted lines were 71% strictly true, code-pattern findings 0 of
 // 14. Everything else is "To review".
@@ -26,7 +26,7 @@ describe("isConfirmed", () => {
   });
 });
 
-// D1: an app with no sign-in whose own code says it is open by design
+// An app with no sign-in whose own code says it is open by design
 // has no other account to reach; whether it should be open is the founder's
 // call. The finding stays, with quoted proof, as To review.
 describe("open by design", () => {

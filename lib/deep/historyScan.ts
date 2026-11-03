@@ -1,6 +1,6 @@
 import { isCommentLine, isTestPath, looksSynthetic, type GithubFinding } from "./githubScan";
 
-// C2 — secrets that were committed, then removed.
+// Secrets that were committed, then removed.
 //
 // The most misunderstood finding we produce, and the reason it is worth having:
 // deleting a secret from a file does not remove it from the repository. Every
@@ -71,7 +71,7 @@ export function fullyRead(commits: CommitPatch[]): string[] {
     .map((commit) => commit.sha);
 }
 
-export interface HistoryHit {
+interface HistoryHit {
   secretId: string;
   label: string;
   sha: string;
@@ -109,6 +109,8 @@ function addedLinesByFile(patch: string): { path: string; line: string }[] {
   return out;
 }
 
+/** Credentials added in recent commits, read from the added lines of each
+ * bounded patch. */
 export function scanPatches(commits: CommitPatch[]): HistoryHit[] {
   const hits: HistoryHit[] = [];
   const seen = new Set<string>();

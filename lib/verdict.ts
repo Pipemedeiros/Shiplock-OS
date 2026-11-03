@@ -3,9 +3,9 @@ import type { Confidence } from "@/lib/agent/findings";
 
 /** The status at the top of the Overview, from the audit's own facts. It
  * names what was found and what was not checked; it never says secure. */
-export type VerdictLevel = "exposed" | "at_risk" | "clear" | "unknown";
+type VerdictLevel = "exposed" | "at_risk" | "clear" | "unknown";
 
-export interface VerdictInput {
+interface VerdictInput {
   audited: boolean;
   lastRunFailed: boolean;
   findings: { severity: Severity; confidence: Confidence }[];
@@ -13,7 +13,7 @@ export interface VerdictInput {
   unread: number;
   /** Recent pull requests ShipLock's check blocked. */
   blockedPrs: number;
-  /** Candidates that are not confirmed issues (A1): named, never counted as issues. */
+  /** Candidates that are not confirmed issues: named, never counted as issues. */
   toReview?: number;
 }
 

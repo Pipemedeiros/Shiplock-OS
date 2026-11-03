@@ -11,8 +11,8 @@ import ts from "typescript";
  * plant is reproducible against the pinned archive and refused on any other.
  * Measurement only: nothing in the product imports this.
  */
-export type PlantOperator = "remove_auth_guard" | "remove_owner_scope";
-export type Plant = { operator: PlantOperator; start: number; removed: string; attackClasses: string[] };
+type PlantOperator = "remove_auth_guard" | "remove_owner_scope";
+type Plant = { operator: PlantOperator; start: number; removed: string; attackClasses: string[] };
 
 const HTTP_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]);
 const REFUSAL = /\b401\b|unauthori[sz]ed|UNAUTHORIZED|not authenticated|unauthenticated/i;

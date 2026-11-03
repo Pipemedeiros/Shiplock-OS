@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 
 // Voice and claim discipline on the customer-facing surfaces.
 //
-// PRODUCT-DESIGN §13: this reader is a competent engineer deciding whether to
+// This reader is a competent engineer deciding whether to
 // trust us with their company's data. What earns that is precision — naming the
 // mechanism and the limit — not reassurance. These assertions exist because copy
 // drifts toward persuasion under editing, and because a claim we cannot support

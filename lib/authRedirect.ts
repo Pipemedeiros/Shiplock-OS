@@ -14,10 +14,12 @@ export function safeNext(raw: string | null | undefined, fallback = "/onboarding
   }
 }
 
+/** Encodes a post-sign-in path, keeping only same-site paths. */
 export function encodeAuthNext(nextPath: string): string {
   return encodeURIComponent(safeNext(nextPath));
 }
 
+/** Decodes a post-sign-in path; anything off-site or malformed is null. */
 export function decodeAuthNext(raw: string | null | undefined): string | null {
   if (!raw) return null;
   try {

@@ -57,6 +57,8 @@ function familyName(prefix: string): string {
   return match ? match[1] : "Some checks";
 }
 
+/** Per connected provider: never read, stale, partial or read, with what was
+ * not read. */
 export function summarizeProviderCoverage(connections: ProviderConnection[], rows: SnapshotRow[]): ProviderCoverageItem[] {
   return connections.filter((c) => c.connected).map((connection) => {
     const base = { transport: connection.transport, label: LABELS[connection.transport] };

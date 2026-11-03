@@ -27,7 +27,7 @@ const HASHED_LOOKUP_RE = /\.eq\s*\(\s*["']\w*(?:token|key|secret)_?hash(?:ed)?["
 const AUTH_HEADER_RE = /\.headers\s*\.get\s*\(\s*["']authorization["']|\.headers\s*\.authorization\b/i;
 const REJECT_RE = /\b(?:status\s*:\s*|\b)40[13]\b/;
 
-export type HelperGuard = { kind: "machine" | "user"; path: string };
+type HelperGuard = { kind: "machine" | "user"; path: string };
 type Files = ReadonlyMap<string, { path: string; content: string }>;
 
 /** Named imports of a file, local name to resolved repository path. */

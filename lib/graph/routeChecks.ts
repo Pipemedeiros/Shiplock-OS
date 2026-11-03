@@ -1,7 +1,7 @@
 import type { GithubFinding } from "@/lib/deep/githubScan";
 import type { RouteFact } from "./routeInventory";
 
-// C12 / C13 — findings the route inventory already has the facts for.
+// Findings the route inventory already has the facts for.
 //
 // The inventory was built as a collector for the graph, and the graph uses it to
 // find multi-surface attack paths. But two of the facts it records are worth
@@ -26,7 +26,7 @@ const f = (
 const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE", "ALL"]);
 
 /**
- * C12 — a route that changes data without identifying the caller.
+ * A route that changes data without identifying the caller.
  *
  * Restricted to MUTATING methods on purpose. A public GET is ordinary — most
  * apps have several, and flagging them all would bury the one that matters. A
@@ -78,7 +78,7 @@ export function checkUnauthenticatedMutations(routes: RouteFact[]): GithubFindin
 }
 
 /**
- * C13 — mass assignment: a request body written to the database wholesale.
+ * Mass assignment: a request body written to the database wholesale.
  *
  * The first version of this check asked "is there a schema library?" and ran at a
  * 100% false-positive rate against our own codebase — it flagged a route that
@@ -96,6 +96,7 @@ const BODY_BINDING = /(?:const|let|var)\s*\{?\s*([A-Za-z_$][\w$]*)\s*\}?\s*=\s*(
 const VALIDATION_HINTS =
   /\b(z\.object|zod|safeParse|yup\.|joi\.|valibot|superstruct|ajv|typia)\b/i;
 
+/** Writing routes that touch tables without validating the request body. */
 export function checkUnvalidatedInput(
   routes: RouteFact[],
   sourceOf: (file: string) => string | undefined

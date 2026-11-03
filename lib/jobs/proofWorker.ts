@@ -64,6 +64,7 @@ function findingNamesTable(blastRadius: unknown, schema: string, table: string):
   return names.some((name) => name === table || name === `${schema}.${table}`);
 }
 
+/** Runs one authorized proof on the embedded replica and records its outcome. */
 export async function executeProofJob(job: ClaimedJob): Promise<void> {
   const key = /^proof:([0-9a-f-]{36})$/.exec(job.deduplication_key ?? "");
   if (job.kind !== "proof" || !job.repository_id || job.audit_run_id || !key) {
@@ -196,6 +197,7 @@ export async function executeProofJob(job: ClaimedJob): Promise<void> {
   }
 }
 
+/** Claims and runs one proof job; false when the queue had none. */
 export async function runNextProofJob(): Promise<boolean> {
   const job = await claimJob("proof");
   if (!job) return false;

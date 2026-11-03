@@ -6,8 +6,10 @@
  * up the audit, and the final, fenced write of the run still decides what is
  * stored.
  */
-export interface ProgressStep { time: string; label: string; note?: string; found?: boolean }
+interface ProgressStep { time: string; label: string; note?: string; found?: boolean }
 
+/** Serializes progress writes for a running audit: the newest trace wins and
+ * writes never overlap. */
 export function auditProgress(write: (trace: ProgressStep[]) => Promise<void>) {
   let running: Promise<void> = Promise.resolve();
   let pending: ProgressStep[] | null = null;

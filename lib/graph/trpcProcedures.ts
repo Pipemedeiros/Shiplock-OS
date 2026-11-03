@@ -18,7 +18,7 @@ import { calls, middlewareAuthenticates, NOT_HELPERS, ownershipGapFor, QUERY_BUI
  * we did read already refuses a caller without a user. Ownership is read in
  * the resolver: a where clause narrowed by what the middleware put in `ctx`.
  */
-export type TrpcProcedureFact = {
+type TrpcProcedureFact = {
   file: string; name: string; kind: "query" | "mutation" | "subscription"; base: string;
   identityReadable: boolean; identityGap: string | null; authenticated: boolean;
   tables: string[]; ownershipReadable: boolean; ownershipFiltered: boolean; ownershipGap: string | null; via: string[];
@@ -96,6 +96,8 @@ function chainOf(expr: ts.Expression): { root: ts.Expression; links: { name: str
   return { root: node, links };
 }
 
+/** Route facts for tRPC procedures: the gate each procedure runs behind and the
+ * tables it reaches. */
 export function analyzeTrpcProcedures(files: RepoFile[]): TrpcProcedureFact[] {
   const byPath = new Map(files.map((f) => [f.path, f]));
   const parsed = new Map<string, Parsed>();

@@ -23,7 +23,7 @@ import { runAdversarialAgent, type Proposer } from "./agent";
 // and settles the common case; the agent only runs when that probe found
 // nothing, so we do not spend a model call confirming what we already know.
 
-export interface ProvingContext {
+interface ProvingContext {
   userId: string;
   customerToken: string;
   customerRef: string;
@@ -40,7 +40,7 @@ export interface ProvingContext {
   propose?: Proposer;
 }
 
-export interface ProvingResult {
+interface ProvingResult {
   ran: boolean;
   reason?: string;
   findings: ProvenFinding[];

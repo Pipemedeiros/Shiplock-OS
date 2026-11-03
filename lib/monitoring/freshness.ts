@@ -20,6 +20,8 @@ export type LatestRead = {
 
 const STALE_MS = 72 * 3_600_000;
 
+/** Accounts whose newest provider read is stale while still connected, capped
+ * per pass. */
 export function planFreshnessRechecks(
   reads: LatestRead[], connected: (userId: string, transport: LatestRead["transport"]) => boolean, now: number, max = 200,
 ): string[] {

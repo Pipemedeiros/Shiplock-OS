@@ -9,6 +9,8 @@ import { getSupabaseAdmin } from "@/lib/supabase";
  */
 export type GatewayPath = { path: string; label: string; suspiciousRequests: number; answered: number | null; observedAt: string };
 
+/** A readable name for a Supabase gateway path: a table, function or storage
+ * bucket. */
 export function gatewayLabel(path: string): string {
   const seg = path.split("?")[0].split("/").filter(Boolean);
   if (seg[0] === "rest" && seg[2] === "rpc" && seg[3]) return `Database function ${seg[3]}`;

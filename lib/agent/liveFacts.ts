@@ -23,7 +23,7 @@ import { loadVerifiedProviderProjects } from "@/lib/deep/providerRepositoryMap";
  *   value in a prompt is a value in a log.
  */
 
-export interface LiveFact {
+interface LiveFact {
   id: string;
   statement: string;
 }
@@ -36,6 +36,8 @@ const PUBLIC_PREFIX = /^(NEXT_PUBLIC_|VITE_|PUBLIC_|REACT_APP_)/;
 /** How many facts may reach the prompt. Ranked, so the cap truncates the tail. */
 const MAX_FACTS = 20;
 
+/** Facts from the live stack bound to this repository (database and runtime).
+ * Unreadable sources add nothing and never stop the audit. */
 export async function loadLiveFacts(userId: string, repositoryId: string): Promise<LiveFact[]> {
   const [database, runtime] = await Promise.all([
     // Optional context, like the runtime half: an unreadable database adds no

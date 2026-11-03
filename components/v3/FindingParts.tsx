@@ -108,7 +108,7 @@ export function Claims({ claims }: { claims: Claim[] }) {
           <span className="v3-claim-check" style={{ color: c.verified ? "var(--ok)" : "var(--muted-2)" }}>
             {c.verified ? <Check size={15} /> : <Minus size={15} />}
           </span>
-          {/* Proof (A2): a quoted line the verifier gave and we re-read in the file. */}
+          {/* Proof: a quoted line the verifier gave and we re-read in the file. */}
           <span className={c.origin === "agent" && c.verified ? "v3-mono" : undefined} style={c.origin === "agent" && c.verified ? { fontSize: 12.5, overflowWrap: "anywhere" } : undefined}>{c.claim}</span>
           <span className="v3-claim-origin">{c.origin === "agent" && c.verified ? "Proved" : ORIGIN[c.origin] ?? c.origin}</span>
         </div>

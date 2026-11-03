@@ -24,12 +24,12 @@ export class ValidationError extends Error {
 }
 
 /** Removes all HTML/XML tags from a string. */
-export function stripHtml(input: string): string {
+function stripHtml(input: string): string {
   return input.replace(/<[^>]*>/g, "").trim();
 }
 
 /** Strips HTML and returns a clean, trimmed string. Throws if the result is empty. */
-export function sanitizeInput(input: unknown, field: string): string {
+function sanitizeInput(input: unknown, field: string): string {
   if (typeof input !== "string") {
     throw new ValidationError(`${field} must be a string.`, field);
   }

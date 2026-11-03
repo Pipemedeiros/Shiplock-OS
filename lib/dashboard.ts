@@ -12,7 +12,7 @@ import { getSupabaseServer } from "@/lib/supabaseServer";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { checkMfa } from "@/lib/mfa";
 
-export interface DashboardSession {
+interface DashboardSession {
   userId: string;
   email: string | undefined;
   provider: string;
@@ -59,26 +59,3 @@ export const requireDashboardSession = cache(async (): Promise<DashboardSession>
   };
 });
 
-/**
- * The monitored project's URL, plus the bare project ref parsed out of it for
- * Supabase deep links. Service-role: monitored_project_url has no SELECT grant
- * for `authenticated`.
- */
-export async function getMonitoredProject(
-  userId: string
-): Promise<{ projectUrl: string | null; projectRef: string | null }> {
-  const { data } = await getSupabaseAdmin()
-    .from("user_profiles")
-    .select("monitored_project_url")
-    .eq("id", userId)
-    .maybeSingle();
-
-  const projectUrl = (data?.monitored_project_url as string | null | undefined) ?? null;
-  if (!projectUrl) return { projectUrl: null, projectRef: null };
-
-  try {
-    return { projectUrl, projectRef: new URL(projectUrl).hostname.split(".")[0] || null };
-  } catch {
-    return { projectUrl, projectRef: null };
-  }
-}

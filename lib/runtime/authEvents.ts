@@ -1,6 +1,6 @@
 import type { Severity } from "@/lib/types";
 
-// E5–E7 — runtime attack detection from Supabase's own auth audit log.
+// Runtime attack detection from Supabase's own auth audit log.
 //
 // Why this matters commercially: it is the only attack detection in the product
 // that needs NO installation. The edge snippet gives sub-second blocking, but it
@@ -42,7 +42,7 @@ export interface AuthEvent {
   sourceId: string | null;
 }
 
-export interface RuntimeFinding {
+interface RuntimeFinding {
   id: string;
   severity: Severity;
   title: string;
@@ -76,7 +76,7 @@ function countBy<T>(items: T[], key: (item: T) => string | null): Map<string, nu
 }
 
 /**
- * E5 — credential stuffing.
+ * Credential stuffing.
  *
  * The distinguishing shape is SPREAD: one source failing against many different
  * accounts. A person who forgot their password fails repeatedly against ONE
@@ -116,7 +116,7 @@ export function detectCredentialStuffing(events: AuthEvent[]): RuntimeFinding[] 
 }
 
 /**
- * E7 — brute force against one account.
+ * Brute force against one account.
  *
  * The inverse shape of stuffing: concentration rather than spread. Reported at
  * WARNING because it is far more often a locked-out user than an attacker, and
@@ -151,7 +151,7 @@ export function detectBruteForce(events: AuthEvent[]): RuntimeFinding[] {
 }
 
 /**
- * E6 — account takeover sequence.
+ * Account takeover sequence.
  *
  * A password change immediately following a failed-then-successful login from
  * the same source is the classic takeover fingerprint: get in, then lock the

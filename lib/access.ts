@@ -26,7 +26,7 @@ export const BILLING_ENABLED = false;
 /** Email alerts remain parked until delivery and cost are approved. */
 export const EMAIL_ALERTS_ENABLED = false;
 
-export interface AccessProfile {
+interface AccessProfile {
   is_paid?: boolean | null;
 }
 

@@ -8,7 +8,7 @@ const route = (path: string, file: string, authenticated = false) =>
 const stack = (tools: { id: string; kind: string }[] = []) => ({ tools, authUnknown: tools.length === 0 }) as unknown as StackReport;
 const read = (files: Record<string, string>) => ({ files: Object.entries(files).map(([path, content]) => ({ path, content })), truncated: false });
 
-// D1: release attempt 5 found 5 of its 9 false findings in apps with no
+// Release attempt 5 found 5 of its 9 false findings in apps with no
 // sign-in anywhere (a single-tenant demo, a self-hosted single-user tool).
 // Absence is claimed only when every sign of an account is absent and the
 // whole repository was read; anything else is present or unknown.

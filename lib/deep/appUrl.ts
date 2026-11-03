@@ -10,6 +10,8 @@
  */
 const NOT_THE_APP = /(^|\.)(github\.com|gitlab\.com|bitbucket\.org|npmjs\.com|npmjs\.org|pypi\.org|crates\.io|youtube\.com|twitter\.com|x\.com|linkedin\.com|medium\.com|notion\.site|dev\.to)$/i;
 
+/** A safe https app address from the repository homepage, or null for local,
+ * credentialed or odd hosts. */
 export function suggestAppUrl(homepage: string | null | undefined): string | null {
   const raw = homepage?.trim();
   if (!raw || /\s/.test(raw)) return null;

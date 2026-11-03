@@ -52,6 +52,8 @@ function better(a: number[], b: number[]): boolean {
   return false;
 }
 
+/** The App Router route file an observed request path hits; static segments
+ * beat dynamic ones. */
 export function appRouteForPath(path: string, files: string[]): { file: string; pattern: string } | null {
   const parts = path.split(/[?#]/)[0].split("/").filter(Boolean);
   let best: { route: Route; score: number[] } | null = null;
@@ -64,6 +66,7 @@ export function appRouteForPath(path: string, files: string[]): { file: string; 
   return best ? { file: best.route.file, pattern: best.route.pattern } : null;
 }
 
+/** Groups observed suspicious paths by the route file they hit. */
 export function matchHotPaths(
   hot: { path: string; suspiciousRequests: number }[], files: string[],
 ): { matched: { file: string; pattern: string; suspiciousRequests: number; paths: string[] }[]; unmatched: string[] } {

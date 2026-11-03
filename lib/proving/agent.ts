@@ -48,7 +48,7 @@ export interface AgentFinding {
 }
 
 /** Executes one validated query against the replica. Injected, so the loop is testable. */
-export type QueryRunner = (sql: string) => Promise<Record<string, unknown>[]>;
+type QueryRunner = (sql: string) => Promise<Record<string, unknown>[]>;
 
 /** Proposes queries. Injected so the loop can be tested without a model. */
 export type Proposer = (context: AgentContext, previous: AgentAttempt[]) => Promise<string[]>;

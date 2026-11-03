@@ -1,6 +1,6 @@
 /** Browser-side view of one fix click. The server opens the PR in a
  * repair job; the dashboard follows the receipt to its real outcome. */
-export interface RepairView {
+interface RepairView {
   status: "queued" | "opened" | "failed" | "uncertain";
   url: string | null;
   failure: string | null;
@@ -10,6 +10,8 @@ export interface RepairView {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** Polls a fix click's receipt until the pull request opened or failed, or the
+ * attempts run out. */
 export async function waitForRepair(
   receiptId: string, { attempts = 30, intervalMs = 2_000 }: { attempts?: number; intervalMs?: number } = {},
 ): Promise<RepairView> {

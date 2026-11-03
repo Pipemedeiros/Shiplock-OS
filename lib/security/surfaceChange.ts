@@ -15,6 +15,8 @@ export type SurfaceChange =
 
 type Previous = { url?: unknown; complete?: unknown; requests?: unknown; recordedAt?: string | null } | null;
 
+/** API paths the live site added or stopped calling since the last complete
+ * read of the same address. */
 export function surfaceChange(previous: Previous, requests: readonly string[], complete: boolean, url: string): SurfaceChange {
   const since = previous?.recordedAt ?? null;
   const before = previous && previous.url === url && previous.complete === true && Array.isArray(previous.requests)

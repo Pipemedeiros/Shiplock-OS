@@ -38,7 +38,7 @@ interface TraceStep {
   found?: boolean;
 }
 
-export interface DetectedTool {
+interface DetectedTool {
   id: string;
   name: string;
   kind: string;

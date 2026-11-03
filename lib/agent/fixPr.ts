@@ -33,15 +33,18 @@ const INSTRUCTION: Record<string, string> = {
     "Rotate the credential first (it is in the history and removing the line does not un-leak it) then move it out of the repository.",
 };
 
+/** The branch a fix for this finding is pushed to, always under shiplock/. */
 export function fixBranchName(findingId: string): string {
   const slug = findingId.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60).toLowerCase();
   return `shiplock/fix-${slug}`;
 }
 
+/** Where the fix request file for this finding is written in the repository. */
 export function fixFilePath(findingId: string): string {
   return `.shiplock/${fixBranchName(findingId).replace("shiplock/", "")}.md`;
 }
 
+/** The pull request title for a finding's fix. */
 export function fixTitle(finding: DashboardFinding): string {
   return `Fix: ${finding.title}`;
 }

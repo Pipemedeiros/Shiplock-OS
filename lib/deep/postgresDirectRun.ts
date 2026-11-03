@@ -28,7 +28,7 @@ import type { GithubFinding } from "./githubScan";
 // never called; the fix each time was scheduling, not more collector code.
 // Do not remove it from the registry and leave the route.
 
-export interface DirectScanOutcome {
+interface DirectScanOutcome {
   ok: boolean;
   findings: number;
   newFindings?: GithubFinding[];
@@ -87,6 +87,8 @@ async function loadConnection(userId: string): Promise<{ raw: string; fingerprin
  */
 const ABORTED: DirectScanOutcome = { ok: false, findings: 0, reason: "aborted" };
 
+/** One read-only pass over a directly connected Postgres database, committed
+ * under the monitor job's lease. */
 export async function runDirectPostgresScan(
   userId: string,
   { signal, commit }: { signal?: AbortSignal; commit: ProviderCommit },
@@ -107,7 +109,7 @@ export async function runDirectPostgresScan(
 
     findings = [
       ...analyzePolicies(facts.policies),
-      // A5 — column grants to publicly reachable roles. Returns nothing on a
+      // Column grants to publicly reachable roles. Returns nothing on a
       // database without Supabase's role names, which is correct rather than
       // clean: no such role means no such exposure.
       ...analyzeGrants(facts.grants ?? []),

@@ -37,6 +37,8 @@ const Change = z.union([
 const Fact = z.object({ url: z.string(), paths: z.array(z.string()).max(500), requests: z.array(z.string()).max(500).optional(),
   pagesRead: Count, scriptsSeen: Count, scriptsRead: Count, change: z.unknown().optional() });
 
+/** What the live site was observed to call, only when its address is bound to a
+ * selected repository and the read matches it. */
 export function liveReachFrom(profile: Profile | null, runtime: Record<string, unknown> | null, selected: readonly string[]): LiveReach | null {
   if (!profile || !runtime) return null;
   const url = profile.monitored_app_url, repositoryId = profile.monitored_app_repository_id;

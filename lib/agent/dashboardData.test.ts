@@ -22,7 +22,7 @@ describe("dashboard reads", () => {
     expect(tables).not.toContain("intelligence_tasks");
   });
 
-  // A1 (Felipe 2026-10-07): each open finding says whether it is a confirmed
+  // Felipe 2026-10-07: each open finding says whether it is a confirmed
   // issue, and confirmed issues come first, whatever their severity.
   it("marks confirmed issues and lists them before candidates", async () => {
     const row = (id: string, severity: string, claims: unknown[], attack = "missing_authorization") =>
@@ -33,7 +33,7 @@ describe("dashboard reads", () => {
     expect(open.map((f) => [f.id, f.confirmed])).toEqual([["proven-warning", true], ["candidate-critical", false]]);
   });
 
-  // A3: the attack feed reads the agent's tasks for the newest audit with any.
+  // The attack feed reads the agent's tasks for the newest audit with any.
   it("loads the newest audit's attack tasks", async () => {
     tables.length = 0;
     rows = [{ id: "r", kind: "attack_reasoning", status: "pending", expires_at: null, result: null, context: {}, audit_run_id: "run1" }];

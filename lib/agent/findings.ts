@@ -32,7 +32,7 @@ const OPEN_CLASSES = new Set(["missing_authentication", "missing_authorization",
 export type Confidence = "proven" | "corroborated" | "inferred";
 export type FixKind = "pr" | "one_click" | "manual";
 
-export type ClaimOrigin =
+type ClaimOrigin =
   | "routes"
   | "imports"
   | "schema"
@@ -196,7 +196,7 @@ function routeClaims(route: RouteFact | undefined, stack: StackReport): Claim[] 
   return claims;
 }
 
-export interface BuildFindingsInput {
+interface BuildFindingsInput {
   /** provenStatement: the consequence is a verifier's statement proven with quoted lines. */
   admitted: (Hypothesis & { attackClass: AttackClass; provenStatement?: true;
     /** Quoted lines a verifier gave and checkVerdicts re-read in the file. */
@@ -277,7 +277,7 @@ export function buildFindings(input: BuildFindingsInput): AgentFinding[] {
       ...routeClaims(route, input.stack),
       ...liveClaims,
       { claim: h.consequence, origin: "agent", verified: false },
-      // Proof (A2): each quote was found on its cited line, so it is verified.
+      // Proof: each quote was found on its cited line, so it is verified.
       ...(h.proof ?? []).slice(0, 8).map((c): Claim => ({
         claim: `Proof, ${c.role}: ${c.path}:${c.line} ${c.quote.trim()}`, origin: "agent", verified: true })),
     ];
@@ -344,7 +344,7 @@ export function buildFindings(input: BuildFindingsInput): AgentFinding[] {
       });
     }
 
-    // D1: no other account to reach, and openness is the founder's call.
+    // No other account to reach, and openness is the founder's call.
     // The finding and its proof stay; it is To review, never an issue.
     if (input.openByDesign && OPEN_CLASSES.has(h.attackClass)) {
       const o = input.openByDesign;

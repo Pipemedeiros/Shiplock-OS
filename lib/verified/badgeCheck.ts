@@ -17,9 +17,9 @@
 const FETCH_TIMEOUT_MS = 6000;
 const MAX_BYTES = 512_000; // enough for any reasonable <head>+<body> start
 
-export type BadgeInstallState = "installed" | "not_found" | "unknown";
+type BadgeInstallState = "installed" | "not_found" | "unknown";
 
-export interface BadgeCheckResult {
+interface BadgeCheckResult {
   state: BadgeInstallState;
   /** Why, for the dashboard to explain honestly rather than just show a cross. */
   detail: string;

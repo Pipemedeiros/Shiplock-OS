@@ -34,8 +34,8 @@ export const intelligenceResultSchema = z.object({
     outputTokens: z.number().int().min(0).max(10_000_000) }).strict().nullable(),
 }).strict();
 
-export type IntelligenceIdentity = z.infer<typeof identitySchema>;
-export type IntelligenceHost = z.infer<typeof hostSchema>;
+type IntelligenceIdentity = z.infer<typeof identitySchema>;
+type IntelligenceHost = z.infer<typeof hostSchema>;
 export type SourceFile = { path: string; content: string };
 type Result = z.infer<typeof intelligenceResultSchema>;
 type Receipt = {

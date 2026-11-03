@@ -66,7 +66,7 @@ const QUALIFIED_REF = /\b(?:from|join)\s+([a-z_][a-z0-9_]*)\s*\.\s*([a-z_][a-z0-
 
 const MAX_STATEMENT_LENGTH = 2_000;
 
-export interface AgentActionCheck {
+interface AgentActionCheck {
   allowed: boolean;
   reason: string;
 }

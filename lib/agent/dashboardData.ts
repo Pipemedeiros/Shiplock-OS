@@ -129,7 +129,7 @@ export const getOpenFindings = cache(async (userId: string): Promise<DashboardFi
 });
 
 /**
- * The customer agent's attack tasks for the newest audit that has any (A3):
+ * The customer agent's attack tasks for the newest audit that has any:
  * its reasoning tasks (one per page) and the verification tasks under them. Service role, scoped
  * to the user, bounded.
  */
@@ -145,6 +145,7 @@ export async function getAttackTasks(userId: string): Promise<AttackTask[]> {
   return ((data ?? []) as AttackTask[]);
 }
 
+/** The account's most recent audit runs, newest first. */
 export async function getRuns(userId: string, limit = 20): Promise<DashboardRun[]> {
   const admin = getSupabaseAdmin();
 

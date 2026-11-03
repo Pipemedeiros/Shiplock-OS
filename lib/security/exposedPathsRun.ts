@@ -10,8 +10,8 @@ import { analyzeOriginPosture, collectOriginPosture, fetchOriginHeaders, nodeDns
 
 // Everything we can learn from the customer's app URL alone, in one pass:
 //  - exposed-path probes (.git, database dumps, credential files)
-//  - the shipped bundle audit (D6 source maps, D7 secrets in public JS)
-//  - email authentication on their domain (D12 SPF/DKIM/DMARC)
+//  - the shipped bundle audit (source maps, secrets in public JS)
+//  - email authentication on their domain (SPF, DKIM, DMARC)
 //  - origin exposure: whether their edge protection can be bypassed
 //  - response headers: frame protection and HTTPS pinning (INFO)
 // Both take the same single input and hit the same host, so they share a pass
@@ -21,7 +21,7 @@ import { analyzeOriginPosture, collectOriginPosture, fetchOriginHeaders, nodeDns
 // report counts with no extra wiring.
 //
 // ARCHIVING: this pass archives findings that no longer reproduce, which it did
-// not used to do. That omission mattered most for exactly these checks. A D7
+// not used to do. That omission mattered most for exactly these checks. A public-JS secret
 // finding's entire instruction is "rotate this key" — if the finding survived
 // the rotation, we'd keep showing CRITICAL after the customer did the one thing
 // we asked, and the weekly digest would keep counting it. A check that can't say

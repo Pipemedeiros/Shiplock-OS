@@ -29,7 +29,7 @@ export function guardAnswer(context: ReasoningContext, hypotheses: unknown) {
   });
 }
 
-export type VerificationTask = {
+type VerificationTask = {
   index: number; hypotheses: (Hypothesis & { attackClass: AttackClass })[]; items: VerifyItem[];
   sources: { path: string; content: string }[]; brief: ReturnType<typeof brief>;
 };

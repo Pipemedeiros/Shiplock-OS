@@ -1,7 +1,7 @@
 import { queryOsv } from "@/lib/deep/github";
 import { depFindings, type GithubFinding } from "@/lib/deep/githubScan";
 
-export interface RepositoryDependencyInventory {
+interface RepositoryDependencyInventory {
   repositoryId: string;
   repositoryFullName: string;
   sourceRevision: string;

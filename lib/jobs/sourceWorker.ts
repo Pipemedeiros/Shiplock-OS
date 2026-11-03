@@ -122,6 +122,8 @@ export async function enqueueFollowUpsAfterSource(job: ClaimedJob): Promise<void
   await enqueueJob(job.user_id, job.repository_id, "graph", `graph-after-source:${job.id}`);
 }
 
+/** Claims and runs one source scan, then queues its follow-ups; false when the
+ * queue had none. */
 export async function runNextSourceJob(): Promise<boolean> {
   const job = await claimJob("source");
   if (!job) return false;

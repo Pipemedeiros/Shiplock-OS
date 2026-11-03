@@ -12,7 +12,7 @@ const claimed = z.object({ id: z.uuid(), user_id: z.uuid(), repository_id: z.uui
   lease_until: z.string().refine((value) => Number.isFinite(Date.parse(value))), checkpoint: z.number().int().nonnegative(),
 });
 export type ClaimedJob = z.infer<typeof claimed>;
-export type JobOutcome = "heartbeat" | "checkpoint" | "succeeded" | "retry" | "dead" | "cancelled";
+type JobOutcome = "heartbeat" | "checkpoint" | "succeeded" | "retry" | "dead" | "cancelled";
 
 /** Stored context no longer authorizes the work; retries cannot repair it. */
 export class PermanentJobError extends Error {}
@@ -108,7 +108,7 @@ export async function claimJob(kind: JobKind): Promise<ClaimedJob | null> {
 
 /** Records a checkpoint or terminal outcome under the job's lease token.
  * Throws if the lease was lost, so a fenced-out worker cannot write. */
-export async function advanceJob(job: ClaimedJob, checkpoint: number, outcome: JobOutcome): Promise<void> {
+async function advanceJob(job: ClaimedJob, checkpoint: number, outcome: JobOutcome): Promise<void> {
   const { data, error } = await getSupabaseAdmin().rpc("advance_execution_job", {
     p_id: job.id, p_token: job.lease_token, p_checkpoint: checkpoint, p_outcome: outcome,
   });

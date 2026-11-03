@@ -15,9 +15,9 @@ export type Gate = {
   repositoriesWithCorrectStatusAtLeast: number;
 };
 /** provisionalTp: every available labeler said yes, even if only one did. Reported, never gated. */
-export type Tally = { n: number; labeled: number; unlabeled: number; tp: number; fp: number; provisionalTp: number; precision: number | null; lower95: number | null };
-export type RepoStatus = { repo: string; status: "exposed" | "at_risk" | "no_open_issues"; correct: boolean | null };
-export type BenchReport = {
+type Tally = { n: number; labeled: number; unlabeled: number; tp: number; fp: number; provisionalTp: number; precision: number | null; lower95: number | null };
+type RepoStatus = { repo: string; status: "exposed" | "at_risk" | "no_open_issues"; correct: boolean | null };
+type BenchReport = {
   statusSetting: Tally; bySeverity: Record<Severity, Tally>; byClass: Record<string, Tally>;
   repositories: RepoStatus[]; statusCorrect: { judged: number; correct: number; share: number | null };
   gate: { result: "pass" | "fail" | "not_measurable"; reasons: string[] };
@@ -118,10 +118,10 @@ export function scoreBenchmark(findings: BenchFinding[], labels: BenchLabel[], g
     gate: { result: !measurable ? "not_measurable" : pass ? "pass" : "fail", reasons } };
 }
 
-export type BenchBatch = { name: string; findings: BenchFinding[]; labels: BenchLabel[] };
+type BenchBatch = { name: string; findings: BenchFinding[]; labels: BenchLabel[] };
 
 /**
- * The union of paced batches, for one bench over the running total (A8). A
+ * The union of paced batches, for one bench over the running total. A
  * re-check run re-reads repositories a batch already scored, so a finding
  * (repo and id) counts once, with the labels it was first given: a later
  * relabel never replaces an earlier verdict. Duplicates are returned so the

@@ -10,6 +10,7 @@ export interface FixArtifact {
   content: string;
 }
 
+/** A short URL-safe name from a title. */
 export function slug(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "fix";
 }
@@ -39,6 +40,8 @@ export function extractSql(fix: string): string | null {
   return lines.length ? lines.join("\n").trim() : null;
 }
 
+/** A new migration file holding the fix SQL for a database finding. The
+ * customer's own deploy applies it. */
 export function buildMigrationFix(f: FixableFinding, now = new Date()): FixArtifact {
   const sql = extractSql(f.fix);
   const header =
@@ -51,6 +54,8 @@ export function buildMigrationFix(f: FixableFinding, now = new Date()): FixArtif
   return { path: `supabase/migrations/${stamp(now)}_shiplock_${slug(f.title)}.sql`, content: body };
 }
 
+/** A fix-request Markdown file describing a code change for the customer or
+ * their agent to make. */
 export function buildCodeFix(f: FixableFinding, now = new Date()): FixArtifact {
   const loc = f.filePath ? `\n**File:** \`${f.filePath}\`` : "";
   const content =

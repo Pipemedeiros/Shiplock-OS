@@ -21,7 +21,7 @@ import type { RouteFact } from "@/lib/graph/routeInventory";
 import type { PossessionGate } from "./possessionGate";
 
 /** The classes we are prepared to report. A hypothesis outside this is refused. */
-export const ATTACK_CLASSES = [
+const ATTACK_CLASSES = [
   "missing_authorization",
   "missing_authentication",
   "unsigned_webhook",
@@ -96,7 +96,7 @@ export interface ReconIndex {
   possessionGates?: ReadonlyMap<string, PossessionGate>;
 }
 
-export type GuardVerdict =
+type GuardVerdict =
   | { allowed: true; attackClass: AttackClass; citedFacts: string[]; title?: string; consequence?: string }
   | { allowed: false; reason: string; unassessed?: string };
 
@@ -107,7 +107,7 @@ const MAX_CONSEQUENCE = 400;
 const UNSAFE_PROSE = /[<>\u0000-\u001F]/;
 /** A consequence sentence any renderer can carry: bounded, no markup, no
  * control characters. The same rule the guard applies to hypothesis prose. */
-export const safeConsequence = (text: string) => text.length > 0 && text.length <= MAX_CONSEQUENCE && !UNSAFE_PROSE.test(text);
+const safeConsequence = (text: string) => text.length > 0 && text.length <= MAX_CONSEQUENCE && !UNSAFE_PROSE.test(text);
 
 /** The verifier's wording, kept only where it is safe prose; otherwise the
  * guarded hypothesis wording stands (statement and title alike, V3). */

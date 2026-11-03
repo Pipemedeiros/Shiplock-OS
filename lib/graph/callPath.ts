@@ -45,7 +45,7 @@ import { blankSpans, declarationSpans, scriptKindFor } from "./declarations";
  * only misses them, and this file's header commits to the second.
  */
 
-export interface TracedSource {
+interface TracedSource {
   path: string;
   /** Comment-stripped text with declarations and unexecuted bodies blanked. */
   src: string;
@@ -101,7 +101,7 @@ export interface Trace {
   unfollowed: string[];
 }
 
-export interface TraceOptions {
+interface TraceOptions {
   /** Whether a callee, by its source text, resolves the caller's identity. */
   isIdentityCall?: (calleeText: string) => boolean;
   /**

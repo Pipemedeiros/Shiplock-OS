@@ -10,6 +10,8 @@ import { matchHotPaths } from "./routeMatch";
  */
 export type HotRouteOffer = { file: string; pattern: string; suspiciousRequests: number };
 
+/** Routes that observed suspicious traffic, per repository, matched to their
+ * files. */
 export async function getHotRoutes(userId: string): Promise<Record<string, HotRouteOffer[]>> {
   const admin = getSupabaseAdmin();
   const [profile, observations] = await Promise.all([

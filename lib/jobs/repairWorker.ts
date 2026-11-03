@@ -71,6 +71,7 @@ export async function executeRepairJob(job: ClaimedJob): Promise<void> {
   });
 }
 
+/** Claims and runs one clicked repair; false when the queue had none. */
 export async function runNextRepairJob(): Promise<boolean> {
   const job = await claimJob("repair");
   if (!job) return false;

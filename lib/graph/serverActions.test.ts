@@ -22,7 +22,7 @@ describe("findServerActionEntries", () => {
     ]);
   });
 
-  // A8 batch 6 (2026-10-09): a server component that only AWAITS an action
+  // A batched corpus run (2026-10-09): a server component that only AWAITS an action
   // on the server never sends its id to the browser, so anyone cannot call
   // it. It exposes the action only by handing it over: a form or button
   // action, or a prop to a client component.

@@ -34,7 +34,7 @@ export default async function Overview() {
     getAttackTasks(userId).catch(() => null),
     loadLiveReach(userId).catch(() => null),
   ]);
-  // A3: the attack's real state in one line; unreadable shows nothing.
+  // The attack's real state in one line; unreadable shows nothing.
   const attack = attackTasks ? attackFeed(attackTasks) : null;
 
   if (repos.length === 0) {
@@ -60,7 +60,7 @@ export default async function Overview() {
   const boundName = live ? repos.find((r) => r.id === live.repositoryId)?.fullName : undefined;
   const unread = latest ? notCheckedAreas(latest.coverage,
     boundName === latest.fullName ? shadowRoutesFromRuns(live, runs, latest.fullName, repos.map((r) => r.fullName)) : { state: "unknown", why: "" }) : 0;
-  // Only confirmed issues set the status (A1, Felipe 2026-10-07: prioritize
+  // Only confirmed issues set the status (Felipe 2026-10-07: prioritize
   // accuracy); candidates are named as "to review", never counted as issues.
   const issues = findings.filter((f) => f.confirmed);
   const toReview = findings.filter((f) => !f.confirmed).length;

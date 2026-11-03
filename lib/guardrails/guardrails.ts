@@ -9,7 +9,7 @@ import type { RouteFact } from "@/lib/graph/routeInventory";
  * that removes one is blocked); the customer's coding agent reads the same
  * JSON over MCP before it edits, so dashboard and agent share one truth.
  */
-export const GUARDRAIL_KINDS = ["requires_signed_in_caller", "scopes_rows_to_caller", "requires_machine_secret"] as const;
+const GUARDRAIL_KINDS = ["requires_signed_in_caller", "scopes_rows_to_caller", "requires_machine_secret"] as const;
 export type GuardrailKind = (typeof GUARDRAIL_KINDS)[number];
 
 const ruleSchema = z.object({
@@ -30,7 +30,7 @@ export const guardrailsSchema = z.object({
   rules: z.array(ruleSchema),
 });
 export type Guardrails = z.infer<typeof guardrailsSchema>;
-export type GuardrailRule = z.infer<typeof ruleSchema>;
+type GuardrailRule = z.infer<typeof ruleSchema>;
 
 const WORDING: Record<GuardrailKind, { because: (t: string) => string; keep: string }> = {
   requires_signed_in_caller: {
@@ -47,6 +47,8 @@ const WORDING: Record<GuardrailKind, { because: (t: string) => string; keep: str
   },
 };
 
+/** The rules a repository must keep, derived only from controls observed on its
+ * routes, as the pull request check and MCP serve them. */
 export function deriveGuardrails(routes: RouteFact[], meta: { repository: string; commit: string | null }): Guardrails {
   const rules: GuardrailRule[] = [];
   for (const route of [...routes].sort((a, b) => a.path.localeCompare(b.path))) {
@@ -68,7 +70,7 @@ export function deriveGuardrails(routes: RouteFact[], meta: { repository: string
   return { version: 1, repository: meta.repository, commit: meta.commit, rules };
 }
 
-export type GuardrailViolation = GuardrailRule & { severity: "CRITICAL"; detail: string };
+type GuardrailViolation = GuardrailRule & { severity: "CRITICAL"; detail: string };
 
 /**
  * A rule is checked only when the change touched its route's file or a helper

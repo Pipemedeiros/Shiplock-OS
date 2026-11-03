@@ -1,6 +1,6 @@
 import type { Finding } from "./findings";
 
-export interface DiffResult {
+interface DiffResult {
   newFindings: Finding[];
   resolved: Finding[];
   unchanged: Finding[];

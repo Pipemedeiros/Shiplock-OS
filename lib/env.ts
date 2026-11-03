@@ -33,10 +33,6 @@ const envSchema = z.object({
   SUPABASE_OAUTH_CLIENT_SECRET: optionalSecret,
   // Optional: the GitHub App (source scanning) may not be registered yet.
   // lib/deep/github.ts throws a clear error at call time if these are unset.
-  // Optional disposable proof-replica host. No customer provider upgrade is
-  // required for this path, but it is not a launched free-tier promise.
-  SHIPLOCK_PROVING_TOKEN: optionalSecret,
-  SHIPLOCK_PROVING_PROJECT_REF: optionalSecret,
   GITHUB_APP_ID: optionalSecret,
   GITHUB_APP_PRIVATE_KEY: optionalSecret,
   GITHUB_APP_SLUG: optionalSecret,
@@ -49,4 +45,3 @@ const envSchema = z.object({
 });
 
 export const env = envSchema.parse(process.env);
-export type Env = z.infer<typeof envSchema>;

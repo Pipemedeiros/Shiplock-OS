@@ -1,7 +1,7 @@
 import { sendEmail } from "@/lib/email";
 import { EMAIL_ALERTS_ENABLED } from "@/lib/access";
 
-export interface PullRequestAlert {
+interface PullRequestAlert {
   repository: string;
   number: number;
   title: string | null;

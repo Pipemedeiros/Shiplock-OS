@@ -30,7 +30,7 @@ const PRELUDE = `
 /** Project-relative, so next.config.ts can trace exactly this file. */
 export const EMBEDDED_WORKER_PATH = "lib/proving/embeddedWorker.mjs";
 
-export interface EmbeddedHost extends ProvingHost {
+interface EmbeddedHost extends ProvingHost {
   close(): Promise<void>;
 }
 

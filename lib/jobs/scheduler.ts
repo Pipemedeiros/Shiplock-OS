@@ -10,8 +10,9 @@ const admission = z.object({
   limited: z.boolean(),
 }).refine((value) => value.admitted + value.failed === value.eligible);
 
-export type AuditAdmission = z.infer<typeof admission>;
+type AuditAdmission = z.infer<typeof admission>;
 
+/** Queues audits for selected repositories not audited in the last 48 hours. */
 export async function admitDueRepositoryAudits(
   now = new Date(),
   limit = 1_000,
@@ -30,6 +31,8 @@ export async function admitDueRepositoryAudits(
   return admission.parse(data);
 }
 
+/** Queues source scans for selected repositories not scanned in the last 48
+ * hours. */
 export async function admitDueRepositorySourceScans(
   now = new Date(),
   limit = 1_000,
@@ -46,6 +49,7 @@ export async function admitDueRepositorySourceScans(
   return admission.parse(data);
 }
 
+/** Queues dependency checks for selected repositories that are due. */
 export async function admitDueRepositoryDependencyChecks(
   now = new Date(),
   limit = 1_000,
@@ -61,6 +65,7 @@ export async function admitDueRepositoryDependencyChecks(
   return admission.parse(data);
 }
 
+/** Queues the hourly or 48-hour provider monitoring passes that are due. */
 export async function admitDueMonitoringPasses(
   trigger: "hourly" | "scheduled_48h",
   now = new Date(),
@@ -98,6 +103,7 @@ export async function admitDueIntelligenceScans(
   return admission.parse(data);
 }
 
+/** Queues one monitoring pass for an account, idempotent on `key`. */
 export async function enqueueMonitoringPass(
   userId: string,
   trigger: "manual" | "deploy" | "hourly" | "scheduled_48h",

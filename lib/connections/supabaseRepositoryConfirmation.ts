@@ -24,7 +24,7 @@ function responseSchema(collector: SupabaseBindingCollector) {
     z.object({ available: z.literal(false), collector: z.literal(collector), repositories: z.array(z.never()), bindings: z.array(z.never()) }),
   ]);
 }
-export type SupabaseRepositoryContext = Extract<z.infer<ReturnType<typeof responseSchema>>, { available: true }>;
+type SupabaseRepositoryContext = Extract<z.infer<ReturnType<typeof responseSchema>>, { available: true }>;
 type Decision = { repositoryId: string; action: "confirm" | "remove" };
 export interface SupabaseRepositoryConfirmationState {
   status: "loading" | "ready" | "review" | "saving" | "unconfigured" | "unavailable" | "stale";

@@ -11,9 +11,9 @@ import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
 /** Flip to true in the same change that publishes `shiplock-mcp` to npm.
  * Until then no command names the package; Claude Code connects to the hosted
  * endpoint instead (httpCommand), which needs no package. */
-export const MCP_PACKAGE_PUBLISHED = false;
+const MCP_PACKAGE_PUBLISHED = false;
 
-export interface TokenMeta { id: string; name: string; created_at: string; last_used_at: string | null }
+interface TokenMeta { id: string; name: string; created_at: string; last_used_at: string | null }
 type Host = "claude-code" | "codex" | "chatgpt";
 
 export function setupCommand(host: "claude-code" | "codex", token: string): string {

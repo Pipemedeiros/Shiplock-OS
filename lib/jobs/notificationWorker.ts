@@ -85,6 +85,7 @@ export async function executeNotificationJob(job: ClaimedJob): Promise<void> {
   if (delivery === "failed") throw new Error("Notification delivery failed");
 }
 
+/** Claims and runs one notification job; false when the queue had none. */
 export async function runNextNotificationJob(): Promise<boolean> {
   const job = await claimJob("notification");
   if (!job) return false;

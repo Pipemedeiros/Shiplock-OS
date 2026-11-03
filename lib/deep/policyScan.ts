@@ -230,6 +230,8 @@ export function normaliseLintName(name: string): string {
   return name.trim().toLowerCase().replace(/^\d{4}_/, "");
 }
 
+/** Supabase security advisors as findings, skipping performance lints and
+ * states that are already secure. */
 export function mapAdvisors(advisors: SupabaseAdvisor[]): GithubFinding[] {
   const out: GithubFinding[] = [];
   for (const a of advisors) {

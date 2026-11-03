@@ -7,6 +7,8 @@
  */
 type Read<T> = T | null | undefined;
 
+/** The check families a Supabase pass could not read, shown as unread rather
+ * than clean. */
 export function unreadSupabaseFamilies(reads: {
   advisorsOk: boolean;
   authConfig: unknown;

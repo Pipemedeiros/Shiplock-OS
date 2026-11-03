@@ -10,7 +10,7 @@ import { resolveViaTsconfigPaths } from "./tsconfigPaths";
  * code or a route handler is not an entry point, and treating it as one reads
  * helpers whose callers authorize as "anyone can call this".
  */
-export type ServerActionEntry = { file: string; name: string; importedBy: string[] };
+type ServerActionEntry = { file: string; name: string; importedBy: string[] };
 
 const IGNORED = /(^|\/)(node_modules|\.next|dist|build|vendor)\/|\.(test|spec)\.[cm]?[jt]sx?$/;
 const CODE = /\.[cm]?[jt]sx?$/;
@@ -64,6 +64,7 @@ function isUi(file: RepoFile): boolean {
   return USE_CLIENT.test(file.content) || /\.[jt]sx$/.test(file.path);
 }
 
+/** Exported server actions that shipped client code actually calls. */
 export function findServerActionEntries(files: RepoFile[]): ServerActionEntry[] {
   const code = files.filter((f) => CODE.test(f.path) && !IGNORED.test(f.path));
   const byPath = new Map(files.map((f) => [f.path, f]));
@@ -86,7 +87,7 @@ export function findServerActionEntries(files: RepoFile[]): ServerActionEntry[] 
         // A server component (no client root reaches it) exposes the action
         // only by handing it to the browser: a form or button action, or a
         // prop to a client component. Awaiting it on the server sends no id
-        // (A8 batch 6, 2026-10-09; R2b, 2026-10-13).
+        // (corpus runs, 2026-10-09 and 2026-10-13).
         if (!client.has(file.path) && !handsOver(file.content, alias ?? name)) continue;
         const key = `${target}#${name}`;
         importers.set(key, new Set([...(importers.get(key) ?? []), file.path]));

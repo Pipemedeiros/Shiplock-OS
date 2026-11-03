@@ -109,7 +109,7 @@ describe("applying verdicts to admitted proposals", () => {
   });
 });
 
-// A8 batch 6 (2026-10-09): the verifier confirmed a debug route whose Prisma
+// A batched corpus run (2026-10-09): the verifier confirmed a debug route whose Prisma
 // query the schema rejects. The schema now goes with every batch; the
 // instructions say what to do with it.
 describe("VERIFY_SYSTEM and the schema", () => {

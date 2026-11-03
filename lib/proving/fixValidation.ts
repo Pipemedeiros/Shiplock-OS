@@ -1,5 +1,5 @@
 import type { PgPolicy } from "@/lib/deep/policyScan";
-import { ident, buildReplicaPlan } from "./replica";
+import { ident } from "./replica";
 import { TENANT_A, TENANT_B } from "./tenantProbe";
 
 // Fix pre-validation on the proving ground (AGENTS.md autonomy doctrine).
@@ -29,9 +29,9 @@ import { TENANT_A, TENANT_B } from "./tenantProbe";
 // validator that only tests whether the attack stopped would wave that through,
 // which is precisely how a security tool causes an outage.
 
-export type GateResult = "pass" | "fail" | "not_run";
+type GateResult = "pass" | "fail" | "not_run";
 
-export interface FixValidation {
+interface FixValidation {
   reproduced: GateResult;
   closed: GateResult;
   preserved: GateResult;
@@ -41,7 +41,7 @@ export interface FixValidation {
   summary: string;
 }
 
-export interface FixCandidate {
+interface FixCandidate {
   /** Human description, used in the summary. */
   description: string;
   /** Policies that replace the originals. */
@@ -223,7 +223,3 @@ export function buildOwnershipFix(ownerColumn: string, roles: string[] = ["authe
   };
 }
 
-/** Convenience: the replica plan a validation run needs. */
-export function buildValidationPlan(runId: string, table: string, ownerColumn: string, original: PgPolicy[]) {
-  return buildReplicaPlan(runId, table, ownerColumn, original);
-}

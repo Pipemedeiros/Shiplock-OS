@@ -46,6 +46,7 @@ export async function executePullRequestCheckJob(job: ClaimedJob): Promise<void>
   });
 }
 
+/** Claims and runs one pull request check; false when the queue had none. */
 export async function runNextPullRequestCheckJob(): Promise<boolean> {
   const job = await claimJob("pr-check");
   if (!job) return false;

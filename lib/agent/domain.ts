@@ -24,7 +24,7 @@ import type { RouteFact } from "@/lib/graph/routeInventory";
  * route, file or table.
  */
 
-export type Tenancy = "multi_tenant" | "per_user" | "unknown";
+type Tenancy = "multi_tenant" | "per_user" | "unknown";
 
 export interface DomainModel {
   /** One line, in the product's own vocabulary. Used in the prompt. */

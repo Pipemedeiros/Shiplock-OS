@@ -29,7 +29,7 @@ export type StackKind =
   | "ai"
   | "framework";
 
-export interface StackTool {
+interface StackTool {
   id: string;
   name: string;
   kind: StackKind;
@@ -175,7 +175,7 @@ export function readDependencies(packageJson: string | undefined): Set<string> {
 }
 
 /** True when `content` imports or requires `pkg`, subpaths included. */
-export function importsPackage(content: string, pkg: string): boolean {
+function importsPackage(content: string, pkg: string): boolean {
   const escaped = pkg.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const spec = `${escaped}(?:/[\\w./-]*)?`;
   return new RegExp(

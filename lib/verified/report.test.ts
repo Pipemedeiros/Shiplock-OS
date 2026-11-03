@@ -148,7 +148,7 @@ describe("nothing that could overstate, and nothing an attacker can use", () => 
   });
 });
 
-// A1 (Felipe 2026-10-07): the public report counts confirmed issues only, the
+// Felipe 2026-10-07: the public report counts confirmed issues only, the
 // same rule as the dashboard status, so it never overstates a candidate.
 describe("open counts on the public report", () => {
   it("counts confirmed issues only", async () => {

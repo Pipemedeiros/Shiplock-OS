@@ -35,7 +35,7 @@ export function vercelInstallUrl(): string {
   return `https://vercel.com/integrations/${process.env.VERCEL_INTEGRATION_SLUG}/new`;
 }
 
-export interface VercelToken {
+interface VercelToken {
   accessToken: string;
   teamId: string | null;
   configurationId: string | null;
@@ -90,6 +90,7 @@ function githubRepository(link: unknown): VercelProject["gitRepository"] {
   };
 }
 
+/** The Vercel projects the token can see, with their linked repositories. */
 export async function listProjects(
   accessToken: string, teamId: string | null, signal?: AbortSignal,
 ): Promise<VercelProject[]> {

@@ -292,7 +292,7 @@ describe("verificationBatches", () => {
     expect(batches.flatMap((b) => b.hypotheses)).toHaveLength(30);
   });
 
-  // A8 batch 6 (2026-10-09): a claim on a query the schema rejects was
+  // A batched corpus run (2026-10-09): a claim on a query the schema rejects was
   // "confirmed" because the verifier never saw the schema. The schema files
   // the audit read go with every batch (at most two), inside the file cap.
   it("lists the schema with every batch so a claim can be checked against it", () => {
@@ -347,7 +347,7 @@ describe("verifyItems", () => {
   });
 });
 
-// M1 (release attempt 3, 2026-10-13): the verifier confirmed "any caller can
+// Release attempt 3 (2026-10-13): the verifier confirmed "any caller can
 // list every profile" where middleware.ts, never shown to it, requires
 // sign-in. The root middleware goes with every batch, like the schema.
 describe("middleware with every verification batch", () => {

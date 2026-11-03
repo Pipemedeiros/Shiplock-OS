@@ -40,6 +40,8 @@ export function projectRepositoryDatabaseEvidence(evidence: RepositoryDatabaseEv
   return {};
 }
 
+/** The database evidence bound to a repository, with how the binding was made
+ * and whether it is admitted. */
 export async function loadRepositoryDatabaseEvidence(userId: string, repositoryId: string): Promise<RepositoryDatabaseEvidence> {
   const result: RepositoryDatabaseEvidence = {
     repositoryId, associationMethod: "customer_confirmed", admission: "unknown", snapshots: {},

@@ -24,6 +24,8 @@ export function quotaCode(message: string): QuotaCode | null {
   return null;
 }
 
+/** A 429 response with a plain message for a database quota error; null for any
+ * other error. */
 export function quotaResponse(error: unknown): NextResponse | null {
   if (!(error instanceof Error) || !(error.message in MESSAGES)) return null;
   return NextResponse.json({ error: MESSAGES[error.message as QuotaCode] }, { status: 429 });

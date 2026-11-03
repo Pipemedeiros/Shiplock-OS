@@ -5,9 +5,9 @@ import type { Finding } from "./findings";
 // only — no fix content, so nothing here is paywall-sensitive (titles and
 // severities are already preview-safe, and this exposes even less).
 
-export type WatchTrigger = "manual" | "deploy" | "hourly" | "scheduled_48h";
+type WatchTrigger = "manual" | "deploy" | "hourly" | "scheduled_48h";
 
-export interface WatchLogEntry {
+interface WatchLogEntry {
   trigger: WatchTrigger;
   createdAt: string;
   findingCount: number;
@@ -42,25 +42,14 @@ export function annotateWatchLog(rows: SnapshotRow[], displayLimit: number): Wat
   });
 }
 
-// Server-only — monitoring_snapshots has no RLS policies (service role
-// only, migration 020), same access pattern as lib/scanHistory.ts.
-export async function getWatchLog(userId: string, limit = 12): Promise<WatchLogEntry[]> {
-  const admin = getSupabaseAdmin();
-  const { data } = await admin
-    .from("monitoring_snapshots")
-    .select("trigger_source, created_at, findings")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
-    .limit(limit + 1); // one extra row so the last displayed entry has a diff baseline
-  return annotateWatchLog((data ?? []) as SnapshotRow[], limit);
-}
 
-export interface WatchStatus {
+interface WatchStatus {
   enabled: boolean;
   webhookToken: string | null;
   lastDeepScanAt: string | null;
 }
 
+/** Whether monitoring is on for the account and when it last ran. */
 export async function getWatchStatus(userId: string): Promise<WatchStatus> {
   const admin = getSupabaseAdmin();
   const { data } = await admin

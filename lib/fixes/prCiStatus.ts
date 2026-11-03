@@ -11,6 +11,8 @@ export type CiState = "passing" | "failing" | "pending" | "none_visible" | "unkn
 
 const PASSING = new Set(["success", "neutral", "skipped"]);
 
+/** One CI state from a pull request's check runs: failing, pending, passing or
+ * none visible. */
 export function ciState(runs: { status: string; conclusion: string | null }[]): CiState {
   if (runs.length === 0) return "none_visible";
   if (runs.some((r) => r.status === "completed" && !PASSING.has(r.conclusion ?? ""))) return "failing";
@@ -18,6 +20,8 @@ export function ciState(runs: { status: string; conclusion: string | null }[]): 
   return "passing";
 }
 
+/** CI state for the account's open ShipLock pull requests, within a time
+ * budget; anything not read stays unknown. */
 export async function getCiStatuses(
   userId: string, prs: OpenedPullRequest[], { budgetMs = 3_000, max = 10 }: { budgetMs?: number; max?: number } = {},
 ): Promise<Record<string, CiState>> {

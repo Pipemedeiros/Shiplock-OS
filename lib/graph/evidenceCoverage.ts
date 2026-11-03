@@ -7,7 +7,7 @@ const LABELS: Record<string, { name: string; fields: Record<string, string> }> =
   traffic: { name: "Traffic evidence", fields: { hotPaths: "Observed route activity" } },
 };
 
-export interface EvidenceCoverageItem {
+interface EvidenceCoverageItem {
   label: string;
   recordedAt: string | null;
   completeness: "complete" | "partial" | "unknown";

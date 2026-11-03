@@ -1,5 +1,5 @@
 /**
- * The attack, as it happens (A3, Felipe 2026-10-07: "the users should see the
+ * The attack, as it happens (Felipe 2026-10-07: "the users should see the
  * agents requesting stuff, attacking, in a safe way they can see it doing
  * something"). Built only from the real state of the customer agent's tasks
  * for one audit: the reasoning task proposes attacks, verification tasks test
@@ -10,7 +10,7 @@ export type AttackTask = {
   id: string; kind: string; status: string; expires_at?: string | null; result: unknown; context: unknown;
 };
 export type AttackStepState = "checking" | "confirmed" | "refuted" | "could_not_tell";
-export type AttackStep = { entry: string; title: string; state: AttackStepState };
+type AttackStep = { entry: string; title: string; state: AttackStepState };
 export type AttackFeed = {
   phase: "not_offered" | "waiting_for_agent" | "agent_unavailable" | "checking" | "done";
   proposed: number;
@@ -28,6 +28,8 @@ const arrayAt = (value: unknown, key: string): unknown[] => {
 };
 const expired = (t: AttackTask, now: number) => t.status === "pending" && Boolean(t.expires_at) && Date.parse(t.expires_at!) <= now;
 
+/** What the Attack stage shows: whether the agent was offered work, is still
+ * pending or offline, and the proposals it returned. */
 export function attackFeed(tasks: readonly AttackTask[], now = Date.now()): AttackFeed {
   // One reasoning task per page of the route inventory (2026-10-08).
   const pages = tasks.filter((t) => t.kind === "attack_reasoning");

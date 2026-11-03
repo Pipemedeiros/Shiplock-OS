@@ -1,7 +1,7 @@
 import type { GithubFinding } from "./githubScan";
 import type { SupabaseAuthConfig } from "./supabaseMgmt";
 
-// B7 from CHECK-SPEC.md — the redirect allow-list on Supabase Auth.
+// The redirect allow-list on Supabase Auth.
 //
 // This list is the only thing standing between a login flow and token theft.
 // After a successful sign-in, Supabase sends the user to a URL carrying their
@@ -82,7 +82,7 @@ export function parseAllowList(raw: string | null | undefined): string[] {
     .filter((entry) => entry.length > 0);
 }
 
-export interface EntryParts {
+interface EntryParts {
   scheme: string | null;
   host: string;
   path: string;
@@ -114,12 +114,14 @@ const SHARED_SUBDOMAIN_HOSTS =
 
 const LOCAL_HOST_RE = /^(localhost|127\.0\.0\.1|\[::1\]|0\.0\.0\.0)(:\d+)?$/i;
 
+/** Whether a redirect allow-list host is local (localhost, 127.0.0.1 and
+ * similar). */
 export function isLocalEntry(host: string): boolean {
   return LOCAL_HOST_RE.test(host);
 }
 
 /**
- * B7 — dangerous entries in the redirect allow-list.
+ * Dangerous entries in the redirect allow-list.
  *
  * Deliberately silent on the patterns Supabase itself recommends: a wildcard in
  * the PATH (`https://app.example.com/**`) is the documented way to accept any
@@ -209,7 +211,7 @@ export function analyzeRedirectAllowList(config: SupabaseAuthConfig): GithubFind
 
 /**
  * Site URL — the default destination for password resets and email
- * confirmations. Not strictly B7, but it comes from the same config and the same
+ * confirmations. Not strictly a redirect check, but it comes from the same config and the same
  * two mistakes recur, both of which break real users rather than theoretically.
  */
 export function analyzeSiteUrl(config: SupabaseAuthConfig): GithubFinding[] {

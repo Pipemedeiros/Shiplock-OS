@@ -1,7 +1,7 @@
 import type { GithubFinding } from "./githubScan";
 import { classifyColumn } from "@/lib/exposure/model";
 
-// A5 — column-level grants to `anon` and `authenticated`.
+// Column-level grants to `anon` and `authenticated`.
 //
 // We shipped this bug ourselves (migration 035), which is the best argument for
 // checking it. `anon` and `authenticated` held SELECT + INSERT + UPDATE on EVERY
@@ -55,6 +55,8 @@ const WRITE_PRIVILEGES = new Set(["INSERT", "UPDATE", "DELETE"]);
 const ENTITLEMENT_RE =
   /\b(is_paid|is_admin|is_superuser|role|roles|plan|tier|subscription_status|credits|balance|quota|paid_until|trial_ends|permissions|entitlement\w*|verified|approved|banned|disabled)\b/i;
 
+/** Whether a column decides what a user may do (role, plan, credits and
+ * similar). */
 export function isEntitlementColumn(column: string): boolean {
   return ENTITLEMENT_RE.test(column);
 }
@@ -73,6 +75,8 @@ where table_schema = 'public'
   and grantee in ('anon', 'authenticated')
 order by table_name, column_name`;
 
+/** Findings for client roles that can write tables or columns they should not,
+ * such as entitlement or credential columns. */
 export function analyzeGrants(grants: ColumnGrant[]): GithubFinding[] {
   const out: GithubFinding[] = [];
 

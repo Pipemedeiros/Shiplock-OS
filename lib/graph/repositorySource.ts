@@ -45,7 +45,7 @@ function timestamp(value: string): number {
   return Date.parse(value);
 }
 
-export interface AdmittedRepositorySource {
+interface AdmittedRepositorySource {
   repositoryFullName: string;
   snapshot: z.infer<typeof snapshotSchema>;
 }
@@ -112,6 +112,8 @@ export async function loadSelectedRepositorySources(userId: string, now = Date.n
   return result;
 }
 
+/** Per-repository reachability indices from the selected repositories' latest
+ * source snapshots. */
 export async function loadRepositoryReachability(userId: string, now = Date.now()): Promise<ReachabilityIndex> {
   const repositoryIndices = new Map<string, ReachabilityIndex>();
   for (const { repositoryFullName, snapshot } of (await loadSelectedRepositorySources(userId, now)).values()) {

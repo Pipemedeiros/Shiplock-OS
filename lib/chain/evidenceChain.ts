@@ -40,7 +40,7 @@ export type ChainContext = {
   /** Attack traffic on the finding's route (lib/traffic/findingTraffic.ts). */
   hitHard?: { pattern: string; suspiciousRequests: number } | null;
 };
-export type LinkId = "reach" | "gap" | "proof" | "pressure";
+type LinkId = "reach" | "gap" | "proof" | "pressure";
 /** reported: the evidence is the customer's agent's own report (still open). */
 export type Link = { id: LinkId; title: string; state: "met" | "open" | "unknown"; evidence: string; reported?: true };
 export type Chain = { links: Link[]; met: number; next: string | null };
@@ -100,6 +100,8 @@ function pressure(ctx: ChainContext): Link {
   return { id: "pressure", title, state: "unknown", evidence: "Traffic is not connected, so attempts on this route are not seen." };
 }
 
+/** The four links behind a finding (reach, gap, proof, pressure), how many are
+ * met, and the next safe action. */
 export function evidenceChain(f: ChainFinding, ctx: ChainContext): Chain {
   const links = [reach(f, ctx), gap(f), proof(f, ctx), pressure(ctx)];
   const met = links.filter((l) => l.state === "met").length;

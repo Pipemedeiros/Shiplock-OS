@@ -48,12 +48,14 @@ export const REQUIRED_GITHUB_APP_PERMISSIONS = {
 
 const permissionRank: Record<string, number> = { none: 0, read: 1, write: 2, admin: 3 };
 
+/** GitHub App permissions the installation grants below what ShipLock needs. */
 export function missingInstallationPermissions(permissions: Record<string, string>): string[] {
   return Object.entries(REQUIRED_GITHUB_APP_PERMISSIONS)
     .filter(([name, required]) => (permissionRank[permissions[name] ?? "none"] ?? 0) < permissionRank[required])
     .map(([name]) => name);
 }
 
+/** A short-lived installation token and the permissions GitHub granted it. */
 export async function getInstallationAccess(installationId: string | number): Promise<InstallationAccess> {
   const res = await fetch(`${API}/app/installations/${installationId}/access_tokens`, {
     method: "POST",
@@ -69,6 +71,7 @@ export async function getInstallationAccess(installationId: string | number): Pr
   return { token: json.token, permissions };
 }
 
+/** A short-lived installation token. */
 export async function getInstallationToken(installationId: string | number): Promise<string> {
   return (await getInstallationAccess(installationId)).token;
 }
@@ -88,6 +91,7 @@ export interface Repo {
   visibility: string | null;
 }
 
+/** Repositories the installation can see. */
 export async function listRepos(token: string): Promise<Repo[]> {
   const res = await fetch(`${API}/installation/repositories?per_page=100`, {
     headers: { ...GH_HEADERS, Authorization: `token ${token}` },
@@ -136,6 +140,8 @@ function previewWritten(path: string, branch: string): string | undefined {
   return recording.files.findLast((file) => file.path === path)?.content;
 }
 
+/** One file's content at a branch, or null when absent. Inside a preview,
+ * returns what the lane wrote. */
 export async function getFile(token: string, fullName: string, path: string, branch: string): Promise<string | null> {
   const written = previewWritten(path, branch);
   if (written !== undefined) return written;
@@ -246,6 +252,8 @@ class PreviewStop extends Error {
   constructor(readonly capture: PreviewCapture) { super("preview stop"); }
 }
 
+/** Runs a fix lane with GitHub writes captured instead of sent, returning what
+ * the click would write. */
 export async function capturePreview(lane: () => Promise<unknown>): Promise<PreviewCapture> {
   try {
     const result = await previewStore.run({ token: "", files: [], branches: new Map() }, lane);
@@ -306,6 +314,7 @@ export async function getBranchSha(token: string, fullName: string, branch: stri
   return json.object.sha;
 }
 
+/** Creates a branch at the given commit. */
 export async function createBranch(token: string, fullName: string, branch: string, sha: string): Promise<void> {
   await ghWrite(token, `/repos/${fullName}/git/refs`, "POST", { ref: `refs/heads/${branch}`, sha });
 }
@@ -321,6 +330,7 @@ export async function getFileSha(token: string, fullName: string, path: string, 
   return json.sha ?? null;
 }
 
+/** Creates or updates one file on a branch through the contents API. */
 export async function putFile(
   // sha is omitted when creating a NEW file (migrations / fix-request files);
   // required when updating an existing one. JSON.stringify drops undefined, so
@@ -337,6 +347,8 @@ export async function putFile(
 
 export const SHIPLOCK_PR_LABEL = "ShipLock";
 
+/** Opens a pull request labeled "ShipLock" and returns its address. A refused
+ * label never fails the pull request. */
 export async function openPullRequest(
   token: string, fullName: string, head: string, base: string, title: string, body: string
 ): Promise<string> {
@@ -344,7 +356,7 @@ export async function openPullRequest(
     html_url?: string; number?: number;
   };
   if (!pr.html_url) throw new Error("GitHub PR missing html_url");
-  // A5 (Felipe 2026-10-07): label it "ShipLock" so it reads as ShipLock's in the
+  // Felipe 2026-10-07: label it "ShipLock" so it reads as ShipLock's in the
   // customer's PR list and CI. Best effort: a refused label never fails the PR.
   if (typeof pr.number === "number") {
     await ghWrite(token, `/repos/${fullName}/issues/${pr.number}/labels`, "POST", { labels: [SHIPLOCK_PR_LABEL] }).catch(() => undefined);
@@ -421,7 +433,7 @@ export async function listPullRequestCheckRuns(
 }
 
 /**
- * Recent commits with their diffs, for the history secret scan (C2).
+ * Recent commits with their diffs, for the history secret scan.
  *
  * HARD BOUNDED, because this is the most expensive thing we ask GitHub for: one
  * API call per commit. A repository can have a hundred thousand commits, and

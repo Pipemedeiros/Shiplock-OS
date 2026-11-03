@@ -1,4 +1,4 @@
-// A21 — PII inventory and the exposure model (PRODUCT-DESIGN.md §13.5).
+// PII inventory and the exposure model.
 //
 // The most useful screen in the product at the buying moment, and the most
 // dangerous one if done carelessly. A misleading exposure estimate is a
@@ -23,7 +23,7 @@
 // tempting thing to do. It is forbidden. The types below cannot even carry a
 // value: there is nowhere to put one.
 
-export type PiiCategory =
+type PiiCategory =
   | "identity" // name, username, date of birth
   | "contact" // email, phone, address
   | "financial" // card, bank, payment identifiers
@@ -33,7 +33,7 @@ export type PiiCategory =
   | "location" // coordinates, precise location
   | "content"; // private messages, documents, notes
 
-export interface CategoryRule {
+interface CategoryRule {
   category: PiiCategory;
   re: RegExp;
   /** What a leak of this class actually does to the customer's users. */
@@ -78,7 +78,7 @@ const RULES: CategoryRule[] = [
   { category: "content", re: /\b(message|body|content|note|comment|document|attachment|transcript|chat_)(?:_\w+)?\b/i, label: "private content" },
 ];
 
-export interface ColumnRef {
+interface ColumnRef {
   table: string;
   column: string;
 }
@@ -93,6 +93,7 @@ export interface TableInventory {
   rowCount: number | null;
 }
 
+/** The personal-data category a column name falls under, or null. */
 export function classifyColumn(column: string): CategoryRule | null {
   for (const rule of RULES) if (rule.re.test(column)) return rule;
   return null;
@@ -167,7 +168,7 @@ export const SOURCES = {
   },
 } as const;
 
-export interface ExposureEstimate {
+interface ExposureEstimate {
   table: string;
   rowCount: number;
   categories: string[];
@@ -179,6 +180,7 @@ export interface ExposureEstimate {
   caveat: string;
 }
 
+/** Whole dollars, US format. */
 export function formatMoney(n: number): string {
   return `$${Math.round(n).toLocaleString("en-US")}`;
 }
@@ -211,7 +213,7 @@ export function estimateExposure(inventory: TableInventory): ExposureEstimate | 
   };
 }
 
-export interface ExposureSummary {
+interface ExposureSummary {
   estimates: ExposureEstimate[];
   totalRecords: number;
   totalEstimate: number;
@@ -221,6 +223,8 @@ export interface ExposureSummary {
   regulatoryNote: string;
 }
 
+/** Per-table exposure estimates, largest first, and the tables that hold
+ * personal data but were not counted. */
 export function summariseExposure(inventories: TableInventory[]): ExposureSummary {
   const estimates = inventories
     .map(estimateExposure)

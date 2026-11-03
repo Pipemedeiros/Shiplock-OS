@@ -111,6 +111,8 @@ function guardFor(handler: Handler, model: string): string | null {
   }) ?? null;
 }
 
+/** Handlers that write a model other handlers only write after a role or
+ * permission check. */
 export function findPermissionGaps(files: { path: string; content: string }[]): PermissionGap[] {
   const all = files.flatMap((f) => {
     if (ROUTE_FILE.test(f.path)) return handlers(f.path, f.content);

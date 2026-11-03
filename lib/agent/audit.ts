@@ -50,7 +50,7 @@ export interface CoverageNote {
   upgrade?: string;
 }
 
-export interface AuditResult {
+interface AuditResult {
   runId: string;
   findings: AgentFinding[];
   trace: TraceStep[];
@@ -98,6 +98,8 @@ export function withRoutesOmitted(coverage: CoverageNote[], count: number, risky
   return note ? [...rest, note] : rest;
 }
 
+/** The Coverage record for one audit: what was read, truncated, skipped or left
+ * unread, so a thin audit never looks clean. */
 export function buildCoverage(
   stack: StackReport,
   truncated: boolean,
@@ -305,7 +307,7 @@ function tablesFrom(routes: RouteFact[], files: ArchiveFile[]): string[] {
   return [...new Set([...fromSchema, ...fromRoutes])].sort();
 }
 
-export interface RunAuditOptions {
+interface RunAuditOptions {
   userId: string;
   installationId: number;
   repositoryId: string;
@@ -679,7 +681,7 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
   }
 }
 
-export type RetirableClass = "committed_secret" | "permission_gap";
+type RetirableClass = "committed_secret" | "permission_gap";
 
 /**
  * The deterministic classes this run re-checked in full, so an earlier

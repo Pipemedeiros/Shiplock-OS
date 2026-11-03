@@ -1,9 +1,11 @@
 /** Offline evaluation projections. Never confuse candidate recall with model recall. */
-export interface EvaluationLabel {
+interface EvaluationLabel {
   route: string;
   verdict: "vulnerable" | "benign";
 }
 
+/** Recall and precision of a labeled evaluation, split by stage: observed,
+ * prompted, admitted on replay and reworded. */
 export function summarizeEvaluation(
   labels: EvaluationLabel[],
   observed: Set<string>,

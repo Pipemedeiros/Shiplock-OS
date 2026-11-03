@@ -12,6 +12,7 @@ type AuthUser = { id: string; email?: string | null; created_at?: string; app_me
 
 const NEW_ACCOUNT_MS = 24 * 60 * 60 * 1000;
 
+/** The welcome email: the three first steps, as text and HTML. */
 export function welcomeMessage(appUrl: string): { subject: string; text: string; html: string } {
   const steps = [
     "Install the GitHub App and pick a repository. ShipLock reads it and names your stack.",
@@ -45,6 +46,7 @@ export function welcomeMessage(appUrl: string): { subject: string; text: string;
   return { subject: "Welcome to ShipLock", text, html };
 }
 
+/** Sends the welcome email once, to new accounts only; false when skipped. */
 export async function sendWelcomeOnce(user: AuthUser, appUrl: string, now = new Date()): Promise<boolean> {
   if (!user.email || user.app_metadata?.welcome_sent_at) return false;
   const created = user.created_at ? Date.parse(user.created_at) : NaN;

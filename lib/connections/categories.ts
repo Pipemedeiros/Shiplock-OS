@@ -29,7 +29,7 @@ import type { StackKind } from "@/lib/agent/stack";
  * from a repository lives).
  */
 
-export interface ConnectionCategory {
+interface ConnectionCategory {
   id: string;
   /** Shown as the group heading. */
   label: string;

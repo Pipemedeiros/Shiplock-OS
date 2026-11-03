@@ -1,7 +1,7 @@
 import type { RepoFile } from "@/lib/deep/githubScan";
 import { reachableSources, type RouteFact } from "./routeInventory";
 
-// C6 — is the vulnerable code actually reachable?
+// Is the vulnerable code actually reachable?
 //
 // The single biggest noise reducer available to us, and also the single easiest
 // place to do real harm, so the governing rule is stated first:
@@ -21,9 +21,9 @@ import { reachableSources, type RouteFact } from "./routeInventory";
 // production, and this one is in the file your signup page renders" is the
 // difference between a list and a plan.
 
-export type ReachabilityState = "reachable" | "no_path_found" | "unknown";
+type ReachabilityState = "reachable" | "no_path_found" | "unknown";
 
-export interface ReachabilityVerdict {
+interface ReachabilityVerdict {
   state: ReachabilityState;
   /** Shown to the customer. Plain, and honest about confidence. */
   reason: string;
@@ -61,15 +61,18 @@ const NON_PRODUCTION_RE =
   /(^|\/)(__tests__|__mocks__|test|tests|e2e|cypress|playwright|spec|scripts|tools|examples?|docs?|fixtures?|storybook|\.storybook)\//i;
 const TEST_FILE_RE = /\.(test|spec)\.(ts|tsx|js|jsx)$/i;
 
+/** Whether a path is a request entry point: a Next.js special file such as
+ * a route, page or middleware. */
 export function isEntryPoint(path: string): boolean {
   return ENTRY_POINT_RE.test(path);
 }
 
+/** Whether a path is test, example or tooling code that never ships. */
 export function isNonProductionPath(path: string): boolean {
   return NON_PRODUCTION_RE.test(path) || TEST_FILE_RE.test(path);
 }
 
-export interface ReachabilityContext {
+interface ReachabilityContext {
   /** Every file we read, for the import walk. */
   files: RepoFile[];
   /** Route facts, for table-exposure questions. */
@@ -214,13 +217,13 @@ export function assessReachability(
   return UNKNOWN;
 }
 
-export interface TriageableFinding {
+interface TriageableFinding {
   id: string;
   severity: string;
   title: string;
 }
 
-export interface TriagedFinding<T extends TriageableFinding> {
+interface TriagedFinding<T extends TriageableFinding> {
   finding: T;
   reachability: ReachabilityVerdict;
   rank: number;

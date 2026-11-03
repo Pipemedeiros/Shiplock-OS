@@ -168,7 +168,7 @@ it("hides a label that would cover a forced one", async () => {
   expect([...placeLabels([{ id: "x", x: 0, y: 0, w: 50, h: 14, priority: 9 }, { id: "f", x: 5, y: 0, w: 50, h: 14, priority: 0, force: true }]).keys()]).toEqual(["f"]);
 });
 
-// A4 (Felipe 2026-10-07): the map shows only the routes that are wrong, red or
+// Felipe 2026-10-07: the map shows only the routes that are wrong, red or
 // yellow by degree. Red: a confirmed issue. Yellow: a candidate, or an open or
 // unscoped exposure, with nothing confirmed. Safe and unreadable routes carry
 // no level and leave the map.

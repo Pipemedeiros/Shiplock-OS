@@ -9,6 +9,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // server-side callback route, not just the browser tab that started it.
 let _client: SupabaseClient | null = null;
 
+/** The browser Supabase client, created once. */
 export function getSupabaseBrowser(): SupabaseClient {
   if (!_client) {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

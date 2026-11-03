@@ -34,7 +34,7 @@ const subscribeMotion = (listener: () => void) => {
 // Colour is for risk only (validated on the navy surface: normal-vision ΔE
 // 21.4, colour-blind 13.6). Everything safe stays quiet porcelain.
 const OPEN = "#ff6a5c", UNSCOPED = "#f0c75e", UNKNOWN = "#9aa5b4", QUIET = "#c3cfdd", DIM = "#3e4c63", HOT = "#e8d3a0";
-export const EXPOSURE: Record<Exposure, { color: string; label: string }> = {
+const EXPOSURE: Record<Exposure, { color: string; label: string }> = {
   open: { color: OPEN, label: "No sign-in, reaches data" },
   unscoped: { color: UNSCOPED, label: "Signed in, not limited to own rows" },
   unknown: { color: UNKNOWN, label: "A check we could not read" },
@@ -49,7 +49,7 @@ const OUTCOME: Record<Simulation["outcome"], { label: string; tone: string }> = 
   reaches: { label: "Reaches data it should not", tone: "#ff9d85" },
   unknown: { label: "Unknown: a check we could not read", tone: "#e8d3a0" },
 };
-// A4 (Felipe 2026-10-07): the map shows only what is wrong, red or yellow.
+// Felipe 2026-10-07: the map shows only what is wrong, red or yellow.
 const LEVEL = { red: { color: OPEN, label: "Confirmed issue", aria: "confirmed issue" },
   yellow: { color: UNSCOPED, label: "Candidate or open way to data", aria: "candidate" } } as const;
 
@@ -262,7 +262,7 @@ export function RouteMap({ map }: { map: RouteMapData }) {
     return () => cancelAnimationFrame(frame);
   }, [simKey]);
 
-  // What is shown (A4): only the routes that are wrong, and everything their
+  // What is shown: only the routes that are wrong, and everything their
   // requests reach; shared code they run only when asked.
   const visible = useMemo(() => {
     const wrong = map.nodes.filter((n) => n.kind === "route" && (n.level || n.attacked)).map((n) => n.id);

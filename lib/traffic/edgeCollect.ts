@@ -10,12 +10,14 @@ import { analyzeEdgeRequests, dailySalt } from "./edgeRequests";
  * "unread" and leaves prior observations untouched; no binding means nothing
  * is fetched at all.
  */
-export type EdgeCollection =
+type EdgeCollection =
   | { status: "read"; repositories: number; judgedSources: number }
   | { status: "unread" }
   | { status: "unbound" }
   | { status: "not_enabled" };
 
+/** Reads the Supabase gateway log for a bound project and records hashed,
+ * minimized traffic for its repositories. */
 export async function collectSupabaseEdgeTraffic(
   userId: string, accessToken: string, projectRef: string, signal?: AbortSignal,
 ): Promise<EdgeCollection> {

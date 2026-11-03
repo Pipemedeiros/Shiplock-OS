@@ -23,7 +23,7 @@ describe("RisksBoard proof panel", () => {
   });
 });
 
-// A1/A2 (Felipe 2026-10-07): a candidate is labelled "To review", and a
+// Felipe 2026-10-07: a candidate is labelled "To review", and a
 // confirmed issue shows its proof, the quoted lines, in the evidence.
 describe("RisksBoard candidates and proof", () => {
   it("labels an unconfirmed finding as a candidate to review", () => {

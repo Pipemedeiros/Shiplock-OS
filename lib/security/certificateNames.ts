@@ -24,6 +24,7 @@ const NAME = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
 
 export type CertificateName = { name: string; lastIssued: string };
 
+/** The registrable domain of a host (example.com, example.co.uk), or null. */
 export function registrableDomain(host: string): string | null {
   const h = host.toLowerCase().replace(/\.$/, "");
   if (!h.includes(".") || /^[\d.]+$/.test(h) || !NAME.test(h)) return null;

@@ -4,7 +4,7 @@ import type { DatabaseEvidence } from "./databaseSource";
 import { normaliseLintName, type PgPolicy, type SupabaseAdvisor } from "@/lib/deep/policyScan";
 import { isProvable, vocabulary, type AuthzProvider } from "./providers";
 
-// The asset graph (PRODUCT-DESIGN.md §5.2). Collectors produce facts; this
+// The asset graph. Collectors produce facts; this
 // assembles them into nodes and edges so the reasoner can walk them.
 //
 // The graph is the product. Supabase sees the database, a pentest agent sees the
@@ -18,7 +18,7 @@ import { isProvable, vocabulary, type AuthzProvider } from "./providers";
 // this module must stay trivially testable, because a reasoner that silently
 // mis-assembles its inputs produces confident nonsense.
 
-export type NodeKind = "table" | "route" | "policy" | "config" | "bucket";
+type NodeKind = "table" | "route" | "policy" | "config" | "bucket";
 
 /** Provider project identity is observation provenance, not a repository link. */
 export interface RuntimeEnvFact {
@@ -40,9 +40,9 @@ export interface GraphNode {
   attrs: Record<string, unknown>;
 }
 
-export type EdgeKind = "exposes" | "governs" | "permits";
+type EdgeKind = "exposes" | "governs" | "permits";
 
-export interface GraphEdge {
+interface GraphEdge {
   from: string;
   to: string;
   kind: EdgeKind;
@@ -113,21 +113,13 @@ export interface AuthzFacts {
   sensitive: boolean;
 }
 
-/**
- * The previous name for {@link AuthzFacts}, kept so existing imports keep
- * compiling. New code should use `AuthzFacts`; this alias will go once the last
- * caller has moved.
- *
- * @deprecated Use {@link AuthzFacts}.
- */
-export type TableFacts = AuthzFacts;
 
 /**
  * Tables whose contents would matter if they leaked. Ranking input ONLY — never
  * the reason a finding exists, and never suppresses one. A table we don't
  * recognise is still reported; it just doesn't get the sensitivity bump.
  *
- * This is the cheap version of the PII inventory (A21). It is deliberately a
+ * This is the cheap version of the PII inventory. It is deliberately a
  * name heuristic and is documented as such, because guessing wrong here changes
  * an ordering, not a verdict.
  */
@@ -186,7 +178,7 @@ export interface GraphInput {
   runtimeEnvVars?: RuntimeEnvFact[];
 }
 
-export interface AuthPosture {
+interface AuthPosture {
   /** Anyone can create an account without an invite. `null` when unknown. */
   signupsOpen: boolean | null;
   /** Email confirmation not required, so a fake address gets a session. */
@@ -310,10 +302,6 @@ export function buildAuthzFacts(input: GraphInput): Map<string, AuthzFacts> {
   return assets;
 }
 
-/**
- * @deprecated Use {@link buildAuthzFacts}.
- */
-export const buildTableFacts = buildAuthzFacts;
 
 /** The asset graph: tables, routes, buckets and functions as nodes, with
  * edges for what reaches what, built from the collectors' typed facts. */

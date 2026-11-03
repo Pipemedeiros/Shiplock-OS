@@ -14,13 +14,13 @@ import type { RepairPreviewRequest } from "./preview";
  *   risk          app/api/fix/pr (Risks board)
  *   finding       app/api/deep/fix (fix cards; a dependency is one bump PR)
  */
-export type RepairButton =
+type RepairButton =
   | { lane: "pull-request"; reviewId: string; findingId: string }
   | { lane: "ai"; taskId: string }
   | { lane: "risk"; findingId: string }
   | { lane: "finding"; findingId: string; editedContent?: string | null };
 
-export type RepairTargetResult =
+type RepairTargetResult =
   | { ok: true; target: RepairPreviewRequest }
   | { ok: false; code: "not_found" | "fork" | "no_proposal" | "manual" | "repository_unselected" | "choose_repository" }
   | { ok: false; code: "already_open"; url: string };

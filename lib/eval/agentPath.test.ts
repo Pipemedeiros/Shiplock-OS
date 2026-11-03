@@ -75,7 +75,7 @@ describe("the agent path, offline", () => {
     expect(finding.title).not.toBe("Anyone can call this without signing in");
   });
 
-  // A2 (Felipe 2026-10-07: "they should see some kind of proof"): the quoted
+  // Felipe 2026-10-07: "they should see some kind of proof": the quoted
   // lines the verifier gave, checked against the file, travel with the
   // finding as verified claims, so the issue shows its proof.
   it("carries the verifier's checked quotes as the finding's proof", () => {

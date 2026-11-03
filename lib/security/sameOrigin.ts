@@ -17,6 +17,7 @@ export function isSameOrigin(request: Request): boolean {
   return allowed.has(origin);
 }
 
+/** A 403 for a cross-site request, or null when the request is same-origin. */
 export function crossSiteRefusal(request: Request): NextResponse | null {
   return isSameOrigin(request) ? null : NextResponse.json({ error: "A same-origin request is required." }, { status: 403 });
 }

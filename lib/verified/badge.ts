@@ -17,6 +17,7 @@ const BADGE_MARK =
   '<circle cx="12" cy="15.4" r="1.35" fill="#c9a961" stroke="none"/>' +
   "</svg>";
 
+/** The public Verified report address for a token. */
 export function reportUrl(token: string, appUrl: string): string {
   return `${appUrl.replace(/\/+$/, "")}/verified/${token}`;
 }

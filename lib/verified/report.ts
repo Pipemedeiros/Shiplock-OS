@@ -34,7 +34,7 @@ import type { UnassessedSummary } from "@/lib/agent/unassessed";
 /** Older than this and the page says so rather than presenting it as current. */
 const STALE_AFTER_DAYS = 30;
 
-export interface VerifiedRunData {
+interface VerifiedRunData {
   fullName: string;
   commitSha: string | null;
   finishedAt: string | null;
@@ -60,7 +60,7 @@ export interface VerifiedReportData {
 }
 
 /** Counts from the outside view; never the address or a path. */
-export interface VerifiedLiveData {
+interface VerifiedLiveData {
   readAt: string | null;
   complete: boolean;
   pages: number;
@@ -70,10 +70,10 @@ export interface VerifiedLiveData {
   shippedSecrets: number;
 }
 
-export type VerifiedStatus = "assessed" | "never_assessed";
+type VerifiedStatus = "assessed" | "never_assessed";
 
 /** The assessed/unassessed split, or `{ known: false }` for a run that predates it. */
-export type Assessment =
+type Assessment =
   | { known: false }
   | {
       known: true;
@@ -223,7 +223,7 @@ export function buildVerifiedReport(d: VerifiedReportData): VerifiedReport {
  * so a disabled report and a nonexistent one are indistinguishable and the
  * token space cannot be enumerated.
  */
-/** Open counts as the dashboard status counts them: confirmed issues only (A1). */
+/** Open counts as the dashboard status counts them: confirmed issues only. */
 export function confirmedCounts(rows: { severity: unknown; confidence: unknown; attack_class: unknown; claims: unknown; source?: unknown; finding_id?: unknown }[]):
   { openCritical: number; openTotal: number } {
   const confirmed = rows.filter((r) => {
@@ -248,6 +248,7 @@ export function verifiedLive(input: { url: unknown; boundUrl: unknown; boundRepo
     shippedSecrets: input.openFindingIds.filter((id) => id.startsWith("bundle:shipped_secret:")).length };
 }
 
+/** The public Verified report for a token, or null when disabled or unknown. */
 export async function getVerifiedReport(token: string): Promise<VerifiedReport | null> {
   if (!token) return null;
   const admin = getSupabaseAdmin();

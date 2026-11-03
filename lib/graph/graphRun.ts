@@ -20,7 +20,7 @@ import { collectTrafficFacts } from "@/lib/traffic/graphFacts";
 
 export type Collector = "source" | "db" | "traffic" | "runtime";
 
-export interface FactObservation {
+interface FactObservation {
   /** When this field was recorded, not the provider's last-change time. */
   recordedAt: string;
   completeness: "complete" | "partial" | "unknown";
@@ -40,7 +40,7 @@ function previousMetadata(facts: Record<string, unknown>): FactMetadata {
   return { version: 1, fields: { ...metadata.fields } };
 }
 
-export interface SourceFacts {
+interface SourceFacts {
   routes: RouteFact[];
   /** Additive provenance; legacy flat fields remain until scoped consumers ship. */
   repositories?: RepositorySourceSnapshot[];
@@ -84,7 +84,7 @@ export interface RepositorySourceSnapshot {
 }
 
 /** Transport-local observation; connection provenance is not a repository link. */
-export interface DirectPostgresSnapshot {
+interface DirectPostgresSnapshot {
   columns?: import("@/lib/deep/schemaColumns").SchemaColumn[];
   collector: "postgres-direct";
   authzProvider: "postgres-rls";
@@ -143,14 +143,14 @@ export interface DbFacts {
    */
   authzProvider?: GraphInput["authzProvider"];
   scanTables: { name: string; rlsEnabled: boolean }[];
-  /** A21 PII inventory — schema only, never values. */
+  /** PII inventory — schema only, never values. */
   inventory?: TableInventory[];
   policies: GraphInput["policies"];
   advisors: GraphInput["advisors"];
   authConfig: GraphInput["authConfig"];
 }
 
-export interface TrafficFacts {
+interface TrafficFacts {
   hotPaths: { path: string; suspiciousRequests: number }[];
 }
 
@@ -164,7 +164,7 @@ export interface TrafficFacts {
  * That is precisely the `rulesRead` bug this repository already shipped once,
  * where a table with RLS on and policies unread reported as protected.
  */
-export interface RuntimeFacts {
+interface RuntimeFacts {
   /** Provider ids we successfully read this pass. Presence, not emptiness. */
   providersRead: string[];
   /**

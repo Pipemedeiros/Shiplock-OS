@@ -10,7 +10,7 @@ import { requestSignal } from "@/lib/abort";
  * unread, never clean. INFO: a missing header is a gap to close, not a
  * confirmed exposure, so it never moves the status.
  */
-export interface HeaderFinding { id: string; severity: Severity; title: string; consequence: string }
+interface HeaderFinding { id: string; severity: Severity; title: string; consequence: string }
 
 const TIMEOUT_MS = 8_000;
 
@@ -26,6 +26,7 @@ function httpsPinned(h: Record<string, string>): boolean {
   return age !== undefined && Number(age) > 0;
 }
 
+/** Findings for missing security headers on the app's home page. */
 export function judgeHeaders(headers: Record<string, string>, https: boolean): HeaderFinding[] {
   const out: HeaderFinding[] = [];
   if (!framesRefused(headers)) out.push({
@@ -41,6 +42,8 @@ export function judgeHeaders(headers: Record<string, string>, https: boolean): H
   return out;
 }
 
+/** Reads the app's home page through the SSRF guard and judges its headers;
+ * unreadable is recorded as unread. */
 export async function auditResponseHeaders(appUrl: string, signal?: AbortSignal, unread: string[] = []): Promise<HeaderFinding[]> {
   try {
     const res = await guardedFetch(appUrl, { signal: requestSignal(signal, TIMEOUT_MS) });

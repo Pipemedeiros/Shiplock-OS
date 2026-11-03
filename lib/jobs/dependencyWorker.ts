@@ -66,6 +66,7 @@ export async function executeDependencyJob(job: ClaimedJob): Promise<void> {
   });
 }
 
+/** Claims and runs one dependency job; false when the queue had none. */
 export async function runNextDependencyJob(): Promise<boolean> {
   const job = await claimJob("dependency");
   if (!job) return false;

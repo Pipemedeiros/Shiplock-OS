@@ -23,6 +23,7 @@ const row = z.object({
   repositories: z.object({ full_name: z.string() }),
 });
 
+/** Pull requests ShipLock opened for the account in the last 30 days. */
 export async function getOpenedPullRequests(userId: string): Promise<{ available: boolean; items: OpenedPullRequest[] }> {
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await getSupabaseAdmin().from("repair_action_receipts")

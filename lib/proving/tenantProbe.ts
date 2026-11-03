@@ -1,6 +1,6 @@
 import type { Severity } from "@/lib/types";
 
-// A4 — tenant isolation, PROVEN rather than inferred.
+// Tenant isolation, PROVEN rather than inferred.
 //
 // The graph already detects this statically: an authenticated route with no
 // ownership filter over a table whose policies do not narrow it. That inference
@@ -36,6 +36,7 @@ const OWNER_COLUMN_CANDIDATES = [
   "organization_id",
 ];
 
+/** The column that names a row's owner (user_id and similar), or null. */
 export function pickOwnerColumn(columns: string[]): string | null {
   const lower = new Set(columns.map((c) => c.toLowerCase()));
   for (const candidate of OWNER_COLUMN_CANDIDATES) {
@@ -57,7 +58,7 @@ export function quoteIdent(name: string): string {
   return `"${name}"`;
 }
 
-export interface SeedPlan {
+interface SeedPlan {
   table: string;
   ownerColumn: string;
   sql: string;

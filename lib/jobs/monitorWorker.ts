@@ -124,6 +124,7 @@ export async function executeMonitorJob(job: ClaimedJob): Promise<void> {
   });
 }
 
+/** Claims and runs one monitoring pass; false when the queue had none. */
 export async function runNextMonitorJob(): Promise<boolean> {
   const job = await claimJob("monitor");
   if (!job) return false;

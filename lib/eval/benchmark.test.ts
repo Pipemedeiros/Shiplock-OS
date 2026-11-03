@@ -86,7 +86,7 @@ describe("scoreBenchmark", () => {
   });
 });
 
-// A8 runs in paced batches, and re-check runs (the R1 guard fix) re-read
+// A corpus run in paced batches, and re-check runs (the R1 guard fix) re-read
 // repositories a batch already scored. The running total is the bench over
 // the union, never a hand sum, and a finding counts once.
 describe("combineBatches", () => {

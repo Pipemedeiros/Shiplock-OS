@@ -11,8 +11,8 @@
  * unit of budget. When the budget is gone it refuses, so a worn-out holdout
  * is never mistaken for a fresh one. Pure and seeded, so a run is replayable.
  */
-export type ThresholdoutOptions = { threshold: number; sigma: number; budget: number; seed: number };
-export type ThresholdoutAnswer = { value: number; usedHoldout: boolean };
+type ThresholdoutOptions = { threshold: number; sigma: number; budget: number; seed: number };
+type ThresholdoutAnswer = { value: number; usedHoldout: boolean };
 
 /** Mulberry32: small, fast, and good enough for noise that must be replayable. */
 export function seededRandom(seed: number): () => number {

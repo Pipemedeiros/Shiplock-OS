@@ -14,6 +14,8 @@ import { startGoogleAnalytics } from "./googleAnalytics";
 
 let initialised = false;
 
+/** Starts Google Analytics and PostHog in the browser once, after consent; a
+ * no-op without their keys. */
 export function initAnalytics(): void {
   if (initialised || typeof window === "undefined") return;
   // Google Analytics: visit counts, same consent; a no-op without its id.
@@ -30,6 +32,7 @@ export function initAnalytics(): void {
   initialised = true;
 }
 
+/** Records a product event; dropped before analytics starts. */
 export function track(event: string, properties?: Record<string, string | number | boolean>): void {
   if (!initialised) return;
   posthog.capture(event, properties);

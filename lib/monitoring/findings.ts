@@ -43,6 +43,7 @@ function buildPublicBucketFindings(check: PublicBucketCheck | undefined): Findin
   });
 }
 
+/** Findings from a full endpoint scan result. */
 export function extractFindings(scan: ScanResult): Finding[] {
   const findings: Finding[] = [];
 
@@ -217,6 +218,7 @@ export function isCriticalScopeFindingId(id: string): boolean {
   );
 }
 
+/** Critical findings from a fast endpoint scan result. */
 export function extractCriticalFindings(scan: FastScanResult): Finding[] {
   const findings: Finding[] = [];
 

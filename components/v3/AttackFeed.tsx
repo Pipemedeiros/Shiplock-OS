@@ -3,7 +3,7 @@ import { Check, CircleHelp, ShieldCheck } from "lucide-react";
 import type { AttackFeed, AttackStepState } from "@/lib/agent/attackFeed";
 
 /**
- * The attack, as it happens (A3, Felipe 2026-10-07). What the customer's agent
+ * The attack, as it happens (Felipe 2026-10-07). What the customer's agent
  * tried against their code and what each attempt came to, from the real task
  * states. Every state is a glyph and words, never colour alone; the only
  * motion is the "being checked" dot, which reduced motion stops.
@@ -61,7 +61,7 @@ export function AttackFeedCard({ feed }: { feed: AttackFeed }) {
   );
 }
 
-/** The attack in one line for the Overview (A3), linking to Activity to watch it. */
+/** The attack in one line for the Overview, linking to Activity to watch it. */
 export function AttackSummary({ feed }: { feed: AttackFeed }) {
   if (feed.phase === "not_offered") return null;
   const count = (state: AttackStepState) => feed.steps.filter((s) => s.state === state).length;

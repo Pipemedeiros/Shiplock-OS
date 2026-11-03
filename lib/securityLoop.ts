@@ -90,6 +90,8 @@ function watch({ finished, watch: w }: LoopInput): LoopStage {
     headline: w.hotRoutes > 0 ? `${n(w.hotRoutes, "route")} hit hard` : "Watching pull requests", detail: parts.join(" · ") };
 }
 
+/** The five loop stages (Read, Attack, Map, Fix, Watch), each with its real
+ * state. */
 export function securityLoop(input: LoopInput): LoopStage[] {
   return [read(input), attack(input), map(input), fix(input), watch(input)];
 }

@@ -11,9 +11,11 @@ import { getSupabaseAdmin } from "@/lib/supabase";
  * verified (getClaims, or getUser on the same token). An unreadable factor
  * list fails closed.
  */
-export type MfaDecision = "ok" | "step_up" | "unknown";
+type MfaDecision = "ok" | "step_up" | "unknown";
 type Factor = { status: string };
 
+/** Whether a session may proceed: ok at aal2 or with no verified factor, step
+ * up otherwise, unknown when factors were unreadable. */
 export function mfaDecision(aal: unknown, factors: readonly Factor[] | null): MfaDecision {
   if (aal === "aal2") return "ok";
   if (factors === null) return "unknown";

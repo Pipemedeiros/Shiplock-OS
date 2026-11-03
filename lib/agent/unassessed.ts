@@ -33,6 +33,8 @@ export interface UnassessedSummary {
   sample: string[];
 }
 
+/** Routes that touch data but could not be fully read, counted once by the
+ * first reason: identity, scope or signature. */
 export function summarizeUnassessed(routes: RouteFact[]): UnassessedSummary {
   const dataTouching = routes.filter((r) => r.tables.length > 0);
   const unassessed = dataTouching.filter((r) => !r.identityReadable || !r.ownershipReadable || !r.machineGateReadable);

@@ -29,7 +29,7 @@ describe("verdict", () => {
     expect(verdictOf(base).summary).toBe("In the code this audit read.");
   });
 
-  // A1 (Felipe 2026-10-07): only confirmed issues set the status; the rest
+  // Felipe 2026-10-07: only confirmed issues set the status; the rest
   // is named as candidates to review, never counted as an issue.
   it("names what is left to review without calling it an issue", () => {
     expect(verdictOf({ ...base, toReview: 4 })).toEqual({ level: "clear", word: "No open issues", summary: "4 candidates to review." });

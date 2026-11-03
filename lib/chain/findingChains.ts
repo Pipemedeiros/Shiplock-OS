@@ -18,6 +18,8 @@ type Run = { fullName: string; routeFacts: RouteFacts[] | null };
 type Repo = { id: string; fullName: string };
 type Hit = { pattern: string; suspiciousRequests: number } | null | undefined;
 
+/** Attaches to each finding its route's methods and its evidence chain, from
+ * the latest audit facts. */
 export function withChains<F extends ChainFinding & { repositoryId: string | null; rowId?: string; hitHard?: Hit }>(
   findings: readonly F[], input: { runs: readonly Run[]; repos: readonly Repo[]; trafficConnected: boolean; live?: LiveReach | null;
     reports?: ReadonlyMap<string, SelfCheckReport> },

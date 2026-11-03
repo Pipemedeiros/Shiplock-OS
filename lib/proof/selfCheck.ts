@@ -12,7 +12,7 @@
  */
 export const NO_SUCH_ID = "00000000-0000-4000-8000-000000000000";
 
-export type SelfCheck = { method: string; path: string; curl: string; reading: string };
+type SelfCheck = { method: string; path: string; curl: string; reading: string };
 
 const PARAM = /\[\[?(?:\.\.\.)?[^\]]+\]\]?|:[A-Za-z_]\w*/g;
 const READING =
@@ -25,6 +25,8 @@ export function checkMethods(route: { methods?: string[]; unrefusedMethods?: str
   return route?.methods ?? [];
 }
 
+/** One harmless request the customer can run against their own app to check a
+ * missing sign-in finding, or null when none applies. */
 export function selfCheck(finding: { entry: string; attackClass: string; methods?: string[] }): SelfCheck | null {
   if (finding.attackClass !== "missing_authentication") return null;
   if (!finding.entry.startsWith("/")) return null;
@@ -41,8 +43,9 @@ export function selfCheck(finding: { entry: string; attackClass: string; methods
  * untrusted: this is "the test ran and the agent says it got N", never
  * proof and never a status change (only lib/proving earns proven).
  */
-export type SelfCheckOutcome = "check_ran" | "redirected" | "reached" | "wrong_method" | "inconclusive";
+type SelfCheckOutcome = "check_ran" | "redirected" | "reached" | "wrong_method" | "inconclusive";
 
+/** What the status the customer reported from the self-check means. */
 export function readSelfCheck(status: number): { outcome: SelfCheckOutcome; meaning: string } {
   if (status === 401 || status === 403) return { outcome: "check_ran", meaning: "a sign-in check ran before the route reached data, so the gap may not hold there" };
   if (status >= 300 && status < 400) return { outcome: "redirected", meaning: "a redirect, often to sign in; the Location header says where" };

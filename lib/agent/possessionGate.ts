@@ -77,7 +77,7 @@ import type { RouteFact } from "@/lib/graph/routeInventory";
  * the customer can see and we cannot.
  */
 
-export interface PossessionMint {
+interface PossessionMint {
   /** The default expression as written in the schema. */
   expression: string;
   /** Plain statement of how guessable the id is. */
@@ -87,7 +87,7 @@ export interface PossessionMint {
   line: number;
 }
 
-export interface PossessionBinding {
+interface PossessionBinding {
   /** The column on the looked-up row that must match. */
   field: string;
   /** The model that column refers to, when the schema declares the relation. */
@@ -155,7 +155,7 @@ function defaultOf(attrs: string): string | null {
  * difference is dropped rather than guessed between: a monorepo with two
  * schemas that disagree has no readable mint.
  */
-export function readPrismaModels(files: Iterable<RepoFile>): Map<string, SchemaModel> {
+function readPrismaModels(files: Iterable<RepoFile>): Map<string, SchemaModel> {
   const models = new Map<string, SchemaModel>();
   const conflicted = new Set<string>();
   for (const file of files) {

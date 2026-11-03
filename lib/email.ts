@@ -19,7 +19,7 @@ import { Resend } from "resend";
 // decide what to skip when it is false. Never throws — a mail outage must not
 // fail a monitoring pass, it must only fail to mark the customer as notified.
 
-export interface EmailMessage {
+interface EmailMessage {
   to: string;
   subject: string;
   text: string;

@@ -27,12 +27,13 @@ export const registrySchema = z.object({ version: z.literal(1), rules: z.array(r
 });
 export type Guardrail = z.infer<typeof ruleSchema>;
 export type Snapshot = Map<string, string>;
-export type Violation = { rule: string; path: string; reason: string; severity: "block" | "warn" };
+type Violation = { rule: string; path: string; reason: string; severity: "block" | "warn" };
 export type CommitEvidence = { changedPaths: string[]; message: string };
 
 export const FIXTURES = "lib/security/guardrailFixtures/";
-export const isSource = (p: string) => /\.[cm]?[jt]sx?$/.test(p);
-export const isTest = (p: string) => /(?:^|\/)(?:[^/]*\.(?:test|spec)\.[^/]+|__tests__\/|fixtures?\/)/i.test(p);
+const isSource = (p: string) => /\.[cm]?[jt]sx?$/.test(p);
+const isTest = (p: string) => /(?:^|\/)(?:[^/]*\.(?:test|spec)\.[^/]+|__tests__\/|fixtures?\/)/i.test(p);
+// Whether a repository path matches a glob: *, **, **/ and ?.
 export function matches(path: string, glob: string): boolean {
   // Small documented glob language: *, **, **/ and ?. No dependency or shell.
   let pattern = "";
@@ -53,6 +54,8 @@ function source(path: string, content: string): ts.SourceFile {
   if (!sf) { sf = ts.createSourceFile(path, content, ts.ScriptTarget.Latest, true); syntaxCache.set(key, sf); }
   return sf;
 }
+/** SHA-256 of a file's syntax with comments removed. A pinned file fails its
+ * guardrail when this changes. */
 export function syntaxDigest(path: string, content: string): string {
   return createHash("sha256").update(ts.createPrinter({ removeComments: true }).printFile(source(path, content))).digest("hex");
 }
@@ -151,9 +154,9 @@ const secretPattern = /(?:sk_live_[A-Za-z0-9]{16,}|sk-ant-[A-Za-z0-9_-]{20,}|ghp
 const secretGlobal = new RegExp(secretPattern.source, "g");
 // A private key is the key material, not the header line a detector test names.
 const PEM_BODY = /-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----\s*[A-Za-z0-9+/=]{40,}/g;
-export const valueDigest = (value: string) => createHash("sha256").update(value).digest("hex");
+const valueDigest = (value: string) => createHash("sha256").update(value).digest("hex");
 /** Secret-shaped values, minus the reviewed test fakes listed by digest. */
-export function unreviewedSecrets(text: string, allowed: ReadonlySet<string>): string[] {
+function unreviewedSecrets(text: string, allowed: ReadonlySet<string>): string[] {
   return [...text.matchAll(secretGlobal)].map((m) => m[0]).filter((v) => !v.startsWith("-----BEGIN"))
     .concat([...text.matchAll(PEM_BODY)].map((m) => m[0])).filter((v) => !allowed.has(valueDigest(v)));
 }
@@ -162,6 +165,8 @@ const MODEL_SDK = /^(?:@anthropic-ai\/|openai(?:$|\/)|@ai-sdk\/|ai$|@google\/(?:
 const MODEL_HOST = /api\.anthropic\.com|api\.openai\.com|generativelanguage\.googleapis\.com/;
 const MODEL_KEY = /^(?:ANTHROPIC_API_KEY|OPENAI_API_KEY|SHIPLOCK_FUNDED_[A-Z_]+)$/;
 
+/** Every violation of one guardrail rule in a snapshot of the repository and
+ * its commits. */
 export function checkRule(rule: Guardrail, files: Snapshot, commits: CommitEvidence[] = []): Violation[] {
   const hits: Violation[] = [];
   const hit = (path: string, reason: string) => hits.push({ rule: rule.id, path, reason, severity: rule.severity });

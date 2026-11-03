@@ -37,7 +37,7 @@ const ANY_CALL = /\b([a-z_][\w.]*)\s*\(/gi;
 /** Constructs that always mean the policy reaches beyond this row. */
 const REACHES_OUT = /\b(select|from|join|exists|lateral|union|intersect|except)\b/i;
 
-export interface ReplicabilityVerdict {
+interface ReplicabilityVerdict {
   replicable: boolean;
   reason: string;
 }
@@ -101,7 +101,7 @@ function lit(value: string): string {
   return `'${value.replace(/'/g, "''")}'`;
 }
 
-export interface ReplicaPlan {
+interface ReplicaPlan {
   schema: string;
   setupSql: string;
   teardownSql: string;
@@ -208,7 +208,7 @@ export function buildControlProbeSql(schema: string, table: string, ownerColumn:
   ].join("\n");
 }
 
-export interface ReplicaOutcome {
+interface ReplicaOutcome {
   table: string;
   ownerColumn: string;
   /** Rows of the OTHER tenant visible to tenant A. */

@@ -69,7 +69,7 @@ export class CollectorShapeError extends Error {
  * received number" is fine; "invalid literal, received 'customers'" is not), so
  * the message is rebuilt from structured fields rather than reused.
  */
-export function describeIssues(error: z.ZodError, limit = 5): string[] {
+function describeIssues(error: z.ZodError, limit = 5): string[] {
   const seen = new Set<string>();
   for (const issue of error.issues) {
     const path = issue.path.length > 0 ? issue.path.join(".") : "(root)";

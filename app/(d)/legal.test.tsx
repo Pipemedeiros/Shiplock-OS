@@ -48,7 +48,7 @@ describe("terms of service", () => {
     expect(html).toContain('href="/privacy"');
     expect(t).not.toMatch(/[–—]/);
   });
-  // A6 (Felipe 2026-10-07): say what the attack does and never does.
+  // Felipe 2026-10-07: say what the attack does and never does.
   it("says ShipLock attacks safely, never production, and what a candidate is", () => {
     for (const fact of ["attacks your application", "never sends attack traffic to your production",
       "A candidate is not a confirmed issue", "through your own CI"]) expect(t, fact).toContain(fact);

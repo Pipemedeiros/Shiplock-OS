@@ -31,7 +31,7 @@ export type VerifyItem = {
   facts?: { id: string; statement: string }[];
 };
 
-export type Citation = { role: "reach" | "data" | "control"; path: string; line: number; quote: string };
+type Citation = { role: "reach" | "data" | "control"; path: string; line: number; quote: string };
 
 export type RawVerdict = {
   id: string;
@@ -47,7 +47,7 @@ export type RawVerdict = {
 };
 
 export type Answer = "yes" | "no" | "unsure";
-export type VerdictChecks = { effectHolds: Answer; confidence: number };
+type VerdictChecks = { effectHolds: Answer; confidence: number };
 
 export type Verdict = RawVerdict & { citationProblem: string | null };
 
@@ -179,6 +179,8 @@ export function selectVerifyContext(items: VerifyItem[], files: ReadonlyMap<stri
   return { shown, omitted };
 }
 
+/** The verification prompt: each claim with the numbered source it must cite,
+ * and the files left out for budget. */
 export function buildVerifyPrompt(items: VerifyItem[], files: ReadonlyMap<string, string>, context: { shown: string[]; omitted: string[] }): string {
   const claims = items.map((item) => ({ id: item.id, entry: item.entry, attackClass: item.attackClass, claim: `${item.title}. ${item.consequence}`,
     ...(item.facts?.length ? { facts: item.facts } : {}) }));
@@ -260,7 +262,7 @@ export function applyVerdicts<H extends { consequence: string; title?: string }>
     const verdict = byId.get(String(index));
     // A statement the verifier proved with quoted lines is marked, so the
     // route-fact template in buildFindings does not replace it (CORPUS-5).
-    // The checked citations travel with it as proof (A2, Felipe 2026-10-07).
+    // The checked citations travel with it as proof (Felipe 2026-10-07).
     if (verdict?.verdict === "confirmed") {
       const proof = verdict.citations.length ? { proof: verdict.citations } : {};
       // The title comes with the statement (V3, release run r6): the

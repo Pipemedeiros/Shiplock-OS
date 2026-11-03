@@ -37,6 +37,8 @@ function looksSecret(key: string): boolean {
   return SECRET_NAME_RE.test(key);
 }
 
+/** Findings for one Vercel project's environment variables, such as a secret
+ * exposed through a public prefix. */
 export function auditEnv(projectName: string, vars: VercelEnvVar[]): EnvFinding[] {
   const findings: EnvFinding[] = [];
 
@@ -80,7 +82,7 @@ export function auditEnv(projectName: string, vars: VercelEnvVar[]): EnvFinding[
   return findings;
 }
 
-// Same only-new-alerts contract as the GitHub A03 / monitoring diff.
+// Same only-new-alerts contract as the GitHub / monitoring diff.
 export function diffEnv(previous: EnvFinding[], current: EnvFinding[]): { newFindings: EnvFinding[] } {
   const prevIds = new Set(previous.map((f) => f.id));
   return { newFindings: current.filter((f) => !prevIds.has(f.id)) };

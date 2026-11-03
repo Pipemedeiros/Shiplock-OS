@@ -11,7 +11,7 @@ import { initAnalytics } from "@/lib/analytics";
  * Sign-in cookies are strictly necessary and are not covered by this choice.
  * Mounted once in app/(d)/layout.tsx; replaces the unconditional PostHogInit.
  */
-export type Consent = "accepted" | "rejected";
+type Consent = "accepted" | "rejected";
 const KEY = "shiplock_consent";
 type Store = { getItem(key: string): string | null; setItem(key: string, value: string): void };
 

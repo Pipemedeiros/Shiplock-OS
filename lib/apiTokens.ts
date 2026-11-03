@@ -9,6 +9,7 @@ import { hasProductAccess } from "@/lib/access";
 
 const PREFIX = "shiplock_pat_";
 
+/** SHA-256 of an API token. Only the hash is stored. */
 export function hashToken(raw: string): string {
   return createHash("sha256").update(raw).digest("hex");
 }
@@ -19,11 +20,12 @@ export function generateToken(): { raw: string; hash: string } {
   return { raw, hash: hashToken(raw) };
 }
 
+/** Cheap shape check before any database lookup. */
 export function isTokenShaped(raw: string): boolean {
   return raw.startsWith(PREFIX) && raw.length > PREFIX.length + 20;
 }
 
-export interface ResolvedToken {
+interface ResolvedToken {
   userId: string;
   hasAccess: boolean;
 }

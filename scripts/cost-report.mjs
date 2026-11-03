@@ -9,6 +9,7 @@
 import { readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 
+/** Parses model=input,output prices per million tokens. */
 export function parsePrices(values) {
   const prices = {};
   for (const value of values) {
@@ -22,6 +23,8 @@ export function parsePrices(values) {
 const pct = (sorted, p) => sorted[Math.min(sorted.length - 1, Math.ceil(p * sorted.length) - 1)];
 const round = (n) => Math.round(n * 10_000) / 10_000;
 
+/** Cost per first scan from model usage receipts; unpriced models are listed,
+ * not guessed. */
 export function summarizeCost(receipts, prices) {
   const unpriced = new Set();
   const perRun = new Map();

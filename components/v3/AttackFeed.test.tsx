@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { AttackFeedCard } from "./AttackFeed";
 
-// A3 (Felipe 2026-10-07): the customer sees the attack happening, with its real
+// Felipe 2026-10-07: the customer sees the attack happening, with its real
 // state: what was tried, and what each attempt came to.
 describe("AttackFeedCard", () => {
   it("lists each attack with its state in words as well as a glyph", () => {
@@ -30,7 +30,7 @@ describe("AttackFeedCard", () => {
   });
 });
 
-// A3 on the Overview: one line, the attack's real state, a link to watch it.
+// The attack on the Overview: one line, the attack's real state, a link to watch it.
 describe("AttackSummary", () => {
   it("counts the attack's outcomes in one line and links to Activity", async () => {
     const { AttackSummary } = await import("./AttackFeed");

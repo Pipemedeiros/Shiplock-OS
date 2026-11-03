@@ -31,7 +31,7 @@ export function maxTokensFor(interestingEntries: number): number {
 }
 
 type Usage = { model: string; input_tokens: number; output_tokens: number; cache_read_input_tokens: number | null; stopReason: string | null };
-export type CorpusOutcome = AgentOutcome & { usage?: Usage };
+type CorpusOutcome = AgentOutcome & { usage?: Usage };
 
 /** One proposing call over a pinned repository's recon. Fails into a stated
  * skip, never into an empty answer that reads as clean. */
@@ -69,7 +69,7 @@ const VERIFY_MAX_TOKENS = 16_000;
 /** Claims per verifier call, so each verdict keeps room to cite its lines. */
 export const VERIFY_BATCH = 10;
 
-export interface VerifyOutcome {
+interface VerifyOutcome {
   verdicts: Verdict[]; shown: string[]; omitted: string[]; model: string; skipped: boolean; skipReason?: string; usage?: Usage;
 }
 

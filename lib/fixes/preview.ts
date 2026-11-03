@@ -45,6 +45,8 @@ function runLane(userId: string, r: RepairPreviewRequest): Promise<RepairOutcome
   }
 }
 
+/** What a fix click would write, before the click: each file as it is today and
+ * as the pull request would leave it. */
 export async function previewRepair(userId: string, request: RepairPreviewRequest): Promise<RepairPreview> {
   const capture = await capturePreview(() => runLane(userId, request));
   if (capture.status === "already_open") return { status: "already_open", url: capture.url };

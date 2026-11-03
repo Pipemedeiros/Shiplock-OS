@@ -15,7 +15,7 @@ import type { CertificateName } from "@/lib/security/certificateNames";
  */
 /** A repository's homepage from GitHub (metadata read, no new permission).
  * Read here rather than in lib/deep/github.ts, which is a pinned PR writer. */
-export async function repoHomepage(token: string, fullName: string): Promise<string | null> {
+async function repoHomepage(token: string, fullName: string): Promise<string | null> {
   const res = await fetch(`https://api.github.com/repos/${fullName}`, {
     headers: { Accept: "application/vnd.github+json", Authorization: `token ${token}`, "X-GitHub-Api-Version": "2022-11-28" },
     signal: AbortSignal.timeout(8_000),
@@ -25,7 +25,7 @@ export async function repoHomepage(token: string, fullName: string): Promise<str
   return typeof json.homepage === "string" && json.homepage.trim() ? json.homepage.trim() : null;
 }
 
-export type AppUrlState = {
+type AppUrlState = {
   current: string | null;
   /** The selected repository the current address was confirmed for, if any. */
   repository: string | null;
@@ -52,6 +52,8 @@ async function otherNamesFor(userId: string, current: string | null): Promise<Ce
   return parsed.success ? parsed.data : null;
 }
 
+/** The bound app address, its repository and suggestions from the selected
+ * repositories. */
 export async function getAppUrlState(userId: string): Promise<AppUrlState> {
   const admin = getSupabaseAdmin();
   const { data: profile } = await admin.from("user_profiles")
@@ -118,6 +120,7 @@ export async function setAppUrl(userId: string, value: string, repository: strin
   return origin;
 }
 
+/** Removes the bound app address and its repository binding. */
 export async function clearAppUrl(userId: string): Promise<void> {
   const { error } = await getSupabaseAdmin().from("user_profiles")
     .update({ monitored_app_url: null, monitored_app_repository_id: null, monitored_app_bound_url: null }).eq("id", userId);

@@ -8,7 +8,7 @@ import { getIntelligenceConnection, type ConnectionView } from "./connection";
 export type AiCheckState = "pending" | "expired" | "withdrawn" | "unavailable" | "needs_human" | "proposal";
 /** What the customer's AI said, as references only: never quoted source or
  * edit bodies. It is the AI's claim, already checked against GitHub. */
-export type AiAnswer = { summary: string; citations: { path: string; startLine: number; endLine: number }[]; editedFiles: string[] };
+type AiAnswer = { summary: string; citations: { path: string; startLine: number; endLine: number }[]; editedFiles: string[] };
 export type AiCheck = {
   taskId: string; repository: string; kind: "deep" | "pr" | "other" | "audit" | "proof"; pullRequest: number | null;
   commit: string; state: AiCheckState; createdAt: string; expiresAt: string; answer: AiAnswer | null;
@@ -19,6 +19,7 @@ export type AiCheck = {
 export type AiPause = "not_connected" | "revoked" | "budget" | null;
 export type AiActivity = { available: false } | { available: true; paused: AiPause; checks: AiCheck[] };
 
+/** The state shown for one agent task. */
 export function aiStateOf(status: string, expiresAt: string, now: number): AiCheckState {
   switch (status) {
     case "proposal_received": return "proposal";
@@ -29,6 +30,8 @@ export function aiStateOf(status: string, expiresAt: string, now: number): AiChe
   }
 }
 
+/** Why agent work is paused: not connected, revoked or over budget; null when
+ * running. */
 export function pausedReason(connection: ConnectionView): AiPause {
   if (connection.state === "none" || connection.state === "retired") return "not_connected";
   if (connection.state === "revoked") return "revoked";
@@ -71,6 +74,7 @@ function answerOf(status: string, result: unknown): AiAnswer | null {
 const scanRow = z.object({ job_id: z.string(), scan: z.enum(["deep", "pr"]), pull_request_number: z.number().nullable() });
 const JOB_KEY = /^job:([0-9a-f-]{36})$/;
 
+/** The account's agent connection and its tasks from the last 30 days. */
 export async function getAiActivity(userId: string, now = Date.now()): Promise<AiActivity> {
   try {
     const admin = getSupabaseAdmin();

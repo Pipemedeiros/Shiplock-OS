@@ -25,7 +25,7 @@ import type { FixableFinding } from "./lane";
 // transform cannot find what it expects, it returns null rather than guessing,
 // because a codemod that half-applies is worse than one that does not run.
 
-export interface CodemodResult {
+interface CodemodResult {
   path: string;
   /** Complete new file contents. */
   content: string;
@@ -33,7 +33,7 @@ export interface CodemodResult {
   description: string;
 }
 
-export interface CodemodInput {
+interface CodemodInput {
   path: string;
   content: string;
 }
@@ -140,7 +140,7 @@ export const disableProductionSourceMaps: Codemod = ({ path, content }) => {
  * Adds `permissions: contents: read` to a workflow that declares none.
  *
  * Mechanical, and we applied this exact change to our own workflow by hand after
- * the C20 check flagged it — which is the test of whether a fix belongs here.
+ * the check flagged it — which is the test of whether a fix belongs here.
  * Inserted before `jobs:` at top level, which is where the YAML spec puts it and
  * where a human would.
  */

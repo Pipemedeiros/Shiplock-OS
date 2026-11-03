@@ -55,6 +55,8 @@ function collect(re: RegExp, text: string, out: Set<string>, transform?: (s: str
   }
 }
 
+/** Table names the application code uses (Drizzle, Supabase, Prisma and SQL),
+ * skipping tests and generated code. */
 export function extractTables(files: ArchiveFile[]): string[] {
   const tables = new Set<string>();
 

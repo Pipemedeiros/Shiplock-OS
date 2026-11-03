@@ -15,7 +15,7 @@ export default async function ActivityPage() {
   const { userId } = await requireDashboardSession();
   const [runs, closed, loop, attackTasks] = await Promise.all([getRuns(userId), getRecentlyClosed(userId), loadSecurityLoopInput(userId),
     getAttackTasks(userId).catch(() => null)]);
-  // A3: the attack as it happens, from the agent's real task states. An
+  // The attack as it happens, from the agent's real task states. An
   // unreadable read shows nothing rather than a state we did not read.
   const feed = attackTasks ? attackFeed(attackTasks) : null;
 

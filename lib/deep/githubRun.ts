@@ -99,7 +99,7 @@ async function scanRepo(
     ...scanNextConfigEnv(files),
     ...scanPublicCredentialValues(files),
     ...scanCredentialHandling(files),
-    // C20 — CI is a live attack path, and workflow files are already in the set
+    // CI is a live attack path, and workflow files are already in the set
     // we fetch (.ya?ml matches the candidate filter).
     ...scanWorkflows(files),
   ];
@@ -121,12 +121,12 @@ async function scanRepo(
     const routes = collectRoutes(files);
     routeSink.push(...routes);
 
-    // C12/C13 — findings the inventory already has the facts for. sourceOf
+    // Findings the inventory already has the facts for. sourceOf
     // returns undefined for a file we did not read, and unknown is never a
     // finding.
     const byPath = new Map(files.map((file) => [file.path, file.content]));
     findings.push(...scanRouteFacts(routes, (path) => byPath.get(path)));
-    // C6: which files this repo actually reaches from an entry point. Computed
+    // Which files this repo actually reaches from an entry point. Computed
     // here because this is the only point the repo contents exist in memory.
     if (liveFileSink) {
       const index = buildReachabilityIndex({ files, routes });
@@ -134,7 +134,7 @@ async function scanRepo(
     }
   }
 
-  // C2 — secrets in history. Runs after the working-tree scan so it can skip
+  // Secrets in history. Runs after the working-tree scan so it can skip
   // anything still present there, which the committed-secrets check already
   // reports. Bounded to a recent window; see listRecentCommitPatches.
   try {
@@ -150,7 +150,7 @@ async function scanRepo(
     // History is best-effort — never let it cost us the rest of the scan.
   }
 
-  // C22 last, because it READS the findings above: a public repo is only a
+  // Repository visibility last, because it READS the findings above: a public repo is only a
   // critical problem when we also found credentials in it. Runs before the id
   // namespacing below so its secret-class matching sees the bare ids.
   findings.push(...checkRepoVisibility(repo, findings));
@@ -159,7 +159,7 @@ async function scanRepo(
   return findings.map((f) => ({ ...f, id: `${fullName}::${f.id}` }));
 }
 
-export interface CollectedRepositorySource {
+interface CollectedRepositorySource {
   snapshot: RepositorySourceSnapshot;
   findings: GithubFinding[];
   /** Commits the history check read in full; empty when history was unread. */

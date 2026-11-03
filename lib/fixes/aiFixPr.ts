@@ -48,6 +48,8 @@ async function targetBranch(taskKey: string, defaultBranch: string, repositoryId
   return review.head_ref as string;
 }
 
+/** Opens the pull request for an edit the customer's agent proposed, after re-
+ * checking the task and its files. */
 export async function openAiFixPr(userId: string, taskId: string, repositoryId: string): Promise<RepairOutcome> {
   const admin = getSupabaseAdmin();
   const { data, error } = await admin.from("intelligence_tasks")

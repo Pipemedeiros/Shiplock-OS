@@ -180,6 +180,8 @@ export function routeRisk(route: RouteFact, sensitive: Set<string>): number {
   return 6;
 }
 
+/** Routes in the order the agent sees them: riskiest first, path as the
+ * tiebreak so the same repository always yields the same prompt. */
 export function rankRoutes(routes: RouteFact[], sensitive: Set<string> = new Set()): RouteFact[] {
   return [...routes].sort((a, b) => {
     const byRisk = routeRisk(a, sensitive) - routeRisk(b, sensitive);
@@ -190,6 +192,8 @@ export function rankRoutes(routes: RouteFact[], sensitive: Set<string> = new Set
   });
 }
 
+/** The attack-reasoning prompt: the ranked routes that touch tables, each with
+ * what was read about its sign-in and scope. */
 export function buildPrompt(input: AgentInput): string {
   const interesting = input.routes.filter((r) => r.tables.length > 0);
   const sensitive = new Set(input.domain?.sensitive ?? []);

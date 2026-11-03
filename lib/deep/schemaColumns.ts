@@ -9,6 +9,7 @@ export const SchemaColumns = z.array(z.object({
 })).max(3000).refine(rows => new Set(rows.map(r => r.table)).size <= 200)
   .refine(rows => new Set(rows.map(r => `${r.table}.${r.column}`)).size === rows.length);
 export type SchemaColumn = z.infer<typeof SchemaColumns>[number];
+/** Validates schema column rows read from the database. */
 export const parseSchemaColumns = (rows: unknown): SchemaColumn[] => SchemaColumns.parse(rows);
 const SCHEMA_COLUMNS_SELECT = `select table_name, column_name, data_type
   from information_schema.columns where table_schema = 'public'

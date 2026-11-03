@@ -17,13 +17,14 @@ const rowSchema = z.object({
   ip: z.string().min(1).max(64),
 });
 
-export type EdgeJudgment = { sourceId: string; action: "block" | "alert"; reason: string };
-export type EdgeAnalysis =
+type EdgeJudgment = { sourceId: string; action: "block" | "alert"; reason: string };
+type EdgeAnalysis =
   | { readable: false; rowsRead: number }
   | { readable: true; rowsRead: number; judged: EdgeJudgment[]; hotPaths: { path: string; suspiciousRequests: number; answered: number }[] };
 
 const MAX_HOT_PATHS = 20;
 
+/** A keyed hash of a visitor's IP; the address itself is never stored. */
 export function hashSource(ip: string, salt: string): string {
   return createHmac("sha256", salt).update(ip.trim()).digest("hex").slice(0, 32);
 }
@@ -33,6 +34,7 @@ export function dailySalt(key: string, now = new Date()): string {
   return createHmac("sha256", key).update(`edge-logs:${now.toISOString().slice(0, 10)}`).digest("hex");
 }
 
+/** Request counts and suspicious paths per hashed source from gateway log rows. */
 export function analyzeEdgeRequests(raw: unknown[], salt: string): EdgeAnalysis {
   const events: { source: string; path: string; at: number; ok: boolean }[] = [];
   for (const item of raw) {

@@ -28,7 +28,7 @@ export interface ArchiveFile {
   content: string;
 }
 
-export interface ArchiveResult {
+interface ArchiveResult {
   files: ArchiveFile[];
   /** Bytes of source actually read, after filtering. */
   bytesRead: number;

@@ -17,7 +17,7 @@ import type { GatewayPath } from "@/lib/traffic/gateway";
  * and nothing here says a route was breached. Not connected and unreadable
  * are said as such, never as a quiet page.
  */
-export type TrafficViewProps = {
+type TrafficViewProps = {
   repository: string; sites: number; installed: boolean; lastSeenAt: string | null;
   pulse: TrafficPulse; view: AttackView | null; map: RouteMapData | null; capped: boolean;
   /** Flagged traffic the Supabase gateway saw; null or empty shows nothing. */
