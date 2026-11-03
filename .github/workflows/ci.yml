@@ -6,6 +6,9 @@ name: CI
 # remember to run locally. secmax's negative-test suite (SSRF, auth,
 # paywall, webhook-forgery, etc.) runs here as part of `npm test`.
 on:
+  # Manual runs, e.g. the first run of a repository whose first push the
+  # path filters skipped.
+  workflow_dispatch:
   push:
     branches: [main]
     # Docs, skills and Markdown ship nothing (the same rule as vercel.json's
