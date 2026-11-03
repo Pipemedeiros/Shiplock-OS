@@ -3,7 +3,7 @@
   "rules": [
     {
       "id": "markdown-files",
-      "statement": "Project Markdown exists only in the two contract files and vendored skills.",
+      "statement": "Project Markdown exists only in the contract files, the public README and vendored skills.",
       "why": "AGENTS.md: These are the only two non-skill Markdown files in the repo.",
       "severity": "block",
       "kind": "file_policy",
@@ -17,6 +17,7 @@
       "check": "markdown",
       "allowed": [
         "AGENTS.md",
+        "README.md",
         "docs/MASTER-PLAN-PROGRESS.md",
         ".agents/skills/**"
       ]
@@ -323,7 +324,7 @@
       },
       "check": "migration-loads",
       "sourcePins": {
-        "scripts/test-foundation-sql.mjs": "d757514d964e84fc19219cdc640eb2f2818431d20003fea86c3123d82092f073"
+        "scripts/test-foundation-sql.mjs": "341aa1eace0d905eff687a7be466a03dc01482f505b665f3842d1bb2481fcf04"
       }
     },
     {

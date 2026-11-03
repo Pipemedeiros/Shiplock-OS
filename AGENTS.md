@@ -227,8 +227,9 @@ index before building workflow tools:
 
 ## Documents
 
-Only two project Markdown files exist: this one and the local, untracked
-ledger (skill files excepted). The ledger is working memory: goals with why and acceptance,
+Project Markdown is this file, the public `README.md` and the local,
+untracked ledger (skill files excepted). The README states only what code
+and result files show. The ledger is working memory: goals with why and acceptance,
 measured state, the plan, production snapshot, Felipe's steps, decisions waiting. Under
 150 lines. Delete what is finished; history is the commit log. Never add another guide,
 plan, handoff or `.claude` tree.

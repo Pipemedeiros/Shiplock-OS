@@ -2,7 +2,7 @@
 // network, provider API, model, or hosted database is used.
 import { performance } from "node:perf_hooks";
 import { readFile } from "node:fs/promises";
-import { PGlite } from "../.cache/step23-sql/node_modules/@electric-sql/pglite/dist/index.js";
+import { PGlite } from "@electric-sql/pglite";
 
 const accounts = Number(process.argv[2] ?? 50_000);
 if (!Number.isInteger(accounts) || accounts < 1 || accounts > 100_000) {

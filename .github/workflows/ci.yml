@@ -42,6 +42,8 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npx tsc --noEmit
+      # Migrations against PostgreSQL WASM (PGlite); no network, no credentials.
+      - run: node scripts/test-foundation-sql.mjs
       # The build evaluates every route module while collecting page data, so
       # anything reading env at module scope needs a value here. These are
       # deliberately fake and deliberately inline: CI must not need repository

@@ -1,10 +1,9 @@
 // Local PostgreSQL WASM checks. This never reads environment credentials or
-// connects to a remote database. Install the pinned test runtime under .cache:
-// npm install --prefix .cache/step23-sql --no-audit --no-fund --ignore-scripts --package-lock=false @electric-sql/pglite@0.3.14
+// connects to a remote database. PGlite is a pinned dependency (package.json).
 import { readFile } from "node:fs/promises";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { PGlite } from "../.cache/step23-sql/node_modules/@electric-sql/pglite/dist/index.js";
+import { PGlite } from "@electric-sql/pglite";
 
 const db = new PGlite();
 let checks = 0;
