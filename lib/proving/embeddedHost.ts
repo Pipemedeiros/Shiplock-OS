@@ -71,12 +71,15 @@ export async function openEmbeddedHost({ statementTimeoutMs = 5_000 }: { stateme
     worker.once("error", reject);
   });
 
-  const exec = (sql: string) => new Promise<Record<string, unknown>[]>((resolve, reject) => {
+  // The limit bounds customer SQL. The host's own setup gets a fixed, larger
+  // bound: under the customer limit a slow machine killed the replica before
+  // its first statement (CI, 2026-11-02).
+  const exec = (sql: string, limitMs = statementTimeoutMs) => new Promise<Record<string, unknown>[]>((resolve, reject) => {
     if (dead) return reject(dead);
     const id = next++;
     const timer = setTimeout(() => {
-      void kill(new Error(`Embedded replica statement exceeded ${statementTimeoutMs} ms and was stopped.`));
-    }, statementTimeoutMs);
+      void kill(new Error(`Embedded replica statement exceeded ${limitMs} ms and was stopped.`));
+    }, limitMs);
     pending.set(id, {
       resolve: (rows) => { clearTimeout(timer); resolve(rows); },
       reject: (err) => { clearTimeout(timer); reject(err); },
@@ -84,7 +87,7 @@ export async function openEmbeddedHost({ statementTimeoutMs = 5_000 }: { stateme
     worker.postMessage({ id, sql });
   });
 
-  await exec(PRELUDE);
+  await exec(PRELUDE, Math.max(statementTimeoutMs, 30_000));
   const projectRef = `embedded-${crypto.randomUUID()}`;
   return {
     token: "",

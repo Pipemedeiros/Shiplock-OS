@@ -45,6 +45,18 @@ describe("embedded proving host (6A-2a)", () => {
       await host.close();
     }
   }, 20_000);
+
+  // The statement limit bounds customer SQL. The host's own setup ran under it
+  // too, so a slow machine killed the replica before any statement (CI,
+  // 2026-11-02: setup past 200 ms).
+  it("opens even when its setup outlasts the statement limit, which still applies", async () => {
+    const host = await openEmbeddedHost({ statementTimeoutMs: 1 });
+    try {
+      await expect(host.run(host.projectRef, "select count(*) from generate_series(1, 1000000000)")).rejects.toThrow(/exceeded 1 ms/);
+    } finally {
+      await host.close();
+    }
+  }, 20_000);
 });
 
 // Q6: a policy is customer text the replica executes. One that allocates
