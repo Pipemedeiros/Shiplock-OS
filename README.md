@@ -119,8 +119,8 @@ Limits, stated plainly: production was migrated one release at a time, so buildi
 | `scripts/corpus.cjs`, `lib/eval/` | Evaluation harness |
 | `supabase/migrations/` | Schema and row level security |
 
-About 53,500 lines of TypeScript and JavaScript, 390 test files, 113 SQL migrations.
+About 53,400 lines of TypeScript and JavaScript outside tests, 389 test files, 113 SQL migrations.
 
 ## License
 
-MIT, see [LICENSE](LICENSE). `lib/traffic/crs/` includes OWASP Core Rule Set material under its own license, and `.agents/skills/ui-ux-pro-max/` keeps its own license.
+MIT, see [LICENSE](LICENSE). `lib/traffic/crs/` includes OWASP Core Rule Set material under its own license.

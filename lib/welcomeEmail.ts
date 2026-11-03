@@ -2,7 +2,7 @@ import { sendEmail } from "@/lib/email";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 /**
- * Q29 (Felipe 2026-09-29): a welcome email on sign-up, with the logo. Sent at
+ * Felipe 2026-09-29: a welcome email on sign-up, with the logo. Sent at
  * most once: the auth user is marked (app_metadata.welcome_sent_at, no
  * migration) before the send, so a retry or a second sign-in cannot repeat
  * it; a failed send is logged by sendEmail and not retried. Only accounts

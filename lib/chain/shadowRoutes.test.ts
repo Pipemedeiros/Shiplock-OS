@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { notCheckedAreas, shadowRoutes, shadowRoutesFromRuns } from "./shadowRoutes";
 import type { LiveReach } from "./liveReach";
 
-// Shadow routes (G3, the outside view): addresses the live site requests on
+// Shadow routes (the outside view): addresses the live site requests on
 // its own origin that the bound repository declares no route for. Code alone
 // cannot see them; they are listed as not checked, never as an issue.
 const live = (requests: string[] | null, read = { pages: 3, scriptsSeen: 5, scriptsRead: 5 }): LiveReach =>

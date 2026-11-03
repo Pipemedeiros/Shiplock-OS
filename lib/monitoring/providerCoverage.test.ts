@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { summarizeProviderCoverage, type ProviderConnection, type SnapshotRow } from "./providerCoverage";
 
-// 5A-3: Coverage says, per provider, what the latest read covered. A
+// Coverage says, per provider, what the latest read covered. A
 // disconnected or reconnected provider never shows an older read as current.
 const epoch = "a".repeat(64);
 const connectedAt = "2026-09-20T10:00:00.000Z";

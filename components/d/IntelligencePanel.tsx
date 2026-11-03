@@ -1,6 +1,6 @@
 "use client";
 
-// The customer's standing approval for their own AI (10B-2b): which host
+// The customer's standing approval for their own AI: which host
 // supplies intelligence, when ShipLock may ask it for work, and within what
 // budgets. Proposals only. Approving here never authorizes a branch or PR;
 // each one still needs its own click on the finding. ShipLock runs no model

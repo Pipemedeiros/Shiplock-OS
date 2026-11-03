@@ -22,6 +22,7 @@ export function encrypt(plaintext: string): string {
   return Buffer.concat([iv, tag, encrypted]).toString("base64");
 }
 
+// Reverses encrypt; a tampered ciphertext fails the GCM tag check and throws.
 export function decrypt(ciphertext: string): string {
   const key  = getKey();
   const data = Buffer.from(ciphertext, "base64");

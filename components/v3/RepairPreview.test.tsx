@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { RepairPreviewView } from "./RepairPreview";
 
-describe("RepairPreviewView (Q13)", () => {
+describe("RepairPreviewView", () => {
   it("shows every file, added or changed, the target, and that tests were not run", () => {
     const html = renderToStaticMarkup(<RepairPreviewView busy={false} onOpen={() => {}} preview={{ status: "planned", lane: "Dependency update",
       repository: "acme/app", base: "main", branch: "shiplock/x", title: "Bump lodash", body: "Why", tests: "not run by ShipLock",
@@ -16,7 +16,7 @@ describe("RepairPreviewView (Q13)", () => {
     expect(html).toContain("Open pull request");
     expect(html).not.toMatch(/[–—]/);
   });
-  it("says when a file name's date is set at click (Q8)", () => {
+  it("says when a file name's date is set at click", () => {
     const html = renderToStaticMarkup(<RepairPreviewView busy={false} onOpen={() => {}} preview={{ status: "planned", lane: "Fix",
       repository: "acme/app", base: "main", branch: "shiplock/fix-x", title: "Fix", body: "Why", tests: "not run by ShipLock",
       files: [{ path: "supabase/migrations/20260928120000_shiplock_x.sql", change: "add", before: null, after: "sql", nameSetAtClick: true },

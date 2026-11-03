@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Q33: no horizontal scroll on any public page, at phone and desktop width,
+// No horizontal scroll on any public page, at phone and desktop width,
 // with real device emulation (headless window sizes cannot go below ~500px).
 // Usage: start the app (`npm run build && npx next start -p 3917`), start
 // Chrome with `--headless=new --remote-debugging-port=9333`, then

@@ -106,7 +106,7 @@ async function scanRepo(
 
   if (packageJson) {
     const deps = extractDependencies(packageJson, packageLock);
-    // Kept for the scheduled CVE re-check (F1), which must work without a push.
+    // Kept for the scheduled CVE re-check, which must work without a push.
     if (depSink) for (const d of deps) depSink.set(`${d.name}@${d.version}`, d);
     try {
       findings.push(...depFindings(await queryOsv(deps)));

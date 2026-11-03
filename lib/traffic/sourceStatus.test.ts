@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { summarizeTrafficSources, type TrafficSourceInput } from "./sourceStatus";
 
-// Q3 / 2F-5: per repository, where ShipLock's traffic view comes from, or
+// Per repository, where ShipLock's traffic view comes from, or
 // that there is none. Nothing here is ever "quiet".
 const base = (over: Partial<TrafficSourceInput> = {}): TrafficSourceInput => ({
   repositories: [{ id: "r1", fullName: "acme/app" }], sites: [], paid: true,

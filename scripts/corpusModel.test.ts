@@ -72,7 +72,7 @@ describe("corpus proposing call", () => {
   });
 });
 
-describe("corpus verifier call (P1)", () => {
+describe("corpus verifier call", () => {
   const file = "app/api/orders/route.ts";
   const files = new Map([[file, "export async function GET() {\n  return Response.json(await db.from(\"orders\").select(\"*\"));\n}"]]);
   const item = { id: "0", entry: "/api/orders", attackClass: "missing_authorization", title: "T", consequence: "c", citedFiles: [file], handlerFile: file };

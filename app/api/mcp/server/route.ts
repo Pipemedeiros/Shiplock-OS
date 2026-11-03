@@ -14,7 +14,7 @@ import { GET as brief } from "@/app/api/mcp/brief/route";
 import { GET as posture } from "@/app/api/mcp/posture/route";
 import { MCP_RESOURCES, MCP_TOOLS } from "@/lib/mcpTools";
 
-// ShipLock's MCP server over MCP's HTTP transport (G1): a founder connects
+// ShipLock's MCP server over MCP's HTTP transport: a founder connects
 // their own agent with one command and no npm package,
 //   claude mcp add --transport http shiplock https://shiplock.dev/api/mcp/server --header "Authorization: Bearer <token>"
 // Stateless JSON-RPC over POST; no server stream. The tools are exactly the

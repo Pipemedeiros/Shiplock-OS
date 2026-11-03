@@ -183,7 +183,7 @@ describe("guardedFetch — the actual attack this guard exists to stop", () => {
   });
 });
 
-describe("guardedFetch — 3F-C2b-2 cancellation", () => {
+describe("guardedFetch — cancellation", () => {
   it("does not resolve or request a hop once the caller signal has aborted", async () => {
     const lookup = vi.fn(async () => ["93.184.216.34"]);
     const fetchMock = vi.fn();

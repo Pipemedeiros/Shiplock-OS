@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Q13 parity for your AI's fix: an edit of an existing file on a new branch.
+// Preview parity for your AI's fix: an edit of an existing file on a new branch.
 vi.mock("@/lib/deep/github", async (original) => ({
   ...await original<typeof import("@/lib/deep/github")>(), getInstallationToken: async () => "tok",
 }));
@@ -45,7 +45,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-describe("AI fix preview parity (Q13)", () => {
+describe("AI fix preview parity", () => {
   it("shows the edit the click writes, and writes nothing itself", async () => {
     const preview = await previewRepair("u1", { action: "ai-fix-pr", repositoryId: "33333333-3333-4333-8333-333333333333", taskId: TASK });
     expect(writes).toEqual([]);

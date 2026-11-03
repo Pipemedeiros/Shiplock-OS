@@ -135,10 +135,10 @@ function pipeline(files: RepoFile[], hypothesis: Hypothesis) {
 const PROCESSING_FILE = "pages/api/teams/[teamId]/documents/document-processing-status.ts";
 const REPORT_FILE = "pages/api/report.ts";
 
-// Q21 (Felipe, 2026-09-28): an anonymous route whose only way in is a
+// Felipe, 2026-09-28: an anonymous route whose only way in is a
 // random-minted request id is capped at WARNING, never removed. This route was
 // pinned CRITICAL until that decision; it stays visible and assessed.
-describe("INVARIANT: document-processing-status stays visible, capped at WARNING (Q21)", () => {
+describe("INVARIANT: document-processing-status stays visible, capped at WARNING", () => {
   const files: RepoFile[] = [
     { path: "prisma/schema/schema.prisma", content: SCHEMA },
     { path: PROCESSING_FILE, content: PROCESSING_STATUS },
@@ -209,11 +209,11 @@ describe("INVARIANT: document-processing-status stays visible, capped at WARNING
   });
 });
 
-// Q15 (2026-09-28): Sonnet 5 phrased these share-link claims as
+// 2026-09-28: Sonnet 5 phrased these share-link claims as
 // missing_authorization ("not scoped by team"). On a route read as anonymous
 // there is no caller to scope by, so it is the same wrong sentence and gets the
 // same one rewording, only where a gate was read.
-describe("missing_authorization on a gated anonymous route is reworded the same way (Q15)", () => {
+describe("missing_authorization on a gated anonymous route is reworded the same way", () => {
   const schemaOnly: RepoFile = { path: "prisma/schema/schema.prisma", content: SCHEMA };
   it("is possession_gated, INFO, where a gate was read", () => {
     const { guarded, findings } = pipeline([schemaOnly, { path: REPORT_FILE, content: REPORT }], {

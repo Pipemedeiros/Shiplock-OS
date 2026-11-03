@@ -7,7 +7,7 @@ import { purgeIntelligenceTasks } from "./retention";
 
 beforeEach(() => { rpc.mockReset(); });
 
-describe("purgeIntelligenceTasks (10B-1d)", () => {
+describe("purgeIntelligenceTasks", () => {
   it("runs the bounded purge and reports how many tasks it removed", async () => {
     rpc.mockResolvedValue({ data: 3, error: null });
     expect(await purgeIntelligenceTasks()).toEqual({ ok: true, purged: 3 });

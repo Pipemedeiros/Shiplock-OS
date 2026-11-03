@@ -10,7 +10,7 @@ const verdictLabel: Record<PullRequestReviewView["verdict"], { text: string; ton
   pass: { text: "Passed", tone: "ok" },
 };
 
-/** Your own pull requests as ShipLock checked them (8B-2): what each one
+/** Your own pull requests as ShipLock checked them: what each one
  * introduced, where, and how much of it we could read. */
 function aiLine(ai: AiActivity, review: PullRequestReviewView): string {
   if (!ai.available) return "state unknown.";

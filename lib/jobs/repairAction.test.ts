@@ -14,7 +14,7 @@ beforeEach(() => {
   vi.useFakeTimers({ now: new Date("2026-09-22T10:15:42.000Z"), toFake: ["Date"] });
 });
 
-describe("requestRepairAction (3F-C2d-3)", () => {
+describe("requestRepairAction", () => {
   it("admits one receipt per click and wakes the repair worker", async () => {
     expect(await requestRepairAction({ userId: "u1", repositoryId: "r1", action: "finding-fix-pr", findingId: "scan:x", editedContent: "-- fix" })).toBe(receiptId);
     const [name, args] = mocks.rpc.mock.calls[0];
@@ -42,20 +42,20 @@ describe("requestRepairAction (3F-C2d-3)", () => {
     vi.useRealTimers();
   });
 
-  it("binds a fix-before-merge click to its stored review (8B-3)", async () => {
+  it("binds a fix-before-merge click to its stored review", async () => {
     await requestRepairAction({ userId: "u1", repositoryId: "r1", action: "pr-fix-pr", findingId: "diff:x", editedContent: null, reviewId: "rev-1" });
     expect(mocks.rpc.mock.calls[0][1]).toMatchObject({ p_action: "pr-fix-pr", p_review: "rev-1" });
     vi.useRealTimers();
   });
 
-  it("reports the repair quota distinctly (3H-2)", async () => {
+  it("reports the repair quota distinctly", async () => {
     mocks.rpc.mockResolvedValue({ data: null, error: { message: "repair quota reached" } });
     await expect(requestRepairAction({ userId: "u1", repositoryId: "r1", action: "dependency-bump-pr", findingId: null, editedContent: null }))
       .rejects.toThrow("repair_quota_reached");
     vi.useRealTimers();
   });
 
-  it("binds an AI-fix click to its intelligence task (10B-3b)", async () => {
+  it("binds an AI-fix click to its intelligence task", async () => {
     await requestRepairAction({ userId: "u1", repositoryId: "r1", action: "ai-fix-pr", findingId: "task-1", editedContent: null, taskId: "task-1" });
     expect(mocks.rpc.mock.calls[0][1]).toMatchObject({ p_action: "ai-fix-pr", p_task: "task-1", p_finding: "task-1", p_review: null });
     vi.useRealTimers();

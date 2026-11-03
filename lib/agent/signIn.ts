@@ -2,7 +2,7 @@ import type { RouteFact } from "@/lib/graph/routeInventory";
 import type { StackReport } from "./stack";
 
 /**
- * Whether the application has any notion of a signed-in person (P3, D1).
+ * Whether the application has any notion of a signed-in person.
  *
  * Release attempt 5 found 5 of its 9 false findings in apps that sign no one
  * in by design: a single-tenant demo with a hard-coded identity and a
@@ -54,7 +54,7 @@ const DECLARED = /\b(there is no|there's no|no) (auth|authentication|login|sign[
 
 /**
  * Where an app with no sign-in says, in its own code, that it is open by
- * design (P3, D1). The census over labeled attempts 3 to 5: apps with no
+ * design. The census over labeled attempts 3 to 5: apps with no
  * sign-in held 31 true findings and 5 false, so absence alone moves real
  * findings; 4 of the 5 false sat in apps whose code fixes a demo identity or
  * says there is no sign-in. Null unless sign-in is read as absent.

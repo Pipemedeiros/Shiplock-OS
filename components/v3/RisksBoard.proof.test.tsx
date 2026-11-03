@@ -4,7 +4,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => {} }) }))
 import { RisksBoard } from "./RisksBoard";
 import type { DashboardFinding } from "@/lib/agent/dashboardData";
 
-// Q7: the proof panel appears only on a finding the server offered it for.
+// The proof panel appears only on a finding the server offered it for.
 const finding: DashboardFinding = {
   rowId: "1", id: "f1", title: "Anyone signed in can read every order", consequence: "c", severity: "CRITICAL",
   confidence: "inferred", attackClass: "missing_ownership", entry: "/api/orders", file: "app/api/orders/route.ts",
@@ -12,7 +12,7 @@ const finding: DashboardFinding = {
   detectedAt: "2026-09-24T00:00:00Z", fixPrUrl: null, fixPrNumber: null, confirmed: true,
 };
 
-describe("RisksBoard proof panel (Q7)", () => {
+describe("RisksBoard proof panel", () => {
   it("shows the test on a disposable copy when offered", () => {
     const html = renderToStaticMarkup(<RisksBoard findings={[finding]}
       proofs={{ "1": { repositoryId: "r1", findingId: "f1", table: "public.orders", view: null } }} />);

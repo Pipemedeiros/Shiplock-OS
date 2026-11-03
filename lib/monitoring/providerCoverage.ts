@@ -4,7 +4,7 @@ import { currentConnectionEpoch } from "@/lib/deep/providerRepositoryMap";
 import type { ProviderResult } from "./registry";
 
 /**
- * Per-provider coverage from the latest snapshot (5A-3, migration 087). A
+ * Per-provider coverage from the latest snapshot (migration 087). A
  * provider that is not connected is not listed; a read taken under an earlier
  * connection is never shown as current; a failed or partial read says what
  * was not read. This reports what was read, never that a provider is secure.

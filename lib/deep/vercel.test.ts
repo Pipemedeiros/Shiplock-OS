@@ -166,7 +166,7 @@ describe("lib/deep/vercel", () => {
   });
 });
 
-describe("3F-C2b: caller cancellation reaches the Vercel request", () => {
+describe("caller cancellation reaches the Vercel request", () => {
   const originalFetch = global.fetch;
   afterEach(() => { global.fetch = originalFetch; });
 

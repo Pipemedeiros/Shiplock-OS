@@ -96,7 +96,7 @@ export interface Trace {
   conditionalIdentityPaths: string[];
   /**
    * Files the executed path reached for but the hop budget did not enter
-   * (Q24). What runs there was not read; a caller may disclose it.
+   *. What runs there was not read; a caller may disclose it.
    */
   unfollowed: string[];
 }
@@ -106,7 +106,7 @@ export interface TraceOptions {
   isIdentityCall?: (calleeText: string) => boolean;
   /**
    * Named exports to start from instead of the HTTP handlers: a server action
-   * is one exported function (Q24). Module-level statements are then not
+   * is one exported function. Module-level statements are then not
    * walked, because they run at import, not per call.
    */
   roots?: string[];
@@ -270,7 +270,7 @@ class Walker {
   readonly wrapperPaths = new Set<string>();
   /** Identity calls that run only under a condition on a parameter, per file. */
   readonly conditionalIdentityCalls = new Map<string, Set<ts.Node>>();
-  /** Files an executed reference resolved into but the hop budget did not enter (Q24). */
+  /** Files an executed reference resolved into but the hop budget did not enter. */
   readonly beyondBudget = new Set<string>();
   /** Every way a callee was reached, so unsupplied names can be intersected. */
   private readonly reached = new Map<ts.Node, Supplied[]>();

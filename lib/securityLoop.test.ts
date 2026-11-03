@@ -95,7 +95,7 @@ describe("security loop", () => {
     expect(s.detail).toMatch(/1 provider read live/);
   });
 
-  it("watches with the attack's context: a route under attack that has an open issue leads (P4)", () => {
+  it("watches with the attack's context: a route under attack that has an open issue leads", () => {
     const one = stage({ ...base, watch: { ...base.watch, trafficSites: 1, hotRoutes: 2, hotWithIssue: 1 } }, "watch");
     expect(one).toMatchObject({ state: "attention", headline: "1 route under attack has an open issue", action: "View issues", href: "/dashboard/risks" });
     const two = stage({ ...base, watch: { ...base.watch, trafficSites: 1, hotRoutes: 3, hotWithIssue: 2 } }, "watch");

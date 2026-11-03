@@ -7,7 +7,7 @@ import { extractTables, STRONG_USER_AUTH_RE, type RouteFact } from "./routeInven
 import { calls, middlewareAuthenticates, NOT_HELPERS, ownershipGapFor, QUERY_BUILDER, whereClauses } from "./serverActionFacts";
 
 /**
- * Facts for tRPC procedures (Step 7G-1), the tRPC counterpart of the server
+ * Facts for tRPC procedures, the tRPC counterpart of the server
  * action facts. A procedure is a `router({...})` / `createTRPCRouter({...})`
  * entry whose chain ends in `.query`, `.mutation` or `.subscription`.
  *
@@ -35,7 +35,7 @@ const RESOLVERS = new Set(["query", "mutation", "subscription"]);
 // corpus-d's mutationSessionGuard tests `!ctx.user` only to let such a caller
 // through, and throws for a different case.
 const CTX_USER_CHECK = /!\s*(?:\w+\.)?ctx\s*\??\.\s*(?:session|user|userId|auth)\b/;
-// Q26: tRPC's own semantics. A branch that throws TRPCError UNAUTHORIZED on a
+// TRPC's own semantics. A branch that throws TRPCError UNAUTHORIZED on a
 // condition that reads ctx is an authentication gate however the condition is
 // spelled: `!ctx?.session?.user` (hash), `!isValidUserInCtx(ctx)` (corpus-ac).
 // Both read as anonymous on CORPUS-3, titling signed-in IDORs "anyone can call
@@ -258,7 +258,7 @@ function fact(file: string, name: string, kind: TrpcProcedureFact["kind"], base:
 }
 
 /**
- * tRPC procedures as route facts (7G), so the audit ranks, prompts and guards
+ * tRPC procedures as route facts, so the audit ranks, prompts and guards
  * them exactly like route handlers. The path `trpc:<file>#<name>` is what a
  * hypothesis cites. Like server actions, service-role, machine-gate and data
  * readability carry the identity readability.

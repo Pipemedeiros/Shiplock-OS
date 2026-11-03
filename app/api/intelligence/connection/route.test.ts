@@ -18,7 +18,7 @@ const post = (body: unknown, origin = "https://shiplock.dev") => new Request(url
 
 beforeEach(() => { vi.clearAllMocks(); mocks.user.mockResolvedValue({ userId: "u1", email: null }); });
 
-describe("/api/intelligence/connection (10B-2b)", () => {
+describe("/api/intelligence/connection", () => {
   it("requires a signed-in account", async () => {
     mocks.user.mockResolvedValue(null);
     expect((await GET()).status).toBe(403);

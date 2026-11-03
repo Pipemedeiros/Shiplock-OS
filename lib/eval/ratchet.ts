@@ -17,6 +17,7 @@ export type KeepIf = { developmentPrecisionGainAtLeast: number; developmentTrueM
 
 const share = (a: number, b: number) => (b ? a / b : null);
 
+/** Precision before and after a candidate rule moves findings to review. */
 export function scoreRule(rows: readonly RuleRow[]): RuleScore {
   let tp = 0, moved = 0, movedTp = 0;
   for (const r of rows) {
@@ -28,6 +29,8 @@ export function scoreRule(rows: readonly RuleRow[]): RuleScore {
     keptPrecision: share(keptTp, kept), movedPrecision: share(movedTp, moved) };
 }
 
+/** Keeps a rule only if it raises precision by the frozen margin without
+ * moving too many true findings out of the status. */
 export function developmentVerdict(score: RuleScore, keepIf: KeepIf): { gain: number | null; trueMovedShare: number | null; passes: boolean } {
   const gain = score.keptPrecision !== null && score.baselinePrecision !== null ? score.keptPrecision - score.baselinePrecision : null;
   const trueMovedShare = share(score.movedTp, score.tp);

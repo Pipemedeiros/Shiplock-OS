@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Billing portal is not configured." }, { status: 500 });
   }
 
-  // Q30: "cancel" opens Stripe's cancel flow for the caller's own active
+  // "cancel" opens Stripe's cancel flow for the caller's own active
   // subscription (looked up from their customer, never from the body) and
   // lands on /cancelled; anything else opens the portal as before.
   const body = (await req.json().catch(() => ({}))) as { intent?: unknown };

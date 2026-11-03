@@ -171,7 +171,7 @@ describe("VERIFY_SYSTEM and who acts", () => {
   });
 });
 
-// W2 (JEV's idea, answered by the customer's own agent): a typed question
+// JEV's idea, answered by the customer's own agent: a typed question
 // with a bounded answer, checked by code. Release attempt 5 kept a delete the
 // schema's restrict relations block; nothing asked the narrow question.
 describe("typed checks", () => {

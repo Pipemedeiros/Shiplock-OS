@@ -214,21 +214,18 @@ fixtures, rerun the offline corpus.
 
 ## Skills
 
-Read the full `SKILL.md`, not the name. The work graph
-(`.agents/skills/work-graph/`) routes every task: its nodes, the skill each
-uses, Felipe's gates and the anchors; `lib/security/workGraph.test.ts` keeps
-it and the skills in step. Every implementation: Ponytail and Superpowers.
-Anything a person sees: UI UX Pro plus the design references at
-`~/starred-repos/VoltAgent__awesome-design-md/design-md/` (Linear, Sentry,
-Vercel; principles, never palettes). Security-sensitive review: GStack.
-Metric work: Autoresearch. Parallel agents only when delegated: Ruflo. Tooling
-index before building workflow tools:
-`~/starred-repos/hesreallyhim__awesome-claude-code/`.
+Claude's working skills live in `.agents/skills/`, a local directory git
+ignores; they are not part of the published repository. When present, read the
+full `SKILL.md`, not the name. The work graph (`work-graph`) routes every
+task: its nodes, the skill each uses, Felipe's gates and the anchors. Every
+implementation: Ponytail and Superpowers. Anything a person sees: UI UX Pro.
+Security-sensitive review: GStack. Metric work: Autoresearch. Parallel agents
+only when delegated: Ruflo.
 
 ## Documents
 
 Project Markdown is this file, the public `README.md` and the local,
-untracked ledger (skill files excepted). The README states only what code
+untracked ledger. The README states only what code
 and result files show. The ledger is working memory: goals with why and acceptance,
 measured state, the plan, production snapshot, Felipe's steps, decisions waiting. Under
 150 lines. Delete what is finished; history is the commit log. Never add another guide,

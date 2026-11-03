@@ -190,7 +190,7 @@ describe("detect", () => {
   });
 });
 
-// P4 (the watch uses the attack's context; Cloudflare's per-endpoint and
+// (the watch uses the attack's context; Cloudflare's per-endpoint and
 // Aikido Zen's in-app ideas, on metadata only): one source walking many record
 // ids on one route is enumeration, the attack behind an id-only finding.
 describe("id walking", () => {

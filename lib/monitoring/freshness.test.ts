@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { planFreshnessRechecks, type LatestRead } from "./freshness";
 
-// Q11 / Step 9: accounts whose provider evidence is stale, failed, or partial
+// Accounts whose provider evidence is stale, failed, or partial
 // get one extra recheck per day, oldest first, capped.
 const now = Date.parse("2026-09-23T12:00:00.000Z");
 const hoursAgo = (h: number) => new Date(now - h * 3_600_000).toISOString();

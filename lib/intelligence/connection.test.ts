@@ -14,7 +14,7 @@ beforeEach(() => { rpc.mockReset(); maybeSingle.mockReset(); });
 const valid = { host: "claude-code", deepScan: "weekly", prScan: "daily", runTokenBudget: 50000,
   monthlyTokenBudget: 1000000, allowProposals: true };
 
-describe("intelligence connection approval (10B-2b)", () => {
+describe("intelligence connection approval", () => {
   it("accepts one bounded standing approval and requires explicit proposal consent", () => {
     expect(ConnectionApproval.parse(valid)).toEqual(valid);
     expect(() => ConnectionApproval.parse({ ...valid, allowProposals: false })).toThrow();

@@ -19,7 +19,7 @@ describe("loop input", () => {
     expect(input.finished).toEqual({ status: "complete", filesRead: 10, entries: 4, tables: 2, unread: 2 });
     expect(input.agent).toEqual({ available: true, paused: null, pending: 2, answered: 1 });
     expect(input.fix).toEqual({ open: 2, withPr: 1 });
-    // P4: a route under attack that the audit found an issue on, in the same
+    // A route under attack that the audit found an issue on, in the same
     // repository; the login route is hot in r1 but its issue is in r2.
     expect(input.watch).toEqual({ prChecks: 2, blockedPrs: 1, trafficSites: 1, hotRoutes: 2, hotWithIssue: 1, hotWithReview: 0, providersRead: 1, providersConnected: 2 });
   });
@@ -32,7 +32,7 @@ describe("loop input", () => {
     expect(input.agent.available).toBe(false);
   });
 
-  it("counts a hot route whose only finding is a candidate as one to review, not an issue (P4)", () => {
+  it("counts a hot route whose only finding is a candidate as one to review, not an issue", () => {
     const input = loopInputOf({ runs: [], ai: { available: false }, map: null, reviews: [], trafficSites: 1,
       findings: [{ repositoryId: "r1", file: "a.ts", confirmed: false }] as never, hot: { r1: [{ file: "a.ts" }] },
       providers: { available: false, items: [] } });

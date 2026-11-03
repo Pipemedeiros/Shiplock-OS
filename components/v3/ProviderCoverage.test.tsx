@@ -6,7 +6,7 @@ import type { ProviderCoverageItem } from "@/lib/monitoring/providerCoverage";
 const item = (over: Partial<ProviderCoverageItem>): ProviderCoverageItem => ({ transport: "supabase-management",
   label: "Supabase project", state: "complete", observedAt: "2026-09-22T10:00:00.000Z", notRead: [], detail: "Everything was read.", ...over });
 
-describe("ProviderCoverage (5A-3)", () => {
+describe("ProviderCoverage", () => {
   it("says no provider is connected rather than showing nothing", () => {
     const html = renderToStaticMarkup(<ProviderCoverage coverage={{ available: true, items: [] }} />);
     expect(html).toMatch(/No provider is connected/);

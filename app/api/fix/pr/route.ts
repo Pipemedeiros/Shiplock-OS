@@ -9,7 +9,7 @@ import { quotaResponse } from "@/lib/quota";
 /**
  * The customer's click to open a pull request for one Risks-board finding.
  *
- * Admits a receipted repair job (3F-C2d); the worker opens the PR on a NEW
+ * Admits a receipted repair job; the worker opens the PR on a NEW
  * branch off the default, never a push to the default and never a merge. That
  * boundary is not a setting. Poll /api/fix/receipts/[id] for the outcome.
  */
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Name a finding." }, { status: 400 });
 
-  // Resolved from OUR records, exactly as the preview resolves it (Q13-F).
+  // Resolved from OUR records, exactly as the preview resolves it.
   const resolved = await resolveRepairTarget(user.userId, { lane: "risk", findingId: parsed.data.findingId });
   if (!resolved.ok) {
     if (resolved.code === "not_found") return NextResponse.json({ error: "No such finding." }, { status: 404 });

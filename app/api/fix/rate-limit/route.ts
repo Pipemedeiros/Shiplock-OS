@@ -7,7 +7,7 @@ import { quotaResponse } from "@/lib/quota";
 
 /**
  * The customer's click to open a rate-limit pull request for one route that
- * observed traffic reached (Q12-3, migration 093). Admits a receipted repair
+ * observed traffic reached (migration 093). Admits a receipted repair
  * job; the worker re-derives the change from current evidence, adds one
  * off-by-default helper on a new branch, and never merges. Poll
  * /api/fix/receipts/[id] for the outcome.

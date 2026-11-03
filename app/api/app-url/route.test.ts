@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// G3: the founder confirms the address the outside view reads. Suggestions
+// The founder confirms the address the outside view reads. Suggestions
 // come from GitHub; nothing is probed until a confirm, and the confirm starts
 // the read at once (responsive) instead of waiting for the 48 hour pass.
 const mocks = vi.hoisted(() => ({ user: vi.fn(), state: vi.fn(), set: vi.fn(), clear: vi.fn(), recheck: vi.fn() }));

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { quotaCode, quotaResponse } from "./quota";
 
-describe("provisional quotas speak plainly (3H)", () => {
+describe("provisional quotas speak plainly", () => {
   it("recognizes each database quota refusal", () => {
     expect(quotaCode("audit quota reached")).toBe("audit_quota_reached");
     expect(quotaCode("ERROR: recheck quota reached")).toBe("recheck_quota_reached");

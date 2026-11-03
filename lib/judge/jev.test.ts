@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { JEV_MODEL, jevRequest, jevVerdict, type JudgeEvidence } from "./jev";
 
-// P7 (Felipe 2026-10-15: "implement Jev as best as you can"). JEV answers
+// (Felipe 2026-10-15: "implement Jev as best as you can"). JEV answers
 // typed questions with calibrated probabilities. This module only builds the
 // request from evidence ShipLock already holds and turns the answer into a
 // keep or review decision; it makes no call (the developer harness does,

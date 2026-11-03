@@ -82,7 +82,7 @@ export async function admitDueMonitoringPasses(
   return admission.parse(data);
 }
 
-/** Weekly deep scans and windowed PR scans the customer approved (10B-2c). */
+/** Weekly deep scans and windowed PR scans the customer approved. */
 export async function admitDueIntelligenceScans(
   now = new Date(),
   limit = 1_000,

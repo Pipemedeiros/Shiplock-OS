@@ -53,7 +53,7 @@ it("keeps queue failures generic and does not start an unrecorded worker", async
   expect(mocks.after).not.toHaveBeenCalled();
 });
 
-it("tells the customer plainly when the daily manual audit limit is reached (3H-1)", async () => {
+it("tells the customer plainly when the daily manual audit limit is reached", async () => {
   mocks.enqueue.mockRejectedValue(new Error("audit_quota_reached"));
   const response = await POST(request({repository:"acme/app"}));
   expect(response.status).toBe(429);

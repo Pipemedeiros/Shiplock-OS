@@ -13,7 +13,7 @@ const context = (collector: SupabaseBindingCollector, endpointUrl: string | null
 });
 const reply = (value: unknown, status = 200) => Promise.resolve(Response.json(value, { status }));
 
-describe.each(cases)("Section 10 / 2C-3-C3-B3-B: $collector client confirmation", ({ collector, endpointUrl }) => {
+describe.each(cases)("$collector client confirmation", ({ collector, endpointUrl }) => {
   const current = context(collector, endpointUrl); const transport = vi.fn<typeof fetch>();
   beforeEach(() => {
     vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-09-17T11:00:00Z"));

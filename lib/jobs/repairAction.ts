@@ -19,7 +19,7 @@ export interface RepairRequest {
 }
 
 /**
- * The customer's fix click (3F-C2d). Admits one receipt plus one repair job,
+ * The customer's fix click. Admits one receipt plus one repair job,
  * then wakes a worker; the web request never writes to GitHub. The same
  * finding and edit within a minute share a receipt, so a double click cannot
  * open two PRs; a changed edit is a new request.

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Q13: the preview resolves a fix's repository exactly as each click route
+// The preview resolves a fix's repository exactly as each click route
 // does, from server records, never from the request.
 const state = vi.hoisted(() => ({ rows: {} as Record<string, unknown>, open: vi.fn(), fix: vi.fn(), filters: [] as unknown[][] }));
 vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ from: (table: string) => {
@@ -19,7 +19,7 @@ import { resolveRepairTarget } from "./repairTarget";
 const R1 = "33333333-3333-4333-8333-333333333333";
 beforeEach(() => { vi.clearAllMocks(); state.rows = {}; state.filters = []; });
 
-describe("resolveRepairTarget (Q13)", () => {
+describe("resolveRepairTarget", () => {
   it("fix before merge: the review's repository, owner-scoped, same-repository only", async () => {
     state.rows.pull_request_reviews = { repository_id: R1, same_repository: true, head_ref: "feat", findings: [{ id: "f" }] };
     expect(await resolveRepairTarget("u1", { lane: "pull-request", reviewId: "v", findingId: "f" }))

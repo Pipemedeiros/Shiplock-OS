@@ -229,7 +229,7 @@ export async function runPolicyScan(
     }
 
     // Snapshot, inventory, and findings commit together under the monitor
-    // job's lease and this connection epoch, or not at all (3F-C2c). The side
+    // job's lease and this connection epoch, or not at all. The side
     // effects below run only after a successful commit.
     signal?.throwIfAborted();
     try {
@@ -336,11 +336,11 @@ export async function runPolicyScan(
       console.error("[supabaseMgmt] auth log scan failed:", err instanceof Error ? err.message : err);
     }
 
-    // 2F-4: no-install traffic from the Supabase API gateway log, judged per
+    // No-install traffic from the Supabase API gateway log, judged per
     // source and stored only for repositories confirmed for this project.
     // Best-effort; an unreadable log leaves prior observations as they were.
     signal?.throwIfAborted();
-    // Q8: a read or unread log leaves a snapshot for Coverage; unbound and
+    // A read or unread log leaves a snapshot for Coverage; unbound and
     // not-enabled are derived at render time.
     let edgeRead: boolean | null = null;
     try {

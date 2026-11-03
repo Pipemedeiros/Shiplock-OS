@@ -21,7 +21,7 @@ try {
   for (const file of ["008_monitoring.sql", "021_phase2_github_deep_access.sql", "022_phase2_vercel_env_audit.sql", "032_monitored_app_url.sql", "034_supabase_mgmt_connection.sql", "036_source_scan_coalescing.sql", "039_graph_facts.sql", "043_finding_correlation.sql", "044_hourly_pass_fairness.sql", "045_direct_postgres_connection.sql", "046_mvp_repos_and_runs.sql", "047_agent_findings.sql", "050_runtime_graph_facts.sql", "051_findings_idempotent_persist.sql", "053_provider_repository_links.sql", "054_database_repository_bindings.sql", "055_supabase_repository_bindings.sql", "056_durable_jobs.sql", "057_atomic_audit_findings.sql", "058_repository_scoped_finding_identity.sql", "059_audit_job_triggers.sql", "060_atomic_repository_selection.sql", "061_github_install_handshake.sql", "062_scheduled_audit_admission.sql", "063_durable_pull_request_checks.sql", "064_fenced_source_collection.sql", "065_fenced_dependency_rechecks.sql", "066_durable_provider_monitoring.sql"]) {
     await db.exec(await readFile(new URL(`../supabase/migrations/${file}`, import.meta.url), "utf8"));
   }
-  // 2D: a connection that predates epochs must keep its current identity.
+  // A connection that predates epochs must keep its current identity.
   const legacy = "55555555-5555-4555-8555-555555555555";
   await db.query("insert into auth.users values ($1)", [legacy]);
   await db.query("insert into public.user_profiles(id,vercel_access_token_encrypted,supabase_mgmt_token_encrypted,postgres_dsn_encrypted,monitored_anon_key_encrypted) values($1,'v-cipher','m-cipher','p-cipher','  ')", [legacy]);
@@ -438,7 +438,7 @@ try {
     await assert.rejects(db.query("select public.stamp_hourly_monitor_attempt($1,$2,$3)",[u1,u2,u1]));
     await db.exec("reset role");
   });
-  // 3F-C2c-1: provider results commit only under a live monitor lease and the
+  // Provider results commit only under a live monitor lease and the
   // connection identity they were collected under.
   await db.exec("reset role; grant select on public.deep_findings, public.graph_facts to service_role");
   const pEpoch = "a".repeat(64);
@@ -508,7 +508,7 @@ try {
     await assert.rejects(db.query("select public.enqueue_monitoring_job($1,'manual','manual:none')",[u2]));
     await assert.rejects(db.query("select public.enqueue_monitoring_job($1,'bogus','manual:bad')",[legacy]));
   });
-  // 3F-C2d: every PR write is one clicked, receipted, lease-fenced job.
+  // Every PR write is one clicked, receipted, lease-fenced job.
   const requestRepair = (user, repo, key, action="finding-fix-pr", finding="rls:orders", edited=null) => db.query(
     "select public.request_repair_action($1,$2,$3,$4,$5,$6) as receipt",[user,repo,action,finding,edited,key]);
   await check("a repair click creates one receipt and one queued repair job", async () => {
@@ -557,7 +557,7 @@ try {
     await assert.rejects(db.query("select public.complete_repair_action($1,$1,$1,'opened',null,null,null)",[u1]));
     await db.exec("reset role; set role service_role");
   });
-  // 8B-1: each PR check stores what it found, fenced to its own job.
+  // Each PR check stores what it found, fenced to its own job.
   await check("a pull-request review is stored once per head commit under the check lease", async () => {
     const key="review-pr-9";
     const job=(await db.query("select public.enqueue_pull_request_check($1,$2,$3,9,$4) as id",[u1,r1,key,"c".repeat(40)])).rows[0].id;
@@ -579,7 +579,7 @@ try {
     await db.exec("reset role");
     const row=(await db.query("select verdict,head_ref,same_repository,jsonb_array_length(findings) n from public.pull_request_reviews where id=$1",[id])).rows[0];
     assert.deepEqual(row,{verdict:"warn",head_ref:"feature/orders",same_repository:true,n:1});
-    // 9A: the blocking store admitted exactly one alert job for this PR head,
+    // The blocking store admitted exactly one alert job for this PR head,
     // and re-storing the same head never adds another.
     const alerts=(await db.query("select n.job_id,j.kind from public.pull_request_notifications n join public.execution_jobs j on j.id=n.job_id where n.review_id=$1",[id])).rows;
     assert.equal(alerts.length,1); assert.equal(alerts[0].kind,"notification");
@@ -620,7 +620,7 @@ try {
     await assert.rejects(db.query("select public.persist_pull_request_review($1,$1,$1,'{}'::jsonb)",[u1]));
     await db.exec("reset role; set role service_role");
   });
-  // 10B-1: durable customer-intelligence tasks bound to tenant, selected
+  // Durable customer-intelligence tasks bound to tenant, selected
   // repository, commit, and the GitHub installation they were created under.
   const sources=JSON.stringify([{path:"next.config.ts",sourceHash:"1".repeat(64)}]);
   const newTask=(key,user=u1,repo=r1,minutes=10)=>db.query(
@@ -686,7 +686,7 @@ try {
     assert.deepEqual(left,[fresh,pending].sort());
     await db.exec("set role service_role");
   });
-  // 10B-2b: one pre-approved intelligence connection per account.
+  // One pre-approved intelligence connection per account.
   const approve=(host="claude-code",deep="weekly",pr="daily",run=50000,month=1000000,user=u1)=>db.query(
     "select public.approve_intelligence_connection($1,$2,$3,$4,$5,$6) as at",[user,host,deep,pr,run,month]);
   await check("an account pre-approves its intelligence host, cadence, and budgets once", async () => {
@@ -738,7 +738,7 @@ try {
     await approve("codex","off","off",1000,50000);
     assert.ok((await newTask("intel-budget-3")).rows[0].id);
   });
-  // 10B-2c: approved cadences admit identity-only intelligence scan jobs.
+  // Approved cadences admit identity-only intelligence scan jobs.
   const due=(at="2026-09-23T12:00:00Z")=>db.query("select public.enqueue_due_intelligence_scans($1::timestamptz,100) as a",[at]).then((x)=>x.rows[0].a);
   const scans=()=>db.query("reset role").then(()=>db.query("select s.scan,s.pull_request_number as pr,s.head_sha as head,j.kind from public.intelligence_scan_jobs s join public.execution_jobs j on j.id=s.job_id where s.user_id=$1 order by s.scan,s.pull_request_number",[u1])).then(async (x)=>{await db.exec("set role service_role"); return x.rows;});
   const head="c".repeat(40);
@@ -778,7 +778,7 @@ try {
     assert.equal(await pr(8),null);
     assert.equal((await due("2026-10-08T12:00:00Z")).eligible,0);
   });
-  // 10B-2e: one encrypted customer model key per account, service-only.
+  // One encrypted customer model key per account, service-only.
   await check("a customer API key is stored only as ciphertext with a 4-character hint and a fresh epoch", async () => {
     const save=(hint,epoch="e".repeat(64))=>db.query("insert into public.intelligence_credentials(user_id,provider,key_encrypted,key_hint,epoch) values ($1,'anthropic','v1:'||repeat('c',40),$2,$3) on conflict (user_id) do update set key_encrypted=excluded.key_encrypted,key_hint=excluded.key_hint,epoch=excluded.epoch,created_at=now()",[u1,hint,epoch]);
     await save("Ab_9");
@@ -818,7 +818,7 @@ try {
     await db.query("update public.repair_action_receipts set status='failed',failure_code='source_changed' where id=$1",[receipt]);
     await db.exec("set role service_role");
   });
-  // 3G-1: one ShipLock-funded model run per account, bound to a leased audit run.
+  // One ShipLock-funded model run per account, bound to a leased audit run.
   await check("the first-scan credit funds exactly one audit run per account and per GitHub installation", async () => {
     await db.exec("reset role");
     const leased=async(user,repo)=>{
@@ -847,7 +847,7 @@ try {
     assert.equal((await db.query("select count(*)::int as n from public.first_scan_credits where github_installation_id=42")).rows[0].n,1);
     await db.exec("set role service_role");
   });
-  // 3H-1: a hard daily cap on manual audits per account; scheduled work is unaffected.
+  // A hard daily cap on manual audits per account; scheduled work is unaffected.
   await check("manual audits are capped at 20 per account per rolling day, replays and scheduled runs excepted", async () => {
     await db.exec("reset role");
     await db.query("delete from public.execution_jobs where user_id=$1 and kind='audit'",[u2]);
@@ -864,7 +864,7 @@ try {
     await assert.rejects(manual("quota-21"),/audit quota reached/);         // the 21st in 24h is refused
     assert.ok((await manual("quota-sched","scheduled")).run_id);           // scheduled work is not a manual click
   });
-  // 3H-2: provisional caps on the other customer-click paths.
+  // Provisional caps on the other customer-click paths.
   await check("manual provider rechecks are capped at 20 per account per rolling day, replays excepted", async () => {
     await db.exec("reset role");
     const existing=(await db.query("select count(*)::int as n from public.monitoring_job_context where user_id=$1 and trigger_source='manual' and created_at>now()-interval '24 hours'",[legacy])).rows[0].n;
@@ -896,7 +896,7 @@ try {
     await token(11);
     await db.exec("set role service_role");
   });
-  // 3H-3: pin the queue's per-tenant fairness (characterization; migration 056).
+  // Pin the queue's per-tenant fairness (characterization; migration 056).
   await check("a claim skips a tenant that already has a running job, so one busy tenant cannot starve others", async () => {
     await db.exec("reset role");
     const fa="aaaaaaaa-0000-4000-8000-00000000fa01", fb="aaaaaaaa-0000-4000-8000-00000000fb02";
@@ -933,7 +933,7 @@ try {
     assert.ok((await db.query("select merged_at from public.repair_action_receipts where id=$1",[receipt])).rows[0].merged_at);
     await db.exec("set role service_role");
   });
-  // 2F-2a: traffic is bound to a repository through an explicit site.
+  // Traffic is bound to a repository through an explicit site.
   await check("a traffic site binds one normalized host to the owner's selected repository, with its own token", async () => {
     await db.exec("reset role");
     await db.query("update public.repositories set selected=true where id in ($1,$2)",[r1,r3]);   // earlier checks deselect
@@ -957,7 +957,7 @@ try {
     await db.query("insert into public.traffic_events(user_id,source_id,path,method,site_id,repository_id) values ($1,'s','/x','GET',$2,$3)",[u1,b.site_id,r3]);
     await db.exec("set role service_role");
   });
-  // 2F-4: provider-log traffic observations, replaced per run, bounded, no IPs.
+  // Provider-log traffic observations, replaced per run, bounded, no IPs.
   await check("traffic observations are replaced per repository and source, bounded, and refuse a foreign repository", async () => {
     const replace=(user,repo,paths)=>db.query("select public.replace_traffic_observations($1,$2,'supabase',$3) as n",[user,repo,JSON.stringify(paths)]).then((x)=>x.rows[0].n);
     assert.equal(await replace(u1,r1,[{path:"/auth/v1/token",suspiciousRequests:25},{path:"/rest/v1/orders",suspiciousRequests:3}]),2);
@@ -1000,7 +1000,7 @@ try {
     await assert.rejects(db.query("select public.submit_intelligence_result($1,$1,'unavailable','{}'::jsonb,$2)",[u1,"9".repeat(64)]));
     await db.exec("reset role; set role service_role");
   });
-  // 5A-2: every provider pass leaves one append-only snapshot of what it read.
+  // Every provider pass leaves one append-only snapshot of what it read.
   await db.exec("reset role");
   await db.exec(await readFile(new URL("../supabase/migrations/087_provider_snapshots.sql", import.meta.url), "utf8"));
   await db.exec("grant select on public.provider_snapshots to service_role; set role service_role");
@@ -1058,7 +1058,7 @@ try {
     assert.deepEqual((await db.query("select transport from public.provider_snapshots where user_id=$1 order by transport",[legacy])).rows.map((r)=>r.transport),
       ["postgres-direct","supabase-management","vercel"]);
   });
-  // Q8 / 2F-5b: the Supabase gateway traffic read leaves a snapshot too.
+  // The Supabase gateway traffic read leaves a snapshot too.
   await db.exec("reset role");
   await db.exec(await readFile(new URL("../supabase/migrations/088_edge_traffic_snapshots.sql", import.meta.url), "utf8"));
   await db.exec("set role service_role");
@@ -1080,7 +1080,7 @@ try {
     assert.match(def,/\(kind, run_after, created_at, id\) WHERE \(status = 'queued'::text\)/);
   });
   await db.exec("set role service_role");
-  // Q5 / 6A-1: one receipt per proof the customer authorized, for one table.
+  // One receipt per proof the customer authorized, for one table.
   await db.exec("reset role");
   await db.exec(await readFile(new URL("../supabase/migrations/090_proof_authorizations.sql", import.meta.url), "utf8"));
   await db.query("update public.repositories set selected=true where id=$1 and user_id=$2",[r1,u1]);
@@ -1129,7 +1129,7 @@ try {
     // An expired authorization no longer counts toward the outstanding limit.
     await authorize(u1,r1,"rls:orders","public.t7","p-7");
   });
-  // Q6 / 6A-2: a proof job consumes its authorization and records one run.
+  // A proof job consumes its authorization and records one run.
   await db.exec("reset role");
   await db.exec(await readFile(new URL("../supabase/migrations/091_proof_jobs.sql", import.meta.url), "utf8"));
   await db.exec("set role service_role");
@@ -1168,7 +1168,7 @@ try {
     const run=(await db.query("select authorization_id, finding_id, table_name, outcome, statements_run from public.proof_runs where job_id=$1",[job])).rows;
     assert.deepEqual(run,[{authorization_id:auth,finding_id:"policy:public.orders:read",table_name:"public.orders",outcome:"reproduced",statements_run:7}]);
   });
-  // Q10 / 12B: one usage receipt per model call, for cost per run.
+  // One usage receipt per model call, for cost per run.
   await db.exec("reset role");
   await db.exec(await readFile(new URL("../supabase/migrations/092_model_usage_receipts.sql", import.meta.url), "utf8"));
   await db.exec("grant select, insert on public.model_usage_receipts to service_role; set role service_role");
@@ -1190,7 +1190,7 @@ try {
     await assert.rejects(usage({purpose:"narrative",funded:"shiplock",model:""}));
     assert.equal((await db.query("select count(*)::int n from public.model_usage_receipts")).rows[0].n,3);
   });
-  // Q12-3 / Step 11: a clicked rate-limit PR needs observed traffic evidence.
+  // A clicked rate-limit PR needs observed traffic evidence.
   await db.exec("reset role");
   await db.exec(await readFile(new URL("../supabase/migrations/093_rate_limit_repairs.sql", import.meta.url), "utf8"));
   await db.query("delete from public.traffic_route_observations where user_id=$1 and repository_id=$2",[u1,r1]);
@@ -1213,7 +1213,7 @@ try {
     // Existing lanes still work.
     await requestRepair(u1,r1,"rl-regression");
   });
-  // Q19: Supabase wakes the durable worker every minute through pg_cron + pg_net.
+  // Supabase wakes the durable worker every minute through pg_cron + pg_net.
   const wakeSql = await readFile(new URL("../supabase/migrations/094_worker_wake.sql", import.meta.url), "utf8");
   await check("094 is a no-op where pg_cron or pg_net is unavailable", async () => {
     await db.exec("reset role");
@@ -1255,7 +1255,7 @@ try {
     await db.exec("reset role");
     await db.exec(netLockSql);
   });
-  // 096: the audit keeps its route facts for the dashboard route map (Q27).
+  // 096: the audit keeps its route facts for the dashboard route map.
   await check("096 adds audit_runs.route_facts as jsonb, still unreadable by client roles", async () => {
     await db.exec("reset role");
     await db.exec(await readFile(new URL("../supabase/migrations/096_audit_route_facts.sql", import.meta.url), "utf8"));
@@ -1553,7 +1553,7 @@ try {
     }
     await db.query("delete from public.traffic_route_observations where user_id=$1 and repository_id=$2",[u1,r1]);
   });
-  // 106 (P5): the live site's called paths, a runtime fact under its own key,
+  // 106: the live site's called paths, a runtime fact under its own key,
   // joined to a repository only through the founder's confirmed binding.
   await check("app-surface writes only its own runtime fact, and the binding is tenant bound (106)", async () => {
     await db.exec("reset role");

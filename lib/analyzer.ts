@@ -188,7 +188,7 @@ function buildFallback(scan: ScanResult): AnalysisResult {
     });
   }
 
-  // A check that did not run is not a pass (1E-5): name them, never hide them.
+  // A check that did not run is not a pass: name them, never hide them.
   const unverified = Object.entries(scan as unknown as Record<string, unknown>)
     .filter(([, check]) => (check as { tested?: unknown } | null)?.tested === false)
     .map(([name]) => name);

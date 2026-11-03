@@ -88,7 +88,7 @@ export const getOpenFindings = cache(async (userId: string): Promise<DashboardFi
       "id, finding_id, source, title, consequence, severity, confidence, attack_class, entry, file, blast_radius, fix_kind, claims, detected_at, fix_pr_url, fix_pr_number, repository_id, repositories(full_name)",
     )
     .eq("user_id", userId)
-    // W3: what ShipLock observed outside the repository (a replica proof, the
+    // What ShipLock observed outside the repository (a replica proof, the
     // shipped bundle, the connected database) is shown with the agent's.
     .in("source", ["agent", ...LIVE_SOURCES])
     .is("archived_at", null)

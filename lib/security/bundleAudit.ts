@@ -304,7 +304,7 @@ export async function auditShippedBundle(
   const add = (finding: BundleFinding) => {
     if (!found.has(finding.id)) found.set(finding.id, finding);
   };
-  // The paths this JavaScript names (P5), and those it requests itself.
+  // The paths this JavaScript names, and those it requests itself.
   const keep = (text: string) => {
     if (!shipped) return;
     for (const p of calledPaths(text)) shipped.paths.add(p);

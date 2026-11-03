@@ -3,7 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import type { SurfaceChange } from "@/lib/security/surfaceChange";
 
 /**
- * Reach observed on the founder's live site (P5, the outside view), admitted
+ * Reach observed on the founder's live site (the outside view), admitted
  * for one repository. The app-surface pass stores the paths the site's
  * JavaScript names as a runtime fact (lib/security/exposedPathsRun.ts); that
  * fact joins a repository's findings only when all of these hold (AGENTS.md:

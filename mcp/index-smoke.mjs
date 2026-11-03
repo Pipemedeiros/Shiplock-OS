@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 10B-2a: the published MCP server against a local fake ShipLock. Proves the
+// The published MCP server against a local fake ShipLock. Proves the
 // exact tool list (read tools, task polling, proposal submission, the fix PR
 // request under the dashboard grant (103) and the self-check report (107); no
 // scan, file-write, merge or deploy tool) and the requests each tool sends. No

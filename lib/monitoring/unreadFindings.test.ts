@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ScanResult } from "@/lib/scanner";
 import { extractFindings } from "./findings";
 
-// 1E-3: a probe that never got an answer must not become a finding.
+// A probe that never got an answer must not become a finding.
 const scan = (over: Partial<ScanResult>) => ({ tables: [], ...over }) as unknown as ScanResult;
 
 describe("extractFindings ignores untested rate-limit checks", () => {

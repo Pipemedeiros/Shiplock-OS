@@ -25,7 +25,7 @@ function click(tree: ReactNode, label: string) {
   expect(button).toBeDefined(); button!.onClick();
 }
 
-describe("Section 10 / 2C-3-C3-B2: rendered association controls", () => {
+describe("rendered association controls", () => {
   it("describes customer confirmation without deployment or security verification and hides opaque IDs", () => {
     const { html } = view({ status: "ready", context });
     expect(html).toContain("Current database:"); expect(html).toContain("db.example/app");

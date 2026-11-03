@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
     const parsed = bodySchema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return ok();
 
-    // A site token binds the event to its repository (2F-2a); a legacy
+    // A site token binds the event to its repository; a legacy
     // account token stays unbound. Unknown, lapsed, or deselected: generic ok.
     const identity = await resolveTrafficToken(token);
     if (!identity) return ok();

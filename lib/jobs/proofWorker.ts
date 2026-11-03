@@ -9,7 +9,7 @@ import type { PgPolicy } from "@/lib/proving/policyTypes";
 import { claimJob, executeClaimedJob, PermanentJobError, withLeaseHeartbeat, type ClaimedJob } from "./queue";
 
 /**
- * One customer click, one proof (Q6 / Step 6A-2, migrations 090 and 091).
+ * One customer click, one proof (migrations 090, 091).
  *
  * The job carries a consumed per-test authorization: one finding, one table,
  * one selected repository. The worker rebuilds that table and the policies

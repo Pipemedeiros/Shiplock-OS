@@ -4,7 +4,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { analyzeEdgeRequests, dailySalt } from "./edgeRequests";
 
 /**
- * No-install traffic (2F-4): the customer's Supabase API gateway log, read
+ * No-install traffic: the customer's Supabase API gateway log, read
  * with their own Supabase connection, judged per source, and stored per
  * repository they confirmed for that Supabase project. An unreadable log is
  * "unread" and leaves prior observations untouched; no binding means nothing

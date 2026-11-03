@@ -16,7 +16,7 @@ const PR_OPENERS = [
   "lib/fixes/riskFixPr.ts",
 ];
 const RECEIPTED_CALLERS = new Set(["lib/jobs/repairWorker.ts", "lib/fixes/findingFixPr.ts",
-  // Q13: runs lanes only inside capturePreview, where no GitHub write is sent
+  // Runs lanes only inside capturePreview, where no GitHub write is sent
   // (pinned by the capture-only test below and lib/deep/github.preview.test.ts).
   "lib/fixes/preview.ts"]);
 

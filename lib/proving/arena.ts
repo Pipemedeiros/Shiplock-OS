@@ -67,7 +67,7 @@ export async function openArena(
   host: ProvingHost | null
 ): Promise<{ arena: Arena | null; reason: string }> {
   // 6-0: the branch path runs on the customer's own, billable project, and the
-  // contract requires an authorization for that exact test. Until Step 6A
+  // contract requires an authorization for that exact test. Until the proof authorization
   // issues per-test receipts, only ShipLock's own replica host is used.
   const attempt = BRANCH_PATH_ENABLED
     ? await attemptProvingBranch(request.customerToken, request.customerRef)

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 /**
- * Pull requests ShipLock opened after the customer's click (Q1 / 8-R2): every
+ * Pull requests ShipLock opened after the customer's click: every
  * lane's receipt, with the merge time the webhook stamps (084). A merge queues
  * a recheck of the default branch; ShipLock never merges.
  */

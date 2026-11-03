@@ -71,7 +71,7 @@ function matches(snapshot: z.infer<typeof base>, epoch: string | null, now: numb
 /** Current-profile admission only. No decryption, provider fetch, flat fallback
  * or repository inference. Snapshots match the connection epoch read with its
  * credential (migration 067); a reconnect after this read is still a race until
- * transactional admission exists (3F-C2c). */
+ * transactional admission exists. */
 export async function loadCurrentDatabaseEvidence(userId: string, rawFacts: unknown, now = Date.now()): Promise<DatabaseEvidence> {
   const result: DatabaseEvidence = { admission: "unknown", snapshots: {} };
   const facts = factsSchema.safeParse(rawFacts);

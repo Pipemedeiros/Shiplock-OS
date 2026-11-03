@@ -4,7 +4,7 @@ import { createIntelligenceTask } from "@/lib/intelligence/tasks";
 import { getBranchSha, getInstallationToken, listPullRequestFileNames, listTree } from "@/lib/deep/github";
 import { claimJob, executeClaimedJob, PermanentJobError, type ClaimedJob } from "./queue";
 
-// Scheduled customer-intelligence scans (10B-2c, migration 077). The job holds
+// Scheduled customer-intelligence scans (migration 077). The job holds
 // identity only; this worker re-reads the approval, repository, and
 // installation, picks at most 16 files, and creates a task for the customer's
 // approved host. It never calls or funds a model. The task expires within a

@@ -37,7 +37,7 @@ vi.mock("@/lib/supabase", () => ({
 }));
 
 const { runMonitoringPassForWorker } = await import("./run");
-// Provider collectors require the worker's fenced commit (3F-C2c); the mocked
+// Provider collectors require the worker's fenced commit; the mocked
 // runners never call it, so an empty commit is enough to reach them.
 const commitMock = vi.fn(async () => []);
 const runMonitoringPass = (...args: Parameters<typeof runMonitoringPassForWorker>) =>

@@ -9,7 +9,7 @@ import type { RepairOutcome } from "./repairOutcome";
 import { stampedFixName } from "./content";
 
 /**
- * One preview for every repair lane (Q13 / Step 8). It runs the lane's real
+ * One preview for every repair lane. It runs the lane's real
  * code inside capturePreview, so GitHub writes are recorded instead of sent
  * and the lane stops at "open pull request": the preview is exactly what the
  * click would write, and nothing is written. The click itself still goes

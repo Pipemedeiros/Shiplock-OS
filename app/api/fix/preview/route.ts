@@ -6,7 +6,7 @@ import { resolveRepairTarget } from "@/lib/fixes/repairTarget";
 import { crossSiteRefusal } from "@/lib/security/sameOrigin";
 
 /**
- * What a fix click would write, before the click (Q13 / Step 8). Read-only:
+ * What a fix click would write, before the click. Read-only:
  * the lane runs with GitHub writes captured, no receipt, no job. POST because
  * a finding fix may carry the customer's edited content; it is guarded like a
  * mutation because it reads private repository code.

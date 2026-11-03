@@ -9,7 +9,7 @@ interface SelectedRepository {
 }
 
 /**
- * A new opaque connection epoch (Step 2D, migration 067). Minted only on a
+ * A new opaque connection epoch (migration 067). Minted only on a
  * true connect/reconnect and cleared on disconnect; a token refresh or
  * re-encryption keeps the current one, so it never invalidates evidence.
  */

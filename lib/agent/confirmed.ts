@@ -13,7 +13,7 @@ import type { Severity } from "@/lib/types";
  * evidence, CRITICAL only after the live-credential rule).
  *
  * Not confirmed: an open-access finding in an app whose own code says it signs
- * no one in by design (P3, D1). It stays, with its proof, as To review.
+ * no one in by design. It stays, with its proof, as To review.
  */
 export function isConfirmed(f: { severity: Severity; confidence: Confidence; attackClass: string; claims: readonly Claim[] }): boolean {
   if (f.attackClass !== "committed_secret" && f.claims.some((c) => c.origin === "routes" && c.claim.startsWith(OPEN_BY_DESIGN))) return false;

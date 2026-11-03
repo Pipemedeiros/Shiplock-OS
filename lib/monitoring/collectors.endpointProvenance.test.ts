@@ -56,7 +56,7 @@ beforeEach(() => {
   mocks.graphRead.mockImplementation(() => Promise.resolve({ data: { facts: state.facts }, error: null }));
 });
 
-describe("Step 2E: endpoint provenance with explicit RLS readability", () => {
+describe("endpoint provenance with explicit RLS readability", () => {
   it("returns only scanner table reports with validated target and opaque credential provenance", async () => {
     const context = ctx();
     const result = await supabaseScanCollector.run(context);
@@ -215,7 +215,7 @@ describe("Step 2E: endpoint provenance with explicit RLS readability", () => {
   });
 });
 
-describe("2D-2: endpoint identity is the connection epoch", () => {
+describe("endpoint identity is the connection epoch", () => {
   it("stamps the endpoint snapshot with the stored epoch", async () => {
     const context = ctx();
     context.profile.supabase_endpoint_connection_epoch = "f".repeat(64);

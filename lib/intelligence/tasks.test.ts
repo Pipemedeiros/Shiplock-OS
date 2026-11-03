@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
 
-// 10B-1b: a customer's host submits a result for a durable task. ShipLock
+// A customer's host submits a result for a durable task. ShipLock
 // re-reads every cited file from GitHub at the pinned commit before storing.
 const mocks = vi.hoisted(() => ({ task: vi.fn(), profile: vi.fn(), rpc: vi.fn(), file: vi.fn(), filters: vi.fn(), list: vi.fn() }));
 vi.mock("@/lib/deep/github", () => ({ getInstallationToken: vi.fn(async () => "token"), getFile: mocks.file }));
@@ -152,7 +152,7 @@ describe("createIntelligenceTask", () => {
     expect(mocks.rpc).not.toHaveBeenCalled();
   });
 
-  it("reports a missing or revoked approval distinctly (10B-2b gate)", async () => {
+  it("reports a missing or revoked approval distinctly", async () => {
     mocks.task.mockResolvedValue({ data: { full_name: "acme/app" }, error: null });
     mocks.rpc.mockResolvedValue({ data: null, error: { message: "intelligence not approved" } });
     const { createIntelligenceTask } = await import("./tasks");
@@ -162,7 +162,7 @@ describe("createIntelligenceTask", () => {
   });
 });
 
-describe("listPendingIntelligenceTasks (10B-2a)", () => {
+describe("listPendingIntelligenceTasks", () => {
   it("returns only the caller's pending, unexpired tasks, newest first, without source", async () => {
     mocks.list.mockResolvedValue({ data: [
       { id: taskId, repository_id: repositoryId, commit_sha: commit, host: "claude-code", instruction: "x", kind: "attack_reasoning",

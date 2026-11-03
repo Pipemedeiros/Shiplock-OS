@@ -204,7 +204,7 @@ describe("the merge check and the coalescing window", () => {
     expect(enqueuePullRequestCheckMock).not.toHaveBeenCalled();
   });
 
-  it("admits an every-PR intelligence scan with the check, only at a full head sha (10B-2c)", async () => {
+  it("admits an every-PR intelligence scan with the check, only at a full head sha", async () => {
     await POST(req(payload));
     expect(enqueuePullRequestIntelligenceMock).not.toHaveBeenCalled();
     const full = "d".repeat(40);

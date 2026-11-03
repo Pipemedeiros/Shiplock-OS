@@ -1,7 +1,7 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 /**
- * What the customer's Supabase API gateway saw from flagged sources (2F-4),
+ * What the customer's Supabase API gateway saw from flagged sources,
  * read through their Supabase connection with no snippet: each path, how many
  * suspicious requests reached it, and how many were answered with success
  * (migration 105; null when not counted). A success from PostgREST can be an

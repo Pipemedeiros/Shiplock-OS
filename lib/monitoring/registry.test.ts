@@ -176,7 +176,7 @@ describe("runCollectors — extensibility", () => {
   });
 });
 
-describe("Step 5A-2: a failed provider pass leaves a record", () => {
+describe("a failed provider pass leaves a record", () => {
   const quiet = () => vi.spyOn(console, "error").mockImplementation(() => {});
   it("records the runner's reason code under the collector's transport", async () => {
     const log = quiet();

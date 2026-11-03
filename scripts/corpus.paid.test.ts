@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { describe, expect, it } from "vitest";
 
-// Q11: the corpus harness's paid mode. It spends ShipLock's key, so it must
+// The corpus harness's paid mode. It spends ShipLock's key, so it must
 // refuse before any call unless Felipe's confirmation, a dollar cap and a
 // price for every planned model are given, and the worst case fits the cap.
 const require = createRequire(import.meta.url);
@@ -41,7 +41,7 @@ describe("paidPlan", () => {
   });
 });
 
-describe("corpus manifest selection (Q23)", () => {
+describe("corpus manifest selection", () => {
   const load = (env: Record<string, string>) => spawnSync(process.execPath,
     ["-e", "console.log(require('./scripts/corpus.cjs').manifest.experiment)"], { encoding: "utf8", env: { ...process.env, ...env } });
   it("reads docs/CORPUS.json by default and another manifest when SHIPLOCK_CORPUS names one", () => {
@@ -54,7 +54,7 @@ describe("corpus manifest selection (Q23)", () => {
   });
 });
 
-describe("corpus.cjs render (Q23): replays a paid run offline, only against its own pins", () => {
+describe("corpus.cjs render: replays a paid run offline, only against its own pins", () => {
   const fs = require("node:fs") as typeof import("node:fs");
   const pathMod = require("node:path") as typeof import("node:path");
   const render = (dir: string) => spawnSync(process.execPath, ["scripts/corpus.cjs", "render", dir], { encoding: "utf8" });

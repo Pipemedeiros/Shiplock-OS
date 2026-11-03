@@ -6,7 +6,7 @@ const LABEL: Record<GuardrailKind, string> = {
   requires_machine_secret: "Requires a secret or signature",
 };
 
-/** G1: the rules a repository must keep, as the PR check and MCP see them. */
+/** The rules a repository must keep, as the PR check and MCP see them. */
 export function GuardrailList({ guardrails }: { guardrails: Guardrails | null }) {
   if (!guardrails) {
     return <p className="v3-small">Guardrails are not known yet. They come from the first audit&apos;s route facts.</p>;

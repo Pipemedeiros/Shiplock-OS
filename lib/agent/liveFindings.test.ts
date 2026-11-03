@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { LIVE_SOURCES, liveEvidence } from "./liveFindings";
 import { isConfirmed } from "./confirmed";
 
-// W3 (G3, G4): findings ShipLock observed outside the repository were stored
+// Findings ShipLock observed outside the repository were stored
 // but never reached Issues or the status, because the open-findings read took
 // source 'agent' only, and the rows carry no claims or confidence. A replica
 // proof, a key downloaded from the shipped bundle, and row security read off

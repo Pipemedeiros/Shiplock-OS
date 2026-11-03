@@ -104,7 +104,7 @@ describe("GET /api/mcp/context", () => {
     expect(own.chain.next).toMatch(/quoted lines/);
   });
 
-  // P5: the live site's JavaScript, under the founder's binding to this repository.
+  // The live site's JavaScript, under the founder's binding to this repository.
   it("tells the agent when the live site calls a finding's route, for the bound repository only", async () => {
     s.live.mockResolvedValue({ repositoryId: "r1", host: "app.acme.com", observedAt: "2026-10-17T10:00:00.000Z", paths: ["/api/orders/"] });
     const body = await (await get("?repository=acme/app")).json();

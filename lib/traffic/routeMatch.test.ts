@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { appRouteForPath, matchHotPaths } from "./routeMatch";
 
-// Q12-1 / Step 11: which App Router route file an observed request path hits.
+// Which App Router route file an observed request path hits.
 const files = [
   "app/api/orders/route.ts", "app/api/orders/[id]/route.ts", "src/app/api/files/[...path]/route.ts",
   "app/(marketing)/api/contact/route.js", "app/api/opt/[[...rest]]/route.ts", "app/page.tsx", "pages/api/legacy.ts",

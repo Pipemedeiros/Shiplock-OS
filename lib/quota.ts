@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-/** Provisional per-account caps enforced in the database (3H, migrations
+/** Provisional per-account caps enforced in the database (migrations
  * 082-083). The numbers await Felipe's measured approval; the refusals are
  * shown to the customer plainly and never as a generic failure. */
 const CODES = {

@@ -4,7 +4,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { loadRepositoryGraphSource } from "@/lib/graph/repositorySource";
 import { deriveGuardrails } from "@/lib/guardrails/guardrails";
 
-// MCP `get_guardrails` (G1): the security properties a selected repository has
+// MCP `get_guardrails`: the security properties a selected repository has
 // today, as the rules the PR check enforces. Read only, PAT authenticated.
 // Built from the last audit's stored route facts (at most 60 routes); a
 // control ShipLock could not read is never a rule, and no facts is "unknown".

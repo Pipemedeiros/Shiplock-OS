@@ -66,10 +66,10 @@ export async function runExposedPathScan(
   signal?.throwIfAborted();
   const findings = [...paths, ...bundle, ...email, ...origin, ...headers];
 
-  // Findings commit under the monitor job's lease and the app URL it probed
-  // (3F-C2c); unread families are never archived. The fenced commit does not
+  // Findings commit under the monitor job's lease and the app URL it
+  // probed; unread families are never archived. The fenced commit does not
   // report an archive count, so none is claimed here.
-  // The paths the live site names (P5), kept only from a read page: a failed
+  // The paths the live site names, kept only from a read page: a failed
   // read sends no fact, so the last observation stands with its own time.
   // Complete: every linked page and script read, so a missing request is gone.
   const complete = shipped.pageRead && !unread.some((u) => u.startsWith("bundle:"));

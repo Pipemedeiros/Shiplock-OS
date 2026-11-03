@@ -124,7 +124,7 @@ describe("GET /api/deep/vercel/callback", () => {
     expect(res.headers.get("location")).toBe("https://shiplock.dev/dashboard?vercel=connected");
   });
 
-  it("mints a fresh opaque connection epoch on every connect (2D)", async () => {
+  it("mints a fresh opaque connection epoch on every connect", async () => {
     requireProUserMock.mockResolvedValue({ userId: "u1", email: "a@b.com" });
     exchangeCodeForTokenMock.mockResolvedValue({ accessToken: "raw-token", teamId: "t1", configurationId: "c1" });
     await GET(req("?code=abc"));

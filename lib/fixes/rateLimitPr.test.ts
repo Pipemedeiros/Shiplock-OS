@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Q12-3: one click opens one PR that adds only the off-by-default helper, on
+// One click opens one PR that adds only the off-by-default helper, on
 // a new branch from the default branch; never the default branch itself.
 const gh = vi.hoisted(() => ({ token: vi.fn(), tree: vi.fn(), branchSha: vi.fn(), createBranch: vi.fn(), putFile: vi.fn(),
   openPr: vi.fn(), findPr: vi.fn(), fileSha: vi.fn() }));
@@ -30,7 +30,7 @@ beforeEach(() => {
   gh.openPr.mockResolvedValue("https://github.com/acme/app/pull/12");
 });
 
-describe("openRateLimitPr (Q12-3)", () => {
+describe("openRateLimitPr", () => {
   it("adds the helper on a new branch and opens one PR against the default branch", async () => {
     expect(await openRateLimitPr("u1", finding, "r1")).toEqual({ status: "opened", url: "https://github.com/acme/app/pull/12", number: 12 });
     const branch = gh.createBranch.mock.calls[0][2];

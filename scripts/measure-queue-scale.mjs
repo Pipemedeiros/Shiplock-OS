@@ -82,7 +82,7 @@ try {
   await db.query("select public.advance_execution_job($1,$2,0,'succeeded')", [stillRunning.id, stillRunning.lease_token]);
   const replacement = (await db.query("select * from public.claim_execution_job('audit',120)")).rows[0];
 
-  // Q4 (2026-09-23): mixed kinds. Migrations 070/077 widened the kind list
+  // 2026-09-23: mixed kinds. Migrations 070/077 widened the kind list
   // (repair, notification, intelligence); their other tables are not needed
   // here, so only the kind check is widened, to exactly 077's list.
   await db.exec(`alter table public.execution_jobs drop constraint execution_jobs_kind_check;

@@ -1,6 +1,6 @@
 "use client";
 
-// Optional traffic observation, bound to a repository (2F-2b). The snippet in
+// Optional traffic observation, bound to a repository. The snippet in
 // the customer's app mirrors minimized request metadata to ShipLock off the
 // request path and fails open; traffic never goes through ShipLock. A site's
 // token is shown once, inside its snippet.

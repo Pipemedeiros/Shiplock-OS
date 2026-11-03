@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { AiActivity, AiCheck, AiCheckState } from "@/lib/intelligence/activity";
 import { AiFixButton } from "./AiFixButton";
 
-// The customer's own AI checks (10B-2d). Unanswered work says "not checked" in
+// The customer's own AI checks. Unanswered work says "not checked" in
 // plain words; nothing here may read as clean.
 export const aiStateLabel: Record<AiCheckState, string> = {
   pending: "Waiting for your AI. Not checked yet.",

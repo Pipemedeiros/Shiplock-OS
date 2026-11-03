@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// G1: a founder connects their agent with one command and no npm package:
+// A founder connects their agent with one command and no npm package:
 //   claude mcp add --transport http shiplock https://shiplock.dev/api/mcp/server --header "Authorization: Bearer <token>"
 // The endpoint is the local package's tools over MCP's HTTP transport; each
 // call runs the existing /api/mcp route in process, with the caller's token,

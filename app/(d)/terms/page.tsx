@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalPage } from "@/components/v3/LegalPage";
 
-// Q28: preview terms written from what the product does today. A working
+// Preview terms written from what the product does today. A working
 // draft, not legal advice; have it reviewed before paid launch.
 export const metadata: Metadata = {
   title: "Terms of service",

@@ -1,9 +1,9 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 
-// 10B-0: in-memory protocol proof. No credentials, network, database, file
+// In-memory protocol proof. No credentials, network, database, file
 // writes, inference, or PR authority. Production needs authenticated durable
-// admission (10B-1); echoing these IDs is not authentication.
+// admission; echoing these IDs is not authentication.
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 const identitySchema = z.object({
   taskId: z.string().uuid(), tenantId: z.string().uuid(), repositoryId: z.string().uuid(),
@@ -44,12 +44,13 @@ type Receipt = {
   applied: false; prOpened: false; tests: "not_run"; modelUsageVerified: false;
 };
 
+/** SHA-256 of a file's content; citations and edits pin to it. */
 export function sourceHash(content: string): string {
   return createHash("sha256").update(content).digest("hex");
 }
 
 /**
- * Evidence rules shared by the in-memory proof and durable tasks (10B-1b):
+ * Evidence rules shared by the in-memory proof and durable tasks:
  * unavailable carries a reason and nothing else; any other outcome cites exact
  * lines of listed sources; only `proposed` may carry edits, each on a cited,
  * unedited-before listed file at its current hash and allowed by a trusted
@@ -86,6 +87,9 @@ export function checkResultEvidence(
   }
 }
 
+/** In-memory form of the task contract with budgets, expiry and replay
+ * rules. Its tests exercise the evidence checks the durable path in
+ * tasks.ts shares. */
 export function createIntelligenceExchange(input: {
   identity: IntelligenceIdentity; host: IntelligenceHost; instruction: string;
   files: SourceFile[]; expiresAt: number; now: () => number;

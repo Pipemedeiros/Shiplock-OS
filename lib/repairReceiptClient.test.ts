@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { repairMessage, waitForRepair } from "./repairReceiptClient";
 
-// 3F-C2d-3: the dashboard follows a queued fix click to its real outcome.
+// The dashboard follows a queued fix click to its real outcome.
 afterEach(() => vi.unstubAllGlobals());
 
 const respond = (...bodies: unknown[]) => {

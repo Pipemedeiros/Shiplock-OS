@@ -17,7 +17,7 @@ beforeEach(() => {
   mocks.request.mockResolvedValue("66666666-6666-4666-8666-666666666666");
 });
 
-describe("POST /api/fix/rate-limit (Q12-3)", () => {
+describe("POST /api/fix/rate-limit", () => {
   it("refuses cross-site and signed-out requests before any work", async () => {
     expect((await post({ repositoryId, routeFile: "app/api/x/route.ts" }, "https://evil.example")).status).toBe(403);
     mocks.pro.mockResolvedValue(null);

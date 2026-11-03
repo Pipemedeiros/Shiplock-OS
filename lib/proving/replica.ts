@@ -42,6 +42,8 @@ export interface ReplicabilityVerdict {
   reason: string;
 }
 
+/** Whether a table's policies can be rebuilt faithfully on the replica.
+ * Anything it cannot reproduce exactly is refused with a reason. */
 export function assessReplicability(policies: PgPolicy[]): ReplicabilityVerdict {
   if (policies.length === 0) {
     return {

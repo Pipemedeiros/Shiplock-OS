@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ScanResult } from "./scanner";
 
-// 1E-3: the scan report must not warn about a check that never got a response.
+// The scan report must not warn about a check that never got a response.
 import { analyzeResult } from "./analyzer";
 
 const scan = (over: Partial<ScanResult>) => ({ tables: [], ...over }) as unknown as ScanResult;
@@ -20,7 +20,7 @@ describe("analyzer fallback ignores untested rate-limit checks", () => {
   });
 });
 
-// 1E-5: a check that did not run is never reported as passed.
+// A check that did not run is never reported as passed.
 describe("analyzer honesty about unread checks", () => {
   it("does not claim every check passed when some could not be verified", async () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});

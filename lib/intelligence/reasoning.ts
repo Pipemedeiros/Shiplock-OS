@@ -41,7 +41,7 @@ export type ReasoningContext = {
   version: 1; system: string; prompt: string; routes: RouteFact[]; files: string[]; tables: string[];
   liveFacts: { id: string; statement: string }[]; possessionGates: [string, Gate][]; oneIdAccess: [string, Gate][];
   stack: StackReport; hasDatabase: boolean;
-  /** P3: where an app with no sign-in says it is open by design. */
+  /** Where an app with no sign-in says it is open by design. */
   openByDesign?: OpenByDesign;
 };
 type VerificationContext = { version: 1; hypotheses: (Hypothesis & { attackClass: AttackClass })[]; items: VerifyItem[] };
@@ -65,6 +65,9 @@ type ContextInput = {
   oneIdAccess: ReadonlyMap<string, Gate>; hasDatabase: boolean; openByDesign?: OpenByDesign | null;
 };
 
+/** Splits an audit into the attack-reasoning pages handed to the customer's
+ * agent: ranked routes that reach tables, their files and the schema. Empty
+ * where route analysis is not deep for the stack. */
 export function reasoningPages(input: ContextInput): ReasoningContext[] {
   if (routeAnalysisSupport(input.stack).level !== "deep") return [];
   // Helper lists are capped as on the route map (lib/routeMap.ts): a file a
@@ -313,6 +316,8 @@ export async function submitReasoningResult(userId: string, task: ReasoningTask,
  * batch: a claim on a query the schema rejects, or on a row id the schema
  * mints at random, is judged against it (A8 batch 6, 2026-10-09). */
 const MAX_SCHEMA_SOURCES = 2;
+/** Groups admitted hypotheses into verification batches that fit the source
+ * budget, each with the handler, cited files and shared middleware and schema. */
 export function verificationBatches(admitted: (Hypothesis & { attackClass: AttackClass })[], routes: RouteFact[], schema: string[] = [],
   middleware: string[] = []) {
   // M1 (release attempt 3): the root middleware decides who reaches every
@@ -424,7 +429,7 @@ export async function submitVerificationResult(userId: string, task: ReasoningTa
     oneIdAccess: new Map(context.oneIdAccess), openByDesign: context.openByDesign,
   }).filter((f) => f.attackClass !== "permission_gap" && f.attackClass !== "committed_secret");
   const stored = { status: "proposed", model: result.model, usage: result.usage,
-    // W2: the typed answers are kept with the task so their calibration can be
+    // The typed answers are kept with the task so their calibration can be
     // measured before any threshold is set on confidence.
     verdicts: verdicts.map((v) => ({ id: v.id, verdict: v.verdict, citationProblem: v.citationProblem, ...(v.checks ? { checks: v.checks } : {}) })),
     confirmed: applied.kept.length, refuted: applied.refuted, unverified: applied.unverified };

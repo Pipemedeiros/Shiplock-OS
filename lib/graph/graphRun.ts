@@ -248,7 +248,7 @@ export async function loadGraphInput(userId: string, repositoryId?: string): Pro
     const source = await loadRepositoryGraphSource(userId, repositoryId);
     if (source.sourceCoverage === "unknown") return source;
     const databaseEvidence = await loadRepositoryDatabaseEvidence(userId, repositoryId);
-    // Only traffic bound to this repository through a traffic site (2F-2b);
+    // Only traffic bound to this repository through a traffic site;
     // account-wide, unbound traffic never corroborates a repository.
     const trafficHotPaths = await collectTrafficFacts(userId, repositoryId);
     return {

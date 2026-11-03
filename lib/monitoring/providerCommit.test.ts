@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// 3F-C2c-2: the worker's commit capability calls the fenced SQL function with
+// The worker's commit capability calls the fenced SQL function with
 // its own job identity and validates what comes back.
 const rpc = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ rpc }) }));
@@ -46,7 +46,7 @@ describe("fencedProviderCommit", () => {
   });
 });
 
-describe("fencedProviderFailure (5A-2)", () => {
+describe("fencedProviderFailure", () => {
   it("records a failed read under the job lease", async () => {
     rpc.mockResolvedValue({ data: null, error: null });
     await fencedProviderFailure("user-1", "job-1", "token-1")("vercel", "auth_failed");
@@ -60,7 +60,7 @@ describe("fencedProviderFailure (5A-2)", () => {
   });
 });
 
-describe("fencedEdgeTrafficRecord (Q8)", () => {
+describe("fencedEdgeTrafficRecord", () => {
   it("records a gateway read under the job lease and throws when refused", async () => {
     rpc.mockResolvedValue({ data: null, error: null });
     await fencedEdgeTrafficRecord("user-1", "job-1", "token-1")("proj", true);

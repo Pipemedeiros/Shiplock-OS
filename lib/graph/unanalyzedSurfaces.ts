@@ -1,5 +1,5 @@
 /**
- * Data-changing surfaces the deep analysis does not read (Step 7D). The route
+ * Data-changing surfaces the deep analysis does not read. The route
  * inventory reads App Router route handlers and Pages API routes. Next.js
  * apps also change data through server actions (`"use server"`) and tRPC
  * procedures; measured 2026-09-24 on the pinned corpus: corpus-c 66 files

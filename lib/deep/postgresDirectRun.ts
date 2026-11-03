@@ -132,7 +132,7 @@ export async function runDirectPostgresScan(
     };
 
     // Facts and findings commit together under the monitor job's lease and
-    // this connection epoch, or not at all (3F-C2c).
+    // this connection epoch, or not at all.
     try {
       committed = await commit({
         transport: "postgres-direct", identity: loaded.fingerprint, facts: dbFacts,

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { getSupabaseBrowser } from "@/lib/supabaseBrowser";
 
-/** Q30: manage or cancel a subscription through Stripe's own portal. */
+/** Manage or cancel a subscription through Stripe's own portal. */
 export function BillingActions() {
   const [busy, setBusy] = useState<"manage" | "cancel" | null>(null);
   const [error, setError] = useState<string | null>(null);

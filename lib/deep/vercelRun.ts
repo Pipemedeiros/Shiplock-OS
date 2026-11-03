@@ -88,7 +88,7 @@ export async function runVercelEnvAudit(
   // nothing, which is the `rulesRead` mistake on a new surface.
   signal?.throwIfAborted();
   // Runtime facts and env findings commit together under the monitor job's
-  // lease and this connection epoch (3F-C2c). Vercel findings have never been
+  // lease and this connection epoch. Vercel findings have never been
   // archived here, so the commit does not retire either.
   const created = await commit({
     transport: "vercel", identity: connectionEpoch,

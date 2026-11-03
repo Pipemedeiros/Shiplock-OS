@@ -5,7 +5,7 @@ import { OpenedPullRequests } from "./OpenedPullRequests";
 const item = (over = {}) => ({ id: "a", lane: "Fix", repository: "acme/app", number: 9,
   url: "https://github.com/acme/app/pull/9", mergedAt: null as string | null, requestedAt: "2026-09-20T10:00:00.000Z", ...over });
 
-describe("OpenedPullRequests (Q1 / 8-R2)", () => {
+describe("OpenedPullRequests", () => {
   it("shows open and merged pull requests, and that a merge queues a recheck", () => {
     const html = renderToStaticMarkup(<OpenedPullRequests opened={{ available: true,
       items: [item(), item({ id: "b", number: 10, url: "https://github.com/acme/app/pull/10", mergedAt: "2026-09-23T12:00:00.000Z" })] }} />);

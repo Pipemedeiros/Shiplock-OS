@@ -2,7 +2,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { getSupabaseRepositoryBindings } from "@/lib/deep/supabaseRepositoryBinding";
 
 /**
- * Where each selected repository's traffic view comes from (Q3 / 2F-5): its
+ * Where each selected repository's traffic view comes from: its
  * snippet sites (085) and the Supabase gateway log read (086, snapshots 088).
  * No source is said plainly; an unread log is not a source.
  */

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import nextConfig from "./next.config";
 
-// Q6: every route that can run the job queue must ship the proof worker and
+// Every route that can run the job queue must ship the proof worker and
 // PGlite, or a proof dies at run time with a missing file.
 describe("next.config.ts: proof worker files are traced into job routes", () => {
   it("includes the worker script and PGlite for each route that calls runNextJob", async () => {

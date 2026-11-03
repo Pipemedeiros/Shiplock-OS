@@ -75,7 +75,7 @@ function watch({ finished, watch: w }: LoopInput): LoopStage {
     w.providersRead > 0 ? `${n(w.providersRead, "provider")} read live` : w.providersConnected > 0 ? "providers connected, not read yet" : "no provider connected",
   ];
   const attention = w.hotRoutes > 0 || w.blockedPrs > 0;
-  // P4: watched with the attack's context. A route under attack that the
+  // Watched with the attack's context. A route under attack that the
   // audit found an issue on leads, and points at the issue.
   if (w.hotWithIssue > 0) {
     return { key: "watch", title: "Watch", href: "/dashboard/risks", state: "attention", action: "View issues",

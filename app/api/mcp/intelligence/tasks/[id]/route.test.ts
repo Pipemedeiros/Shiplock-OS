@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
 
-// 10B-1b: a customer's host reads and answers its own tasks with a ShipLock PAT.
+// A customer's host reads and answers its own tasks with a ShipLock PAT.
 const mocks = vi.hoisted(() => ({ auth: vi.fn(), get: vi.fn(), submit: vi.fn() }));
 vi.mock("@/lib/mcpAuth", () => ({ authMcp: mocks.auth }));
 vi.mock("@/lib/intelligence/tasks", () => ({ getIntelligenceTask: mocks.get, submitIntelligenceResult: mocks.submit }));
@@ -52,7 +52,7 @@ describe("POST /api/mcp/intelligence/tasks/[id]/result", () => {
     expect(res.status).toBe(status);
     expect(await res.json()).toEqual({ error: code });
   });
-  it("refuses an agent answering as the API-key host (10B-2e)", async () => {
+  it("refuses an agent answering as the API-key host", async () => {
     const res = await POST(req({ result: { version: 1, host: "api" } }), params);
     expect(res.status).toBe(403);
     expect(await res.json()).toEqual({ error: "api_mode_task" });

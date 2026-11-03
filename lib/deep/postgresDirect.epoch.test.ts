@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// 2D: a direct-Postgres connect mints a new epoch; disconnect clears it.
+// A direct-Postgres connect mints a new epoch; disconnect clears it.
 const mocks = vi.hoisted(() => ({ update: vi.fn(), collect: vi.fn() }));
 vi.mock("@/lib/crypto", () => ({ encrypt: (v: string) => `enc(${v})`, decrypt: (v: string) => v }));
 vi.mock("./postgresDirect", async (original) => ({

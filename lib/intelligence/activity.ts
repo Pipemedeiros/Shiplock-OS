@@ -2,7 +2,7 @@ import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { getIntelligenceConnection, type ConnectionView } from "./connection";
 
-/** What the customer's own AI has and has not done (10B-2d). Every
+/** What the customer's own AI has and has not done. Every
  * unanswered task is pending, expired, withdrawn, or unavailable: an AI check
  * that did not run is never shown as clean. */
 export type AiCheckState = "pending" | "expired" | "withdrawn" | "unavailable" | "needs_human" | "proposal";

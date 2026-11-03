@@ -20,7 +20,7 @@ const receiptSchema = z.object({
 });
 
 /**
- * One customer click, one PR (3F-C2d). The route only admitted a receipt; this
+ * One customer click, one PR. The route only admitted a receipt; this
  * worker re-resolves the finding, opens the PR under the job's lease, and
  * records the outcome on the receipt. A GitHub error that might have happened
  * after the PR was created is recorded as `uncertain` and retried; the

@@ -21,6 +21,8 @@ export interface Verdict { level: VerdictLevel; word: string; summary: string }
 
 const n = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
 
+/** The one overview status: Exposed, At risk, No open issues or Not audited.
+ * It never says secure. */
 export function verdictOf(input: VerdictInput): Verdict {
   const criticals = input.findings.filter((f) => f.severity === "CRITICAL").length;
   const warnings = input.findings.filter((f) => f.severity === "WARNING").length;

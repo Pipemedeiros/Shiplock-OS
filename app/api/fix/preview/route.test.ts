@@ -19,7 +19,7 @@ beforeEach(() => {
   mocks.preview.mockResolvedValue({ status: "unavailable", code: "not_fixable" });
 });
 
-describe("POST /api/fix/preview (Q13)", () => {
+describe("POST /api/fix/preview", () => {
   it("refuses cross-site and signed-out requests before any work", async () => {
     expect((await post({ action: "dependency-bump-pr", repositoryId }, "https://evil.example")).status).toBe(403);
     mocks.pro.mockResolvedValue(null);

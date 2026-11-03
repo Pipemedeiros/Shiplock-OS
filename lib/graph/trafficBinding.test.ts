@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// 2F: a repository's graph run is corroborated only by traffic bound to that
-// repository through a traffic site (2F-2a). Account-wide graph_facts (legacy,
+// A repository's graph run is corroborated only by traffic bound to that
+// repository through a traffic site. Account-wide graph_facts (legacy,
 // unbound traffic) are never read for a repository run.
 const state = vi.hoisted(() => ({ reads: vi.fn(), filters: vi.fn() }));
 vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ from: (table: string) => {
@@ -32,10 +32,10 @@ import { loadGraphInput } from "./graphRun";
 
 beforeEach(() => { vi.clearAllMocks(); });
 
-describe("traffic reaches a repository only through its bound sites (2F)", () => {
+describe("traffic reaches a repository only through its bound sites", () => {
   it("uses only events bound to this repository, never account-wide graph facts", async () => {
     const input = await loadGraphInput("u1", "r1");
-    // Snippet events and Supabase gateway observations for this repository, merged (2F-4).
+    // Snippet events and Supabase gateway observations for this repository, merged.
     expect(input.trafficHotPaths).toEqual([{ path: "/auth/v1/token", suspiciousRequests: 25 }, { path: "/api/orders", suspiciousRequests: 3 }]);
     expect(state.filters).toHaveBeenCalledWith("traffic_events", "repository_id", "r1");
     expect(state.filters).toHaveBeenCalledWith("traffic_route_observations", "repository_id", "r1");

@@ -17,7 +17,7 @@ beforeEach(() => {
   state.repo.mockResolvedValue({ data: { id: "r1" }, error: null });
 });
 
-describe("traffic token resolution (2F-2a)", () => {
+describe("traffic token resolution", () => {
   it("binds a site token to its repository", async () => {
     state.site.mockResolvedValue({ data: { id: "s1", user_id: "u1", repository_id: "r1" }, error: null });
     state.profile.mockResolvedValue({ data: { id: "u1", email: "a@b.c", is_paid: true }, error: null });

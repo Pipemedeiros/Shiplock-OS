@@ -15,7 +15,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.restoreAllMocks());
 
-describe("Section 10 / 2C-3-C3-B2: explicit Settings confirmation state", () => {
+describe("explicit Settings confirmation state", () => {
   it("loads current context without performing a write", async () => {
     const model = controller(); await model.load();
     expect(model.getSnapshot()).toMatchObject({ status: "ready", context });

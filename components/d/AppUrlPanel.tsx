@@ -1,10 +1,10 @@
 "use client";
 
-// The address the outside view reads (G3). GitHub's homepage is offered; the
+// The address the outside view reads. GitHub's homepage is offered; the
 // founder confirms. ShipLock then fetches what the app serves to anyone, read
 // only, as a visitor would, and a confirm starts that read at once. Naming
 // the repository the address serves lets each issue there say when the live
-// site's JavaScript names its route (P5); none leaves the two unjoined.
+// site's JavaScript names its route; none leaves the two unjoined.
 
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";

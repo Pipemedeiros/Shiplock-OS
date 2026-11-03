@@ -129,7 +129,7 @@ export interface RouteFact {
 
   /**
    * Handlers here that write a model with a weaker declared permission than
-   * another handler writing the same model requires (Step 7C, read from
+   * another handler writing the same model requires (read from
    * source; see ./permissionGaps.ts). Absent means none was read.
    */
   permissionGaps?: PermissionGap[];
@@ -200,6 +200,7 @@ const METHOD_RE = /export\s+(?:async\s+)?function\s+(GET|POST|PUT|PATCH|DELETE|H
 // `export const GET = handler(...)` is equally common.
 const METHOD_CONST_RE = /export\s+const\s+(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s*[:=]/g;
 
+/** HTTP methods a Next.js route file exports, as functions or constants. */
 export function extractMethods(src: string): string[] {
   const out = new Set<string>();
   for (const re of [METHOD_RE, METHOD_CONST_RE]) {
@@ -242,13 +243,13 @@ const DRIZZLE_FROM_IDENT_RE = new RegExp(
 );
 // The Prisma client is not always named `prisma`: interactive transactions
 // hand it in as `tx` (corpus-a, corpus-d) and corpus-af injects `prismaClient`. Those
-// calls read as touching no table until Step 7H. Receivers are listed, not
+// calls read as touching no table until database calls were traced. Receivers are listed, not
 // generalised: `client.user.findMany` is as often an SDK as a database.
 const PRISMA_MODEL_RE = /\b(?:prisma|prismaClient|tx|trx)\s*\??\s*\.\s*([a-z][A-Za-z0-9_]*)\s*\.\s*(?:find|create|update|delete|upsert|count|aggregate)/g;
 // Drizzle writes name the table as the call's argument: db.insert(monitor),
 // tx.update(page), db.delete(member). Only the db / tx receivers the corpus
 // uses (286 and 62 writes): the same spelling on a Map, URLSearchParams, a
-// cookie store or an HMAC is not a table (Step 7H, negative fixtures).
+// cookie store or an HMAC is not a table (negative fixtures).
 const DRIZZLE_WRITE_RE = /\b(?:db|tx|trx)\s*\.\s*(?:insert|update|delete)\s*\(\s*([A-Za-z_]\w*)\s*\)/g;
 
 /** Identifiers that are query-builder plumbing, not tables. */
@@ -1034,7 +1035,7 @@ const COOKIE_AUTH_RE =
 const GATE_LIKE_MODULE_RE = /auth|session|guard|middleware|permission|policy|acl|rbac|token|identity|clerk|current-?user|require/i;
 
 /**
- * Q24: the executed path continued into a file past the read budget. If that
+ * The executed path continued into a file past the read budget. If that
  * file's name says it may be the gate, the route is unread, never anonymous
  * (corpus-y: route, barrel, validator, then getServerSession three files in).
  */
@@ -1201,8 +1202,8 @@ const CONTEXT_GET_RE =
   /\bc\s*\.\s*get\s*\(\s*["'][^"']+["']\s*\)|\bctx\s*\.\s*(?:workspace|team|tenant|session|auth)\b|\breq(?:uest)?\s*\.\s*(?:workspace|team|tenant)\b/;
 
 /**
- * Q24: the same unattributed-check questions, asked of every file the entry's
- * executed path runs, not only of the entry. Q23 measured the cost of asking
+ * The same unattributed-check questions, asked of every file the entry's
+ * executed path runs, not only of the entry. A labeled corpus run measured the cost of asking
  * them of the entry alone: routes that verify a cookie JWT in a helper
  * (`verifyHeaderCookie()` into `jwt.verify`) and actions that call their own
  * `checkAdmin()` read as ANONYMOUS, and 82 of 157 agreed-false findings sat on
@@ -1211,7 +1212,7 @@ const CONTEXT_GET_RE =
  * Sources are the call-path tracer's executed text, so a helper function the
  * entry never calls is already blank and cannot count. A bare 401/403 in a
  * helper is NOT asked: corpus-b's conversations handler refuses on some
- * branches and not on the GET that leaks (a Q16 agreed-real bug), and a
+ * branches and not on the GET that leaks (a bug the labelers agreed was real), and a
  * refusal on one branch says nothing about the others.
  */
 export function executedCheckGap(sources: { path: string; src: string }[]): string | null {
@@ -1241,7 +1242,7 @@ const ROLE_GATE_RE =
   /\brequiredRoles?\b|\b\w*[rR]ole\b\s*(?:===|!==|==|!=)|\.includes\s*\(\s*\w*[rR]ole\w*\s*\)|\bis(?:Super)?Admin\b/;
 
 /**
- * Q24: an ADMIN gate, read at any URL. Q23 found about 51 agreed-false
+ * An ADMIN gate, read at any URL. A labeled corpus run found about 51 agreed-false
  * findings on routes and actions admitted only to administrators (an
  * `ADMIN_*` allowlist, `role !== "admin"`, `isAdminUser()`, `role < 4`) whose
  * URLs carry no /admin segment, over catalog tables no tenant owns. Only
@@ -1249,7 +1250,7 @@ const ROLE_GATE_RE =
  * permission inside the caller's own tenant, which the ROLE_GATE_RE comment
  * above shows must stay judged. An allowlist counts only as an environment
  * list of admins (`env.ADMINS`, `CLERK_ADMIN_IDS`): "admin" in a Supabase
- * service-role client's name is the opposite of a gate (corpus-r2, Q24 dev
+ * service-role client's name is the opposite of a gate (seen in the corpus, development
  * replay). Read only on executed text.
  */
 export const ADMIN_GATE_RE =
@@ -1400,7 +1401,7 @@ export function analyzeRouteFile(
     // a NextAuth v5 module that builds `auth` with NextAuth({...})) resolves
     // identity by definition, even when no pattern in it says so. Its sign-in
     // callbacks write users and viewers; those writes are not the route's
-    // (Step 7H, corpus-e).
+    // (corpus-e).
     const resolvesIdentity = infra || STRONG_USER_AUTH_RE.test(src) || HEADER_READ_RE.test(src) || /\bNextAuth\s*\(/.test(src);
     // Only under an admin URL. corpus-a's withWorkspace() ALSO takes requiredRoles
     // -- a permission inside the caller's own workspace -- and the first
@@ -1410,7 +1411,7 @@ export function analyzeRouteFile(
     // application segregates its admin surface by URL. That is a convention,
     // stated as one, not a fact read from the code.
     if (isAdminPath && ROLE_GATE_RE.test(src)) roleGateWitness ??= path;
-    // Q24: an admin test on the executed path gates at any URL.
+    // An admin test on the executed path gates at any URL.
     if ((prepared || isEntry) && !infra && ADMIN_GATE_RE.test(src)) roleGateWitness ??= path;
 
     // Tables from an IMPORTED auth helper are the helper's own scoped read of
@@ -1546,7 +1547,7 @@ export function analyzeRouteFile(
       : publicByLayout
         ? "the route sits in a directory the application names (public), so anonymous access appears to be by design"
         : identityGapFor(entrySrc, unresolvedImports, machineGateWitness, headerReadWitness, conditionalIdentityWitness, untracedReExport) ??
-          // Q24: helpers on the executed path, not only the entry (hosts were asked above).
+          // Helpers on the executed path, not only the entry (hosts were asked above).
           (traced ? executedCheckGap(sources.filter((s) => !s.host && !s.infra)) ?? unfollowedGateGap(traced.unfollowed) : null);
   const identityReadable = identityGap === null;
 
@@ -1631,7 +1632,7 @@ export function collectRoutes(files: RepoFile[]): RouteFact[] {
       const route = analyzeRouteFile(f.path, f.content, byPath);
       return withRefusal(gaps.has(f.path) ? { ...route, permissionGaps: gaps.get(f.path) } : route, f, byPath, files);
     });
-  // Step 7I: a monorepo may serve the same path from several apps (corpus-e:
+  // A monorepo may serve the same path from several apps (corpus-e:
   // /api/trpc/lambda/[trpc] in three). The path is what hypotheses, findings,
   // cross-tenant notes and possession gates key on, so a collision let one
   // app's facts judge, or a note hide, another app's route. Only colliding

@@ -49,7 +49,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.restoreAllMocks());
 
-describe("Section 10 / 2C-3-C3-B1: explicit direct-Postgres repository confirmation", () => {
+describe("explicit direct-Postgres repository confirmation", () => {
   it("offers only selected repositories and opaque current context, never the encrypted DSN", async () => {
     const response = await GET();
     expect(response.status).toBe(200);

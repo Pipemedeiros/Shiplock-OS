@@ -336,7 +336,7 @@ describe("absence vs failure — the distinction the check depends on", () => {
   });
 });
 
-describe("auditEmailAuth — 1E-1 readability", () => {
+describe("auditEmailAuth — readability", () => {
   it("marks every record family unread when DNS fails outright", async () => {
     const unread: string[] = [];
     await auditEmailAuth("https://example.com", () => Promise.reject(new Error("ETIMEOUT")), unread);

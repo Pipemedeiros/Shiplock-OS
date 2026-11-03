@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { openEmbeddedHost } from "./embeddedHost";
 import { buildControlProbeSql, buildLeakProbeSql, buildReplicaPlan } from "./replica";
 
-// 6A-2a: the replica runs on an embedded, in-process Postgres (PGlite), not a
+// The replica runs on an embedded, in-process Postgres (PGlite), not a
 // paid hosted project (Felipe 2026-09-23). These tests execute real SQL.
 const policy = (qual: string) => ({ schemaname: "public", tablename: "orders", policyname: "p", cmd: "SELECT",
   qual, with_check: null, roles: ["authenticated"] });
@@ -21,7 +21,7 @@ async function probe(qual: string) {
   }
 }
 
-describe("embedded proving host (6A-2a)", () => {
+describe("embedded proving host", () => {
   it("reproduces a leak from a policy that lets anyone read every row", async () => {
     expect(await probe("true")).toEqual({ control: 1, leaked: 1 });
   });
@@ -59,10 +59,10 @@ describe("embedded proving host (6A-2a)", () => {
   }, 20_000);
 });
 
-// Q6: a policy is customer text the replica executes. One that allocates
+// A policy is customer text the replica executes. One that allocates
 // without bound once aborted the whole server process; it must end only the
 // replica, as an error the proof worker records as aborted.
-describe("embedded host resource limits (Q6)", () => {
+describe("embedded host resource limits", () => {
   it("ends a spilling allocation bomb in a policy as an error, not a 7 GB process", async () => {
     const host = await openEmbeddedHost({ statementTimeoutMs: 60_000 });
     try {

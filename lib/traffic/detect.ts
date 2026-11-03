@@ -31,7 +31,7 @@ export const FLOOD_THRESHOLD = 100; // total hits/window from ONE source -> bloc
 export const SESSION_WINDOW_MS = 600_000; // session-hijack window (10m)
 export const SESSION_SOURCE_THRESHOLD = 4; // one session from >= N distinct sources -> alert
 
-// P4: one source reading this many different record ids on one route inside
+// One source reading this many different record ids on one route inside
 // SCAN_WINDOW_MS is walking ids (enumeration). Alert only: a person paging
 // through their own records is possible, and blocking them would be wrong.
 export const ID_WALK_THRESHOLD = 30;
@@ -125,7 +125,7 @@ export interface TrafficSignals {
   // source's rows), so it's passed in. 0 for anonymous requests.
   distinctSourcesForSession: number;
   // The route this source read the most different record ids on, inside
-  // SCAN_WINDOW_MS (P4). Null when no path named an id.
+  // SCAN_WINDOW_MS. Null when no path named an id.
   idWalk?: { pattern: string; distinct: number } | null;
   // The attack pattern the customer's snippet classified in THIS request
   // (lib/traffic/probe.ts); never the query itself.

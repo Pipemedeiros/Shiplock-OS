@@ -22,7 +22,7 @@ beforeEach(() => {
   mocks.request.mockResolvedValue("receipt-1");
 });
 
-describe("POST /api/intelligence/tasks/[id]/fix (10B-3b)", () => {
+describe("POST /api/intelligence/tasks/[id]/fix", () => {
   it("queues one receipted PR for the owner's answered proposal", async () => {
     const res = await POST(req(), params());
     expect(res.status).toBe(202);

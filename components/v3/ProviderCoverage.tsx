@@ -1,6 +1,6 @@
 import type { ProviderCoverageItem } from "@/lib/monitoring/providerCoverage";
 
-// What each connected provider's latest read covered (5A-3). Unread and
+// What each connected provider's latest read covered. Unread and
 // failed reads are shown as such, never as quiet.
 const STATE: Record<ProviderCoverageItem["state"], string> = {
   complete: "Read completely",

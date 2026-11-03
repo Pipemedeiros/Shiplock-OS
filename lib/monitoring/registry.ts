@@ -34,13 +34,13 @@ export interface CollectorContext {
   signal?: AbortSignal;
   /** Monitor-worker only: commits a provider result under the job's lease and
    * the collected connection identity (migration 068). Absent for legacy
-   * synchronous callers, which keep their own writes until 3F-C2c-5. */
+   * synchronous callers, which keep their own writes until the manual recheck moved to the worker. */
   commit?: ProviderCommit;
   /** Monitor-worker only: records a provider pass that read nothing usable,
    * under the job's lease (migration 087), so Coverage can say it failed. */
   recordFailure?: ProviderFailure;
   /** Monitor-worker only: records whether the Supabase gateway log was read
-   * for no-install traffic (Q8, migration 088), under the job's lease. */
+   * for no-install traffic (migration 088), under the job's lease. */
   recordEdgeTraffic?: EdgeTrafficRecord;
 }
 
@@ -55,7 +55,7 @@ export interface ProviderResult {
   /** Archive active findings absent from this result (except under `unread`). */
   retire: boolean;
   unread?: string[];
-  /** The append-only record of this read (5A-2, migration 087): the scope it
+  /** The append-only record of this read (migration 087): the scope it
    * covered (project ref, host, team; never a secret) and the finding-ID
    * prefixes whose read failed. Families a transport never reads are not
    * failures and stay out of `failed`. */

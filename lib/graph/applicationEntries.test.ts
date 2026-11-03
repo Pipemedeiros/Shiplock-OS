@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applicationEntries } from "./applicationEntries";
 
-// Step 7G-2: the audit and the offline evaluator read the same entries.
+// The audit and the offline evaluator read the same entries.
 const f = (path: string, content: string) => ({ path, content });
 
 describe("applicationEntries", () => {

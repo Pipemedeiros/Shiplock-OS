@@ -51,6 +51,8 @@ export function clopperPearsonLower(k: number, n: number, alpha = 0.05): number 
  * third blind labeler decides by majority (tie-break, Felipe 2026-10-13,
  * recorded before release attempt 4). */
 const strictYes = (v: BenchLabel["labelers"][number]) => v.accurate === "yes" && v.real === "yes";
+/** A finding is true when both of two labelers say real and accurate, or a
+ * strict majority of three or more do. */
 export const labelIsTrue = (l: BenchLabel) => {
   const yes = l.labelers.filter(strictYes).length;
   return l.labelers.length === 2 ? yes === 2 : l.labelers.length >= 3 && yes * 2 > l.labelers.length;
@@ -70,6 +72,8 @@ function tally(findings: BenchFinding[], labels: Map<string, BenchLabel>): Tally
     precision: labeled ? tp / labeled : null, lower95: labeled ? clopperPearsonLower(tp, labeled) : null };
 }
 
+/** Scores findings against blind labels: TP and FP by severity and class,
+ * per-repository status, and the release gate's verdict. */
 export function scoreBenchmark(findings: BenchFinding[], labels: BenchLabel[], gate: Gate): BenchReport {
   const byKey = new Map(labels.map((l) => [`${l.repo}\u0000${l.id}`, l]));
   const setting = findings.filter((f) => f.severity !== "INFO");

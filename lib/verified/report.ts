@@ -227,7 +227,7 @@ export function buildVerifiedReport(d: VerifiedReportData): VerifiedReport {
 export function confirmedCounts(rows: { severity: unknown; confidence: unknown; attack_class: unknown; claims: unknown; source?: unknown; finding_id?: unknown }[]):
   { openCritical: number; openTotal: number } {
   const confirmed = rows.filter((r) => {
-    // W3: a live row's evidence is where it was read, as on the dashboard.
+    // A live row's evidence is where it was read, as on the dashboard.
     const live = isLiveSource(String(r.source)) ? liveEvidence({ source: String(r.source), finding_id: String(r.finding_id) }) : null;
     return isConfirmed({ severity: r.severity as Severity, confidence: live?.confidence ?? (r.confidence as Confidence) ?? "inferred",
       attackClass: live?.attackClass ?? String(r.attack_class ?? ""), claims: live?.claims ?? (Array.isArray(r.claims) ? (r.claims as Claim[]) : []) });
@@ -236,7 +236,7 @@ export function confirmedCounts(rows: { severity: unknown; confidence: unknown; 
 }
 
 /** The live site's counts for this report, only under a current binding to
- * the report's repository and for a read of that same address (P5 rules). */
+ * the report's repository and for a read of that same address. */
 export function verifiedLive(input: { url: unknown; boundUrl: unknown; boundRepository: string | null; reportRepository: string | null;
   surface: Record<string, unknown> | null; recordedAt: string | null; openFindingIds: readonly string[] }): VerifiedLiveData | null {
   const { url, surface } = input;

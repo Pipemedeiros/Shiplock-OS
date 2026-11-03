@@ -33,7 +33,7 @@ export interface PrCheckResult {
 }
 
 /** What one PR check found, stored for the dashboard, alerts, and a
- * before-merge fix (8B-1). PR metadata is null when GitHub did not return it. */
+ * before-merge fix. PR metadata is null when GitHub did not return it. */
 export interface PullRequestReview {
   pullRequestNumber: number;
   headSha: string;
@@ -47,6 +47,8 @@ export interface PullRequestReview {
   findings: Pick<DiffScanResult["findings"][number], "id" | "severity" | "title" | "detail" | "file" | "evidence">[];
 }
 
+/** Checks one pull request head on a repository the customer selected and
+ * stores the review under the job's lease. A partial read is never a pass. */
 export async function runPullRequestCheck(options: {
   userId: string;
   installationId: number;
@@ -83,7 +85,7 @@ export async function runPullRequestCheck(options: {
   const archive = await fetchRepoArchive(token, fullName).catch(() => null);
   const baseline = archive?.files.filter((f) => !changed.some((c) => c.path === f.path)) ?? [];
 
-  // G1: the controls the default branch has today are guardrails. A change
+  // The controls the default branch has today are guardrails. A change
   // that removes one from a route it touches blocks, whatever else it does.
   const afterRoutes = collectRoutes([...baseline, ...changed]);
   const guardrails = deriveGuardrails(archive ? collectRoutes(archive.files) : [], { repository: fullName, commit: null });

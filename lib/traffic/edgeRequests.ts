@@ -3,7 +3,7 @@ import { z } from "zod";
 import { computeSignals, detect, LOOKBACK_MS, FETCH_ROW_CAP, type EventRow } from "./detect";
 
 /**
- * Traffic from Supabase's API gateway log (2F-4), read with the customer's own
+ * Traffic from Supabase's API gateway log, read with the customer's own
  * Supabase connection: no snippet, nothing in the request path. Each source is
  * judged by the same rules the snippet uses (credential stuffing, scanning,
  * floods), on its busiest window. Client IPs are hashed with a keyed daily salt

@@ -9,7 +9,7 @@ const CI: Record<CiState, string> = {
   none_visible: "no checks visible", unknown: "unknown",
 };
 
-/** Every pull request ShipLock opened after a click, open or merged (Q1). */
+/** Every pull request ShipLock opened after a click, open or merged. */
 export function OpenedPullRequests({ opened, ci = {} }: {
   opened: { available: boolean; items: OpenedPullRequest[] }; ci?: Record<string, CiState>;
 }) {

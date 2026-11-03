@@ -5,8 +5,8 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { crossSiteRefusal } from "@/lib/security/sameOrigin";
 
 /**
- * Starts one authorized proof (Q7 / Step 6A-3). The customer's click first
- * issued a per-test authorization (/api/proving/authorize, Q5); this consumes
+ * Starts one authorized proof. The customer's click first
+ * issued a per-test authorization (/api/proving/authorize); this consumes
  * it and queues one `proof` job in one transaction (enqueue_proof_job, 091).
  * The SQL function refuses an authorization that is not the caller's, has
  * expired, or was already used. The proof runs later, in the worker, on

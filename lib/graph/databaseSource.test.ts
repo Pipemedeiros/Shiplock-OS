@@ -60,7 +60,7 @@ beforeEach(() => {
   facts(snapshots);
 });
 
-describe("Step 2C-3-C3-A: current-connection database admission through the actual graph loader", () => {
+describe("current-connection database admission through the actual graph loader", () => {
   it("Q6a admits columns only from the current epoch and strips values", async () => {
     const columns = [{ table: "invoices", column: "owner_id", type: "uuid" }];
     facts({ directPostgresSnapshot: { ...direct, columns: columns.map(c => ({ ...c, value: "private" })) } });
@@ -212,7 +212,7 @@ describe("Step 2C-3-C3-A: current-connection database admission through the actu
   });
 });
 
-describe("2D-2: database admission matches connection epochs", () => {
+describe("database admission matches connection epochs", () => {
   const epochs = { postgres_connection_epoch: "1".repeat(64), supabase_mgmt_connection_epoch: "2".repeat(64), supabase_endpoint_connection_epoch: "3".repeat(64) };
   const stamped = {
     directPostgresSnapshot: { ...direct, connectionFingerprint: epochs.postgres_connection_epoch },

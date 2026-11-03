@@ -4,7 +4,7 @@ import { collectRoutes } from "@/lib/graph/routeInventory";
 import { rankRoutes, riskyRoutesOmitted, MAX_PROMPT_ROUTES } from "./attack";
 import { buildFindings } from "./findings";
 
-// Step 7C-2: a read permission gap ranks a route into the reportable bands (so
+// A read permission gap ranks a route into the reportable bands (so
 // the reasoning budget and the truncation fuse count it) and becomes a
 // WARNING, manual, source-read finding. Synthetic fixtures only.
 const gap = { file: "app/api/import/route.ts", method: "POST", model: "project", requires: ["tasks.write"],

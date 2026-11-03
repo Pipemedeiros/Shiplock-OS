@@ -38,7 +38,7 @@ beforeEach(() => {
   mechanical.mockReturnValue(true);
 });
 
-describe("openAiFixPr (10B-3b)", () => {
+describe("openAiFixPr", () => {
   it("opens one PR with the AI's edits on a fresh branch off the default branch", async () => {
     expect(await openAiFixPr(user, taskId, repoId)).toEqual({ status: "opened", url: "https://github.com/acme/app/pull/12", number: 12 });
     const branch = gh.createBranch.mock.calls[0][2];

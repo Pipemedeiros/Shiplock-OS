@@ -5,12 +5,12 @@ import { clearAppUrl, getAppUrlState, setAppUrl } from "@/lib/deep/appUrlStore";
 import { queueCustomerRecheck } from "@/lib/jobs/manualRecheck";
 import { crossSiteRefusal } from "@/lib/security/sameOrigin";
 
-// The address the outside view reads (G3): the shipped bundle and exposed
+// The address the outside view reads: the shipped bundle and exposed
 // paths of the founder's own app, fetched read only, as a visitor gets them.
 // GitHub's homepage is only suggested; nothing is probed until the founder
 // confirms, and a confirm starts the read now rather than at the next pass.
 // The repository it serves, when the founder names one, binds the live
-// facts to that repository's findings (P5); none leaves them unjoined.
+// facts to that repository's findings; none leaves them unjoined.
 const Body = z.strictObject({ url: z.string().min(1).max(2048), repository: z.string().min(1).max(200).nullable().optional() });
 const signIn = () => NextResponse.json({ error: "Sign in to set your app's address." }, { status: 403 });
 const unavailable = () => NextResponse.json({ error: "Your app's address is unavailable. Try again." }, { status: 503 });

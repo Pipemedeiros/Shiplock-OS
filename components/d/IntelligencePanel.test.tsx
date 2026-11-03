@@ -9,7 +9,7 @@ const approved = { state: "approved", host: "codex", deepScan: "weekly", prScan:
 const html = (props: Partial<Parameters<typeof IntelligenceApprovalView>[0]> = {}) => renderToStaticMarkup(
   IntelligenceApprovalView({ connection: { state: "none" }, draft: defaultDraft, busy: false, error: "", ...handlers(), ...props }));
 
-describe("IntelligencePanel (10B-2b)", () => {
+describe("IntelligencePanel", () => {
   it("offers every approved host and cadence and says PRs need a click unless agent pull requests are on", () => {
     const out = html();
     for (const label of ["Claude Code", "Codex", "ChatGPT", "Every PR", "Every 2 days", "Daily"]) {
@@ -29,7 +29,7 @@ describe("IntelligencePanel (10B-2b)", () => {
     expect(out).toContain("your agent spends its own allowance");
     // Every account can connect its own agent over MCP (Felipe 2026-09-23).
     // Until shiplock-mcp is published, Claude Code connects to the hosted
-    // endpoint (G1) and nothing names the unpublished package.
+    // endpoint and nothing names the unpublished package.
     expect(out).toContain("Create a token");
     expect(out).not.toContain("npx");
   });

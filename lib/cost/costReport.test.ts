@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { summarizeCost, parsePrices } from "../../scripts/cost-report.mjs";
 
-// Q10: cost per first scan from receipts, with prices given on the command
+// Cost per first scan from receipts, with prices given on the command
 // line, never hard-coded. Zero receipts means unavailable, not zero cost.
 const r = (run: string, input: number, output: number, model = "claude-haiku-4-5", purpose = "first_scan") =>
   ({ purpose, model, input_tokens: input, output_tokens: output, audit_run_id: run });

@@ -48,7 +48,7 @@ export default async function PullRequests() {
       <div className="v3-stack">
         <CheckedPullRequests reviews={reviews} ai={ai} />
 
-        {/* Every lane's clicked pull request, open or merged (Q1 / 8-R2). */}
+        {/* Every lane's clicked pull request, open or merged. */}
         <OpenedPullRequests opened={opened} ci={ci} />
 
         {eligible.length > 0 ? (

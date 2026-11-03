@@ -5,7 +5,7 @@ import { ConnectionApproval, approveIntelligenceConnection, getIntelligenceConne
   revokeIntelligenceConnection } from "@/lib/intelligence/connection";
 import { crossSiteRefusal } from "@/lib/security/sameOrigin";
 
-// The customer's standing approval for their own intelligence host (10B-2b).
+// The customer's standing approval for their own intelligence host.
 // Cookie-authenticated; mutations require the browser's same-origin decision.
 const signIn = () => NextResponse.json({ error: "Sign in to manage your AI connection." }, { status: 403 });
 const unavailable = () => NextResponse.json({ error: "AI connection unavailable. Try again." }, { status: 503 });

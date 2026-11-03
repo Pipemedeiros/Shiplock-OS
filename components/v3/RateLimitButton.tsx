@@ -5,7 +5,7 @@ import { repairMessage, waitForRepair } from "@/lib/repairReceiptClient";
 import type { HotRouteOffer } from "@/lib/traffic/hotRoutes";
 import { RepairPreviewPanel } from "./RepairPreview";
 
-/** One click, one rate-limit PR for a route observed traffic reached (Q12-4).
+/** One click, one rate-limit PR for a route observed traffic reached.
  * The PR adds one helper file that stays off until the customer turns it on;
  * ShipLock never merges. */
 function RateLimitButton({ repositoryId, routeFile }: { repositoryId: string; routeFile: string }) {

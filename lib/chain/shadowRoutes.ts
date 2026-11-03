@@ -4,7 +4,7 @@ import { MAX_STORED } from "@/lib/routeMap";
 import type { LiveReach } from "./liveReach";
 
 /**
- * Shadow routes (G3, the outside view): backend addresses the founder's live
+ * Shadow routes (the outside view): backend addresses the founder's live
  * site requests on its own origin that the bound repository declares no route
  * for. A rewrite, another service, a platform function or an older deploy can
  * serve them; whichever it is, ShipLock has read no code for them, so they are

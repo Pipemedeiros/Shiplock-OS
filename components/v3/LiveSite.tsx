@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { LiveReach } from "@/lib/chain/liveReach";
 import type { ShadowRoutes } from "@/lib/chain/shadowRoutes";
 
-// The outside view on Coverage (G3): what ShipLock read from the founder's
+// The outside view on Coverage: what ShipLock read from the founder's
 // live site, and the backend addresses it requests that the bound repository
 // declares no route for (lib/chain/shadowRoutes.ts). Those are surface no code
 // was read for, so they read as not checked; an empty list says what it

@@ -2,7 +2,7 @@ import type { GatewayState, TrafficSourceStatus } from "@/lib/traffic/sourceStat
 import type { HotRouteOffer } from "@/lib/traffic/hotRoutes";
 import { RateLimitOffers } from "./RateLimitButton";
 
-// Per repository, where ShipLock's traffic view comes from (Q3). No source is
+// Per repository, where ShipLock's traffic view comes from. No source is
 // said plainly, never shown as quiet.
 const utc = (iso: string) => iso.slice(0, 16).replace("T", " ") + " UTC";
 

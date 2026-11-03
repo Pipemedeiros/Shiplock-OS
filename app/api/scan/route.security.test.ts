@@ -169,7 +169,7 @@ describe("POST /api/scan — auth & paywall are enforced, not just labeled", () 
     expect(scanProjectMock).not.toHaveBeenCalled();
   });
 
-  it("mints a new endpoint connection epoch whenever monitoring credentials are stored (2D)", async () => {
+  it("mints a new endpoint connection epoch whenever monitoring credentials are stored", async () => {
     getUserMock.mockResolvedValue({ data: { user: { id: "u1" } } });
     singleMock.mockResolvedValue({ data: { is_paid: true, monitored_project_url: null } });
     scanProjectMock.mockResolvedValue({ keyAnalysis: { isServiceRole: false }, appUrlChecked: false });
@@ -182,7 +182,7 @@ describe("POST /api/scan — auth & paywall are enforced, not just labeled", () 
     }));
   });
 
-  it("queues the app-surface follow-up instead of probing inside the request (3F-C2c-5)", async () => {
+  it("queues the app-surface follow-up instead of probing inside the request", async () => {
     getUserMock.mockResolvedValue({ data: { user: { id: "u1" } } });
     singleMock.mockResolvedValue({ data: { is_paid: true, monitored_project_url: null } });
     scanProjectMock.mockResolvedValue({ keyAnalysis: { isServiceRole: false }, appUrlChecked: true });

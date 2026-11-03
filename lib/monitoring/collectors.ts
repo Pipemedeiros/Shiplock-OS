@@ -27,7 +27,7 @@ function endpointOrigin(rawUrl: string, encryptedKey: string | null, epoch: stri
 }
 
 /** Provider evidence is written only through the monitor worker's fenced
- * commit (3F-C2c); a pass without one must not collect at all. */
+ * commit; a pass without one must not collect at all. */
 function requireCommit(ctx: CollectorContext): ProviderCommit {
   if (!ctx.commit) throw new Error("Provider collection requires the monitor worker's fenced commit");
   return ctx.commit;

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-// 2D: a Supabase Management connect mints a new epoch; disconnect clears it.
+// A Supabase Management connect mints a new epoch; disconnect clears it.
 const mocks = vi.hoisted(() => ({ pro: vi.fn(), exchange: vi.fn(), update: vi.fn() }));
 vi.mock("@/lib/deep/proGate", () => ({ requireProUser: mocks.pro }));
 vi.mock("@/lib/crypto", () => ({ encrypt: (v: string) => `enc(${v})` }));

@@ -43,7 +43,7 @@ import type { RouteFact } from "@/lib/graph/routeInventory";
  *     on null -- every other test here passes -- and it was recorded as a
  *     forgotten auth check whose siblings authenticate. A one-id lookup is
  *     exactly the shape of an object id used as its own access control, so it
- *     is never a possession gate. Since Q21 (Felipe, 2026-09-28) such a route
+ *     is never a possession gate. Since Felipe's 2026-09-28 rule such a route
  *     is listed by `oneIdAccess` and capped at WARNING, never reworded or
  *     removed; `possessionGate.test.ts` pins both.
  *
@@ -660,7 +660,7 @@ export function possessionGates(routes: RouteFact[], byPath: Map<string, RepoFil
 }
 
 /**
- * ONE-ID ACCESS (Q21, Felipe 2026-09-28). Every rule above except rule 3: the
+ * ONE-ID ACCESS (Felipe 2026-09-28). Every rule above except rule 3: the
  * only way into an anonymous route is a random-minted request id, looked up
  * and null-checked, with nothing else touching data. It is NOT a gate and is
  * never reworded to possession_gated; findings cap the route at WARNING and

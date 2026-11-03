@@ -105,7 +105,7 @@ describe("loadVerifiedProviderProjects", () => {
     expect(reads.provider_repository_links).not.toHaveBeenCalled();
   });
 
-  it("keeps links across a token re-encryption that preserved the epoch (2D)", async () => {
+  it("keeps links across a token re-encryption that preserved the epoch", async () => {
     reads.user_profiles.mockResolvedValue({ data: { vercel_access_token_encrypted: "re-encrypted", vercel_connection_epoch: fingerprint }, error: null });
     reads.provider_repository_links.mockResolvedValue({ data: [{ provider: "vercel", provider_project_id: "p", connection_fingerprint: fingerprint }], error: null });
     expect(await loadVerifiedProviderProjects("u", "repo-a")).toEqual(new Set([`vercel:p:${fingerprint}`]));

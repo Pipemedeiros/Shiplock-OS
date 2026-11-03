@@ -8,7 +8,7 @@ import { quotaResponse } from "@/lib/quota";
 import { bearerMfaOk } from "@/lib/mfa";
 
 // The customer's click to open a reviewable fix PR for one finding. Admits a
-// receipted repair job (3F-C2d); the worker opens a new branch off the default
+// receipted repair job; the worker opens a new branch off the default
 // (never merged) with a migration, codemod, or fix-request file. The customer
 // reviews + merges; ShipLock never writes their DB or their default branch.
 // editedContent is the user's reviewed/customized version of the fix.
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
 
   // Only the customer's edited artifact comes from the request. Finding
   // identity, lane and repository are resolved from our records, exactly as
-  // the preview resolves them (Q13-F).
+  // the preview resolves them.
   let resolved;
   try {
     resolved = await resolveRepairTarget(auth.user.id, { lane: "finding", findingId: parsed.findingId, editedContent: parsed.editedContent || null });

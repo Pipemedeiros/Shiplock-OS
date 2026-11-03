@@ -1,4 +1,4 @@
-/** Browser-side view of one fix click (3F-C2d). The server opens the PR in a
+/** Browser-side view of one fix click. The server opens the PR in a
  * repair job; the dashboard follows the receipt to its real outcome. */
 export interface RepairView {
   status: "queued" | "opened" | "failed" | "uncertain";

@@ -38,7 +38,7 @@ describe("arena selection", () => {
   });
 
   // 6-0: a branch lives on the customer's own, billable project and needs a
-  // per-test authorization receipt (6A) that does not exist yet.
+  // per-test authorization receipt that does not exist yet.
   it("never creates a branch on the customer's project", async () => {
     attemptMock.mockResolvedValue({ handle: { ref: "branch-1", target: {} } });
     const { arena } = await openArena(request(), host());

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildRateLimitSuggestion } from "./rateLimitSuggestion";
 
-// Q12-2 / Step 11: a reviewable, customer-side rate-limit change from observed
+// A reviewable, customer-side rate-limit change from observed
 // traffic. One new helper file, off by default, fails open, never edits the
 // customer's handlers or middleware; the PR body says what to do and how to undo.
 const hot = { file: "app/api/orders/[id]/route.ts", pattern: "/api/orders/:id", suspiciousRequests: 480, paths: ["/api/orders/1", "/api/orders/2"] };

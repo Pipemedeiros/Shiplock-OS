@@ -32,6 +32,9 @@ export function laplace(rand: () => number, scale: number): number {
   return -scale * Math.sign(u) * Math.log(1 - 2 * Math.abs(u));
 }
 
+/** Thresholdout (Dwork et al. 2015): answers from the development set unless
+ * it drifts from the holdout, then spends budget on a noisy holdout answer,
+ * so a holdout can be reused without overfitting it. */
 export function createThresholdout(options: ThresholdoutOptions) {
   const rand = seededRandom(options.seed);
   let budget = options.budget;

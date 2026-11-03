@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { NextRequest } from "next/server";
 
-// 2F-2a: an event that arrives under a traffic site is recorded with that
+// An event that arrives under a traffic site is recorded with that
 // site's repository; a legacy account token stays unbound.
 const mocks = vi.hoisted(() => ({ resolve: vi.fn(), ingest: vi.fn() }));
 vi.mock("@/lib/traffic/sites", () => ({ resolveTrafficToken: mocks.resolve }));
@@ -16,7 +16,7 @@ const req = (extra: Record<string, unknown> = {}) => new Request("https://shiplo
 
 beforeEach(() => { vi.clearAllMocks(); mocks.ingest.mockResolvedValue({ action: "none" }); });
 
-describe("traffic ingest binds site traffic to its repository (2F-2a)", () => {
+describe("traffic ingest binds site traffic to its repository", () => {
   it("records a site event with its site and repository", async () => {
     mocks.resolve.mockResolvedValue({ userId: "u1", email: null, siteId: "s1", repositoryId: "r1" });
     expect(await (await POST(req())).json()).toEqual({ ok: true });

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
-// Q31: liveness for an external uptime monitor. One indexed head read of a
+// Liveness for an external uptime monitor. One indexed head read of a
 // tiny table, bounded to 3 s; the body says only up or down.
 export const dynamic = "force-dynamic";
 

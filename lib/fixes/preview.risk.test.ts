@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Q13-F parity for the Risks-board lane: a new fix-request file on a new
+// Preview parity for the Risks-board lane: a new fix-request file on a new
 // branch. The preview must equal what the click writes, and must not reach
 // the lane's post-PR finding update.
 vi.mock("@/lib/deep/github", async (original) => ({
@@ -42,7 +42,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-describe("Risks-board fix preview parity (Q13-F)", () => {
+describe("Risks-board fix preview parity", () => {
   it("shows the file and PR the click opens, writes nothing, and skips the post-PR update", async () => {
     const preview = await previewRepair("u1", { action: "risk-fix-pr", repositoryId: "r1", findingId: "authz:orders" });
     expect(writes).toEqual([]);

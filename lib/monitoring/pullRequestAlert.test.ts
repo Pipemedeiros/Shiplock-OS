@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// 9A: the email a paid customer gets when a pull request introduces a risk.
+// The email a paid customer gets when a pull request introduces a risk.
 const mocks = vi.hoisted(() => ({ send: vi.fn(), enabled: { value: true } }));
 vi.mock("@/lib/email", () => ({ sendEmail: mocks.send }));
 vi.mock("@/lib/access", () => ({ get EMAIL_ALERTS_ENABLED() { return mocks.enabled.value; } }));

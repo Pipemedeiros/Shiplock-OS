@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Q12-4: which observed routes each repository could get a rate-limit PR for.
+// Which observed routes each repository could get a rate-limit PR for.
 const gh = vi.hoisted(() => ({ token: vi.fn(), tree: vi.fn() }));
 const rows = vi.hoisted(() => ({ user_profiles: null as unknown, traffic_route_observations: [] as unknown, repositories: [] as unknown }));
 vi.mock("@/lib/deep/github", () => ({ getInstallationToken: gh.token, listTree: gh.tree }));
@@ -26,7 +26,7 @@ beforeEach(() => {
   gh.tree.mockResolvedValue([{ path: "app/api/orders/[id]/route.ts" }]);
 });
 
-describe("getHotRoutes (Q12-4)", () => {
+describe("getHotRoutes", () => {
   it("returns matched routes per repository, read-only", async () => {
     expect(await getHotRoutes("u1")).toEqual({ r1: [{ file: "app/api/orders/[id]/route.ts", pattern: "/api/orders/:id", suspiciousRequests: 30 }] });
     expect(gh.tree).toHaveBeenCalledWith("tok", "acme/app", "main");

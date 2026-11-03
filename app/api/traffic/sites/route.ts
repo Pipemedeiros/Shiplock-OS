@@ -6,7 +6,7 @@ import { crossSiteRefusal } from "@/lib/security/sameOrigin";
 import { createTrafficSite, listTrafficSites, revokeTrafficSite } from "@/lib/traffic/sites";
 import { buildExpressSnippet, buildSnippet, buildWebSnippet } from "@/lib/traffic/snippet";
 
-// Repository-bound traffic sites (2F-2b). A site's token is shown once, inside
+// Repository-bound traffic sites. A site's token is shown once, inside
 // its snippets, at creation; the list never returns tokens. To rotate, revoke
 // and create again. Traffic never transits ShipLock: the snippet mirrors
 // minimized metadata off the request path and fails open.

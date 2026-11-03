@@ -52,7 +52,7 @@ afterEach(() => {
   finally { vi.restoreAllMocks(); }
 });
 
-describe.each(fixtures)("Section 10 / 2C-3-C3-B3-A: $collector confirmation", ({ collector, credentialField, epochField, projectField, endpoint }) => {
+describe.each(fixtures)("$collector confirmation", ({ collector, credentialField, epochField, projectField, endpoint }) => {
   const confirmation = { action: "confirm", confirmed: true, collector, repositoryId, expectedProjectRef: ref, expectedEndpointUrl: endpoint,
     expectedConnectionFingerprint: fingerprint, expectedInstallationId: "42", expectedGithubConnectedAt: connectedAt,
     expectedRepositoryFullName: "acme/app", expectedGithubRepositoryId: "7" };
@@ -174,14 +174,14 @@ describe.each(fixtures)("Section 10 / 2C-3-C3-B3-A: $collector confirmation", ({
 
   it.each(["project", "credential", "github"])("does not acknowledge a %s change during persistence", async (kind) => {
     const change = kind === "project" ? { [projectField]: endpoint ? "https://project-b.supabase.co" : "project-b" }
-      // A reconnect mints a new epoch (2D); a ciphertext-only change is a refresh.
+      // A reconnect mints a new epoch; a ciphertext-only change is a refresh.
       : kind === "credential" ? { [credentialField]: "replacement", [epochField]: "f".repeat(64) } : { github_connected_at: "2026-09-17T09:30:00Z" };
     mocks.profile.mockResolvedValueOnce({ data: profile, error: null }).mockResolvedValue({ data: { ...profile, ...change }, error: null });
     expect((await POST(request(confirmation))).status).toBe(409);
     mocks.links.mockResolvedValue({ data: [stored], error: null }); expect((await (await get(collector)).json()).bindings).toEqual([]);
   });
 
-  it("acknowledges a refresh that re-encrypted the credential but kept the epoch (2D)", async () => {
+  it("acknowledges a refresh that re-encrypted the credential but kept the epoch", async () => {
     mocks.profile.mockResolvedValueOnce({ data: profile, error: null })
       .mockResolvedValue({ data: { ...profile, [credentialField]: "refreshed" }, error: null });
     expect((await POST(request(confirmation))).status).toBe(200);

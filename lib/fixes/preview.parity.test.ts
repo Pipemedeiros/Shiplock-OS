@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Q13 parity: the preview of a lane is exactly what the lane writes when the
+// Preview parity: the preview of a lane is exactly what the lane writes when the
 // click runs it. Real rate-limit lane, real GitHub helpers, fake GitHub API.
 vi.mock("@/lib/deep/github", async (original) => ({
   ...await original<typeof import("@/lib/deep/github")>(), getInstallationToken: async () => "tok",
@@ -38,7 +38,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-describe("preview parity (Q13)", () => {
+describe("preview parity", () => {
   it("the rate-limit preview equals what the click writes, and the preview writes nothing", async () => {
     const preview = await previewRepair("u1", { action: "rate-limit-pr", repositoryId: "r1", findingId: "traffic:app/api/orders/[id]/route.ts" });
     expect(writes).toEqual([]);

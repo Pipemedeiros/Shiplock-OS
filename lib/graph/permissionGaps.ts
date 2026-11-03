@@ -1,5 +1,5 @@
 /**
- * "Same write, weaker permission" (Step 7C-1). Deterministic, from source only.
+ * "Same write, weaker permission". Deterministic, from source only.
  *
  * A Next.js App Router handler that declares its required permissions
  * (`requiredPermissions: ["links.write"]`) and writes a model is compared with

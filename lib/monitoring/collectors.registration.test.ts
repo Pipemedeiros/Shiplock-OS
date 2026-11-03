@@ -103,7 +103,7 @@ describe("the Vercel environment audit is on the schedule", () => {
       }) as never;
 
     expect(vercelEnvCollector.appliesTo?.(profile({ vercel_access_token_encrypted: "enc", vercel_connection_epoch: "e".repeat(64) }))).toBe(true);
-    // A token without a connection epoch (2D) is not a usable connection.
+    // A token without a connection epoch is not a usable connection.
     expect(vercelEnvCollector.appliesTo?.(profile({ vercel_access_token_encrypted: "enc" }))).toBe(false);
     expect(vercelEnvCollector.appliesTo?.(profile({}))).toBe(false);
   });
@@ -115,7 +115,7 @@ describe("the Vercel environment audit is on the schedule", () => {
     expect(vercelEnvCollector.eligibleTriggers).toContain("scheduled_48h");
   });
 
-describe("customer rechecks run every full-pass collector (3F-C2c-5)", () => {
+describe("customer rechecks run every full-pass collector", () => {
   it("makes each deploy-eligible collector eligible for manual rechecks", () => {
     for (const spec of DEFAULT_COLLECTORS) {
       expect(spec.eligibleTriggers.includes("manual")).toBe(spec.eligibleTriggers.includes("deploy"));
@@ -124,7 +124,7 @@ describe("customer rechecks run every full-pass collector (3F-C2c-5)", () => {
 });
 });
 
-describe("provider collectors name their transport (5A-2)", () => {
+describe("provider collectors name their transport", () => {
   it("maps each provider collector to the transport its failures are recorded under", () => {
     const byId = Object.fromEntries(DEFAULT_COLLECTORS.map((c) => [c.id, c.transport ?? null]));
     expect(byId).toEqual({

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-// Q34 (2026-09-29): Lighthouse on the live landing page measured 522 KiB of
+// 2026-09-29: Lighthouse on the live landing page measured 522 KiB of
 // fonts in 19 files, 65% of the page, because every family ever tried was
 // still loaded and preloaded. The v3 design uses Geist, Geist Mono and
 // Newsreader; nothing else may be preloaded on every page.

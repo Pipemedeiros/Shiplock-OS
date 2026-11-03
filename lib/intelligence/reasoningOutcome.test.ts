@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { reasoningOutcomeNote, withReasoningOutcome, type RunTask } from "./reasoningOutcome";
 
-// Ledger item 0c: the Coverage note about attack reasoning is written when
+// The Coverage note about attack reasoning is written when
 // the audit runs ("asked of your agent") and must follow what the agent and
 // ShipLock's verification actually did afterwards. Never clean by omission.
 const NOW = Date.parse("2026-10-06T12:00:00Z");

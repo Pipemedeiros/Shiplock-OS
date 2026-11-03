@@ -1,5 +1,5 @@
 /**
- * Skeptical verification of proposed attack paths (P1, Felipe 2026-09-30:
+ * Skeptical verification of proposed attack paths (Felipe 2026-09-30:
  * "5% precision is absolutely terrible").
  *
  * Measured across three held-out corpora, only about 5% of admitted findings
@@ -42,7 +42,7 @@ export type RawVerdict = {
   title?: string;
   reason: string;
   citations: Citation[];
-  /** W2: typed answers to narrow questions; older hosts may omit them. */
+  /** Typed answers to narrow questions; older hosts may omit them. */
   checks?: VerdictChecks;
 };
 
@@ -210,7 +210,7 @@ export function checkVerdicts(raw: RawVerdict[], items: VerifyItem[], files: Rea
   });
 }
 
-/** W2: the verifier's own typed answer can withhold a confirmation; an unsure
+/** The verifier's own typed answer can withhold a confirmation; an unsure
  * or a missing answer cannot, so only an explicit no moves a finding. A
  * question about other accounts was measured and removed: on release attempt
  * 5's tasks it moved findings in single-operator apps that both labelers had

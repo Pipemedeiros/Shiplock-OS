@@ -274,7 +274,7 @@ function entropy(value: string): number {
 
 /**
  * What each credential in a committed env file holds, by kind and never by
- * value (W1): an engineer or a labeler can challenge the finding without
+ * value: an engineer or a labeler can challenge the finding without
  * opening the file. Hosts are named only as local, a template's, or remote.
  */
 export function envValueShapes(content: string): { name: string; shape: string }[] {

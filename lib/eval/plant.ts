@@ -139,6 +139,8 @@ const insideWhere = (node: ts.Node): boolean => {
   return false;
 };
 
+/** Where a known bug can be planted in a route handler: a sign-in guard
+ * or an owner scope whose removal yields a known, labeled vulnerability. */
 export function findPlants(source: string, options: { defaultExportHandles?: boolean } = {}): Plant[] {
   const sf = ts.createSourceFile("route.ts", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const plants: Plant[] = [];

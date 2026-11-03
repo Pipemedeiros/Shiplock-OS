@@ -33,7 +33,7 @@ function commitEvidence(): CommitEvidence[] {
 const commits = commitEvidence();
 
 describe("repository guardrail integrity", () => {
-  it("G2 has a versioned registry and a violating fixture for every rule", () => {
+  it("the guardrail file has a versioned registry and a violating fixture for every rule", () => {
     expect(registry.rules.map(r => r.id).sort()).toEqual([...expectedIds].sort());
     expect(tracked).toContain(".agents/guardrails.json");
     expect(tracked).toContain("lib/security/repoGuardrails.test.ts");

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// 8B-3: fix before merge. The fix PR targets the checked PR's own head branch.
+// Fix before merge. The fix PR targets the checked PR's own head branch.
 const mocks = vi.hoisted(() => ({
   review: vi.fn(), profile: vi.fn(),
   github: { getInstallationToken: vi.fn(), getBranchSha: vi.fn(), createBranch: vi.fn(), putFile: vi.fn(), openPullRequest: vi.fn(), findOpenPullRequestForBranch: vi.fn() },

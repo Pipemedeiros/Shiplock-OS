@@ -18,7 +18,7 @@ beforeEach(() => {
   mocks.rpc.mockResolvedValue({ data: jobId, error: null });
 });
 
-describe("POST /api/proving/run (Q7 / 6A-3)", () => {
+describe("POST /api/proving/run", () => {
   it("refuses a cross-site request before anything else", async () => {
     expect((await post({ authorizationId }, "https://evil.example")).status).toBe(403);
     expect(mocks.pro).not.toHaveBeenCalled();

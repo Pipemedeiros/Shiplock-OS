@@ -444,7 +444,7 @@ export async function fetchAuthAuditLog(
   }
 }
 
-// ── API gateway request log (2F-4) ─────────────────────────────────────────
+// ── API gateway request log ─────────────────────────────────────────
 //
 // Supabase's documented Management API log query (Debugging projects:
 // GET /v1/projects/{ref}/analytics/endpoints/logs.all) over `edge_logs`, the

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { analyzeTrpcProcedures, trpcRoutes } from "./trpcProcedures";
 
-// Step 7G-1: identity, tables and ownership for tRPC procedures. Synthetic
+// Identity, tables and ownership for tRPC procedures. Synthetic
 // fixtures modelled on the create-t3-app / tRPC v10+ idioms; no corpus labels.
 const f = (path: string, content: string) => ({ path, content });
 const trpc = f("server/trpc.ts", `import { initTRPC, TRPCError } from "@trpc/server";
@@ -163,7 +163,7 @@ export const c = createTRPCRouter({ remove: protectedProcedure.mutation(async ({
   await prisma.comment.delete({ where: { id: input.id } });
 }) });`)]);
     expect(fact).toMatchObject({ tables: ["comment"], ownershipFiltered: false, ownershipReadable: false, ownershipGap: expect.stringMatching(/helper/) });
-    // Q14: the route fact customers' findings quote carries that reason, never null.
+    // The route fact customers' findings quote carries that reason, never null.
     const [route] = trpcRoutes([trpc, f("server/routers/c.ts", `import { protectedProcedure, createTRPCRouter } from "../trpc";
 export const c = createTRPCRouter({ remove: protectedProcedure.mutation(async ({ ctx, input }) => {
   if (!(await hasPollAdminAccess(input.id, ctx.user.id))) throw new TRPCError({ code: "FORBIDDEN" });
@@ -214,9 +214,9 @@ export const m = createTRPCRouter({ remove: protectedProcedure.mutation(async ({
   });
 });
 
-// Q26: a ctx condition whose branch throws TRPCError UNAUTHORIZED is a gate,
+// A ctx condition whose branch throws TRPCError UNAUTHORIZED is a gate,
 // whatever the condition's spelling. Shapes from CORPUS-3 (development data).
-describe("tRPC gates by TRPCError semantics (Q26)", () => {
+describe("tRPC gates by TRPCError semantics", () => {
   const router = (base: string) => f("server/routers/r.ts", `import { ${base}, createTRPCRouter } from "../trpc";
 export const r = createTRPCRouter({ remove: ${base}.mutation(async ({ input }) => prisma.form.delete({ where: { id: input.id } })) });`);
 

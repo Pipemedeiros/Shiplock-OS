@@ -3,7 +3,7 @@ import type { RouteFact } from "@/lib/graph/routeInventory";
 
 /**
  * Guardrails: the security properties a repository has today, as JSON rules
- * (G1, Felipe 2026-09-30). Derived only from controls ShipLock OBSERVED on a
+ * (Felipe 2026-09-30). Derived only from controls ShipLock OBSERVED on a
  * route that reaches data; an unread control never becomes a rule, so a rule
  * is never a guess. The PR check enforces them deterministically (a change
  * that removes one is blocked); the customer's coding agent reads the same

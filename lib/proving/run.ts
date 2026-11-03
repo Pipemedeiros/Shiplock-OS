@@ -52,6 +52,9 @@ const num = (rows: Record<string, unknown>[], key: string): number => {
   return typeof value === "number" ? value : Number.parseInt(String(value ?? 0), 10) || 0;
 };
 
+/** Replays suspected table leaks on the disposable replica with synthetic
+ * rows. Refuses before any work when switched off; a failed control probe
+ * means the run is not trusted. */
 export async function runProvingGround(ctx: ProvingContext): Promise<ProvingResult> {
   // Cheapest refusals first — never spend money to discover we were not allowed.
   if (ctx.settings.killSwitchOn) return { ran: false, reason: "kill_switch", findings: [], probed: 0 };

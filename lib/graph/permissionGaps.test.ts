@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { findPermissionGaps } from "./permissionGaps";
 
-// Step 7C-1: a deterministic "same write, weaker permission" check. Fixtures
+// A deterministic "same write, weaker permission" check. Fixtures
 // are synthetic; the held-out corpus-a labels are never used to tune this.
 const route = (path: string, content: string) => ({ path, content });
 const handler = (method: string, perms: string[] | null, body: string, extra = "") =>

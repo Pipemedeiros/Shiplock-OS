@@ -162,7 +162,7 @@ describe("open counts on the public report", () => {
     ])).toEqual({ openCritical: 2, openTotal: 3 });
   });
 
-  it("counts a live finding by the evidence it rests on, as the dashboard does (W3)", async () => {
+  it("counts a live finding by the evidence it rests on, as the dashboard does", async () => {
     const { confirmedCounts } = await import("./report");
     const live = (source: string, finding_id: string, severity = "CRITICAL") => ({ source, finding_id, severity, confidence: null, attack_class: null, claims: null });
     expect(confirmedCounts([live("proven", "proof:rls:orders"), live("exposed-path", "exposed:git_exposed"),

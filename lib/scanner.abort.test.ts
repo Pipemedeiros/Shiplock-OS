@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { scanProject, scanCriticalChecks } from "./scanner";
 
-// 3F-C2b-2: the endpoint scanner fans out many requests at the customer's
+// The endpoint scanner fans out many requests at the customer's
 // project. A cancelled collector must cancel every one still in flight.
 const SUPA = "https://testref.supabase.co";
 const b64url = (o: unknown) => Buffer.from(JSON.stringify(o)).toString("base64url");

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// 8B-3: the dashboard click that asks for a fix before the PR merges.
+// The dashboard click that asks for a fix before the PR merges.
 const mocks = vi.hoisted(() => ({ pro: vi.fn(), review: vi.fn(), request: vi.fn(), filters: vi.fn() }));
 vi.mock("@/lib/deep/proGate", () => ({ requireProUser: mocks.pro }));
 vi.mock("@/lib/jobs/repairAction", () => ({ requestRepairAction: mocks.request }));

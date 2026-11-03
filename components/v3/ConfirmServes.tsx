@@ -1,7 +1,7 @@
 "use client";
 
 // Coverage's Live site fold asks once, in place, which repository a saved
-// address serves, so live facts can join that repository's findings (P5).
+// address serves, so live facts can join that repository's findings.
 // It is the founder's confirmation, the same one Settings records through
 // /api/app-url; nothing is bound without this click.
 

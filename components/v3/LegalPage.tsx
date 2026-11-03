@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { LockMark } from "@/components/d/Brand";
 
-/** A long-form legal page in the v3 frame (Q28). */
+/** A long-form legal page in the v3 frame. */
 export function LegalPage({ title, updated, other, children }: {
   title: string; updated: string; other: { href: string; label: string }; children: ReactNode;
 }) {

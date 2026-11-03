@@ -50,7 +50,7 @@ export function pullRequestFixDocument(prNumber: number, finding: ReviewFinding)
 }
 
 /**
- * Fix before merge (8B-3): a fix PR into the checked pull request's own head
+ * Fix before merge: a fix PR into the checked pull request's own head
  * branch, built from the stored review. A fork, a closed or deleted branch, or
  * a finding no longer in the review is refused; there is never a fallback to
  * the default branch. The branch name is deterministic per review and finding,

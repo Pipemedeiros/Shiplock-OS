@@ -90,7 +90,7 @@ describe("traffic: the snippet reaches the rate-limit offer", () => {
       { path: "/api/login", suspiciousRequests: 45 }, { path: "/api/orders/7", suspiciousRequests: 1 }]);
   });
 
-  it("an id walk judged at ingest becomes the hot route on the file the audit read (P4)", async () => {
+  it("an id walk judged at ingest becomes the hot route on the file the audit read", async () => {
     const walk = Array.from({ length: 35 }, (_, i) => event(`/api/orders/${i + 100}`, "walker"));
     db.rows.traffic_events!.push(...walk);
     const decision = detect(computeSignals(walk.map((e) => ({ path: e.path, created_at: e.created_at })), Date.now()));

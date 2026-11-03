@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-// Q30: "Cancel subscription" opens Stripe's cancel flow for the caller's own
+// "Cancel subscription" opens Stripe's cancel flow for the caller's own
 // active subscription and returns to /cancelled; nothing client-supplied picks
 // the customer or the subscription.
 const getUser = vi.fn();

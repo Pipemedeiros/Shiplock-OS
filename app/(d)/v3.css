@@ -490,7 +490,7 @@
 
 /* ── landing: sandbox attack ─────────────────────────────────────────────── */
 
-/* ── Q27 route map (components/v3/RouteMap.tsx) ─────────────────────────── */
+/* ── route map (components/v3/RouteMap.tsx) ─────────────────────────── */
 .v3-map { display: grid; grid-template-columns: minmax(0, 1fr) 260px; background: var(--navy); border-radius: var(--r); overflow: hidden; }
 .v3-map.v3-map-quiet { display: block; }
 .v3-map-stage { position: relative; overflow: hidden; }
@@ -534,7 +534,7 @@
   .v3-map-side { border-left: 0; border-top: 1px solid var(--line-navy); }
 }
 
-/* ── Q28 legal pages ─────────────────────────────────────────────────────── */
+/* ── legal pages ─────────────────────────────────────────────────────── */
 .v3-legal section { margin-top: 36px; }
 .v3-legal h2 { font-family: var(--dx-font-newsreader), serif; font-size: 24px; font-weight: 500; margin: 0 0 10px; }
 .v3-legal p, .v3-legal li { font-size: 15.5px; line-height: 1.7; color: var(--ink); }

@@ -1,6 +1,6 @@
 import { beforeEach, expect, it, vi } from "vitest";
 
-// 3F-C2d-4: one click opens at most one dependency-bump PR, for the one
+// One click opens at most one dependency-bump PR, for the one
 // selected repository named on the receipt.
 const state = vi.hoisted(() => ({ profile: vi.fn(), repo: vi.fn(), file: vi.fn(), osv: vi.fn(), open: vi.fn() }));
 vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ from: (table: string) => {

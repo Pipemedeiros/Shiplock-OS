@@ -79,7 +79,7 @@ export function PostgresPanel({
         setShowForm(false);
       }
 
-      // Reads run in the background queue (3F-C2c-5); results land on Risks.
+      // Reads run in the background queue; results land on Risks.
       setMessage(
         data.status === "queued"
           ? "Policy check queued. Results appear on your Risks tab in a few minutes."

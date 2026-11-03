@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { deriveGuardrails } from "@/lib/guardrails/guardrails";
 import { GuardrailList } from "./GuardrailList";
 
-// G1: the founder sees the same rules the PR check enforces and the coding
+// The founder sees the same rules the PR check enforces and the coding
 // agent reads over MCP. No facts is unknown, never "no rules needed".
 const route = { path: "/api/orders", file: "app/api/orders/route.ts", methods: ["GET"], tables: ["orders"], authenticated: true,
   machineGated: false, usesServiceRole: false, ownershipFiltered: true, identityReadable: true, ownershipReadable: true, dataReadable: true,

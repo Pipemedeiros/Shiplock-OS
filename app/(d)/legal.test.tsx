@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import Privacy from "./privacy/page";
 import Terms from "./terms/page";
 
-// Q28 (Felipe 2026-09-29): privacy and terms must match the product as it is:
+// Felipe 2026-09-29: privacy and terms must match the product as it is:
 // GitHub App, customer AI, traffic snippet, proofs on a disposable copy,
 // cookie choice, welcome email. v3 frame, plain words, no dashes.
 const text = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");

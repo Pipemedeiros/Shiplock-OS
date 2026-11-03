@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
-/** Daily retention for customer-intelligence tasks (10B-1d, migration 075):
+/** Daily retention for customer-intelligence tasks (migration 075):
  * accepted results 30 days after completion, dead tasks after one day.
  * Fail-soft: called from a cron handler that must still return. */
 export async function purgeIntelligenceTasks(): Promise<{ ok: boolean; purged: number }> {

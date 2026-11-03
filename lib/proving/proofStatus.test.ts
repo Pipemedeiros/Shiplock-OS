@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { proofTable, summarizeProofs } from "./proofStatus";
 
-// Q7: the latest proof per finding, as the Risks board shows it.
+// The latest proof per finding, as the Risks board shows it.
 const auth = (id: string, created: string, finding = "f1", repository = "r1") =>
   ({ id, repository_id: repository, finding_id: finding, created_at: created });
 

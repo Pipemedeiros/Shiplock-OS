@@ -1,5 +1,5 @@
 /**
- * A customer-side rate-limit suggestion from observed traffic (Q12-2 /
+ * A customer-side rate-limit suggestion from observed traffic (
  * Step 11). Deterministic. It adds exactly one new helper file and never edits
  * the customer's handlers or middleware: wiring it in is the customer's
  * decision, spelled out in the PR body. The helper is off unless

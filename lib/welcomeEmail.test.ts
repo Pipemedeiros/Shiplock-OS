@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Q29: one welcome email per new account, with the logo, marked on the auth
+// One welcome email per new account, with the logo, marked on the auth
 // user before sending so a repeated sign-in can never send it twice.
 const state = vi.hoisted(() => ({ send: vi.fn(), update: vi.fn() }));
 vi.mock("@/lib/email", () => ({ sendEmail: state.send }));

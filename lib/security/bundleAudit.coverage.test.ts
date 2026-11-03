@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// 1E-1: a bundle read that failed is not a bundle that no longer leaks.
+// A bundle read that failed is not a bundle that no longer leaks.
 const guarded = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/security/ssrfGuard", async (original) => ({
   ...await original<typeof import("./ssrfGuard")>(), guardedFetch: guarded,
@@ -57,7 +57,7 @@ describe("auditShippedBundle readability", () => {
   });
 });
 
-// P5: the same scripts say which paths the live site calls, and how many of
+// The same scripts say which paths the live site calls, and how many of
 // them were read, so a partial read is never mistaken for the whole bundle.
 describe("auditShippedBundle called paths", () => {
   it("records the paths the page and each read chunk name, with what was read", async () => {

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-// Q30: settings is a full account page: plan and billing (manage, cancel),
+// Settings is a full account page: plan and billing (manage, cancel),
 // sign out, and a stated path to deleting the account.
 const page = readFileSync("app/(d)/dashboard/settings/page.tsx", "utf8");
 

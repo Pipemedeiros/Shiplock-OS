@@ -199,7 +199,7 @@ describe("edge detection prefers headers, because address ranges go stale", () =
   });
 });
 
-describe("collectOriginPosture — 1E-1 readability", () => {
+describe("collectOriginPosture — readability", () => {
   const dnsError = (code: string) => Object.assign(new Error(code), { code });
   const resolver = (over: Record<string, unknown> = {}) => ({
     resolve4: vi.fn().mockResolvedValue(["104.18.1.5"]),

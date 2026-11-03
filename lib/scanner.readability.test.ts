@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { scanProject, scanCriticalChecks } from "./scanner";
 
-// 1E-2: a check that could not read its target must say so, so the monitoring
+// A check that could not read its target must say so, so the monitoring
 // snapshot keeps the prior finding instead of treating the outage as a fix.
 const SUPA = "https://testref.supabase.co";
 const b64url = (o: unknown) => Buffer.from(JSON.stringify(o)).toString("base64url");

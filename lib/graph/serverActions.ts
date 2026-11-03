@@ -3,7 +3,7 @@ import { resolveImport } from "@/lib/deep/clientExposure";
 import { resolveViaTsconfigPaths } from "./tsconfigPaths";
 
 /**
- * Server actions the browser can call (Step 7E-1). A `"use server"` file's
+ * Server actions the browser can call. A `"use server"` file's
  * exports are callable from the client only when UI code imports them: a
  * `"use client"` file or a React component file (.tsx/.jsx), which may bind
  * the action to a form. A `"use server"` helper imported only by other server

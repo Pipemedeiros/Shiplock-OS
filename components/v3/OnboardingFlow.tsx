@@ -452,7 +452,7 @@ function StackStep({
         </div>
       ) : null}
 
-      {/* G3: optional. The outside view reads what the app serves to anyone,
+      {/* Optional. The outside view reads what the app serves to anyone,
           at an address the founder confirms; GitHub's homepage is offered. */}
       <div className="v3-tile">
         <strong style={{ fontWeight: 500, fontSize: 14.5 }}>Your app, read from the outside (optional)</strong>

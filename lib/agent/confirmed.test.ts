@@ -26,7 +26,7 @@ describe("isConfirmed", () => {
   });
 });
 
-// P3 (D1): an app with no sign-in whose own code says it is open by design
+// D1: an app with no sign-in whose own code says it is open by design
 // has no other account to reach; whether it should be open is the founder's
 // call. The finding stays, with quoted proof, as To review.
 describe("open by design", () => {

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
-/** The customer's standing approval for their own intelligence host (10B-2b,
+/** The customer's standing approval for their own intelligence host (
  * migration 076): which host, when ShipLock may ask it for work, and within
  * what token budgets. Proposals only; it never carries PR, merge, or deploy
  * authority, so every PR still needs its own click. No credential is stored. */

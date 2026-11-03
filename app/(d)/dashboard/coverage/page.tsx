@@ -41,7 +41,7 @@ export default async function Coverage() {
   // What the last FINISHED audit did not reach; one still running has read
   // nothing yet and must not read as "nothing unread".
   const latest = auditState(runs).finished;
-  // G1: the same rules the PR check enforces and MCP serves.
+  // The same rules the PR check enforces and MCP serves.
   const repo = latest ? repos.find((r) => r.fullName === latest.fullName) : undefined;
   const source = repo ? await loadRepositoryGraphSource(userId, repo.id) : null;
   const guardrails = repo && source?.routes ? deriveGuardrails(source.routes, { repository: repo.fullName, commit: null }) : null;
@@ -124,7 +124,7 @@ export default async function Coverage() {
           </>
         )}
 
-        {/* Work handed to the customer's own AI (10B-2d). Unanswered is not clean. */}
+        {/* Work handed to the customer's own AI. Unanswered is not clean. */}
         <Fold title="AI checks" status={aiStatus}><AiChecks activity={ai} /></Fold>
         <Fold title="Guardrails" status={guardrails ? `${guardrails.rules.length} rules` : "Not derived"}><GuardrailList guardrails={guardrails} /></Fold>
         <Fold title="Live site" open={Boolean(unbound)} status={unbound ? "Confirm the repository" : liveSiteStatus(bound ? live : null, shadow)}>
@@ -132,9 +132,9 @@ export default async function Coverage() {
           {unbound ? <ConfirmServes url={unbound.url} repositories={unbound.repositories} />
             : <LiveSite live={bound ? live : null} repository={bound?.fullName ?? null} shadow={shadow} />}
         </Fold>
-        {/* Latest read per connected provider (5A-3). */}
+        {/* Latest read per connected provider. */}
         <Fold title="Providers" status={providerStatus}><ProviderCoverage coverage={providers} /></Fold>
-        {/* Per repository traffic source (Q3 / 2F-5). */}
+        {/* Per repository traffic source. */}
         <Fold title="Traffic" status={trafficStatus}><TrafficSources sources={traffic} offers={hotRoutes} /></Fold>
         <Fold title="Stored evidence" status={evidenceStatus}>
           <p className="v3-small" style={{ marginBottom: 16 }}>

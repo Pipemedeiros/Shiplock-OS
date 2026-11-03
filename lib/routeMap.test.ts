@@ -14,7 +14,7 @@ const input = {
   hotFiles: ["app/api/export/route.ts"],
 };
 
-describe("route map (Q27)", () => {
+describe("route map", () => {
   it("has a node only where a fact exists, and edges only for observed reads and controls", () => {
     const map = buildRouteMap(input);
     expect(map.nodes.map((n) => `${n.kind}:${n.label}`).sort()).toEqual([

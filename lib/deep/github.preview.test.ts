@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { capturePreview, createBranch, findOpenPullRequestForBranch, openPullRequest, putFile } from "./github";
 
-// Q13 / Step 8: in preview mode no GitHub write leaves ShipLock. Writes are
+// In preview mode no GitHub write leaves ShipLock. Writes are
 // recorded, and the lane stops at "open PR" so nothing after it runs.
 afterEach(() => vi.unstubAllGlobals());
 

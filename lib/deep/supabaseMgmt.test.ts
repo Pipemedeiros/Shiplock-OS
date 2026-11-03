@@ -86,7 +86,7 @@ describe("schema inventory SQL", () => {
   });
 });
 
-describe("3F-C2b: caller cancellation reaches Management API requests", () => {
+describe("caller cancellation reaches Management API requests", () => {
   it.each([
     ["fetchPolicies", (signal: AbortSignal) => fetchPolicies("token", "ref", signal)],
     ["fetchAdvisors", (signal: AbortSignal) => fetchAdvisors("token", "ref", signal)],

@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { AppUrlView } from "./AppUrlPanel";
 
-// G3: the outside view reads the founder's app only at an address they
+// The outside view reads the founder's app only at an address they
 // confirmed. Every state says what happens, and every press answers.
 const base = { current: null, repository: null, repositories: [] as string[], otherNames: null as { name: string; lastIssued: string }[] | null, suggestions: [], busy: false, saved: false, error: "", onSave: () => {}, onClear: () => {} };
 const text = (html: string) => html.replace(/<[^>]+>/g, " ");
@@ -38,7 +38,7 @@ describe("AppUrlView", () => {
     expect(renderToStaticMarkup(<AppUrlView {...base} error="Enter your app's public https address." />)).toMatch(/role="alert"/);
   });
 
-  // P5: the founder names the repository the address serves; live reach joins only there.
+  // The founder names the repository the address serves; live reach joins only there.
   it("shows which repository the address serves, and a labeled choice defaulting to the only one", () => {
     const t = text(renderToStaticMarkup(<AppUrlView {...base} current="https://acme.com" repository="acme/app" repositories={["acme/app"]} />));
     expect(t).toMatch(/ShipLock reads https:\/\/acme\.com for acme\/app/);

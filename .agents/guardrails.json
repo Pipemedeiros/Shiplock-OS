@@ -3,8 +3,8 @@
   "rules": [
     {
       "id": "markdown-files",
-      "statement": "Project Markdown exists only in the contract files, the public README and vendored skills.",
-      "why": "AGENTS.md: These are the only two non-skill Markdown files in the repo.",
+      "statement": "Project Markdown exists only in the contract file and the public README.",
+      "why": "AGENTS.md: these are the only Markdown files in the repo.",
       "severity": "block",
       "kind": "file_policy",
       "scope": [
@@ -17,9 +17,7 @@
       "check": "markdown",
       "allowed": [
         "AGENTS.md",
-        "README.md",
-        "docs/MASTER-PLAN-PROGRESS.md",
-        ".agents/skills/**"
+        "README.md"
       ]
     },
     {

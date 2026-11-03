@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// 3F-C2d-3: the Risks-board click admits a receipt; the worker opens the PR.
+// The Risks-board click admits a receipt; the worker opens the PR.
 const mocks = vi.hoisted(() => ({ pro: vi.fn(), findings: vi.fn(), repo: vi.fn(), request: vi.fn(), github: vi.fn() }));
 vi.mock("@/lib/deep/proGate", () => ({ requireProUser: mocks.pro }));
 vi.mock("@/lib/agent/dashboardData", () => ({ getOpenFindings: mocks.findings }));
@@ -33,7 +33,7 @@ describe("POST /api/fix/pr", () => {
     expect(mocks.github).not.toHaveBeenCalled();
   });
 
-  it("tells the customer when the daily fix limit is reached (3H-2)", async () => {
+  it("tells the customer when the daily fix limit is reached", async () => {
     mocks.request.mockRejectedValue(new Error("repair_quota_reached"));
     const res = await post({ findingId: "agent:idor" });
     expect(res.status).toBe(429);

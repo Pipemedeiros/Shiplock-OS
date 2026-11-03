@@ -118,7 +118,7 @@ it("claims at most one monitor job", async () => {
   expect(state.execute).toHaveBeenCalledWith(job,[executeMonitorJob]);
 });
 
-it("gives collectors a commit bound to this job's lease (3F-C2c-2)",async()=>{
+it("gives collectors a commit bound to this job's lease",async()=>{
   await executeMonitorJob(job);
   const commit=state.run.mock.calls[0][3] as (result:unknown)=>Promise<unknown>;
   state.rpc.mockResolvedValueOnce({data:[],error:null});
@@ -128,7 +128,7 @@ it("gives collectors a commit bound to this job's lease (3F-C2c-2)",async()=>{
   }));
 });
 
-it("runs a customer-requested manual recheck (3F-C2c-5)",async()=>{
+it("runs a customer-requested manual recheck",async()=>{
   state.reads.monitoring_job_context.mockResolvedValueOnce({data:{user_id:job.user_id,trigger_source:"manual"},error:null});
   await executeMonitorJob(job);
   expect(state.run.mock.calls[0][1]).toBe("manual");

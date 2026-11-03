@@ -7,7 +7,7 @@ import type { StackReport } from "./stack";
 import type { OpenByDesign } from "./signIn";
 
 /** The claim that keeps a finding in an app open by design as To review
- * (P3, D1); `isConfirmed` reads it. */
+ *; `isConfirmed` reads it. */
 export const OPEN_BY_DESIGN = "This app signs no one in by design";
 const OPEN_CLASSES = new Set(["missing_authentication", "missing_authorization", "mass_assignment"]);
 
@@ -219,7 +219,7 @@ export interface BuildFindingsInput {
    */
   possessionGates?: ReadonlyMap<string, PossessionGate>;
   /** Anonymous routes whose only way in is a random-minted request id
-   * (possessionGate.ts `oneIdAccess`); such findings cap at WARNING (Q21). */
+   * (possessionGate.ts `oneIdAccess`); such findings cap at WARNING. */
   oneIdAccess?: ReadonlyMap<string, PossessionGate>;
   /** Where an app with no sign-in says it is open by design (signIn.ts). */
   openByDesign?: OpenByDesign | null;
@@ -228,6 +228,8 @@ export interface BuildFindingsInput {
 // Deterministic kinds that read a committed credential value out of a file.
 const COMMITTED_VALUE = /^github:(secret|committed_env|next_config_env_credential|public_prefixed_secret_value|public_prefixed_service_jwt):/;
 
+/** Renders guard-admitted hypotheses and deterministic facts as founder-facing
+ * findings: consequence, evidence and the next safe action. */
 export function buildFindings(input: BuildFindingsInput): AgentFinding[] {
   const byPath = new Map(input.routes.map((r) => [r.path, r]));
   const findings: AgentFinding[] = [];
@@ -320,7 +322,7 @@ export function buildFindings(input: BuildFindingsInput): AgentFinding[] {
       // than correct by accident of how two fields happen to line up.
       (!route!.ownershipFiltered || !route!.ownershipReadable);
 
-    // Q21 (Felipe, 2026-09-28): the only way in is a random-minted id the caller
+    // Felipe, 2026-09-28: the only way in is a random-minted id the caller
     // must already hold. Capped at WARNING, never removed, and said.
     const oneId = (h.attackClass === "missing_authentication" || h.attackClass === "missing_authorization")
       && route !== undefined && route.identityReadable && !route.authenticated && !route.machineGated
@@ -342,7 +344,7 @@ export function buildFindings(input: BuildFindingsInput): AgentFinding[] {
       });
     }
 
-    // P3 (D1): no other account to reach, and openness is the founder's call.
+    // D1: no other account to reach, and openness is the founder's call.
     // The finding and its proof stay; it is To review, never an issue.
     if (input.openByDesign && OPEN_CLASSES.has(h.attackClass)) {
       const o = input.openByDesign;
@@ -355,7 +357,7 @@ export function buildFindings(input: BuildFindingsInput): AgentFinding[] {
 
     // CRITICAL NEEDS EVIDENCE OUTSIDE THE REPOSITORY (Felipe, 2026-09-29,
     // delegated). Three held-out corpora put repository-only admitted findings
-    // near 5% precision (Q23 to Q26). A model-proposed finding that cites no
+    // near 5% precision (four labeled corpus runs). A model-proposed finding that cites no
     // live provider fact is capped at WARNING and says so; a proof or a live
     // fact is what earns CRITICAL. Deterministic checks are not affected.
     const repositoryOnlyCritical = SEVERITY[h.attackClass] === "CRITICAL" && liveClaims.length === 0;
@@ -370,7 +372,7 @@ export function buildFindings(input: BuildFindingsInput): AgentFinding[] {
     // On a route we READ as anonymous there is no caller to narrow by, so the
     // model's story for missing_authorization ("across workspaces") is a
     // mechanism we never read. Say what we read instead; the model's sentence
-    // stays in the claims, unverified (Q16).
+    // stays in the claims, unverified.
     // A statement proven with quoted lines stands: on CORPUS-5's agent path both
     // blind labelers agreed 19 of 24 verified authorization findings were real,
     // and 17 of them read wrong because route facts that missed a sign-in
@@ -381,7 +383,7 @@ export function buildFindings(input: BuildFindingsInput): AgentFinding[] {
       && route.identityReadable && !route.authenticated && !route.machineGated;
     const tables = route ? route.tables : [];
     const tableWords = tables.length > 1 ? `${tables.slice(0, -1).join(", ")} and ${tables[tables.length - 1]}` : tables.join("");
-    // Q26: the same on a route read as signed in whose query we read as not
+    // The same on a route read as signed in whose query we read as not
     // narrowed to the caller. CORPUS-3's model titles described these
     // signed-in IDORs as anonymous; only what we read is stated.
     const readAsSignedInUnscoped = !proven && h.attackClass === "missing_authorization" && route !== undefined
@@ -441,7 +443,7 @@ export function buildFindings(input: BuildFindingsInput): AgentFinding[] {
     });
   }
 
-  // Permission gaps read from source (Step 7C). Rendered from the rule the
+  // Permission gaps read from source. Rendered from the rule the
   // repository itself states, never from a model. A WARNING and a manual fix:
   // whether the weaker path is intended is a business decision (AGENTS.md).
   const pathByFile = new Map(input.routes.map((r) => [r.file, r.path]));

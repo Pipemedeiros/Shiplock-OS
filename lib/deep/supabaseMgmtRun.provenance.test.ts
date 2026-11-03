@@ -48,7 +48,7 @@ vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ from: (table: stri
 import { runPolicyScan } from "./supabaseMgmtRun";
 import type { ProviderResult } from "@/lib/monitoring/registry";
 
-// The runner hands one result to the monitor worker's fenced commit (3F-C2c).
+// The runner hands one result to the monitor worker's fenced commit.
 // This double applies facts the way the SQL merge does (proven in the SQL
 // suite) so provenance assertions read the resulting state.
 const run = (options: { signal?: AbortSignal } = {}) => runPolicyScan("u", { commit: mocks.commit, ...options });
@@ -86,7 +86,7 @@ beforeEach(() => {
   });
 });
 
-describe("Step 2C-3-C2-A: Supabase Management project and credential provenance", () => {
+describe("Supabase Management project and credential provenance", () => {
   it("Q6a stores bounded metadata only and marks failed columns unread", async () => {
     const columns = [{ table: "invoices", column: "owner_id", type: "uuid" }];
     mocks.columns.mockResolvedValue(columns.map(c => ({ ...c, value: "private-row" })));
@@ -214,7 +214,7 @@ describe("Step 2C-3-C2-A: Supabase Management project and credential provenance"
     expect(mocks.commit).not.toHaveBeenCalled();
   });
 
-  it("keeps the connection epoch across a refresh (2D) and guards the old project/credential", async () => {
+  it("keeps the connection epoch across a refresh and guards the old project/credential", async () => {
     mocks.usable.mockResolvedValue({ token: { accessToken: "private-access", refreshToken: "private-refresh", expiresAt: null }, refreshed: true });
     expect(await run()).toMatchObject({ ok: true });
     expect(state.facts.supabaseManagementSnapshot).toHaveProperty("connectionFingerprint", "a".repeat(64));
@@ -257,7 +257,7 @@ describe("Step 2C-3-C2-A: Supabase Management project and credential provenance"
   });
 });
 
-describe("3F-C2b: an aborted Supabase Management pass writes no evidence", () => {
+describe("an aborted Supabase Management pass writes no evidence", () => {
   it("forwards the signal to reads and stops before facts, findings, or proving", async () => {
     const controller = new AbortController();
     mocks.policies.mockImplementation(async () => {
@@ -296,7 +296,7 @@ describe("3F-C2b: an aborted Supabase Management pass writes no evidence", () =>
   });
 });
 
-describe("2D-2: Supabase Management identity is the connection epoch", () => {
+describe("Supabase Management identity is the connection epoch", () => {
   it("treats a credential without a valid epoch as not connected", async () => {
     mocks.profile.mockResolvedValue({ data: { ...profile, supabase_mgmt_connection_epoch: null }, error: null });
     expect(await run()).toEqual({ ok: false, findings: 0, reason: "not_connected" });
@@ -305,7 +305,7 @@ describe("2D-2: Supabase Management identity is the connection epoch", () => {
   });
 });
 
-describe("3F-C2c: fenced commit from the monitor worker", () => {
+describe("fenced commit from the monitor worker", () => {
   it("sends snapshot, inventory, and findings in one result without writing any itself", async () => {
     mocks.columns.mockResolvedValue([{ table: "invoices", column: "id", type: "uuid" }]);
     await run();
@@ -330,7 +330,7 @@ describe("3F-C2c: fenced commit from the monitor worker", () => {
   });
 });
 
-describe("Step 5A-1: a failed Supabase read never retires that family's findings", () => {
+describe("a failed Supabase read never retires that family's findings", () => {
   const complete = async () => {
     const api = await import("./supabaseMgmt");
     vi.mocked(api.fetchColumnGrants).mockResolvedValueOnce([]);
@@ -369,7 +369,7 @@ describe("Step 5A-1: a failed Supabase read never retires that family's findings
   });
 });
 
-describe("Q8 / 2F-5b: the gateway traffic read leaves a snapshot", () => {
+describe("the gateway traffic read leaves a snapshot", () => {
   it.each([
     [{ status: "read", repositories: 1, judgedSources: 0 }, [[project, true]]],
     [{ status: "unread" }, [[project, false]]],

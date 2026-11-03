@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CollectorContext } from "./registry";
 import type { Finding } from "./findings";
 
-// 1E-2: the endpoint snapshot replaces the previous one, so a finding the scan
+// The endpoint snapshot replaces the previous one, so a finding the scan
 // could not re-check must be carried forward rather than silently resolved.
 const scanner = vi.hoisted(() => ({ full: vi.fn(), critical: vi.fn() }));
 vi.mock("@/lib/scanner", () => ({ scanProject: scanner.full, scanCriticalChecks: scanner.critical }));

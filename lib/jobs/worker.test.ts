@@ -47,14 +47,14 @@ it("drains provider monitoring after repository work",async()=>{
   expect(await runNextJob()).toBe(true);
   expect(state.monitor).toHaveBeenCalledOnce();
 });
-it("runs a clicked repair before background scans (3F-C2d)",async()=>{
+it("runs a clicked repair before background scans",async()=>{
   state.repair.mockResolvedValue(true);expect(await runNextJob()).toBe(true);expect(state.repair).toHaveBeenCalledOnce();expect(state.audit).not.toHaveBeenCalled();
 });
-it("creates scheduled intelligence tasks after repository work, before provider monitoring (10B-2c)",async()=>{
+it("creates scheduled intelligence tasks after repository work, before provider monitoring",async()=>{
   state.intelligence.mockResolvedValue(true);expect(await runNextJob()).toBe(true);
   expect(state.dependency).toHaveBeenCalledOnce();expect(state.monitor).not.toHaveBeenCalled();
 });
-it("runs a clicked proof after a clicked repair and before audits (Q6)",async()=>{
+it("runs a clicked proof after a clicked repair and before audits",async()=>{
   state.proof.mockResolvedValue(true);
   expect(await runNextJob()).toBe(true);
   expect(state.repair).toHaveBeenCalledOnce();expect(state.proof).toHaveBeenCalledOnce();expect(state.audit).not.toHaveBeenCalled();

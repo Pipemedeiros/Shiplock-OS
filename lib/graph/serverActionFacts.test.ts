@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { analyzeServerActions, serverActionRoutes } from "./serverActionFacts";
 
-// Step 7E-2: identity, tables and ownership for entry server actions.
+// Identity, tables and ownership for entry server actions.
 // Synthetic fixtures modelled on the next-safe-action pattern; no corpus labels.
 const f = (path: string, content: string) => ({ path, content });
 const safeAction = f("lib/actions/safe-action.ts", `import { createSafeActionClient } from "next-safe-action";
@@ -77,7 +77,7 @@ export const del = authActionClient.action(async ({ ctx }) => prisma.space.delet
   });
 });
 
-describe("ownership is read, never assumed (7E-3 fix)", () => {
+describe("ownership is read, never assumed", () => {
   const act = (body: string) => [safeAction, f("lib/actions/a.ts", `"use server";\nimport { authActionClient } from "./safe-action";
 export const go = authActionClient.action(async ({ parsedInput, ctx }) => { ${body} });`), ui('import { go } from "@/lib/actions/a";')];
   it("is unreadable when the action delegates to helpers we did not trace", () => {
@@ -89,13 +89,13 @@ export const go = authActionClient.action(async ({ parsedInput, ctx }) => { ${bo
   it("is unreadable for a create with no where clause to judge", () => {
     const [a] = analyzeServerActions(act("await prisma.tag.create({ data: { name: parsedInput.name, projectId: ctx.workspace.id } });"));
     expect(a).toMatchObject({ tables: ["tag"], ownershipReadable: false, ownershipGap: expect.stringMatching(/no where clause/) });
-    // Q14: the route fact customers' findings quote carries that reason, never null.
+    // The route fact customers' findings quote carries that reason, never null.
     const [route] = serverActionRoutes(act("await prisma.tag.create({ data: { name: parsedInput.name, projectId: ctx.workspace.id } });"));
     expect(route).toMatchObject({ ownershipReadable: false, ownershipGap: expect.stringMatching(/no where clause/) });
   });
 });
 
-describe("server actions as audit entries (7E-3)", () => {
+describe("server actions as audit entries", () => {
   it("become route facts with an action path, so ranking and the guard judge them like routes", async () => {
     const { serverActionRoutes } = await import("./serverActionFacts");
     const routes = serverActionRoutes([safeAction,
@@ -114,7 +114,7 @@ export const go = authActionClient.action(async ({ parsedInput }) => prisma.tag.
   });
 });
 
-describe("actions read the same tables as routes (7H-2)", () => {
+describe("actions read the same tables as routes", () => {
   const act = (body: string) => [safeAction, f("lib/actions/a.ts", `"use server";\nimport { authActionClient } from "./safe-action";
 export const go = authActionClient.action(async ({ parsedInput, ctx }) => { ${body} });`), ui('import { go } from "@/lib/actions/a";')];
   it("reads a Drizzle write narrowed by ctx identity as filtered", () => {
@@ -131,10 +131,10 @@ export const go = authActionClient.action(async ({ parsedInput, ctx }) => { ${bo
   });
 });
 
-// Q24: a plain action's identity is read on the path it runs, like a route's.
-// Shapes from Q23's false findings (corpus-r19 checkAdmin, corpus-r20
-// getAuthenticatedUserForAction, corpus-r18's cookie JWT); synthetic code.
-describe("plain actions follow their calls (Q24)", () => {
+// A plain action's identity is read on the path it runs, like a route's.
+// Shapes from false findings in the corpus (a checkAdmin helper,
+// getAuthenticatedUserForAction, a cookie JWT); synthetic code.
+describe("plain actions follow their calls", () => {
   const ui2 = (name: string, file: string) => f("ui/q24.tsx", `"use client";\nimport { ${name} } from "@/${file.replace(/\.ts$/, "")}";`);
 
   it("credits a session resolved inside a local helper the action calls", () => {
@@ -208,7 +208,7 @@ export async function join(input: unknown) {
   });
 });
 
-describe("admin-gated actions (Q24)", () => {
+describe("admin-gated actions", () => {
   it("reads an action that requires the admin role as admitted by role, scope unread", () => {
     const [a] = analyzeServerActions([f("src/features/admin/actions/add.ts", `"use server";
 import { auth } from "@/lib/better-auth";
@@ -222,10 +222,10 @@ export async function addExercise(input: { sessionId: string }) {
   });
 });
 
-// Q24 guard: a signed-in action that narrows only by input stays unscoped.
+// Guard: a signed-in action that narrows only by input stays unscoped.
 // (Sharing the route recogniser with actions was tried and reverted: it read
-// this shape as scoped, a fail-open; class C of Q23 stays open.)
-describe("action ownership stays judged on its own where clauses (Q24)", () => {
+// this shape as scoped, a fail-open; class C stays open.)
+describe("action ownership stays judged on its own where clauses", () => {
   const ui3 = (name: string, path: string) => f("ui/own.tsx", `"use client";\nimport { ${name} } from "@/${path.replace(/\.ts$/, "")}";`);
   it("keeps a signed-in action that narrows only by input unscoped", () => {
     const [a] = analyzeServerActions([f("app/actions/members.ts", `"use server";

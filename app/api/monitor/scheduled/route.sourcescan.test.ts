@@ -196,7 +196,7 @@ describe("GET /api/monitor/scheduled — durable source admission", () => {
     expect(admitSourcesMock).toHaveBeenCalledOnce();
   });
 
-  it("purges expired intelligence tasks on the daily pass (10B-1d)", async () => {
+  it("purges expired intelligence tasks on the daily pass", async () => {
     const body = await (await GET(request())).json();
     expect(purgeIntelligenceMock).toHaveBeenCalledOnce();
     expect(pruneSnapshotsMock).toHaveBeenCalledOnce();

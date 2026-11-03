@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalPage } from "@/components/v3/LegalPage";
 
-// Q28: written from the code paths that exist today (GitHub App archive read,
+// Written from the code paths that exist today (GitHub App archive read,
 // customer AI, traffic snippet fields, proofs on an embedded replica, consent
 // gated PostHog, welcome email). A working draft, not legal advice; have it
 // reviewed before paid launch.

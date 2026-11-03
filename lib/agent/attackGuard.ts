@@ -381,7 +381,7 @@ export function judgeHypothesis(h: Hypothesis, recon: ReconIndex): GuardVerdict 
   // no gate read keeps the critical, whatever the model or the shape suggests.
   // `missing_authorization` ("not narrowed to the caller") gets the same
   // rewording: a gate is only read on a route we read as anonymous, where there
-  // is no caller to narrow by, so the claim is the same wrong sentence (Q15).
+  // is no caller to narrow by, so the claim is the same wrong sentence.
   if ((h.attackClass === "missing_authentication" || h.attackClass === "missing_authorization") && gate) {
     return { allowed: true, attackClass: "possession_gated", citedFacts: verifiedFacts };
   }

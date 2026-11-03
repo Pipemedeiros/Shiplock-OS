@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { analyzeRouteFile } from "./routeInventory";
 
-// A gate one call away (ledger P1, Q38 self-scan): the route rejects with 401
+// A gate one call away (found by scanning ShipLock itself): the route rejects with 401
 // or 403 on the result of a helper it imports, and that helper's own body
 // compares a secret or resolves a hashed API token. Only then is the gate the
 // route's. A helper that merely mentions a secret, or whose result the route
@@ -155,7 +155,7 @@ export async function POST(request: Request) {
     expect(r.machineGated).toBe(false);
   });
 
-  // corpus-owner/corpus-u lib/security/route-auth.ts: the comparison sits in
+  // corpus-u lib/security/route-auth.ts: the comparison sits in
   // a function declared next to the helper, not in the helper's own body.
   const routeAuth = `import { timingSafeEqual } from "node:crypto";
 function bearer(request: Request) { return request.headers.get("authorization")?.slice(7) ?? ""; }
@@ -181,7 +181,7 @@ export async function GET(request: Request) {
     expect(fact(automationRoute, { "lib/routeAuth.ts": loose }).machineGated).toBe(false);
   });
 
-  // corpus-owner/corpus-v follow-up-reminders: handlers wrapped in withError, and
+  // corpus-v follow-up-reminders: handlers wrapped in withError, and
   // GET and POST each reject on their own secret helper.
   const twoHelpers = workerAuth + "\n" + workerAuth.replace("isAuthorizedWorker", "isAuthorizedPost");
   const wrapped = `import { isAuthorizedWorker, isAuthorizedPost } from "@/lib/workerAuth";
@@ -231,7 +231,7 @@ export async function POST(req: Request) {
     expect(fact(route, { "lib/githubAuth.ts": githubAuth }).machineGated).toBe(false);
   });
 
-  // corpus-owner/inspector /api/cron/signal-detection, corpus-v: the rejecting
+  // corpus-x /api/cron/signal-detection, corpus-v: the rejecting
   // branch logs before it returns.
   it("credits a rejecting branch that logs before it returns", () => {
     const r = fact(`import { isAuthorizedWorker } from "@/lib/workerAuth";

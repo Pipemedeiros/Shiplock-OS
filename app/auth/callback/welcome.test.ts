@@ -1,7 +1,7 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-// Q29: a successful sign-in schedules the welcome email after the response;
+// A successful sign-in schedules the welcome email after the response;
 // a failed exchange schedules nothing.
 const state = vi.hoisted(() => ({ exchange: vi.fn(), welcome: vi.fn(), after: vi.fn() }));
 vi.mock("next/server", async (orig) => ({ ...(await orig<typeof import("next/server")>()), after: state.after }));

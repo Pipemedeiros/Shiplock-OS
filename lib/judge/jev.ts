@@ -1,5 +1,5 @@
 /**
- * JEV as a second judge (P7; Felipe 2026-10-15: "implement Jev as best as you
+ * JEV as a second judge (Felipe 2026-10-15: "implement Jev as best as you
  * can"). TypeSafe's decision model answers typed questions about a state with
  * calibrated probabilities (POST /v1/systemone, docs.typesafe.ai/api).
  *

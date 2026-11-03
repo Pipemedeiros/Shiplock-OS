@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-// Q37 dogfood (2026-09-29): proxy.ts sends a per-request nonce CSP with
+// Found on ShipLock itself (2026-09-29): proxy.ts sends a per-request nonce CSP with
 // 'strict-dynamic'. A prerendered page has no nonce on its scripts, so the
 // browser blocked all 28 of them on the live landing page and it never
 // hydrated. Next only injects the nonce when a page renders per request, so

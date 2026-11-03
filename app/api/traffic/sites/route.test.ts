@@ -14,7 +14,7 @@ const post = (body: unknown, origin = "https://shiplock.dev") => new Request(url
 
 beforeEach(() => { vi.clearAllMocks(); mocks.user.mockResolvedValue({ userId: "u1", email: null }); });
 
-describe("/api/traffic/sites (2F-2b)", () => {
+describe("/api/traffic/sites", () => {
   it("lists the caller's sites without tokens", async () => {
     mocks.list.mockResolvedValue([{ siteId: "s1", host: "app.example.com", repository: "acme/app", createdAt: "x" }]);
     const res = await GET();

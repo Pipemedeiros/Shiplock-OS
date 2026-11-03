@@ -50,7 +50,7 @@ describe("MCP token issuance with billing parked", () => {
     expect((await POST(request(jwt("aal2")))).status).toBe(200);
   });
 
-  it("refuses an eleventh active token plainly and returns no token (3H-2)", async () => {
+  it("refuses an eleventh active token plainly and returns no token", async () => {
     profile.mockResolvedValue({ data: { is_paid: false } });
     insertToken.mockResolvedValue({ error: { message: "token limit reached" } });
     const response = await POST(request());

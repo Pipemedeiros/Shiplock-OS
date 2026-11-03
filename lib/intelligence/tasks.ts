@@ -8,7 +8,7 @@ import {
 import { checkResultEvidence, intelligenceResultSchema, sourceHash, type SourceFile } from "./exchange";
 import { submitReasoningResult, submitVerificationResult, taskBrief, type ReasoningTask } from "./reasoning";
 
-// Durable customer-intelligence tasks (10B-1b). A customer's own agent reads a
+// Durable customer-intelligence tasks. A customer's own agent reads a
 // task, reasons over its own checkout, and submits one
 // result. ShipLock stores paths and hashes, never source, and re-reads every
 // cited file from GitHub at the pinned commit before accepting anything. A
@@ -37,10 +37,12 @@ const taskRowSchema = z.object({
 });
 type TaskRow = z.infer<typeof taskRowSchema>;
 
-/** Mechanical edits a host may propose in 10B-1: exactly what one of these
+/** Mechanical edits a host may propose: exactly what one of these
  * parameterless codemods would produce, and accepted by the edit guard.
  * Anything else (including authorization logic) needs a human. */
 const MECHANICAL: readonly Codemod[] = [disableProductionSourceMaps, addSecurityHeaders, addWorkflowPermissions, removeSecretLogging];
+/** True only when the proposed file equals what one allowlisted codemod
+ * produces and the edit guard judges it safe. */
 export function mechanicalEdit(file: Readonly<SourceFile>, proposed: string): boolean {
   return MECHANICAL.some((codemod) => codemod({ path: file.path, content: file.content }, {} as never)?.content === proposed)
     && judgeEdit(file.path, file.content, proposed).safe;
@@ -55,6 +57,7 @@ async function loadTask(userId: string, taskId: string): Promise<TaskRow | null>
   return row.success ? row.data : null;
 }
 
+/** One task as the customer's agent sees it over MCP, scoped to its owner. */
 export async function getIntelligenceTask(userId: string, taskId: string) {
   const task = await loadTask(userId, taskId);
   if (!task) return null;
@@ -74,6 +77,8 @@ export async function getIntelligenceTask(userId: string, taskId: string) {
   };
 }
 
+/** Validates and stores an agent's answer. Size, scope, schema and every
+ * cited line are checked before anything is persisted. */
 export async function submitIntelligenceResult(userId: string, taskId: string, raw: unknown) {
   let bytes: string | undefined;
   try { bytes = JSON.stringify(raw); } catch { throw new Error("invalid_result"); }
@@ -129,7 +134,7 @@ export async function submitIntelligenceResult(userId: string, taskId: string, r
     applied: false as const, prOpened: false as const, tests: "not_run" as const, modelUsageVerified: false as const };
 }
 
-/** Admit a task (10B-1b). Each listed file is read from GitHub at the commit
+/** Admit a task. Each listed file is read from GitHub at the commit
  * and hashed by ShipLock, so a host can never supply the hashes it will later
  * be checked against. Idempotent per `key`. */
 export async function createIntelligenceTask(input: {
@@ -169,7 +174,7 @@ const pendingRowSchema = z.object({
   kind: z.enum(["review", "attack_reasoning", "attack_verification"]),
 });
 
-/** What a customer's host polls for (10B-2a): its own pending, unexpired
+/** What a customer's host polls for: its own pending, unexpired
  * tasks, newest first. Paths and hashes come from getIntelligenceTask. */
 export async function listPendingIntelligenceTasks(userId: string) {
   const { data, error } = await getSupabaseAdmin().from("intelligence_tasks")

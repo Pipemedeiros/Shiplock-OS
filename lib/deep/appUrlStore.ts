@@ -9,7 +9,7 @@ import type { CertificateName } from "@/lib/security/certificateNames";
  * The founder's app address, read by the outside view (lib/security/
  * exposedPathsRun.ts) through the app-surface collector. Suggested from the
  * selected repositories' GitHub homepages; set only on the founder's confirm.
- * The confirm may name the selected repository the address serves (P5): the
+ * The confirm may name the selected repository the address serves: the
  * binding keeps the address it was confirmed for, so a later change of
  * address by any writer ends the join (lib/chain/liveReach.ts).
  */

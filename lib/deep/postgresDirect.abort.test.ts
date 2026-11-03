@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// 3F-C2b: pg's Client takes no AbortSignal, so cancellation must end the
+// Pg's Client takes no AbortSignal, so cancellation must end the
 // session itself. Closing the socket rejects the in-flight catalogue query.
 const client = vi.hoisted(() => ({
   connect: vi.fn(), query: vi.fn(), end: vi.fn(),

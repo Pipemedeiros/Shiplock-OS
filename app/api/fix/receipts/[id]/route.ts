@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireProUser } from "@/lib/deep/proGate";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
-/** The outcome of one fix click (3F-C2d), readable only by the account that
+/** The outcome of one fix click, readable only by the account that
  * clicked. Status is queued, opened (with the PR), failed, or uncertain;
  * mergedAt is set once the customer merges it (084). */
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {

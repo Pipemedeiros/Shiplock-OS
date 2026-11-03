@@ -6,7 +6,7 @@ import { traceExecutedSources } from "./callPath";
 import { findServerActionEntries } from "./serverActions";
 
 /**
- * Facts for server actions the browser can call (Step 7E-2), the action
+ * Facts for server actions the browser can call, the action
  * counterpart of RouteFact's identity, data and ownership fields.
  *
  * Identity comes from where it is resolved: for an action built on an action
@@ -137,7 +137,7 @@ export function analyzeServerActions(files: RepoFile[]): ServerActionFact[] {
     const client = segment.match(new RegExp(`const\\s+${entry.name}\\s*=\\s*(\\w+)[\\s\\S]*?\\.\\s*action\\s*\\(`))?.[1] ?? null;
     let identityReadable = true, identityGap: string | null = null, authenticated: boolean;
     let identitySource = segment;
-    // Q24: where an admin test runs on the action's path (its client's
+    // Where an admin test runs on the action's path (its client's
     // middleware, or the calls it makes), scope is unread by design.
     let adminGate: string | null = null;
     if (client) {
@@ -152,7 +152,7 @@ export function analyzeServerActions(files: RepoFile[]): ServerActionFact[] {
         if (ADMIN_GATE_RE.test(middleware)) adminGate = `the action client ${client}`;
       }
     } else {
-      // Q24: a plain action is read on the path it runs, like a route: a
+      // A plain action is read on the path it runs, like a route: a
       // session resolved in a helper it calls counts, and a credential check
       // we cannot classify anywhere on that path makes it unreadable, never
       // anonymous. Untraceable (parse failure, budget): its own text, as before.
@@ -168,7 +168,7 @@ export function analyzeServerActions(files: RepoFile[]): ServerActionFact[] {
         identityReadable = identityGap === null;
       }
     }
-    // Same table reading as routes and procedures (7H-2): Drizzle writes and
+    // Same table reading as routes and procedures: Drizzle writes and
     // Prisma transaction clients included.
     const tables = extractTables(segment);
     // Identity values a where clause may narrow by: ctx keys the middleware
@@ -194,7 +194,7 @@ export function analyzeServerActions(files: RepoFile[]): ServerActionFact[] {
 }
 
 /**
- * Entry server actions as route facts (7E-3), so the audit ranks, prompts and
+ * Entry server actions as route facts, so the audit ranks, prompts and
  * guards them exactly like route handlers. The path `action:<file>#<name>` is
  * what a hypothesis cites. Service-role, machine-gate and data readability are
  * not separately read for actions: they carry the identity readability, so an

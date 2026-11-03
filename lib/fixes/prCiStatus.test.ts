@@ -11,7 +11,7 @@ import { ciState, getCiStatuses } from "./prCiStatus";
 
 const run = (status: string, conclusion: string | null = null) => ({ status, conclusion });
 
-describe("ciState (Q2 / 8-CI)", () => {
+describe("ciState", () => {
   it("maps the customer's check runs, never counting absence as passing", () => {
     expect(ciState([])).toBe("none_visible");
     expect(ciState([run("completed", "success"), run("completed", "skipped"), run("completed", "neutral")])).toBe("passing");

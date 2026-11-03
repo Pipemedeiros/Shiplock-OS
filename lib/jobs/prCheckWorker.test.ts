@@ -61,7 +61,7 @@ it("claims at most one PR check", async () => {
   expect(state.execute).toHaveBeenCalledWith(job,[executePullRequestCheckJob]);
 });
 
-it("binds review storage to this job's lease (8B-1)", async () => {
+it("binds review storage to this job's lease", async () => {
   await executePullRequestCheckJob(job);
   const persist = state.runCheck.mock.calls[0][0].persistReview as (review: unknown) => Promise<void>;
   state.rpc.mockResolvedValueOnce({ data: "review-1", error: null });

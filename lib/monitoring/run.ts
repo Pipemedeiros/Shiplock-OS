@@ -123,8 +123,8 @@ async function executeMonitoringPass(
   return { newFindings: allNewFindings, writesSucceeded };
 }
 
-/** The monitor worker's pass. Provider collectors write only through `commit`
- * (3F-C2c); a pass without one cannot collect provider evidence. */
+/** The monitor worker's pass. Provider collectors write only through
+ * `commit`; a pass without one cannot collect provider evidence. */
 export function runMonitoringPassForWorker(
   profile: MonitoredProfile,
   triggerSource: TriggerSource,

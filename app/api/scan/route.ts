@@ -184,7 +184,7 @@ export async function POST(req: NextRequest) {
           monitoring_enabled: true,
           monitored_project_url: supabaseUrl,
           monitored_anon_key_encrypted: encrypt(anonKey),
-          // Every stored submission is a new endpoint connection (2D).
+          // Every stored submission is a new endpoint connection.
           supabase_endpoint_connection_epoch: newConnectionEpoch(),
           // Persist the app URL (when given) so exposed-path probes can re-run
           // later, not just at scan time. Raw, like monitored_project_url.
@@ -200,7 +200,7 @@ export async function POST(req: NextRequest) {
 
       // Dynamic exposed-path probes against the live app (git repo, DB dumps,
       // credential files) complement the scanner's .env checks. They run as a
-      // queued monitor pass under a lease (3F-C2c-5), not inside this request;
+      // queued monitor pass under a lease, not inside this request;
       // findings land in deep_findings and surface everywhere the others do.
       if (appUrl) {
         try {

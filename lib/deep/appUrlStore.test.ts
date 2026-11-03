@@ -54,7 +54,7 @@ describe("the app address", () => {
     expect(db.updates).toEqual([{ monitored_app_url: "https://acme.com", monitored_app_repository_id: null, monitored_app_bound_url: null }]);
   });
 
-  // P5: the founder's confirm binds the address to one selected repository,
+  // The founder's confirm binds the address to one selected repository,
   // with the address it was confirmed for, so live facts join only there.
   it("binds the address to the selected repository the founder named", async () => {
     expect(await setAppUrl("u1", "https://app.acme.com/x", "acme/app")).toBe("https://app.acme.com");

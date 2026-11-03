@@ -7,8 +7,8 @@ import { crossSiteRefusal } from "@/lib/security/sameOrigin";
 import { quotaResponse } from "@/lib/quota";
 
 /**
- * The customer's click to open a PR for a change their own AI proposed
- * (10B-3b). Admits one receipted repair job bound to the answered task; the
+ * The customer's click to open a PR for a change their own AI
+ * proposed. Admits one receipted repair job bound to the answered task; the
  * worker re-checks the files and opens the PR. Never a merge. Poll
  * /api/fix/receipts/[id] for the outcome.
  */
@@ -21,7 +21,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const id = z.uuid().safeParse((await params).id);
   if (!id.success) return NextResponse.json({ error: "Name an AI check." }, { status: 400 });
 
-  // Resolved exactly as the preview resolves it (Q13-F).
+  // Resolved exactly as the preview resolves it.
   let resolved;
   try { resolved = await resolveRepairTarget(user.userId, { lane: "ai", taskId: id.data }); }
   catch { return NextResponse.json({ error: "Try again in a moment." }, { status: 503 }); }

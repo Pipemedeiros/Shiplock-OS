@@ -7,7 +7,7 @@ import type { RepairPreviewRequest } from "./preview";
 
 /**
  * Which repair a fix button stands for, resolved from server records the way
- * each click route resolves it (Q13): the repository and lane never come from
+ * each click route resolves it: the repository and lane never come from
  * the request. Every click route uses this too, so preview and click agree.
  *   pull-request  app/api/fix/pull-request (fix before merge)
  *   ai            app/api/intelligence/tasks/[id]/fix

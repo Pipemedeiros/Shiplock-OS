@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { StackKind } from "@/lib/agent/stack";
 
 /**
- * The dashboard's route map (Q27; Felipe 2026-10-06: an Obsidian-style
+ * The dashboard's route map (Felipe 2026-10-06: an Obsidian-style
  * graph, not 3D). Pure: the audit's own facts in, nodes and edges out. A node
  * exists only where a fact does (a route the audit read, a table it saw a
  * route reach, a provider inferred from code); an edge is an observed read,

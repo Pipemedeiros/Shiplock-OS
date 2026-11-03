@@ -4,7 +4,7 @@ import { useState } from "react";
 import { RepairPreviewPanel } from "./RepairPreview";
 import { repairMessage, waitForRepair } from "@/lib/repairReceiptClient";
 
-/** One click, one PR for a change the customer's own AI proposed (10B-3b).
+/** One click, one PR for a change the customer's own AI proposed.
  * ShipLock opens it only after this click and never merges it. */
 export function AiFixButton({ taskId }: { taskId: string }) {
   const [busy, setBusy] = useState(false);

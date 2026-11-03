@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { liveReachFrom } from "./liveReach";
 
-// P5: a fact read from the live site joins a repository only through the
+// A fact read from the live site joins a repository only through the
 // founder's binding, for the address it was confirmed for, while that
 // repository is selected and the fact was read from that same address.
 const url = "https://app.acme.com";

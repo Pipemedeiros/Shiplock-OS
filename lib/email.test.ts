@@ -31,7 +31,7 @@ describe("sendEmail", () => {
     expect(await sendEmail(msg, "test")).toBe(true);
   });
 
-  it("passes an HTML body through with its text fallback (Q29), and omits html when there is none", async () => {
+  it("passes an HTML body through with its text fallback, and omits html when there is none", async () => {
     sendMock.mockResolvedValue({ data: { id: "e2" }, error: null });
     await sendEmail({ ...msg, html: "<p>hi</p>" }, "test");
     expect(sendMock).toHaveBeenLastCalledWith(expect.objectContaining({ text: msg.text, html: "<p>hi</p>" }));

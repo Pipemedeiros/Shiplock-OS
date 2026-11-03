@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Q31: an external uptime monitor polls this. It says whether the app and the
+// An external uptime monitor polls this. It says whether the app and the
 // database answer, with no data, no version and no error text.
 const probe = vi.fn();
 const broken = { on: false };

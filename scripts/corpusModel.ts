@@ -63,7 +63,7 @@ export async function proposeAttacks(input: AgentInput & { model?: string; timeo
   }
 }
 
-/** P1: the skeptical verifier model. A 5.5-generation model, never a small one. */
+/** The skeptical verifier model. A 5.5-generation model, never a small one. */
 export const VERIFY_MODEL = "claude-sonnet-5-5";
 const VERIFY_MAX_TOKENS = 16_000;
 /** Claims per verifier call, so each verdict keeps room to cite its lines. */

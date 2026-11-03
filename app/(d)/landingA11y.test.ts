@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-// Q41 and Q33 (2026-09-30, from Lighthouse on shiplock.dev): the reasoning
+// 2026-09-30, from Lighthouse on shiplock.dev: the reasoning
 // animation faded its pending steps to 28% opacity (contrast 1.8 to 2.4 on
 // navy), and the header links wrapped onto two lines at phone width.
 const css = readFileSync("app/(d)/v3.css", "utf8");

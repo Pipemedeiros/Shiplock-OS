@@ -2,7 +2,7 @@ import { join } from "node:path";
 import { Worker } from "node:worker_threads";
 import type { ProvingHost } from "./arena";
 
-// The disposable replica host, embedded (6A-2a). Felipe (2026-09-23): no paid
+// The disposable replica host, embedded. Felipe (2026-09-23): no paid
 // Supabase project for ShipLock's own proving infrastructure. Each proof gets
 // a fresh in-process Postgres (PGlite, WASM) in its own worker thread, holding
 // only synthetic tenants, thrown away afterwards. It has no network and no
@@ -36,8 +36,10 @@ export interface EmbeddedHost extends ProvingHost {
 
 type Reply = { id?: number; rows?: Record<string, unknown>[]; error?: string; ready?: boolean };
 
+/** Opens an in-process Postgres (PGlite) replica in a worker thread, with a
+ * per-statement time limit, bounded memory and no network or file access. */
 export async function openEmbeddedHost({ statementTimeoutMs = 5_000 }: { statementTimeoutMs?: number } = {}): Promise<EmbeddedHost> {
-  // Q6: a heap limit so a runaway JS-side allocation ends only this thread
+  // A heap limit so a runaway JS-side allocation ends only this thread
   // (ERR_WORKER_OUT_OF_MEMORY), not the server process. It does not bound
   // PGlite's WASM memory (capped at 2 GB by PGlite) or its in-memory temp
   // files; the worker bounds those with temp_file_limit (embeddedWorker.mjs).

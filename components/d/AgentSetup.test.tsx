@@ -29,7 +29,7 @@ describe("AgentSetup (MCP for every account)", () => {
     expect(out).not.toMatch(/applies the fixes|automatically fix/i);
   });
 
-  // G1: the hosted endpoint (app/api/mcp/server) needs no npm package, so
+  // The hosted endpoint (app/api/mcp/server) needs no npm package, so
   // Claude Code and Codex (streamable HTTP, url + bearer_token_env_var in the
   // official Codex docs, read 2026-10-20) both connect today.
   it("connects Claude Code over HTTP with no package, and the token in a header", () => {

@@ -19,7 +19,7 @@ import { sendThreatAlert } from "./alerts";
 export async function ingestTrafficEvent(params: {
   userId: string;
   email: string | null;
-  /** Set when the event arrived under a repository-bound traffic site (2F-2a). */
+  /** Set when the event arrived under a repository-bound traffic site. */
   siteId?: string | null;
   repositoryId?: string | null;
   event: TrafficEvent;

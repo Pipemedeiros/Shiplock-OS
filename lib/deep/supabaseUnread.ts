@@ -1,5 +1,5 @@
 /**
- * Finding-ID prefixes whose Supabase read failed in this pass (Step 5A-1).
+ * Finding-ID prefixes whose Supabase read failed in this pass.
  * The fenced commit retires active findings absent from a pass, except those
  * under an unread prefix, so a failed read keeps its family's findings open
  * instead of archiving them as fixed. `undefined`/`null` means "could not

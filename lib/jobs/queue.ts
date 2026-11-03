@@ -23,6 +23,8 @@ export class StaleJobError extends PermanentJobError {}
 
 const auditReceipt = z.object({ job_id: z.uuid(), run_id: z.uuid() });
 
+/** Queues one repository audit, idempotent on `key`. Database quotas surface
+ * as their own error codes. */
 export async function enqueueAuditJob(
   userId: string,
   repositoryId: string,
@@ -38,6 +40,7 @@ export async function enqueueAuditJob(
   return auditReceipt.parse(z.array(auditReceipt).length(1).parse(data)[0]);
 }
 
+/** Queues a non-audit job of `kind`, idempotent on `key`; returns its id. */
 export async function enqueueJob(userId: string, repositoryId: string | null, kind: JobKind, key: string): Promise<string> {
   z.uuid().parse(userId); z.uuid().nullable().parse(repositoryId); JobKind.parse(kind); z.string().min(1).max(256).parse(key);
   if (kind === "audit") throw new Error("Use enqueueAuditJob for audit work");
@@ -48,6 +51,7 @@ export async function enqueueJob(userId: string, repositoryId: string | null, ki
   return z.uuid().parse(data);
 }
 
+/** Queues the check for one pull request head, idempotent on `key`. */
 export async function enqueuePullRequestCheck(
   userId: string,
   repositoryId: string,
@@ -71,7 +75,7 @@ export async function enqueuePullRequestCheck(
   return z.uuid().parse(data);
 }
 
-/** Every-PR customer-intelligence scan (10B-2c). Null means the account does
+/** Every-PR customer-intelligence scan. Null means the account does
  * not currently approve every-PR scans; nothing was queued. */
 export async function enqueuePullRequestIntelligence(
   userId: string,
@@ -90,6 +94,8 @@ export async function enqueuePullRequestIntelligence(
   return z.uuid().nullable().parse(data);
 }
 
+/** Leases the next job of `kind` for 120 seconds, or null when none waits.
+ * A lease of the wrong kind or already expired is refused. */
 export async function claimJob(kind: JobKind): Promise<ClaimedJob | null> {
   JobKind.parse(kind);
   const { data, error } = await getSupabaseAdmin().rpc("claim_execution_job", { p_kind: kind, p_lease_seconds: 120 });
@@ -100,6 +106,8 @@ export async function claimJob(kind: JobKind): Promise<ClaimedJob | null> {
   return job ?? null;
 }
 
+/** Records a checkpoint or terminal outcome under the job's lease token.
+ * Throws if the lease was lost, so a fenced-out worker cannot write. */
 export async function advanceJob(job: ClaimedJob, checkpoint: number, outcome: JobOutcome): Promise<void> {
   const { data, error } = await getSupabaseAdmin().rpc("advance_execution_job", {
     p_id: job.id, p_token: job.lease_token, p_checkpoint: checkpoint, p_outcome: outcome,
@@ -109,7 +117,7 @@ export async function advanceJob(job: ClaimedJob, checkpoint: number, outcome: J
 
 /** Keep a long provider read inside the queue's 120-second lease. This does not
  * authorize writes: repository persistence RPCs verify the same live token.
- * Legacy provider-monitor writes still need that fence (master Step 3F-C2).
+ * Legacy provider-monitor writes still need that fence.
  * A failed heartbeat is surfaced after the work. */
 export async function withLeaseHeartbeat<T>(
   job: ClaimedJob,

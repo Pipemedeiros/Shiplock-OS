@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Q13 parity for a lane that EDITS an existing file on the branch it creates:
+// Preview parity for a lane that EDITS an existing file on the branch it creates:
 // the dependency bump. The preview must equal what the click writes.
 vi.mock("@/lib/deep/github", async (original) => ({
   ...await original<typeof import("@/lib/deep/github")>(),
@@ -43,7 +43,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-describe("dependency bump preview parity (Q13)", () => {
+describe("dependency bump preview parity", () => {
   it("shows the package.json edit the click writes, and writes nothing itself", async () => {
     const preview = await previewRepair("u1", { action: "dependency-bump-pr", repositoryId: "r1" });
     expect(writes).toEqual([]);

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// 3F-C2c-5: a dashboard "check now" admits a durable monitor job instead of
+// A dashboard "check now" admits a durable monitor job instead of
 // collecting inside the web request.
 const mocks = vi.hoisted(() => ({ enqueue: vi.fn(), after: vi.fn(), run: vi.fn(), supersede: vi.fn() }));
 vi.mock("next/server", async (original) => ({ ...(await original<typeof import("next/server")>()), after: mocks.after }));

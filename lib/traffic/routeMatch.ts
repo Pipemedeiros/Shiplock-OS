@@ -1,6 +1,6 @@
 /**
  * Which Next.js App Router route handler an observed request path reaches
- * (Q12-1 / Step 11). Deterministic, from file paths only: static segments beat
+ *. Deterministic, from file paths only: static segments beat
  * dynamic ones, then catch-alls; route groups `(x)` add no URL segment. Pages
  * Router files are not matched (the rate-limit suggestion is App Router only).
  */

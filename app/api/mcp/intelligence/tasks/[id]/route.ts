@@ -3,7 +3,7 @@ import { z } from "zod";
 import { authMcp } from "@/lib/mcpAuth";
 import { getIntelligenceTask } from "@/lib/intelligence/tasks";
 
-/** A customer's host reads one of its own intelligence tasks (10B-1b):
+/** A customer's host reads one of its own intelligence tasks:
  * repository, commit, instruction, paths and hashes, never source. */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authMcp(req);

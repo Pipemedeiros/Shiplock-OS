@@ -7,14 +7,14 @@ import { matchHotPaths } from "@/lib/traffic/routeMatch";
 import { buildRateLimitSuggestion } from "@/lib/traffic/rateLimitSuggestion";
 import { openedOutcome, type RepairOutcome } from "./repairOutcome";
 
-// One click, one PR for a customer-side rate limit (Q12-3 / Step 11, migration
+// One click, one PR for a customer-side rate limit (migration
 // 093). The receipt names a route file; this re-derives the suggestion from
 // the repository's current observed traffic (086) and its current tree, adds
 // the single off-by-default helper file on a new branch cut from the default
 // branch, and opens the PR. It never edits an existing file or writes to the
 // default branch. ShipLock never merges or deploys.
 
-const WINDOW_HOURS = 6; // the gateway log read covers the last six hours (2F-4)
+const WINDOW_HOURS = 6; // the gateway log read covers the last six hours
 const repositorySchema = z.object({ full_name: z.string(), default_branch: z.string().min(1), selected: z.boolean() });
 const observationSchema = z.array(z.object({ path: z.string(), suspicious_requests: z.number().int().positive() }));
 const sha = (s: string) => createHash("sha256").update(s).digest("hex");

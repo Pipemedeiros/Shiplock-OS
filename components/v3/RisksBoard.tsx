@@ -172,7 +172,7 @@ function Inspector({ finding, proof }: { finding: DashboardFinding & { chain?: E
                 Review pull request #{finding.fixPrNumber}
               </a>
             ) : finding.fixKind === "pr" ? (
-              // Q13: preview exactly what the pull request would write, then click.
+              // Preview exactly what the pull request would write, then click.
               <RepairPreviewPanel
                 key={finding.id}
                 body={{ lane: "risk", findingId: finding.id }}
@@ -188,7 +188,7 @@ function Inspector({ finding, proof }: { finding: DashboardFinding & { chain?: E
                     });
                     const json = (await res.json()) as { error?: string; receiptId?: string };
                     if (!res.ok) throw new Error(json.error ?? "Could not open the pull request.");
-                    // The click is queued as a receipted repair (3F-C2d); follow it
+                    // The click is queued as a receipted repair; follow it
                     // until GitHub confirms the PR, then show it on the finding.
                     if (json.receiptId) {
                       const view = await waitForRepair(json.receiptId);

@@ -1,4 +1,4 @@
-// Cost per first scan from model usage receipts (Q10 / Step 12B, migration
+// Cost per first scan from model usage receipts (migration
 // 092). Local and read-only: pass a JSON file of receipt rows (for example
 // the output of a read-only query Felipe runs) and prices per million tokens
 // on the command line. No prices are hard-coded and nothing is fetched.

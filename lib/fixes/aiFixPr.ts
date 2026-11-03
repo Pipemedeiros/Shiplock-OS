@@ -6,7 +6,7 @@ import { createBranch, findOpenPullRequestForBranch, getBranchSha, getFile, getF
 import { mechanicalEdit } from "@/lib/intelligence/tasks";
 import { openedOutcome, type RepairOutcome } from "./repairOutcome";
 
-// One click, one PR for a change the customer's own AI proposed (10B-3b). The
+// One click, one PR for a change the customer's own AI proposed. The
 // proposal was already checked at submit time; here it is checked again
 // against the branch the PR will target: every file must still be exactly what
 // the AI read, and every edit must still be an allowlisted mechanical change.

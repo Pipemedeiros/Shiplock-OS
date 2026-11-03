@@ -1,7 +1,7 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 /**
- * The latest proof per finding, for the Risks board (Q7 / Step 6A-3).
+ * The latest proof per finding, for the Risks board.
  *
  * A consumed authorization is one clicked test. Its outcome is the proof_runs
  * row the worker recorded (091); until then it is pending, and a job that died

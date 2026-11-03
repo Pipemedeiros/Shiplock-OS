@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { MAX_PATHS, calledPaths, liveCaller, requestedPaths } from "./shippedCalls";
 
-// P5: the paths the live site's own JavaScript names, read from the scripts
+// The paths the live site's own JavaScript names, read from the scripts
 // the bundle audit already downloads. Paths only: a query string or anything
 // that is not a plain path never leaves the customer's bundle.
 describe("calledPaths", () => {

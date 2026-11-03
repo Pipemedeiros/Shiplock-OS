@@ -3,7 +3,7 @@ import { getInstallationToken, listTree } from "@/lib/deep/github";
 import { matchHotPaths } from "./routeMatch";
 
 /**
- * Observed hot routes per selected repository (Q12-4): the routes a
+ * Observed hot routes per selected repository: the routes a
  * rate-limit PR could be offered for. Read-only; at most 5 repositories and 3
  * routes each; any GitHub or read error leaves that repository out rather
  * than guessing.

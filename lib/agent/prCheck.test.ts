@@ -52,7 +52,7 @@ it("retains a deterministic block even when broader coverage is partial", async 
   expect(state.post.mock.calls[0][3]).toBe("failure");
 });
 
-it("stores the review with its PR branch before posting the check (8B-1)", async () => {
+it("stores the review with its PR branch before posting the check", async () => {
   state.scan.mockReturnValue({verdict:"block",findings:[{id:"diff:x",severity:"CRITICAL",title:"t",detail:"d",file:"app/a.ts",evidence:"e"}],filesChanged:1,routesChanged:1,trivial:false});
   await check("A".repeat(40));
   expect(state.persist).toHaveBeenCalledWith({
@@ -64,26 +64,26 @@ it("stores the review with its PR branch before posting the check (8B-1)", async
   expect(state.persist.mock.invocationCallOrder[0]).toBeLessThan(state.post.mock.invocationCallOrder[0]);
 });
 
-it("posts nothing when the review cannot be stored, so the job retries (8B-1)", async () => {
+it("posts nothing when the review cannot be stored, so the job retries", async () => {
   state.persist.mockRejectedValue(new Error("pull request check lease unavailable"));
   await expect(check("a".repeat(40))).rejects.toThrow("lease unavailable");
   expect(state.post).not.toHaveBeenCalled();
 });
 
-it("stores unknown PR metadata as null rather than guessing (8B-1)", async () => {
+it("stores unknown PR metadata as null rather than guessing", async () => {
   state.pr.mockRejectedValue(new Error("GitHub 502"));
   await check("a".repeat(40));
   expect(state.persist.mock.calls[0][0]).toMatchObject({ headRef: null, headRepository: null, sameRepository: null, title: null, url: null });
 });
 
-// G1: the default branch's observed controls are guardrails; a PR that removes
+// The default branch's observed controls are guardrails; a PR that removes
 // one from a route it touches fails, whatever the diff scan said.
 const guarded = (over: object) => ({ path: "/api/orders", file: "app/a.ts", methods: ["GET"], tables: ["orders"], authenticated: true,
   machineGated: false, usesServiceRole: false, ownershipFiltered: false, identityReadable: true, ownershipReadable: true,
   dataReadable: true, machineGateReadable: true, serviceRoleReadable: true, identityGap: null, ownershipGap: null, dataGap: null,
   machineGateGap: null, via: [], ...over });
 
-it("fails a PR that removes an observed session check, and stores the guardrail finding (G1)", async () => {
+it("fails a PR that removes an observed session check, and stores the guardrail finding", async () => {
   state.routes.mockImplementation((files: { content: string }[]) =>
     [guarded({ authenticated: !files.some((f) => f.content === "ok") })]);
   await check("a".repeat(40));
@@ -93,7 +93,7 @@ it("fails a PR that removes an observed session check, and stores the guardrail 
   expect(stored.findings[0]).toMatchObject({ id: "guardrail:requires_signed_in_caller:/api/orders", severity: "CRITICAL", file: "app/a.ts" });
 });
 
-it("posts neutral, never green, when a guarded route can no longer be read (G1)", async () => {
+it("posts neutral, never green, when a guarded route can no longer be read", async () => {
   state.routes.mockImplementation((files: { content: string }[]) => files.some((f) => f.content === "ok")
     ? [guarded({ authenticated: false, identityReadable: false })] : [guarded({})]);
   await check("a".repeat(40));

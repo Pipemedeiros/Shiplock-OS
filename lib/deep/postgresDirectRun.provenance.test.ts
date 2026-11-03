@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // The runner collects and hands one result to the monitor worker's fenced
-// commit (3F-C2c). Persistence, merge, and retirement semantics are proven in
+// commit. Persistence, merge, and retirement semantics are proven in
 // the SQL suite; these tests pin what the runner itself sends and withholds.
 const mocks = vi.hoisted(() => ({ collect: vi.fn(), decrypt: vi.fn(), readProfile: vi.fn(), write: vi.fn(), commit: vi.fn() }));
 vi.mock("@/lib/crypto", () => ({ decrypt: mocks.decrypt }));
@@ -44,7 +44,7 @@ beforeEach(() => {
   mocks.commit.mockResolvedValue([]);
 });
 
-describe("Step 2C-3-C1 / 3F-C2c: direct-Postgres result and provenance", () => {
+describe("direct-Postgres result and provenance", () => {
   it("Q6a stores metadata only and marks absent or over-budget columns unread", async () => {
     const columns = [{ table: "invoices", column: "owner_id", type: "uuid" }];
     mocks.collect.mockResolvedValue({ ...facts, columns: columns.map(c => ({ ...c, value: "private-row" })) });
@@ -142,7 +142,7 @@ describe("Step 2C-3-C1 / 3F-C2c: direct-Postgres result and provenance", () => {
   });
 });
 
-describe("3F-C2b: an aborted direct-Postgres pass commits nothing", () => {
+describe("an aborted direct-Postgres pass commits nothing", () => {
   it("forwards the signal to collection and stops before the commit", async () => {
     const controller = new AbortController();
     mocks.collect.mockImplementation(async () => {
@@ -159,8 +159,8 @@ describe("3F-C2b: an aborted direct-Postgres pass commits nothing", () => {
   });
 });
 
-describe("Step 5A-1: an unreadable grant list keeps grant findings open", () => {
-  it("reports a complete read without storing the database host (5A-2)", async () => {
+describe("an unreadable grant list keeps grant findings open", () => {
+  it("reports a complete read without storing the database host", async () => {
     await run();
     expect(sent().unread).toEqual([]);
     expect(sent().snapshot).toEqual({ scope: null, failed: [] });

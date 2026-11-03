@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { RepairPreview } from "@/lib/fixes/preview";
 
-// One preview before every fix click (Q13 / Step 8): the exact files the
+// One preview before every fix click: the exact files the
 // pull request would add or change, where it goes, and that tests were not
 // run. "Open pull request" here is the only way to send the click.
 const pre = { margin: "4px 0 8px", fontSize: 11.5, lineHeight: 1.45, maxHeight: 220, overflow: "auto" as const,

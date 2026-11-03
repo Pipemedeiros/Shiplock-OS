@@ -41,7 +41,7 @@ describe("withChains", () => {
     expect(other.chain.links[2].evidence).not.toContain("reported");
   });
 
-  // P5: live reach joins only the repository the founder bound the address to.
+  // Live reach joins only the repository the founder bound the address to.
   it("joins what the live site calls only to the bound repository's findings", () => {
     const live = { repositoryId: "r1", host: "app.acme.com", observedAt: "2026-10-17T10:00:00.000Z", paths: ["/api/notes/"],
       requests: null, read: { pages: null, scriptsSeen: null, scriptsRead: null }, change: null };

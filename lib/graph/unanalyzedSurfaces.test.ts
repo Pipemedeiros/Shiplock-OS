@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { countUnanalyzedSurfaces } from "./unanalyzedSurfaces";
 import { buildCoverage } from "@/lib/agent/audit";
 
-// Step 7D: server actions and tRPC procedures can change data, and the deep
+// Server actions and tRPC procedures can change data, and the deep
 // analysis reads route handlers only. Unread must be said, never implied clean.
 const f = (path: string, content: string) => ({ path, content });
 
@@ -39,7 +39,7 @@ describe("Coverage states the unread surfaces", () => {
   });
 });
 
-describe("after 7E-3, only what is still unread is disclosed", () => {
+describe("with server actions analyzed, only what is still unread is disclosed", () => {
   const stack = { tools: [], authUnknown: false, databaseUnknown: false };
   it("says analyzed entry actions are covered and names the rest", () => {
     const notes = buildCoverage(stack, false, 0, true, 0, 0, [], false, false, [], false, [], false, { serverActionFiles: 10, trpcFiles: 4, analyzedActions: 7 });
@@ -49,7 +49,7 @@ describe("after 7E-3, only what is still unread is disclosed", () => {
   });
 });
 
-describe("after 7G-2, analyzed tRPC procedures leave the unread list", () => {
+describe("with tRPC analyzed, analyzed tRPC procedures leave the unread list", () => {
   const stack = { tools: [], authUnknown: false, databaseUnknown: false };
   const note = (u: Parameters<typeof buildCoverage>[13]) =>
     buildCoverage(stack, false, 0, true, 0, 0, [], false, false, [], false, [], false, u).find((n) => n.name === "Server actions and tRPC procedures");

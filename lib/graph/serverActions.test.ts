@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { findServerActionEntries } from "./serverActions";
 
-// Step 7E-1: which server actions the browser can call. An exported action is
+// Which server actions the browser can call. An exported action is
 // an entry when UI code imports it (a "use client" file or a .tsx component);
 // "use server" helpers imported only by other server code are not entries.
 const f = (path: string, content: string) => ({ path, content });

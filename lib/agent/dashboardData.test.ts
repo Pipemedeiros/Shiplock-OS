@@ -42,7 +42,7 @@ describe("dashboard reads", () => {
     expect(tasks.map((t) => t.kind)).toContain("attack_reasoning");
   });
 
-  // W3: what ShipLock observed outside the repository reaches Issues and the
+  // What ShipLock observed outside the repository reaches Issues and the
   // status, with the evidence each row rests on.
   it("reads live findings beside the agent's, and confirms a proof or an observed exposure", async () => {
     calls.length = 0;

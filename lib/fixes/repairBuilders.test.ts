@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// 3F-C2d-2: the PR builders re-resolve everything server-side and separate
+// The PR builders re-resolve everything server-side and separate
 // permanent refusals from retryable GitHub failures.
 const mocks = vi.hoisted(() => ({
   open: vi.fn(), fix: vi.fn(), runFixPr: vi.fn(), profile: vi.fn(), repo: vi.fn(), update: vi.fn(),

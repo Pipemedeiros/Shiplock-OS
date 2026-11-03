@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// 3F-C2b-2: bundle and origin probes go through guardedFetch; the caller's
+// Bundle and origin probes go through guardedFetch; the caller's
 // signal must reach it alongside each probe's own timeout.
 const guarded = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/security/ssrfGuard", async (original) => ({

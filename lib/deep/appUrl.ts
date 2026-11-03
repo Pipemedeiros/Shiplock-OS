@@ -1,5 +1,5 @@
 /**
- * A repository's GitHub homepage, as the app address to suggest (G3).
+ * A repository's GitHub homepage, as the app address to suggest.
  *
  * The outside view (the shipped bundle, exposed paths) runs only when
  * ShipLock knows where the app is served, and the GitHub first onboarding

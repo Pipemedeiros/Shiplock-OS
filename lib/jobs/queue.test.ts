@@ -89,7 +89,7 @@ it("keeps a long provider read inside the live lease", async () => {
   }
 });
 
-it("queues an every-PR intelligence scan only at a full head commit, and reports no approval as null (10B-2c)", async () => {
+it("queues an every-PR intelligence scan only at a full head commit, and reports no approval as null", async () => {
   rpc.mockResolvedValue({ data: id, error: null });
   expect(await enqueuePullRequestIntelligence(id, id, 7, "A".repeat(40))).toBe(id);
   expect(rpc).toHaveBeenCalledWith("enqueue_pull_request_intelligence", { p_user: id, p_repository: id, p_pr: 7, p_head: "a".repeat(40) });
@@ -100,7 +100,7 @@ it("queues an every-PR intelligence scan only at a full head commit, and reports
   await expect(enqueuePullRequestIntelligence(id, id, 7, "a".repeat(40))).rejects.toThrow("could not be queued");
 });
 
-it("reports the manual audit quota distinctly so the customer can be told (3H-1)", async () => {
+it("reports the manual audit quota distinctly so the customer can be told", async () => {
   rpc.mockResolvedValue({ data: null, error: { message: "audit quota reached" } });
   await expect(enqueueAuditJob(id, id, "manual:x")).rejects.toThrow("audit_quota_reached");
   rpc.mockResolvedValue({ data: null, error: { message: "private detail" } });

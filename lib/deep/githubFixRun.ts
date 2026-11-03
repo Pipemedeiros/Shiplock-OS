@@ -60,7 +60,7 @@ async function fixRepo(token: string, fullName: string, branch: string): Promise
 }
 
 /**
- * One customer click, one dependency-bump PR (3F-C2d-4): the selected
+ * One customer click, one dependency-bump PR: the selected
  * repository named on the repair receipt, every vulnerable package with a known
  * patched version bumped at once. Runs inside the repair worker's lease.
  */

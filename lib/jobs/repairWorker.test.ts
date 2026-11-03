@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// 3F-C2d-2: a clicked repair opens its PR in the worker, under the job lease,
+// A clicked repair opens its PR in the worker, under the job lease,
 // and every outcome lands on the customer's receipt.
 const mocks = vi.hoisted(() => ({ receipt: vi.fn(), rpc: vi.fn(), risk: vi.fn(), finding: vi.fn(), dependency: vi.fn(), pr: vi.fn(), ai: vi.fn(), rateLimit: vi.fn(), heartbeat: vi.fn() }));
 vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({
@@ -59,7 +59,7 @@ describe("executeRepairJob", () => {
     expect(completed()[0]).toMatchObject({ p_status: "opened", p_number: 10 });
   });
 
-  it("opens one dependency-bump PR for the receipt's repository (3F-C2d-4)", async () => {
+  it("opens one dependency-bump PR for the receipt's repository", async () => {
     mocks.receipt.mockResolvedValue(receipt({ action: "dependency-bump-pr", finding_id: null }));
     mocks.dependency.mockResolvedValue({ status: "failed", code: "no_changes" });
     await executeRepairJob(job);
@@ -67,7 +67,7 @@ describe("executeRepairJob", () => {
     expect(completed()[0]).toMatchObject({ p_status: "failed", p_failure: "no_changes" });
   });
 
-  it("opens a fix PR into the checked PR's branch (8B-3)", async () => {
+  it("opens a fix PR into the checked PR's branch", async () => {
     mocks.receipt.mockResolvedValue(receipt({ action: "pr-fix-pr", finding_id: "diff:x", review_id: "77777777-7777-4777-8777-777777777777" }));
     mocks.pr.mockResolvedValue({ status: "failed", code: "fork_pull_request" });
     await executeRepairJob(job);
@@ -75,7 +75,7 @@ describe("executeRepairJob", () => {
     expect(completed()[0]).toMatchObject({ p_status: "failed", p_failure: "fork_pull_request" });
   });
 
-  it("opens a PR for the customer's AI proposal bound to its task (10B-3b)", async () => {
+  it("opens a PR for the customer's AI proposal bound to its task", async () => {
     const task = "88888888-8888-4888-8888-888888888888";
     mocks.receipt.mockResolvedValue(receipt({ action: "ai-fix-pr", finding_id: task, task_id: task }));
     mocks.ai.mockResolvedValue({ status: "failed", code: "source_changed" });
@@ -84,7 +84,7 @@ describe("executeRepairJob", () => {
     expect(completed()).toEqual([expect.objectContaining({ p_status: "failed", p_failure: "source_changed" })]);
   });
 
-  it("opens a rate-limit PR for the clicked route (Q12-3)", async () => {
+  it("opens a rate-limit PR for the clicked route", async () => {
     mocks.receipt.mockResolvedValue(receipt({ action: "rate-limit-pr", finding_id: "traffic:app/api/orders/route.ts" }));
     mocks.rateLimit.mockResolvedValue({ status: "opened", url: "https://github.com/acme/app/pull/3", number: 3 });
     await executeRepairJob(job);

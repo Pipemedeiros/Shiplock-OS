@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Q13 / Step 8: a preview runs the lane's real code with GitHub writes
+// A preview runs the lane's real code with GitHub writes
 // captured, so it shows exactly what the click would write, and writes nothing.
 const lanes = vi.hoisted(() => ({ risk: vi.fn(), finding: vi.fn(), dependency: vi.fn(), pr: vi.fn(), ai: vi.fn(), rateLimit: vi.fn() }));
 vi.mock("./riskFixPr", () => ({ openRiskFixPr: lanes.risk }));
@@ -36,7 +36,7 @@ const writingLane = async () => {
   throw new Error("must not continue after open");
 };
 
-describe("previewRepair (Q13)", () => {
+describe("previewRepair", () => {
   it("shows each file as add or edit with before and after, and writes nothing", async () => {
     lanes.dependency.mockImplementation(writingLane);
     const preview = await previewRepair("u1", { action: "dependency-bump-pr", repositoryId: "r1" });

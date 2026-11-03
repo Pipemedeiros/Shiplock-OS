@@ -84,7 +84,7 @@ describe("Step 2: repository-scoped dependency admission", () => {
     });
 });
 
-describe("Step 2C-3-B: repository-scoped graph source", () => {
+describe("repository-scoped graph source", () => {
   it("admits only the requested repository's validated routes, without unbound provider facts", async () => {
     reads.graph_facts.mockResolvedValue({ data: { facts: {
       routes: [{ ...route, path: "/aggregate-must-not-leak" }],
@@ -134,7 +134,7 @@ describe("Step 2C-3-B: repository-scoped graph source", () => {
   });
 });
 
-describe("Step 2C-3-A: selected-repository source admission", () => {
+describe("selected-repository source admission", () => {
   it("wires the production prioritization loader to repository-only evidence", async () => {
     const clock = vi.spyOn(Date, "now").mockReturnValue(now);
     try {

@@ -134,6 +134,8 @@ export type TableFacts = AuthzFacts;
 const SENSITIVE_TABLE_RE =
   /\b(user|users|profile|profiles|account|accounts|customer|customers|member|members|invoice|invoices|payment|payments|charge|charges|subscription|subscriptions|order|orders|transaction|transactions|card|cards|billing|message|messages|chat|chats|email|emails|address|addresses|phone|patient|patients|medical|health|document|documents|file|files|note|notes|session|sessions|token|tokens|credential|credentials|secret|secrets|api_keys?|apikeys?|phones?|ssns?)\b/i;
 
+/** Whether a table's name suggests personal or payment data (users, orders,
+ * tokens...). A name only ranks a table; it never decides a finding. */
 export function isSensitiveTableName(name: string): boolean {
   return SENSITIVE_TABLE_RE.test(name.replace(/^[\w]+\./, ""));
 }
@@ -313,6 +315,8 @@ export function buildAuthzFacts(input: GraphInput): Map<string, AuthzFacts> {
  */
 export const buildTableFacts = buildAuthzFacts;
 
+/** The asset graph: tables, routes, buckets and functions as nodes, with
+ * edges for what reaches what, built from the collectors' typed facts. */
 export function buildGraph(input: GraphInput): AssetGraph {
   const nodes = new Map<string, GraphNode>();
   const edges: GraphEdge[] = [];

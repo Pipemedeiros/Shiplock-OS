@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { ProviderResult } from "@/lib/monitoring/registry";
 
-// The app-surface pass hands one result to the monitor worker's fenced commit
-// (3F-C2c). Archive-on-resolve, unread-prefix protection, and insert-if-new are
+// The app-surface pass hands one result to the monitor worker's fenced
+// commit. Archive-on-resolve, unread-prefix protection, and insert-if-new are
 // proven in the SQL suite; these tests pin what the runner sends.
 const probeMock = vi.fn();
 const auditMock = vi.fn();
@@ -87,7 +87,7 @@ describe("runExposedPathScan", () => {
     expect(sentIds()).toEqual(["exposed:npmrc_exposed"]);
   });
 
-  // P5: the paths the live site's JavaScript calls, as a runtime fact under
+  // The paths the live site's JavaScript calls, as a runtime fact under
   // the address it was read from, only when the page itself was read.
   it("sends the paths the live site calls as its own fact when the page was read", async () => {
     auditMock.mockImplementation(async (_u: string, _s: unknown, _unread: string[], shipped: { pageRead: boolean; scriptsSeen: number; scriptsRead: number; paths: Set<string>; requests: Set<string> }) => {
@@ -150,7 +150,7 @@ describe("runExposedPathScan", () => {
   });
 });
 
-describe("runExposedPathScan — 3F-C2b-2 cancellation", () => {
+describe("runExposedPathScan — cancellation", () => {
   it("forwards the signal and never commits a cancelled, empty pass", async () => {
     const controller = new AbortController();
     probeMock.mockImplementation(async () => {

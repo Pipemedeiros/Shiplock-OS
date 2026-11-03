@@ -14,7 +14,7 @@ beforeEach(() => {
   mocks.list.mockResolvedValue([{ taskId: "t1" }]);
 });
 
-describe("GET /api/mcp/intelligence/tasks (10B-2a)", () => {
+describe("GET /api/mcp/intelligence/tasks", () => {
   it("lists the PAT owner's pending tasks", async () => {
     const res = await GET(req());
     expect(await res.json()).toEqual({ tasks: [{ taskId: "t1" }] });

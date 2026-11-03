@@ -6,8 +6,8 @@ import { FlaskConical } from "lucide-react";
 import type { ProofView } from "@/lib/proving/proofStatus";
 
 /**
- * One clicked test of one finding's table (Q7 / Step 6A-3). The click issues
- * a per-test authorization (Q5) and queues it (/api/proving/run); the worker
+ * One clicked test of one finding's table. The click issues
+ * a per-test authorization and queues it (/api/proving/run); the worker
  * rebuilds the table and its policies on ShipLock's own disposable database
  * with synthetic users and records one outcome. "Ran" is one probe on a copy,
  * never a statement that the table is protected.

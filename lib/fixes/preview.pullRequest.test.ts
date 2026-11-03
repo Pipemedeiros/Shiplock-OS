@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Q13-F parity for fix before merge: a new branch cut from the PR's own head,
+// Preview parity for fix before merge: a new branch cut from the PR's own head,
 // with the PR targeting that head branch, never the default branch.
 vi.mock("@/lib/deep/github", async (original) => ({
   ...await original<typeof import("@/lib/deep/github")>(), getInstallationToken: async () => "tok",
@@ -39,7 +39,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-describe("fix-before-merge preview parity (Q13-F)", () => {
+describe("fix-before-merge preview parity", () => {
   it("shows the fix request the click opens into the PR's branch, and writes nothing itself", async () => {
     const preview = await previewRepair("u1", { action: "pr-fix-pr", repositoryId: "r1", reviewId: REVIEW, findingId: "diff:orders" });
     expect(writes).toEqual([]);

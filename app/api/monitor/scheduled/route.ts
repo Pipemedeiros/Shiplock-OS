@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
       admitDueRepositorySourceScans(now, 1_000),
       admitDueRepositoryDependencyChecks(now, 1_000),
       admitDueMonitoringPasses("scheduled_48h", now, 1_000),
-      // Weekly deep and windowed PR scans for the customer's own AI (10B-2c).
+      // Weekly deep and windowed PR scans for the customer's own AI.
       admitDueIntelligenceScans(now, 1_000),
     ]);
   } catch {
@@ -67,11 +67,11 @@ export async function GET(req: NextRequest) {
   // allows only daily-frequency crons, so we reuse this entry rather than add
   // one). Fail-soft — never affects the monitoring result.
   const pruned = await pruneOldTraffic();
-  // Same daily entry bounds customer-intelligence results (10B-1d).
+  // Same daily entry bounds customer-intelligence results.
   const intelligence = await purgeIntelligenceTasks();
-  // And provider evidence snapshots (5A-2).
+  // And provider evidence snapshots.
   const snapshots = await pruneProviderSnapshots();
-  // Stale, failed or partial provider evidence gets one extra pass a day (Q11).
+  // Stale, failed or partial provider evidence gets one extra pass a day.
   const freshness = await admitFreshnessRechecks();
 
   // Traffic observations run before graph admission. Dependency rechecks were

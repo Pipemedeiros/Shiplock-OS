@@ -30,7 +30,7 @@ export function fencedProviderCommit(userId: string, jobId: string, leaseToken: 
 }
 
 /** Records a provider pass that read nothing usable, fenced by the same job
- * lease (5A-2). The reason is a short code, never provider text. */
+ * lease. The reason is a short code, never provider text. */
 export function fencedProviderFailure(userId: string, jobId: string, leaseToken: string): ProviderFailure {
   return async (transport, reason) => {
     const { error } = await getSupabaseAdmin().rpc("record_provider_read_failure", {
@@ -40,7 +40,7 @@ export function fencedProviderFailure(userId: string, jobId: string, leaseToken:
   };
 }
 
-/** Records whether the Supabase gateway log was read (Q8, migration 088),
+/** Records whether the Supabase gateway log was read (migration 088),
  * fenced by the same job lease. */
 export function fencedEdgeTrafficRecord(userId: string, jobId: string, leaseToken: string): EdgeTrafficRecord {
   return async (projectRef, read) => {

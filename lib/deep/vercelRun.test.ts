@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { ProviderResult } from "@/lib/monitoring/registry";
 
-// The audit hands one result to the monitor worker's fenced commit (3F-C2c).
+// The audit hands one result to the monitor worker's fenced commit.
 // Insert-if-new and merge semantics are proven in the SQL suite; these tests
 // pin what the runner sends and withholds.
 const decryptMock = vi.fn();
@@ -73,7 +73,7 @@ describe("runVercelEnvAudit", () => {
     const result = await run();
     expect(result.total).toBe(1);
     expect(result.findings[0].id).toContain("healthy-project");
-    // 5A-2: the snapshot says which project could not be read.
+    // The snapshot says which project could not be read.
     expect(sent().snapshot).toEqual({ scope: null, failed: ["vercel:broken-project:"] });
   });
 
@@ -146,7 +146,7 @@ describe("runVercelEnvAudit", () => {
   });
 });
 
-describe("3F-C2b: an aborted Vercel audit commits nothing", () => {
+describe("an aborted Vercel audit commits nothing", () => {
   it("forwards the signal and stops before mapping or the commit when aborted mid-read", async () => {
     const controller = new AbortController();
     listProjectsMock.mockImplementation(async () => {

@@ -481,7 +481,7 @@ describe("a key in OpenAI's format names the format, not the vendor", () => {
   });
 });
 
-// W1 (release attempt 5, q9): neither labeler could open a committed app/.env,
+// release attempt 5, q9: neither labeler could open a committed app/.env,
 // and an engineer challenging the finding should not have to either. The
 // finding says what each credential holds, by kind, never by value.
 describe("a committed env finding describes its values without showing them", () => {

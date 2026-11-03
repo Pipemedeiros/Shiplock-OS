@@ -30,7 +30,7 @@ describe("the evidence chain: what joins the layers for one finding", () => {
     expect(link(uncalled, "reach").evidence).toMatch(/directly/);
   });
 
-  // P5: what the live site's JavaScript calls is an observation, not an inference.
+  // What the live site's JavaScript calls is an observation, not an inference.
   it("counts reach observed in the live site's JavaScript, ahead of the repository's own calls", () => {
     const live = evidenceChain(quoted, { calledBy: ["components/Note.tsx"], trafficConnected: false,
       live: { host: "app.acme.com", path: "/api/notes/", observedAt: "2026-10-17T10:00:00.000Z" } });

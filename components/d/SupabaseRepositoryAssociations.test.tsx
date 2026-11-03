@@ -16,7 +16,7 @@ type Button = { children?: ReactNode; onClick: () => void; disabled: boolean };
 function buttons(node: ReactNode): Button[] { return Children.toArray(node).flatMap((child) => !isValidElement<{ children?: ReactNode }>(child) ? []
   : child.type === "button" ? [child.props as Button] : buttons(child.props.children)); }
 
-describe("Section 10 / 2C-3-C3-B3-B: Supabase Settings associations", () => {
+describe("Supabase Settings associations", () => {
   it.each(["supabase-management", "supabase-scan"] as const)("names %s separately without claiming proof", (collector) => {
     const handlers = actions(); const tree = SupabaseRepositoryAssociationView({ collector, state: ready(collector), actions: handlers, disabled: false });
     const html = renderToStaticMarkup(tree); expect(html).toContain(collector === "supabase-management" ? "Management API access" : "Endpoint scan access");

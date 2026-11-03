@@ -2,7 +2,7 @@ import ts from "typescript";
 import { resolveImport } from "@/lib/deep/clientExposure";
 
 /**
- * A gate one call away (ledger P1, Q38 self-scan).
+ * A gate one call away (found by scanning ShipLock itself).
  *
  * A route whose secret check or token check lives in a helper read as
  * "unreadable": the conservative rule (routeInventory.ts) refuses to credit a

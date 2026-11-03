@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CollectorContext } from "./registry";
 import type { MonitoredProfile } from "./types";
 
-// 3F-C2b: the registry's per-collector signal is useless unless each provider
+// The registry's per-collector signal is useless unless each provider
 // collector hands it to the transport that actually performs the reads.
 const runners = vi.hoisted(() => ({
   policy: vi.fn(), postgres: vi.fn(), vercel: vi.fn(),
@@ -34,17 +34,17 @@ beforeEach(() => {
 });
 
 describe("provider collectors forward the registry signal", () => {
-  it("Supabase Management refuses to collect without the worker's fenced commit (3F-C2c-6)", async () => {
+  it("Supabase Management refuses to collect without the worker's fenced commit", async () => {
     await expect(supabaseManagementCollector.run(ctx({}))).rejects.toThrow("fenced commit");
     expect(runners.policy).not.toHaveBeenCalled();
   });
 
-  it("direct Postgres refuses to collect without the worker's fenced commit (3F-C2c-6)", async () => {
+  it("direct Postgres refuses to collect without the worker's fenced commit", async () => {
     await expect(directPostgresCollector.run(ctx({}))).rejects.toThrow("fenced commit");
     expect(runners.postgres).not.toHaveBeenCalled();
   });
 
-  it("Vercel refuses to collect without the worker's fenced commit (3F-C2c-6)", async () => {
+  it("Vercel refuses to collect without the worker's fenced commit", async () => {
     await expect(vercelEnvCollector.run(ctx({ vercel_access_token_encrypted: "enc", vercel_connection_epoch: "e".repeat(64), vercel_team_id: "team" } as Partial<MonitoredProfile>)))
       .rejects.toThrow("fenced commit");
     expect(runners.vercel).not.toHaveBeenCalled();
@@ -63,14 +63,14 @@ describe("endpoint and app-surface collectors forward the registry signal", () =
     expect(runners.critical).toHaveBeenCalledWith("https://abc.supabase.co", "anon", signal, expect.any(Array));
   });
 
-  it("app surface refuses to collect without the worker's fenced commit (3F-C2c-6)", async () => {
+  it("app surface refuses to collect without the worker's fenced commit", async () => {
     await expect(appSurfaceCollector.run(ctx({ monitored_app_url: "https://app.example.com" } as Partial<MonitoredProfile>)))
       .rejects.toThrow("fenced commit");
     expect(runners.exposed).not.toHaveBeenCalled();
   });
 });
 
-describe("3F-C2c-2: provider collectors forward the fenced commit", () => {
+describe("provider collectors forward the fenced commit", () => {
   it("Vercel and app surface", async () => {
     const commit = vi.fn();
     await vercelEnvCollector.run({ ...ctx({ vercel_access_token_encrypted: "enc", vercel_connection_epoch: "e".repeat(64) } as Partial<MonitoredProfile>), commit });

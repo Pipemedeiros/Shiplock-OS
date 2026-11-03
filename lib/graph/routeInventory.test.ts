@@ -96,7 +96,7 @@ describe("extractTables", () => {
     expect(extractTables("return new Response('ok')")).toEqual([]);
   });
 
-  // Step 7H: writes the corpus makes through db / tx (Drizzle) and through a
+  // Writes the corpus makes through db / tx (Drizzle) and through a
   // Prisma client that is not named `prisma` read as touching no table.
   it("reads Drizzle writes through db and a transaction", () => {
     expect(extractTables("await db.insert(monitor).values(v); await tx.update(page).set(s); await ctx.db.delete(member).where(w);"))
@@ -244,7 +244,7 @@ describe("analyzeRouteFile", () => {
 });
 
 describe("collectRoutes", () => {
-  // Step 7I: two apps in one monorepo serving the same path (corpus-e has
+  // Two apps in one monorepo serving the same path (corpus-e has
   // /api/trpc/lambda/[trpc] in three apps). A path is what hypotheses,
   // findings and notes key on, so colliding paths are qualified by app.
   it("qualifies a path only when two apps serve it", () => {
@@ -320,7 +320,7 @@ describe("gate classification — user session vs machine secret vs open", () =>
     expect(routes[0].via).toContain("lib/gate.ts");
   });
 
-  // Step 7H: a NextAuth v5 config module (corpus-e) writes users and viewers
+  // A NextAuth v5 config module (corpus-e) writes users and viewers
   // from its sign-in callbacks. Once Drizzle writes were read, every page that
   // calls auth() was credited with those tables.
   it("does not credit a NextAuth v5 config module's own writes to routes that call auth()", () => {
@@ -384,7 +384,7 @@ describe("gate classification — user session vs machine secret vs open", () =>
     expect(routes[0].authenticated).toBe(false);
   });
 
-  // corpus-owner/inspector /api/sync/trigger: the route SENDS the cron secret to
+  // corpus-x /api/sync/trigger: the route SENDS the cron secret to
   // another endpoint. Naming a secret on the way out gates nothing coming in;
   // credited, it would hide an open route behind a gate it never checks.
   it("does not credit a secret the route only sends in an outbound request", () => {
@@ -464,9 +464,9 @@ describe("gate classification — user session vs machine secret vs open", () =>
   });
 });
 
-// Q24: a credential check on the executed path, in a helper the route calls,
-// makes the route unread, never anonymous (corpus-r18's shape from Q23).
-describe("checks in called helpers (Q24)", () => {
+// A credential check on the executed path, in a helper the route calls,
+// makes the route unread, never anonymous (a shape seen in the corpus).
+describe("checks in called helpers", () => {
   const route = file("app/api/admin/comment/route.ts", `import { verifyHeaderCookie } from "~/middleware/verify";
 import { prisma } from "~/prisma";
 export async function GET(req: NextRequest) {
@@ -500,9 +500,9 @@ export async function GET() { return Response.json(await listPosts()); }`);
   });
 });
 
-// Q24: an admin gate on the executed path is a role gate at any URL; scope is
+// An admin gate on the executed path is a role gate at any URL; scope is
 // then unread by design. Workspace roles (corpus-a's requiredRoles) are not admin.
-describe("admin gates at any URL (Q24)", () => {
+describe("admin gates at any URL", () => {
   const byPath = (...fs: { path: string; content: string }[]) => new Map(fs.map((x) => [x.path, x]));
   const admin = file("lib/admin.ts", `import { auth } from "@clerk/nextjs/server";
 export const getIsAdmin = async () => { const { userId } = await auth(); if (!userId) return false;
@@ -532,7 +532,7 @@ export const DELETE = async (req: Request, { params }: { params: { id: string } 
   });
 });
 
-describe("admin gates are not admin clients (Q24)", () => {
+describe("admin gates are not admin clients", () => {
   it("does not read a Supabase service-role 'admin' client as an admin gate", () => {
     const client = file("src/lib/supabase.ts", `import { createClient } from "@supabase/supabase-js";
 export const isSupabaseAdminAvailable = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -545,9 +545,9 @@ export async function POST() { return Response.json(await supabaseAdmin.from("us
   });
 });
 
-// Q24: a check beyond the read budget is unread, never absent (corpus-y:
+// A check beyond the read budget is unread, never absent (corpus-y:
 // route -> barrel -> session.ts -> session-check.ts with getServerSession).
-describe("checks beyond the hop budget (Q24)", () => {
+describe("checks beyond the hop budget", () => {
   const byPath = (...fs: { path: string; content: string }[]) => new Map(fs.map((x) => [x.path, x]));
   const barrel = file("src/config/api-validation/index.ts", `export { default as validateSession } from "./session";`);
   const session = file("src/config/api-validation/session.ts", `import validate from "@/lib/server/session-check";

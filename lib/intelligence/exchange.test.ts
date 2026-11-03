@@ -131,7 +131,7 @@ describe("customer intelligence exchange (offline contract, no inference)", () =
   });
 });
 
-describe("10B-1b: shared evidence checks", () => {
+describe("shared evidence checks", () => {
   it("accepts a natural quote from a CRLF source (review item b)", () => {
     const crlf = "const config = {\r\n  productionBrowserSourceMaps: true,\r\n};\r\nexport default config;\r\n";
     const exchange = createIntelligenceExchange({

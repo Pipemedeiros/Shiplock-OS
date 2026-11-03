@@ -1,7 +1,7 @@
 import { routeMatcher } from "@/lib/graph/clientReach";
 
 /**
- * Reach, observed on the live site (P5, the outside view): the paths the
+ * Reach, observed on the live site (the outside view): the paths the
  * JavaScript a visitor downloads names. The bundle audit already fetches
  * those scripts (lib/security/bundleAudit.ts); this keeps what they call so a
  * finding's reach link can say "your live site names it", which the

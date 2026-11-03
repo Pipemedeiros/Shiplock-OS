@@ -37,7 +37,7 @@ export async function collectTrafficFacts(userId: string, repositoryId?: string)
   const since = new Date(Date.now() - WINDOW_HOURS * 60 * 60 * 1000).toISOString();
   const counts = await snippetCounts(userId, repositoryId);
 
-  // Provider-log observations for this repository (2F-4: Supabase gateway),
+  // Provider-log observations for this repository (the Supabase gateway),
   // already judged per source upstream; merged with snippet counts per path.
   if (repositoryId) {
     const { data: observed } = await admin
@@ -60,7 +60,7 @@ export async function collectTrafficFacts(userId: string, repositoryId?: string)
 
 /**
  * Snippet requests per path from sources already flagged, bound to this
- * repository through its traffic site when one is given (2F-2a); without one,
+ * repository through its traffic site when one is given; without one,
  * the account-scoped (legacy) view. Also what X2 writes as the repository's
  * snippet observations, so the rate-limit offer sees the snippet too.
  */
@@ -90,7 +90,7 @@ async function snippetCounts(userId: string, repositoryId?: string): Promise<Map
 
   if (suspicious.size > 0) {
     // With a repository, count only events bound to it through a traffic site
-    // (2F-2a); without one, this is the account-scoped (legacy) view.
+    //; without one, this is the account-scoped (legacy) view.
     let eventsQuery = admin
       .from("traffic_events")
       .select("path")
@@ -100,7 +100,7 @@ async function snippetCounts(userId: string, repositoryId?: string): Promise<Map
       .gte("created_at", since)
       .in("source_id", [...suspicious])
       .limit(MAX_EVENTS);
-    // Paths that differ only in a record id are one route (P4): an id walk
+    // Paths that differ only in a record id are one route: an id walk
     // spreads over many paths of one request each, and ranking raw paths
     // would undercount it or drop it below MAX_PATHS. The first path seen
     // stands for the route, so route matching still reads a concrete path.

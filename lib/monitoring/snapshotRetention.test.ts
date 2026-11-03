@@ -7,7 +7,7 @@ import { pruneProviderSnapshots } from "./snapshotRetention";
 
 beforeEach(() => { rpc.mockReset(); });
 
-describe("pruneProviderSnapshots (5A-2)", () => {
+describe("pruneProviderSnapshots", () => {
   it("returns how many snapshots the daily prune removed", async () => {
     rpc.mockResolvedValue({ data: 4, error: null });
     expect(await pruneProviderSnapshots()).toEqual({ ok: true, pruned: 4 });

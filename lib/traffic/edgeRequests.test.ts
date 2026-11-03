@@ -8,13 +8,13 @@ const analyzeEdgeRequests = (rows: unknown[], salt: string) => {
   return out;
 };
 
-// 2F-4: Supabase's API gateway log, read with the customer's own connection,
+// Supabase's API gateway log, read with the customer's own connection,
 // judged by the same rules as the snippet. IPs are hashed immediately.
 const t0 = Date.parse("2026-09-23T10:00:00Z");
 const row = (ip: string, path: string, offsetMs: number, status = 401) =>
   ({ ts: new Date(t0 + offsetMs).toISOString(), method: "POST", path, status, ip });
 
-describe("analyzeEdgeRequests (2F-4)", () => {
+describe("analyzeEdgeRequests", () => {
   it("flags credential stuffing from one source and reports the paths it hit", () => {
     const rows = Array.from({ length: 25 }, (_, i) => row("203.0.113.9", "/auth/v1/token?grant_type=password", i * 1000));
     rows.push(row("198.51.100.2", "/rest/v1/orders", 5000, 200));

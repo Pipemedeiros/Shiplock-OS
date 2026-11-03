@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
-/** Daily retention for provider snapshots (5A-2, migration 087): 30 days, but
+/** Daily retention for provider snapshots (migration 087): 30 days, but
  * always the latest per account and transport. Fail-soft: called from a cron
  * handler that must still return. */
 export async function pruneProviderSnapshots(): Promise<{ ok: boolean; pruned: number }> {

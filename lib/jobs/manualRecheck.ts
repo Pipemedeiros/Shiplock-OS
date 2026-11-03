@@ -4,7 +4,7 @@ import { runNextMonitorJob } from "./monitorWorker";
 import { supersedeStaleScheduledJobs } from "./queue";
 
 /**
- * A customer's "check now" (3F-C2c-5). Admits the same identity-only monitor
+ * A customer's "check now". Admits the same identity-only monitor
  * job a deploy would, labeled manual, instead of collecting inside the web
  * request. Repeated clicks for one transport within a minute share a job.
  * The wake is best effort; the queue owns retries and leases.

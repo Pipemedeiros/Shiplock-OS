@@ -5,7 +5,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { crossSiteRefusal } from "@/lib/security/sameOrigin";
 
 /**
- * One customer click authorizes one proof (Q5 / Step 6A-1, migration 090):
+ * One customer click authorizes one proof (migration 090):
  * one finding, one table, one selected repository, on ShipLock's disposable
  * replica only, for one hour. Nothing runs here; a proof job consumes it.
  */

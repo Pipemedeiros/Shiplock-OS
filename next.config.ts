@@ -14,7 +14,7 @@ const securityHeaders = [
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), browsing-topics=()" },
 ];
 
-// Q6: routes that drain the job queue can run a proof, which starts the
+// Routes that drain the job queue can run a proof, which starts the
 // embedded replica in a worker thread (lib/proving/embeddedHost.ts). The
 // worker script is loaded by path, so it and the PGlite runtime it imports
 // are traced explicitly, for these routes only (PGlite is about 13 MB).

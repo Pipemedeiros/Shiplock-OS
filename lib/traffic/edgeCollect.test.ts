@@ -23,7 +23,7 @@ beforeEach(() => {
   state.profile.mockResolvedValue({ data: { is_paid: true }, error: null });
 });
 
-describe("collectSupabaseEdgeTraffic (2F-4)", () => {
+describe("collectSupabaseEdgeTraffic", () => {
   it("stores judged paths for every repository the customer confirmed for this project", async () => {
     expect(await collectSupabaseEdgeTraffic("u1", "tok", "abcd")).toEqual({ status: "read", repositories: 2, judgedSources: 1 });
     expect(state.rpc).toHaveBeenCalledWith("replace_traffic_observations",

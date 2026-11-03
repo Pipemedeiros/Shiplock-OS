@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { suggestAppUrl } from "./appUrl";
 
-// G3: the outside view (shipped bundle, exposed paths) runs only when ShipLock
+// The outside view (shipped bundle, exposed paths) runs only when ShipLock
 // knows the app's address, and the GitHub first onboarding never asked for
 // it. GitHub already carries a repository's homepage; it is offered as a
 // suggestion the founder confirms, never used on its own.

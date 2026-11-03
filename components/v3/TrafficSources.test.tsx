@@ -6,7 +6,7 @@ import type { TrafficSourceStatus } from "@/lib/traffic/sourceStatus";
 const s = (over: Partial<TrafficSourceStatus>): TrafficSourceStatus => ({ repositoryId: "r", repository: "acme/app", sites: 0,
   gateway: "not_connected", observedAt: null, hasSource: false, ...over });
 
-describe("TrafficSources (Q3)", () => {
+describe("TrafficSources", () => {
   it("renders every state, and says plainly when there is no source", () => {
     const html = renderToStaticMarkup(<TrafficSources sources={{ available: true, items: [
       s({ repositoryId: "a", gateway: "read", observedAt: "2026-09-23T10:00:00.000Z", hasSource: true }),
@@ -26,7 +26,7 @@ describe("TrafficSources (Q3)", () => {
     expect(html).toContain("not read yet");
     expect(html).not.toMatch(/quiet|clean|[–—]| - /i);
   });
-  it("offers a rate-limit pull request under a repository with a matched hot route (Q12-4)", () => {
+  it("offers a rate-limit pull request under a repository with a matched hot route", () => {
     const html = renderToStaticMarkup(<TrafficSources sources={{ available: true, items: [s({ repositoryId: "a", gateway: "read", observedAt: "2026-09-23T10:00:00.000Z", hasSource: true })] }}
       offers={{ a: [{ file: "app/api/orders/route.ts", pattern: "/api/orders", suspiciousRequests: 9 }] }} />);
     expect(html).toContain("Preview the pull request");

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-// Q30 (Felipe 2026-09-29): an onboarding-complete thank-you page and a kind
+// Felipe 2026-09-29: an onboarding-complete thank-you page and a kind
 // page after a cancellation. Plain words, no dashes, a clear way forward.
 vi.mock("@/lib/dashboard", () => ({ requireDashboardSession: async () => ({ userId: "u" }) }));
 const text = (html: string) => html.replace(/<[^>]+>/g, " ");

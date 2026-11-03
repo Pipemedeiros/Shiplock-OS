@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Q8: a retried fix click must not stamp a second copy of the same fix file.
+// A retried fix click must not stamp a second copy of the same fix file.
 const state = vi.hoisted(() => ({
   branchExists: false,
   onBranch: new Map<string, string>(), // path -> content on the fix branch
@@ -38,7 +38,7 @@ beforeEach(() => {
   state.branchExists = false; state.onBranch.clear(); state.onBase.clear(); state.listError = false;
 });
 
-describe("openFixPr retry (Q8)", () => {
+describe("openFixPr retry", () => {
   it("reuses the fix file an earlier attempt wrote on the fix branch instead of stamping a second one", async () => {
     state.branchExists = true;
     state.onBranch.set(EARLIER, SQL);

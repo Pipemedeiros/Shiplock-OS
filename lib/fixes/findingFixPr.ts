@@ -10,7 +10,7 @@ const PERMANENT: [RegExp, Exclude<RepairOutcome, { status: "opened" }>["code"]][
   [/not connected|no accessible|choose the repository|not selected|no longer accessible/i, "repository_unavailable"],
 ];
 
-/** Opens the fix PR for one fix-card finding inside a repair job (3F-C2d),
+/** Opens the fix PR for one fix-card finding inside a repair job,
  * honoring the customer's reviewed edit. The finding is re-resolved server-side. */
 export async function openFindingFixPr(
   userId: string, findingId: string, editedContent: string | null, repositoryId: string,

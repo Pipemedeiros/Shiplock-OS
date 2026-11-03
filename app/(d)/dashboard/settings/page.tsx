@@ -97,7 +97,7 @@ export default async function SettingsPage() {
             </div>
           </div>
 
-          {/* The outside view (G3): what the app serves to anyone, read at an
+          {/* The outside view: what the app serves to anyone, read at an
               address the founder confirms. GitHub's homepage is suggested. */}
           <div className="v3-card">
             <div className="v3-hd">
@@ -128,7 +128,7 @@ export default async function SettingsPage() {
             </div>
           </div>
 
-          {/* Traffic bound to a repository through a site (2F-2b). Enabled mirrors
+          {/* Traffic bound to a repository through a site. Enabled mirrors
               the ingest rule (is_paid; free vs paid is parked by Felipe). */}
           <div className="v3-card">
             <div className="v3-hd"><h3 className="v3-eyebrow">Traffic</h3></div>

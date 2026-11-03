@@ -1,6 +1,6 @@
 import { beforeEach, expect, it, vi } from "vitest";
 
-// 3F-C2d-4: source-scan dependency findings must reach a fix card; the panel
+// Source-scan dependency findings must reach a fix card; the panel
 // that used to show them was never rendered.
 const deep = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/scanHistory", () => ({ getLatestScan: vi.fn(async () => null) }));

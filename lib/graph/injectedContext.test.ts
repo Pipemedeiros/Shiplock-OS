@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { analyzeRouteFile } from "./routeInventory";
 
-// Class C (P1, Q26 dev labels): a wrapper resolves the session and the
+// Class C (development labels): a wrapper resolves the session and the
 // caller's workspace membership, then hands the handler the membership's own
 // workspace id. A filter on that id scopes to the caller's tenant. The shape
 // corpus-a uses (`({ workspace }) =>`, first parameter) was already read; these are
@@ -111,7 +111,7 @@ describe("a workspace a membership helper returned", () => {
     expect(fact(route, membershipHelper).ownershipFiltered).toBe(false);
   });
 
-  // corpus-owner/inspector requireWorkspaceId and requireWorkspace: the lookup is
+  // corpus-x requireWorkspaceId and requireWorkspace: the lookup is
   // one call away inside the helper's own file, and the id comes back bare.
   const sameFile = `${membershipHelper.replace("export async", "async")}
 export async function requireWorkspaceId() {
@@ -142,7 +142,7 @@ export async function GET(request) {
   });
 });
 
-// corpus-owner/inspector setup-status, credential readers: the server-established
+// corpus-x setup-status, credential readers: the server-established
 // workspace id is handed to a data helper whose own query filters on that
 // parameter. One hop, matched by position.
 describe("a trusted id handed to a data helper that filters on it", () => {

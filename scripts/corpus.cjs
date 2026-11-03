@@ -9,7 +9,7 @@ const { pipeline } = require("node:stream/promises");
 const { execFileSync } = require("node:child_process");
 const Module = require("node:module");
 const root = path.resolve(__dirname, "..");
-// SHIPLOCK_CORPUS selects another manifest (Q23 docs/CORPUS-2.json); the 7-repository baseline stays the default.
+// SHIPLOCK_CORPUS selects another manifest (e.g. docs/CORPUS-2.json); the 7-repository baseline stays the default.
 const manifestPath = process.env.SHIPLOCK_CORPUS ? path.resolve(root, process.env.SHIPLOCK_CORPUS) : path.join(root, "docs/CORPUS.json");
 const manifestBytes = fs.readFileSync(manifestPath);
 const manifest = JSON.parse(manifestBytes);
@@ -129,7 +129,7 @@ async function analyzePin(product, pin) {
     file.content = product.applyPlant(file.content, pin.plant);
   }
   // Route handlers, entry server actions and tRPC procedures, exactly as the
-  // audit sees them (7E-3, 7G-2).
+  // audit sees them.
   const { routes } = product.applicationEntries(archive.files);
   const stack = product.detectStack(archive.files);
   const tables = [...new Set([...product.extractTables(archive.files), ...routes.flatMap((route) => route.tables)])].sort();
@@ -142,7 +142,7 @@ async function analyzePin(product, pin) {
     .slice(0, product.MAX_PROMPT_ROUTES);
   // Model candidates come from the prompted routes; permission gaps are
   // rendered deterministically from every route (as in the audit), so the
-  // reasoning budget must not hide them here either (7C, 7E-3).
+  // reasoning budget must not hide them here either.
   const modelCandidates = prompted.filter((route) => route.identityReadable &&
     route.ownershipReadable && route.dataReadable && route.machineGateReadable && route.serviceRoleReadable &&
     ((!route.authenticated && !route.machineGated) || !route.ownershipFiltered));
@@ -156,7 +156,7 @@ function blockNetwork() {
   }
 }
 
-// Step 7B: the deterministic candidate stage against independent held-out
+// The deterministic candidate stage against independent held-out
 // labels (docs/evaluation/labels-*-holdout-*.json), keyed by route file.
 async function holdout(labelsFile) {
   blockNetwork();
@@ -261,7 +261,7 @@ async function evaluate() {
   console.log(`Artifacts: ${output}`);
 }
 
-// Q11: worst-case dollars for one paid pass, decided before any call. Input is
+// Worst-case dollars for one paid pass, decided before any call. Input is
 // bounded at chars / 2 tokens (above any real tokenizer rate for code) and
 // output at each call's own max_tokens, so the real bill cannot exceed it.
 function paidPlan(plans, prices, maxUsd) {
@@ -280,7 +280,7 @@ function paidPlan(plans, prices, maxUsd) {
   return { ok: true, rows, worstCaseUsd };
 }
 
-// Q11: one paid pass of the audit's own model call (proposeAttacks) per pinned
+// One paid pass of the audit's own model call (proposeAttacks) per pinned
 // repository, on ShipLock's key, only with Felipe's --confirm-paid and a
 // --max-usd cap the worst case fits. `evaluate` and `holdout` stay offline.
 async function paid(args) {
@@ -357,7 +357,7 @@ async function paid(args) {
   console.log(`Spent $${summary.paidApiSpendUsd} of a $${maxUsd} cap. Artifacts: ${output}`);
 }
 
-// P1: the skeptical verifier over a paid run's admitted hypotheses, scored
+// The skeptical verifier over a paid run's admitted hypotheses, scored
 // against a blind label file when one is given. Paid: same refusals as paid().
 async function verify(runDir, args) {
   if (!args.includes("--confirm-paid")) throw new Error("Refusing: verify spends ShipLock's API key. Re-run with --confirm-paid.");
@@ -435,9 +435,9 @@ async function verify(runDir, args) {
   console.log(JSON.stringify(summary, null, 1));
 }
 
-// Q23: what a customer would read for a paid run's admitted hypotheses,
+// What a customer would read for a paid run's admitted hypotheses,
 // rendered offline through the audit's own buildFindings with the same gates
-// (possession and Q21 one-id) the audit passes. Free; the labelers read this.
+// (possession and one-id access) the audit passes. Free; the labelers read this.
 async function render(runDir) {
   blockNetwork();
   const dir = path.resolve(root, runDir);
@@ -451,7 +451,7 @@ async function render(runDir) {
   }
   const product = { ...loadProductModules(), ...require("../lib/agent/findings.ts") };
   const statements = [];
-  // Q24: the paid run's admitted hypotheses are guarded again against TODAY's
+  // The paid run's admitted hypotheses are guarded again against TODAY's
   // route facts, so a fact change is replayed for free; what the guard now
   // refuses or leaves unjudged is counted, never silently dropped.
   const reguard = { admittedAtRun: 0, admittedNow: 0, rejectedNow: [], unassessedNow: [] };
@@ -930,7 +930,7 @@ async function recall(dirArg) {
     + `Funnel: facts flag ${report.funnel.factsFlag}, reasoning task ${report.funnel.reasoningTask}, proposed ${report.funnel.proposed}, admitted ${report.funnel.admitted}, shown ${report.funnel.shownAtEntry}, confirmed ${k}. ${out}`);
 }
 
-// W1: every repository in the manifest, unpacked for the blind labelers.
+// Every repository in the manifest, unpacked for the blind labelers.
 // Release attempt 5's batch script unpacked only repositories with reasoning
 // tasks, so a packet from the deterministic checks alone pointed at no code.
 async function extractAll(outArg) {
@@ -947,7 +947,7 @@ async function extractAll(outArg) {
   console.log(`${extracted} repositories extracted, ${manifest.repositories.length - extracted} already present, under ${out}`);
 }
 
-// P7: JEV as a second judge, measured on labeled findings. Paid (Felipe's
+// JEV as a second judge, measured on labeled findings. Paid (Felipe's
 // TypeSafe key, TYPESAFE_API_KEY) and refused without --confirm-paid and a
 // --max-usd cap. Evidence per packet is what the labelers start from: the
 // cited file, root middleware, the Prisma schema and the README, read from

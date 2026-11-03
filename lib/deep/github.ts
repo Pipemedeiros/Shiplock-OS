@@ -126,7 +126,7 @@ export async function listTree(token: string, fullName: string, branch: string):
 }
 
 /** In preview, a branch the lane "created" reads as its base commit, and a
- * file the lane already "wrote" reads as what it wrote (Q13). */
+ * file the lane already "wrote" reads as what it wrote. */
 function previewRef(branch: string): string {
   return previewStore.getStore()?.branches.get(branch) ?? branch;
 }
@@ -230,7 +230,7 @@ export async function queryOsv(deps: Dep[]): Promise<{ dep: Dep; vulns: OsvVuln[
 // default branch and never merges. Requires the App's Contents + Pull requests
 // write permissions (see AGENTS.md).
 
-// Preview mode (Q13 / Step 8): a repair lane runs its real planning code, but
+// Preview mode: a repair lane runs its real planning code, but
 // every write is recorded here instead of sent, and the lane stops at "open
 // pull request", so nothing after it (such as recording the PR) runs. Outside
 // capturePreview nothing changes. Only ghWrite and the PR-recovery read
@@ -378,7 +378,7 @@ export interface PullRequestMeta {
   url: string;
 }
 
-/** Read-only PR metadata for a stored review (8B-1): the head branch a
+/** Read-only PR metadata for a stored review: the head branch a
  * before-merge fix targets, and whether that branch lives in a fork. */
 export async function getPullRequest(token: string, fullName: string, number: number): Promise<PullRequestMeta> {
   const res = await fetch(`${API}/repos/${fullName}/pulls/${number}`, {
@@ -398,7 +398,7 @@ export async function getPullRequest(token: string, fullName: string, number: nu
 }
 
 /**
- * The customer's own check runs on a pull request's current head (Q2 / 8-CI).
+ * The customer's own check runs on a pull request's current head.
  * Read-only: two GETs. ShipLock's own check is excluded, so this is only what
  * the customer's CI reported. Legacy commit statuses need a permission the
  * App does not request, so they are invisible here, never "passing".

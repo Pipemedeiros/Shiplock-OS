@@ -46,7 +46,7 @@ describe("POST /api/deep/fix — server-owned finding", () => {
     requestMock.mockReset().mockResolvedValue("receipt-1");
   });
 
-  it("re-resolves the finding and admits a receipt instead of opening the PR inline (3F-C2d-3)", async () => {
+  it("re-resolves the finding and admits a receipt instead of opening the PR inline", async () => {
     const res = await POST(req(base.id));
     expect(res.status).toBe(202);
     expect(await res.json()).toEqual({ receiptId: "receipt-1", status: "queued" });
@@ -69,7 +69,7 @@ describe("POST /api/deep/fix — server-owned finding", () => {
     expect(requestMock).not.toHaveBeenCalled();
   });
 
-  it("queues a dependency finding as one bump PR for its repository (3F-C2d-4)", async () => {
+  it("queues a dependency finding as one bump PR for its repository", async () => {
     getFixFindingsMock.mockResolvedValue([{ ...base, id: "github:dep:left-pad:GHSA-x", source: "github" }]);
     const res = await POST(req("github:dep:left-pad:GHSA-x"));
     expect(res.status).toBe(202);

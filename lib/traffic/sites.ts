@@ -2,7 +2,7 @@ import { z } from "zod";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 /**
- * Traffic sites (2F-2a, migration 085): one public app host bound to one of
+ * Traffic sites (migration 085): one public app host bound to one of
  * the customer's selected repositories, with its own snippet token. A site
  * token ties every event to that repository; the legacy per-account token
  * still works but its traffic stays unbound and never corroborates a

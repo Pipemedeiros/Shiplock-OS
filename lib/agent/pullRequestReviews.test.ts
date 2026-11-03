@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// 8B-2: the dashboard shows what each checked PR introduced, scoped to the
+// The dashboard shows what each checked PR introduced, scoped to the
 // signed-in account, and never invents a verdict from a malformed row.
 const mocks = vi.hoisted(() => ({ read: vi.fn(), filters: vi.fn() }));
 vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: () => ({ from: () => {

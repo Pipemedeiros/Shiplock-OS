@@ -1,7 +1,7 @@
 import type { Claim, Confidence } from "./findings";
 
 /**
- * Findings ShipLock observed outside the repository (W3, for G3 and G4).
+ * Findings ShipLock observed outside the repository.
  *
  * Each collector stores its findings in deep_findings under its own source,
  * with no claims or confidence columns: the open-findings read used to take

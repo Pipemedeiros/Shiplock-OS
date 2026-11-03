@@ -11,7 +11,7 @@ const STATUS: Record<string, number> = {
   task_expired: 409, task_scope_changed: 409, already_completed: 409, task_stale: 409, task_unavailable: 404,
 };
 
-/** A customer's host submits one result for its own task (10B-1b). ShipLock
+/** A customer's host submits one result for its own task. ShipLock
  * verifies the evidence against GitHub and stores a proposal only; it never
  * applies an edit, opens a PR, or treats reported usage as verified. */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

@@ -130,6 +130,9 @@ export function storeProtects(asset: AuthzFacts): boolean | null {
   return asset.enforced === true ? true : null;
 }
 
+/** Cross-layer paths: a route that reaches a table the live database leaves
+ * unprotected, ranked higher when the table looks sensitive. Needs evidence
+ * from more than the repository; source-only input returns nothing. */
 export function findAttackPaths(input: GraphInput): AttackPath[] {
   // Repository-local source without verified provider bindings is not a
   // multi-surface observation, even when the source mentions a table name.

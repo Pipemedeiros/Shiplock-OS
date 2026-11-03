@@ -3,11 +3,11 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => {} }) }));
 import { ProofPanel } from "./ProofButton";
 
-// Q7: the four recorded outcomes, pending, and the offer, as a founder reads them.
+// The four recorded outcomes, pending, and the offer, as a founder reads them.
 const render = (view: Parameters<typeof ProofPanel>[0]["view"]) =>
   renderToStaticMarkup(<ProofPanel repositoryId="r1" findingId="f1" table="public.orders" view={view} />);
 
-describe("ProofPanel (Q7 / 6A-3)", () => {
+describe("ProofPanel", () => {
   it("offers the test with one sentence on what runs, and that the customer's database is never touched", () => {
     const html = render(null);
     expect(html).toContain("Test on a disposable copy");

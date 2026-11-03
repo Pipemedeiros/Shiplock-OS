@@ -38,7 +38,7 @@ beforeEach(() => {
   state.scans.mockReturnValue({ data: [{ job_id: job, scan: "pr", pull_request_number: 7 }], error: null });
 });
 
-describe("AI check states (10B-2d)", () => {
+describe("AI check states", () => {
   it("never derives a clean state: unanswered work is pending or expired", () => {
     expect(aiStateOf("pending", "2026-09-23T20:00:00Z", now)).toBe("pending");
     expect(aiStateOf("pending", "2026-09-23T11:00:00Z", now)).toBe("expired");

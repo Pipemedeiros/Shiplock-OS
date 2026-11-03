@@ -18,7 +18,7 @@ beforeEach(() => {
   mocks.connect.mockResolvedValue({ ok: true, display: "db.example.com/app" });
 });
 
-describe("POST /api/deep/postgres (3F-C2c-5)", () => {
+describe("POST /api/deep/postgres", () => {
   it("queues a recheck for the scan action", async () => {
     const res = await post({ action: "scan" });
     expect(res.status).toBe(202);

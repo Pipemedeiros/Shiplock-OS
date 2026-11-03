@@ -7,7 +7,7 @@ import { crossSiteRefusal } from "@/lib/security/sameOrigin";
 import { quotaResponse } from "@/lib/quota";
 
 /**
- * The customer's "fix before merge" click on a checked pull request (8B-3).
+ * The customer's "fix before merge" click on a checked pull request.
  * Admits one receipted repair job bound to the stored review; the worker opens
  * a fix PR into that pull request's head branch. Never a merge, never a push
  * to the default branch. Poll /api/fix/receipts/[id] for the outcome.
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Name a pull request finding." }, { status: 400 });
 
-  // Resolved exactly as the preview resolves it (Q13-F).
+  // Resolved exactly as the preview resolves it.
   let resolved;
   try { resolved = await resolveRepairTarget(user.userId, { lane: "pull-request", ...parsed.data }); }
   catch { return NextResponse.json({ error: "Try again in a moment." }, { status: 503 }); }

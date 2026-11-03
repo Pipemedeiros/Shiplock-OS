@@ -69,6 +69,7 @@ export async function executeGraphJob(job: ClaimedJob): Promise<void> {
   resultSchema.parse(data);
 }
 
+/** Claims and runs one graph job; false when the queue had none. */
 export async function runNextGraphJob(): Promise<boolean> {
   const job = await claimJob("graph");
   if (!job) return false;

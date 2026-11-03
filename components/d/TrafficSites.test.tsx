@@ -6,14 +6,14 @@ const base = { enabled: true, repositories: [{ id: "r1", fullName: "acme/app" }]
   onCreate: vi.fn(), onRevoke: vi.fn() };
 const html = (props: Partial<Parameters<typeof TrafficSitesView>[0]> = {}) => renderToStaticMarkup(TrafficSitesView({ ...base, ...props }));
 
-describe("TrafficSites (2F-2b)", () => {
+describe("TrafficSites", () => {
   it("states the privacy contract and that the app never depends on ShipLock", () => {
     const out = html();
     expect(out).toContain("never request bodies, credentials, or your users");
     expect(out).toContain("never goes through ShipLock");
     expect(out).toContain("If ShipLock is down, your app is unaffected");
     expect(out).toContain("acme/app");
-    // No-install path (2F-4) and the honest empty state.
+    // No-install path and the honest empty state.
     expect(out).toContain("reads its API request log with nothing to install");
     expect(out).toContain("ShipLock sees no traffic at all");
   });

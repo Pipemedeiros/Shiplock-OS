@@ -9,7 +9,7 @@ export interface PullRequestAlert {
 }
 
 /**
- * The paid alert for a pull request whose check found a concrete risk (9A).
+ * The paid alert for a pull request whose check found a concrete risk.
  * It states what was found and where, never intent, and sends the customer to
  * the dashboard to read the evidence and ask for a fix before merge. One email
  * per PR head (the job is unique per stored review); at-least-once delivery.

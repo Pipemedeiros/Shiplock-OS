@@ -156,11 +156,11 @@ describe("buildFindings", () => {
   });
 });
 
-// Q16: on a route we READ as anonymous there is no caller to narrow by, so a
+// On a route we READ as anonymous there is no caller to narrow by, so a
 // model's "across workspaces" story for missing_authorization is a mechanism we
 // never read. The title and consequence come from what we read; the model's
 // sentence stays, marked unverified. Id and severity are unchanged.
-describe("missing_authorization on a route read as anonymous (Q16)", () => {
+describe("missing_authorization on a route read as anonymous", () => {
   const anonymous: RouteFact = { ...route, path: "trpc:router/statusPage.ts#getReport", file: "router/statusPage.ts",
     tables: ["page", "statusReport"], authenticated: false };
   const claim = { ...hypothesis, entry: anonymous.path, citedFiles: [anonymous.file],
@@ -179,10 +179,10 @@ describe("missing_authorization on a route read as anonymous (Q16)", () => {
     expect(finding.severity).toBe("WARNING"); // repository-only (2026-09-29 cap)
   });
 
-  // Q26: the same rule on a signed-in route whose scope we read as not
+  // The same rule on a signed-in route whose scope we read as not
   // narrowed. CORPUS-3 showed model titles written for the wrong mechanism
   // ("Anonymous, unscoped mutation...") on signed-in IDORs; say what we read.
-  it("states what we read on a signed-in route whose query is not narrowed (Q26)", () => {
+  it("states what we read on a signed-in route whose query is not narrowed", () => {
     const [signedIn] = buildFindings({ ...base, routes: [route], admitted: [hypothesis] });
     expect(signedIn.title).toBe("Signed-in callers are not limited to their own rows");
     expect(signedIn.consequence).toBe(

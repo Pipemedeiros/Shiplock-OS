@@ -19,7 +19,7 @@ const row = (over: Record<string, unknown> = {}) => ({ id: "66666666-6666-4666-8
 
 beforeEach(() => { state.filters = []; state.result = { data: [row()], error: null }; });
 
-describe("getOpenedPullRequests (Q1 / 8-R2)", () => {
+describe("getOpenedPullRequests", () => {
   it("lists only the caller's opened pull requests from the last 30 days", async () => {
     const result = await getOpenedPullRequests("u1");
     expect(result).toEqual({ available: true, items: [{ id: row().id, lane: "Fix", repository: "acme/app",

@@ -127,7 +127,7 @@ export function buildCoverage(
   const unassessed = unassessedNote(routes);
   if (unassessed) notes.push(unassessed);
 
-  // Step 7D: data-changing code outside route handlers is not analyzed. Said
+  // Data-changing code outside route handlers is not analyzed. Said
   // with the counts, because an audit that reasoned over the routes and stays
   // silent here reads as complete.
   if (unanalyzed.serverActionFiles + unanalyzed.trpcFiles > 0) {
@@ -145,7 +145,7 @@ export function buildCoverage(
       unanalyzed.serverActionFiles ? "server-only helpers" : "",
       unanalyzed.trpcFiles && !procedures ? "tRPC procedures" : "",
     ].filter(Boolean).join(" and ");
-    // Step 7G: whether a router is actually served over HTTP is not traced
+    // Whether a router is actually served over HTTP is not traced
     // (routers often come from a workspace package we do not resolve), so
     // every procedure is treated as callable. Said, because it is an assumption.
     const analyzedPart = analyzedList.length
@@ -404,8 +404,8 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
         : "no known framework, auth provider or database identified",
     );
 
-    // Route handlers, the server actions the browser can call (7E-3) and
-    // tRPC procedures (7G): one fact shape, so ranking, the prompt and the
+    // Route handlers, the server actions the browser can call and
+    // tRPC procedures: one fact shape, so ranking, the prompt and the
     // guard treat them alike.
     const entries = applicationEntries(archive.files);
     const routes = entries.routes;
@@ -475,9 +475,9 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
     // possession_gated; an unreadable gate leaves the finding standing.
     const byPath = new Map(archive.files.map((f) => [f.path, f]));
     const gates = possessionGates(routes, byPath);
-    // Q21: anonymous routes whose only way in is a random-minted id cap at WARNING.
+    // Anonymous routes whose only way in is a random-minted id cap at WARNING.
     const oneId = oneIdAccess(routes, byPath);
-    // P3: an app with no sign-in whose code says it is open by design.
+    // An app with no sign-in whose code says it is open by design.
     const open = openByDesign({ routes, stack, tables, archive });
 
     const findings = buildFindings({
@@ -596,7 +596,7 @@ export async function runRepositoryAudit(options: RunAuditOptions): Promise<Audi
       if (options.jobLease) throw new Error("Audit completion could not be recorded");
     }
 
-    // Q27: the route map is drawn from this audit's facts. Best effort and
+    // The route map is drawn from this audit's facts. Best effort and
     // separate from completion, so a database without migration 096 still
     // completes the run; the map then falls back to the source snapshot.
     const { error: factsError } = await admin.from("audit_runs")

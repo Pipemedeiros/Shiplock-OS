@@ -21,7 +21,7 @@ export type PullRequestReviewView = {
   findings: z.infer<typeof findingSchema>[];
 };
 
-/** What ShipLock found on the customer's recent pull requests (8B-2), newest
+/** What ShipLock found on the customer's recent pull requests, newest
  * first, from reviews stored under each PR check's lease. */
 export async function getRecentPullRequestReviews(userId: string, limit = 20): Promise<PullRequestReviewView[]> {
   const { data, error } = await getSupabaseAdmin().from("pull_request_reviews")

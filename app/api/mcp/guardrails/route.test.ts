@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-// G1 / tech question 2: the customer's coding agent reads the same guardrails
+// The customer's coding agent reads the same guardrails
 // the PR check enforces, for a repository the customer selected, over a PAT.
 const authMcp = vi.fn();
 const repos = vi.fn();

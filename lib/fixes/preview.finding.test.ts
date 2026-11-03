@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Q13-F parity for the fix-card lane with the customer's edited migration.
+// Preview parity for the fix-card lane with the customer's edited migration.
 vi.mock("@/lib/deep/github", async (original) => ({
   ...await original<typeof import("@/lib/deep/github")>(), getInstallationToken: async () => "tok",
   listRepos: async () => [{ id: "1", fullName: "acme/app", defaultBranch: "main", private: true }],
@@ -55,7 +55,7 @@ beforeEach(() => {
 });
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
 
-describe("fix-card preview parity (Q13-F, Q8)", () => {
+describe("fix-card preview parity", () => {
   it("shows the edited migration the click commits, and writes nothing itself, even across a second boundary", async () => {
     vi.setSystemTime(new Date("2026-09-28T12:00:00.999Z"));
     const preview = await previewRepair("u1", { action: "finding-fix-pr", repositoryId: "r1", findingId: finding.id, editedContent: EDITED });

@@ -7,7 +7,7 @@ import { fixBranchName, fixDocument, fixFilePath, fixTitle } from "@/lib/agent/f
 import { openedOutcome, type RepairOutcome } from "./repairOutcome";
 
 /**
- * Opens the fix PR for one Risks-board finding, inside a repair job (3F-C2d).
+ * Opens the fix PR for one Risks-board finding, inside a repair job.
  * Always a NEW branch off the default, never a push to the default itself and
  * never a merge. The branch name is deterministic per finding, so a retry after
  * an uncertain delivery finds the PR it already opened instead of a second one.

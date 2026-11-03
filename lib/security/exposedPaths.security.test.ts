@@ -33,7 +33,7 @@ describe("probeExposedPaths — SSRF guard integration", () => {
   });
 });
 
-describe("probeExposedPaths — 3F-C2b-2 cancellation", () => {
+describe("probeExposedPaths — cancellation", () => {
   it("aborts every in-flight probe when the caller aborts", async () => {
     assertPublicHttpsUrlMock.mockResolvedValue(undefined);
     const signals: AbortSignal[] = [];
@@ -50,7 +50,7 @@ describe("probeExposedPaths — 3F-C2b-2 cancellation", () => {
   });
 });
 
-describe("probeExposedPaths — 1E-1 readability", () => {
+describe("probeExposedPaths — readability", () => {
   it("marks a group unread when any of its probes fails or the server errors", async () => {
     assertPublicHttpsUrlMock.mockResolvedValue(undefined);
     vi.stubGlobal("fetch", vi.fn(async (url: string) => {

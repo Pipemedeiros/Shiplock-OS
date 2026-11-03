@@ -113,7 +113,7 @@ export async function GET(req: NextRequest) {
       console.error("[auth/callback] exchangeCodeForSession error:", error.message);
     } else {
       ok = true;
-      // Q29: the welcome email goes out after the response, at most once per
+      // The welcome email goes out after the response, at most once per
       // new account (lib/welcomeEmail.ts), so sign-in is never slowed by it.
       const user = data?.user;
       if (user) after(() => sendWelcomeOnce(user, process.env.NEXT_PUBLIC_APP_URL ?? origin).catch(() => false));

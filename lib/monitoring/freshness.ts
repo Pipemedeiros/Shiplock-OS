@@ -4,7 +4,7 @@ import { currentConnectionEpoch } from "@/lib/deep/providerRepositoryMap";
 import { enqueueMonitoringPass } from "@/lib/jobs/scheduler";
 
 /**
- * Freshness rechecks (Q11 / Step 9). Fixed triggers leave evidence stale when
+ * Freshness rechecks. Fixed triggers leave evidence stale when
  * a pass fails or reads only part of a provider. From each account's newest
  * provider snapshot per transport (087, 088), accounts whose newest read is
  * older than 72 hours, failed, or partial get one extra monitoring pass per

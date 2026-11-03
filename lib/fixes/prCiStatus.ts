@@ -3,7 +3,7 @@ import { getInstallationToken, listPullRequestCheckRuns } from "@/lib/deep/githu
 import type { OpenedPullRequest } from "./openedPullRequests";
 
 /**
- * CI on pull requests ShipLock opened (Q2 / 8-CI): what the customer's own
+ * CI on pull requests ShipLock opened: what the customer's own
  * checks reported, read-only and bounded. ShipLock does not run CI; "none
  * visible" and "unknown" are never shown as passing.
  */
