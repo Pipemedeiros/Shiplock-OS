@@ -1,0 +1,170 @@
+{
+  "batches": [
+    "docs/evaluation/runs/attempt6-2026-10/q1",
+    "docs/evaluation/runs/attempt6-2026-10/q2",
+    "docs/evaluation/runs/attempt6-2026-10/q3",
+    "docs/evaluation/runs/attempt6-2026-10/q4",
+    "docs/evaluation/runs/attempt6-2026-10/q5",
+    "docs/evaluation/runs/attempt6-2026-10/q6",
+    "docs/evaluation/runs/attempt6-2026-10/q7",
+    "docs/evaluation/runs/attempt6-2026-10/q8",
+    "docs/evaluation/runs/attempt6-2026-10/q9",
+    "docs/evaluation/runs/attempt6-2026-10/q10"
+  ],
+  "thresholds": "docs/evaluation/thresholds-release-2026-10-14.json",
+  "duplicates": [],
+  "report": {
+    "statusSetting": {
+      "n": 103,
+      "labeled": 103,
+      "unlabeled": 0,
+      "tp": 89,
+      "fp": 14,
+      "provisionalTp": 86,
+      "precision": 0.8640776699029126,
+      "lower95": 0.7956999035228748
+    },
+    "bySeverity": {
+      "CRITICAL": {
+        "n": 2,
+        "labeled": 2,
+        "unlabeled": 0,
+        "tp": 0,
+        "fp": 2,
+        "provisionalTp": 0,
+        "precision": 0,
+        "lower95": 0
+      },
+      "WARNING": {
+        "n": 101,
+        "labeled": 101,
+        "unlabeled": 0,
+        "tp": 89,
+        "fp": 12,
+        "provisionalTp": 86,
+        "precision": 0.8811881188118812,
+        "lower95": 0.8146155516804451
+      },
+      "INFO": {
+        "n": 0,
+        "labeled": 0,
+        "unlabeled": 0,
+        "tp": 0,
+        "fp": 0,
+        "provisionalTp": 0,
+        "precision": null,
+        "lower95": null
+      }
+    },
+    "byClass": {
+      "committed_secret": {
+        "n": 2,
+        "labeled": 2,
+        "unlabeled": 0,
+        "tp": 0,
+        "fp": 2,
+        "provisionalTp": 0,
+        "precision": 0,
+        "lower95": 0
+      },
+      "injection": {
+        "n": 3,
+        "labeled": 3,
+        "unlabeled": 0,
+        "tp": 3,
+        "fp": 0,
+        "provisionalTp": 3,
+        "precision": 1,
+        "lower95": 0.36840314986403866
+      },
+      "mass_assignment": {
+        "n": 4,
+        "labeled": 4,
+        "unlabeled": 0,
+        "tp": 4,
+        "fp": 0,
+        "provisionalTp": 4,
+        "precision": 1,
+        "lower95": 0.4728708045015879
+      },
+      "missing_authentication": {
+        "n": 47,
+        "labeled": 47,
+        "unlabeled": 0,
+        "tp": 39,
+        "fp": 8,
+        "provisionalTp": 37,
+        "precision": 0.8297872340425532,
+        "lower95": 0.7137810577914101
+      },
+      "missing_authorization": {
+        "n": 42,
+        "labeled": 42,
+        "unlabeled": 0,
+        "tp": 38,
+        "fp": 4,
+        "provisionalTp": 37,
+        "precision": 0.9047619047619048,
+        "lower95": 0.7951694300776025
+      },
+      "secret_exposure": {
+        "n": 2,
+        "labeled": 2,
+        "unlabeled": 0,
+        "tp": 2,
+        "fp": 0,
+        "provisionalTp": 2,
+        "precision": 1,
+        "lower95": 0.223606797749979
+      },
+      "server_boundary_crossed": {
+        "n": 1,
+        "labeled": 1,
+        "unlabeled": 0,
+        "tp": 1,
+        "fp": 0,
+        "provisionalTp": 1,
+        "precision": 1,
+        "lower95": 0.05000000000000002
+      },
+      "unsafe_redirect": {
+        "n": 1,
+        "labeled": 1,
+        "unlabeled": 0,
+        "tp": 1,
+        "fp": 0,
+        "provisionalTp": 1,
+        "precision": 1,
+        "lower95": 0.05000000000000002
+      },
+      "unsigned_webhook": {
+        "n": 1,
+        "labeled": 1,
+        "unlabeled": 0,
+        "tp": 1,
+        "fp": 0,
+        "provisionalTp": 1,
+        "precision": 1,
+        "lower95": 0.05000000000000002
+      }
+    },
+    "repositories": {
+      "count": 40,
+      "correct": 33,
+      "withheld": "per-repository rows name third-party repositories"
+    },
+    "statusCorrect": {
+      "judged": 40,
+      "correct": 33,
+      "share": 0.825
+    },
+    "gate": {
+      "result": "fail",
+      "reasons": [
+        "precision 86.4% is below 95%",
+        "lower bound 79.6% is below 88%",
+        "status right on 33 of 40 repositories, below 90%"
+      ]
+    }
+  }
+}

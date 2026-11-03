@@ -58,14 +58,14 @@
   },
   "repositories": [
     {
-      "id": "c4-corpus-f",
-      "repository": "gameworkerkim/corpus-f",
+      "id": "c4-cassandra-ai",
+      "repository": "gameworkerkim/cassandra-ai",
       "commit": "282a19036dbb1c9ebe775ff1e9b1f974e11b2716",
       "archiveSha256": "c443c835a0b8b8b449193f465f30028551b8ea87e66e43c89fe2c477ed6dd47b"
     },
     {
-      "id": "c4-corpus-ad",
-      "repository": "issam-seghir/corpus-ad",
+      "id": "c4-discord-clone",
+      "repository": "issam-seghir/discord-clone",
       "commit": "665bea4a0f770e5e5885a67739b91fe3847954c4",
       "archiveSha256": "0e550ea3d6c0b2d5f53f7d4b5926cbc9caaa3af141564e442af7af25fa9efa5b"
     },
@@ -155,7 +155,7 @@
     },
     {
       "id": "c4-inspector",
-      "repository": "corpus-owner/inspector",
+      "repository": "getbeton/inspector",
       "commit": "ec503e1eb380c923253f88cc92d55457da172ed2",
       "archiveSha256": "2cdd4710565bb0b3a938b83779860ce5863522a686a2335ec9147cff37f2f283"
     },
@@ -280,8 +280,8 @@
       "archiveSha256": "a816dedb8eead8e6c65ebfea83ecc95d18ab1d41e0d5a7ad26ff6d4ddd5e1139"
     },
     {
-      "id": "c4-corpus-k",
-      "repository": "fenjo26/corpus-k",
+      "id": "c4-opengsc",
+      "repository": "fenjo26/OpenGSC",
       "commit": "a58658a5b0ce64484399eb10e14bc5a9a1f1b9d3",
       "archiveSha256": "2bca2c7b0bfebc473a0ecf357a1b4ae271a57de1d8ede3a1f6708b927b04c48f"
     },

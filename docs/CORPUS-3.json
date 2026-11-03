@@ -89,8 +89,8 @@
       "archiveSha256": "ef22fb72a2858d55e3e84cdda2d28b8df1494c2a3dcdcbd9d8541cc8f43c4391"
     },
     {
-      "id": "c3-corpus-j",
-      "repository": "mdazfar2/corpus-j",
+      "id": "c3-ezyshop",
+      "repository": "mdazfar2/Ezyshop",
       "commit": "2019e795ec3e98dec5cfe71e4ac71ccf4dfa61c1",
       "archiveSha256": "7bb6dabf13237af364e6f05109fd9208aa29fa761c2a9065a5cc8ce203ac4346"
     },
@@ -125,8 +125,8 @@
       "archiveSha256": "a7f716838eb1f1d18024a8fd87ffc869b5c982a694727d01ead51b4879e0a98e"
     },
     {
-      "id": "c3-corpus-i",
-      "repository": "dougdotcon/corpus-i",
+      "id": "c3-drivetube",
+      "repository": "dougdotcon/drivetube",
       "commit": "9a0513fd0e5096fee9afe5fabf8a74044387971a",
       "archiveSha256": "c4cf35ea219897a3fb370bca2bd2797b5297eae931d6d70605f26688004769e1"
     },
@@ -149,8 +149,8 @@
       "archiveSha256": "139b6ff8849714ea8b321f38525ff0112b67ab95fef99368132dd31f80f49ef3"
     },
     {
-      "id": "c3-corpus-r13",
-      "repository": "corpus-r13/corpus-r13",
+      "id": "c3-ansvisor",
+      "repository": "ansvisor/ansvisor",
       "commit": "d61989d9d4595507b8034834228eb66dec43b646",
       "archiveSha256": "47b25f46a5347f7615e7d7fa783cef93dfae27b78d0554d16d891607978fe1ed"
     },
@@ -167,8 +167,8 @@
       "archiveSha256": "74efcd51807defa8c7b0713167ffcb0aa25c6550bd1503bb7eec051e21b2d0dc"
     },
     {
-      "id": "c3-corpus-r14",
-      "repository": "rajputomsingh/corpus-r14",
+      "id": "c3-fieldly",
+      "repository": "rajputomsingh/Fieldly",
       "commit": "c8105f9c476a28f51a233907f8d71de2f8534be4",
       "archiveSha256": "c4724d2423eb65600ddb1890a62937867ad64dee8cdea150ff2f91a92a94b085"
     },
@@ -215,8 +215,8 @@
       "archiveSha256": "27b6418488a2cc28ccfa7e095157e400c7752220e9241ddcef38f9ca8eca14b2"
     },
     {
-      "id": "c3-corpus-ac",
-      "repository": "growupanand/corpus-ac",
+      "id": "c3-convoform",
+      "repository": "growupanand/ConvoForm",
       "commit": "9b3a07b633f73306600e651af5586494744d5619",
       "archiveSha256": "6fd0dd965c272ee78c8b27c7582b4cb4b7528d3bf9f79b0243fb20d4711a962b"
     },
@@ -251,8 +251,8 @@
       "archiveSha256": "ee024456327c98e5909b56f527e700a763cce8aaebf848123871c213492f0b6c"
     },
     {
-      "id": "c3-corpus-t",
-      "repository": "corpus-t/corpus-t",
+      "id": "c3-slugy",
+      "repository": "slugylink/slugy",
       "commit": "1ab3492e5d319cd3e47006d723c48d1f3ca7b0be",
       "archiveSha256": "2ec510de3a94d0cd1f2d7fd54d78fa12e74bf3a291c5ad532a1630b4ccd98681"
     },
@@ -263,8 +263,8 @@
       "archiveSha256": "11212ad5f4a9236c369966bc51048e469db6652c8c037c314a6df062091db763"
     },
     {
-      "id": "corpus-w",
-      "repository": "FlorianBruniaux/corpus-w",
+      "id": "c3-starmapper",
+      "repository": "FlorianBruniaux/starmapper",
       "commit": "f2987c81c2ac8a107ea648be315d683c6d4137d5",
       "archiveSha256": "91afddc217b42e6a3ffd32c25cd811ef59804670fea0a27723295d2e93e7e73a"
     },

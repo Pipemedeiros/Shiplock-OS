@@ -405,7 +405,7 @@
     "server": false
    },
    {
-    "repository": "BasilMirza/corpus-r2",
+    "repository": "BasilMirza/devtrack",
     "next": true,
     "db": true,
     "server": false
@@ -2451,8 +2451,8 @@
    "archiveSha256": "216eb1e81e942a8d3fe77133256af7f42ed31b080231e56d426b7e281bedb8de"
   },
   {
-   "id": "c8-corpus-r8",
-   "repository": "Alexuree/corpus-r8",
+   "id": "c8-agraid",
+   "repository": "Alexuree/AgrAId",
    "commit": "95c726d32cf46e435c97cf77b97000527422b54b",
    "archiveSha256": "28306c500b0d617a29f8aa7f5343153ff7b6ab3704c0df805585823e888ceef9"
   },
@@ -2613,8 +2613,8 @@
    "archiveSha256": "bba2b28d0e1c54345e055bcc6ee69d2714313cc003372d04bf41572382657b18"
   },
   {
-   "id": "c8-corpus-r6",
-   "repository": "andre-sptr/corpus-r6",
+   "id": "c8-my-sawit",
+   "repository": "andre-sptr/my-sawit",
    "commit": "4112a8fbedd4235348079efd25ee0432b5e3a451",
    "archiveSha256": "94184e056d4e0e89df391c000035029f1b41a7e11c44d12e858b0fd190865638"
   },
@@ -3519,8 +3519,8 @@
    "archiveSha256": "3b8c354c555c2a681e08d8c8425f93a17e736aeb68c7da71505298ba8044eb8a"
   },
   {
-   "id": "c8-corpus-r9",
-   "repository": "buildwithkode/corpus-r9",
+   "id": "c8-nodepress",
+   "repository": "buildwithkode/nodepress",
    "commit": "95e8ce3091ffe2578e6e1d700eafd996175d187a",
    "archiveSha256": "05e88ea4d736ec122b2d0abde04a70bdc46e6617b348d8f86ff269b1aec13d33"
   },

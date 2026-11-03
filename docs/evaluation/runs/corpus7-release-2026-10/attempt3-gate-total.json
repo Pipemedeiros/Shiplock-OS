@@ -1,0 +1,148 @@
+{
+  "batches": [
+    "docs/evaluation/runs/corpus7-release-2026-10/r7",
+    "docs/evaluation/runs/corpus7-release-2026-10/r8",
+    "docs/evaluation/runs/corpus7-release-2026-10/r9",
+    "docs/evaluation/runs/corpus7-release-2026-10/r10",
+    "docs/evaluation/runs/corpus7-release-2026-10/r11",
+    "docs/evaluation/runs/corpus7-release-2026-10/r12",
+    "docs/evaluation/runs/corpus7-release-2026-10/r13",
+    "docs/evaluation/runs/corpus7-release-2026-10/r14"
+  ],
+  "thresholds": "docs/evaluation/thresholds-release-2026-10-12.json",
+  "duplicates": [],
+  "report": {
+    "statusSetting": {
+      "n": 102,
+      "labeled": 102,
+      "unlabeled": 0,
+      "tp": 88,
+      "fp": 14,
+      "provisionalTp": 88,
+      "precision": 0.8627450980392157,
+      "lower95": 0.7937787009672069
+    },
+    "bySeverity": {
+      "CRITICAL": {
+        "n": 1,
+        "labeled": 1,
+        "unlabeled": 0,
+        "tp": 0,
+        "fp": 1,
+        "provisionalTp": 0,
+        "precision": 0,
+        "lower95": 0
+      },
+      "WARNING": {
+        "n": 101,
+        "labeled": 101,
+        "unlabeled": 0,
+        "tp": 88,
+        "fp": 13,
+        "provisionalTp": 88,
+        "precision": 0.8712871287128713,
+        "lower95": 0.8031691549144843
+      },
+      "INFO": {
+        "n": 0,
+        "labeled": 0,
+        "unlabeled": 0,
+        "tp": 0,
+        "fp": 0,
+        "provisionalTp": 0,
+        "precision": null,
+        "lower95": null
+      }
+    },
+    "byClass": {
+      "committed_secret": {
+        "n": 1,
+        "labeled": 1,
+        "unlabeled": 0,
+        "tp": 0,
+        "fp": 1,
+        "provisionalTp": 0,
+        "precision": 0,
+        "lower95": 0
+      },
+      "mass_assignment": {
+        "n": 5,
+        "labeled": 5,
+        "unlabeled": 0,
+        "tp": 5,
+        "fp": 0,
+        "provisionalTp": 5,
+        "precision": 1,
+        "lower95": 0.5492802716530588
+      },
+      "missing_authentication": {
+        "n": 58,
+        "labeled": 58,
+        "unlabeled": 0,
+        "tp": 48,
+        "fp": 10,
+        "provisionalTp": 48,
+        "precision": 0.8275862068965517,
+        "lower95": 0.7251137949919443
+      },
+      "missing_authorization": {
+        "n": 31,
+        "labeled": 31,
+        "unlabeled": 0,
+        "tp": 28,
+        "fp": 3,
+        "provisionalTp": 28,
+        "precision": 0.9032258064516129,
+        "lower95": 0.7684970248566316
+      },
+      "secret_exposure": {
+        "n": 5,
+        "labeled": 5,
+        "unlabeled": 0,
+        "tp": 5,
+        "fp": 0,
+        "provisionalTp": 5,
+        "precision": 1,
+        "lower95": 0.5492802716530588
+      },
+      "server_boundary_crossed": {
+        "n": 1,
+        "labeled": 1,
+        "unlabeled": 0,
+        "tp": 1,
+        "fp": 0,
+        "provisionalTp": 1,
+        "precision": 1,
+        "lower95": 0.05000000000000002
+      },
+      "unsigned_webhook": {
+        "n": 1,
+        "labeled": 1,
+        "unlabeled": 0,
+        "tp": 1,
+        "fp": 0,
+        "provisionalTp": 1,
+        "precision": 1,
+        "lower95": 0.05000000000000002
+      }
+    },
+    "repositories": {
+      "count": 31,
+      "correct": 26,
+      "withheld": "per-repository rows name third-party repositories"
+    },
+    "statusCorrect": {
+      "judged": 31,
+      "correct": 26,
+      "share": 0.8387096774193549
+    },
+    "gate": {
+      "result": "fail",
+      "reasons": [
+        "precision 86.3% is below 97%",
+        "lower bound 79.4% is below 85%",
+        "status right on 26 of 31 repositories, below 90%"
+      ]
+    }
+  }
+}

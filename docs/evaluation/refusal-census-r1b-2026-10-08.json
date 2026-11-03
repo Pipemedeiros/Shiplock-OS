@@ -38,7 +38,7 @@
   "flaggedBefore": 0,
   "flaggedAfter": 3,
   "of": 4,
-  "notFlagged": "c4-corpus-ad: its helper redirects anonymous callers, so the planted hole is an authorization gap, caught by the agent in run 1"
+  "notFlagged": "c4-discord-clone: its helper redirects anonymous callers, so the planted hole is an authorization gap, caught by the agent in run 1"
  },
  "consumers": [
   "agent brief (unrefused=, middleware=may-refuse)",

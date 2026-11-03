@@ -49,8 +49,8 @@
       "archiveSha256": "da577fdf258e8e5f93ed598792fdf47847981ae365920624dfc2a960eb0553b0"
     },
     {
-      "id": "c2-corpus-g",
-      "repository": "corpus-g/corpus-g",
+      "id": "c2-documenso",
+      "repository": "documenso/documenso",
       "commit": "a1d4bec1430a937395db9a4aae28979cd71c2831",
       "archiveSha256": "56b2120a1bc9e7d5acb015263da87fe1f0d793ea92db11fa92e077bb9dcf62e3"
     },
@@ -67,8 +67,8 @@
       "archiveSha256": "b87d4fac31182a41fab2b41dd58b4c7daab9fe4a6bc2b6bd943061d2f4e77429"
     },
     {
-      "id": "c2-corpus-v",
-      "repository": "corpus-owner/corpus-v",
+      "id": "c2-inbox-zero",
+      "repository": "elie222/inbox-zero",
       "commit": "0f0ab72adc6a5693b9dec80d80df49e6dee7c294",
       "archiveSha256": "5ff8138ab9e9c27b2d7e332974990c59f9b385607b9aea0303ab3c66e9ca6d0d"
     },
@@ -85,8 +85,8 @@
       "archiveSha256": "58efde89287b8b7eace4e10e4807c8cb043fef5b3fe5f9c1e74d8aad233cdb3c"
     },
     {
-      "id": "c2-corpus-h",
-      "repository": "corpus-h/corpus-h",
+      "id": "c2-hexclave",
+      "repository": "hexclave/hexclave",
       "commit": "6fa30acada07d8dbdfd061bdf2f048a9b2750c04",
       "archiveSha256": "bbbcec61f9c10ac3ee9e67e8bed673fe9a2808724914129ee61691a9231420f3"
     },
@@ -163,8 +163,8 @@
       "archiveSha256": "43358f20a04cc69be34e5747d6ac89593501c0819909e068eafdd4117fa22c8e"
     },
     {
-      "id": "c2-corpus-y",
-      "repository": "corpus-y/corpus-y",
+      "id": "c2-nextacular",
+      "repository": "nextacular/nextacular",
       "commit": "06bee752a0423faa2ba0217ea2fedd719a52bda9",
       "archiveSha256": "134c02e7ad7798f7aa3deaf5e35ec4e97dec182db7df81c3379dd59629d4fbb0"
     },
@@ -205,8 +205,8 @@
       "archiveSha256": "5cd584053a9cd2e6ae14147314457b5d51d69e2f7860f8693a421eef2a50618f"
     },
     {
-      "id": "c2-kun-corpus-r18-next",
-      "repository": "KunMoe/kun-corpus-r18-next",
+      "id": "c2-kun-touchgal-next",
+      "repository": "KunMoe/kun-touchgal-next",
       "commit": "75b29689c678113335c300350de465b8ccb5fa05",
       "archiveSha256": "e9944da3ab97fb65c8e54289b9b2c533247e796e89a5ea9342718f6bf736cafd"
     },
@@ -319,14 +319,14 @@
       "archiveSha256": "77db48f05ab85dd7584a96db980127b9941d0902a26e1f09cb59a9306fdc9995"
     },
     {
-      "id": "c2-corpus-u",
-      "repository": "corpus-owner/corpus-u",
+      "id": "c2-openagentskill",
+      "repository": "Leon-Drq/openagentskill",
       "commit": "33c732af6a2e3f4f39fcb48125bae9b7c76e28ad",
       "archiveSha256": "9558e1002cdac738339326f450321537e45de58923c27a0df84b4d8f8e4e513e"
     },
     {
-      "id": "c2-corpus-r20",
-      "repository": "mrifqidaffaaditya/corpus-r20",
+      "id": "c2-wa-akg",
+      "repository": "mrifqidaffaaditya/WA-AKG",
       "commit": "c7dd01a04339e4363b549beb3a41fe02cf131acb",
       "archiveSha256": "42bc615ee66d9f6838dc036033dbdd0ee31dc7fcf1d06ad4d1a78ce49ca2eb82"
     },
@@ -337,8 +337,8 @@
       "archiveSha256": "d4d331e5732d7be0edc3d4de4708e42890c8bd954ffac107c6937bf2e175ff8c"
     },
     {
-      "id": "c2-corpus-r19",
-      "repository": "Codehagen/corpus-r19",
+      "id": "c2-hagenkit",
+      "repository": "Codehagen/HagenKit",
       "commit": "d16426bd3a52dc763825e48db045ada88ffd1ef7",
       "archiveSha256": "0b393c0bd005cb1b53d94b5da17b23307ade58a585133db32cfa78994bd51ec6"
     },
@@ -391,8 +391,8 @@
       "archiveSha256": "666474a7adbe7a3b8c4e4852b5fd0d82d977305ce321dd37718958811295144f"
     },
     {
-      "id": "c2-corpus-r2",
-      "repository": "Priyanshu-byte-coder/corpus-r2",
+      "id": "c2-devtrack",
+      "repository": "Priyanshu-byte-coder/devtrack",
       "commit": "a20e51d437a220db4e626a072a9716b67381eca9",
       "archiveSha256": "b7089a09358bc81d3e9d7636b291c0aaab80918e6170186f6b59592cc6536fc9"
     }

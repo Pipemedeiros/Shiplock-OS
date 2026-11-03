@@ -701,8 +701,8 @@
       "archiveSha256": "8a4997c0ce57405703044f7f303909965e88d49b9241a331a6fb04b5b72b3a43"
     },
     {
-      "id": "c6-corpus-s",
-      "repository": "jamnxdev/corpus-s",
+      "id": "c6-convonest",
+      "repository": "jamnxdev/ConvoNest",
       "commit": "eacf6f89cf7e81601e3d88a7b36cb27bd98506f5",
       "archiveSha256": "922050fe100bf36e0b9d86835558c10a3f56f059bc0b16c5178eebc365aa6b58"
     },
@@ -803,8 +803,8 @@
       "archiveSha256": "68e192bb643ae2f3f72aa11637a03cfc2512fbdb71e226fd2b51b6f4219d8be6"
     },
     {
-      "id": "c6-corpus-r21-corpus-al",
-      "repository": "regiomag/corpus-r21-corpus-al",
+      "id": "c6-ekybot-openclaw",
+      "repository": "regiomag/ekybot-openclaw",
       "commit": "bde2424bcdc4ba0957f962d148daac9287a7050f",
       "archiveSha256": "136afbfaf76efc44bdd85e1daaf0d107ff4a8bbb90e01c86cff10c8c277caa90"
     },
@@ -887,8 +887,8 @@
       "archiveSha256": "a65dfcfe4aebbb0ffe7e1c511dc4d59bb35c3f79bb2271e14966156140665b57"
     },
     {
-      "id": "c6-corpus-q",
-      "repository": "actus7/corpus-q",
+      "id": "c6-modelhub",
+      "repository": "actus7/modelhub",
       "commit": "00a67b318853874fb3dddc01572cbb7312ac514f",
       "archiveSha256": "b63cdfccb07bf48c91c7ff619b58ab8725938be486f687f17f5aa56c96e672e5"
     },
@@ -1121,8 +1121,8 @@
       "archiveSha256": "21fa623b1439ce1b19e0df2c08d9c4211e5689803ab3056d7a315b8ca8bf4599"
     },
     {
-      "id": "c6-corpus-r4",
-      "repository": "braedonsaunders/corpus-r4",
+      "id": "c6-beaconhs",
+      "repository": "braedonsaunders/beaconhs",
       "commit": "e1c6a023af9e81c16875bebb5ee75498c5b56153",
       "archiveSha256": "c2791823e3ca73461c5e2d5b762bed322d6f6915bd5df3a235ffb426face9524"
     },
@@ -1157,8 +1157,8 @@
       "archiveSha256": "0047445141c4929d9266939db88a00761cc092411b12e6fda4f9285dac27e5b2"
     },
     {
-      "id": "c6-corpus-r12",
-      "repository": "Dexter0013/corpus-r12",
+      "id": "c6-smart-class-tracker",
+      "repository": "Dexter0013/Smart-Class-Tracker",
       "commit": "8157319abea9f0c2fe81e4f9d5691571a4a8f762",
       "archiveSha256": "e7445bb628a911f6d5ebe9d8f2885286a8f7c11573cd6d63786e21a7ec24fec1"
     },
@@ -1253,8 +1253,8 @@
       "archiveSha256": "bf9996d62d2a73c9025f7c9ee887c25d54b297f73a829eb690388fecb05427b5"
     },
     {
-      "id": "c6-corpus-n",
-      "repository": "lroy-stack/corpus-n",
+      "id": "c6-ai-pod-store",
+      "repository": "lroy-stack/ai-pod-store",
       "commit": "20e97bdd4f31ab83a754524d556a9b43a7aa13f0",
       "archiveSha256": "2439e783e9e469f21e70c69bb74919d95d7cec00850ce72cf296813fbdb213d5"
     },
@@ -1367,8 +1367,8 @@
       "archiveSha256": "de8c9efecb497990ac1d132bb2d5afaa64449007ac48f7a8beda1527390f118b"
     },
     {
-      "id": "c6-corpus-am-in",
-      "repository": "corpus-am/corpus-am",
+      "id": "c6-saroh-in",
+      "repository": "saroh-labs/saroh.in",
       "commit": "7dcfde4bfc2734ffef3c45c52c9e8d57b59fea7d",
       "archiveSha256": "ab5ab7c7b8005e5a1342fe6a5b3a67694f16631c76eb31dddf6ff5f6db203d82"
     },
@@ -1469,8 +1469,8 @@
       "archiveSha256": "dded4e81ae33fe504ec443f86c86623166219ea99f844852eef27a0e042fa22a"
     },
     {
-      "id": "c6-corpus-p",
-      "repository": "alex-jb/corpus-p",
+      "id": "c6-vibex",
+      "repository": "alex-jb/vibex",
       "commit": "3e3c6a08daed77787c5b008038e594958edaa954",
       "archiveSha256": "945484d8e139a27d287f4621f910d52bfa3662aea7da663e0155e6d8b931874e"
     },
@@ -1685,8 +1685,8 @@
       "archiveSha256": "1a5d3a4027ab6268efca613b91876bf9690ae40470214f3e7a021274442a14ea"
     },
     {
-      "id": "c6-corpus-ak-carbon-tracker",
-      "repository": "LakshayD02/corpus-ak-Carbon-Tracker",
+      "id": "c6-carbonwise-carbon-tracker",
+      "repository": "LakshayD02/CarbonWise-Carbon-Tracker",
       "commit": "a60d98a3a02a6da3e549333239e3b65c9e992484",
       "archiveSha256": "dbd77c813daaf5929ec7161a2591de985aa5f30fa4f99214501fe526acb2ba17"
     },

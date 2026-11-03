@@ -295,11 +295,11 @@
    }
   },
   {
-   "id": "c6-corpus-r12--plant",
-   "repository": "Dexter0013/corpus-r12",
+   "id": "c6-smart-class-tracker--plant",
+   "repository": "Dexter0013/Smart-Class-Tracker",
    "commit": "8157319abea9f0c2fe81e4f9d5691571a4a8f762",
    "archiveSha256": "e7445bb628a911f6d5ebe9d8f2885286a8f7c11573cd6d63786e21a7ec24fec1",
-   "archiveId": "c6-corpus-r12",
+   "archiveId": "c6-smart-class-tracker",
    "plant": {
     "file": "erpsys-nextjs/app/api/instructor/assessments/[id]/route.ts",
     "entry": "/api/instructor/assessments/[id]",
@@ -358,7 +358,7 @@
    "reason": "test fixture path (fixtures/vulnerable-supabase), anon key client"
   },
   {
-   "id": "c6-corpus-p--plant",
+   "id": "c6-vibex--plant",
    "reason": "cooldown lookup only; no other user's data or action"
   },
   {
@@ -418,7 +418,7 @@
    "reason": "Clerk middleware may refuse first"
   },
   {
-   "id": "c6-corpus-r21-corpus-al--plant",
+   "id": "c6-ekybot-openclaw--plant",
    "reason": "the unlink helper may check ownership; not certain"
   },
   {
@@ -470,7 +470,7 @@
    "reason": "client unknown; row policies may hold"
   },
   {
-   "id": "c6-corpus-n--plant",
+   "id": "c6-ai-pod-store--plant",
    "reason": "Supabase user session client with an RLS comment"
   }
  ]

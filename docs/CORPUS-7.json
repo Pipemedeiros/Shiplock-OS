@@ -515,7 +515,7 @@
     "reason": "template, demo or tutorial by name or description"
    },
    {
-    "repository": "ok200ok/corpus-ad",
+    "repository": "ok200ok/discord-clone",
     "reason": "template, demo or tutorial by name or description"
    },
    {
@@ -523,7 +523,7 @@
     "reason": "template, demo or tutorial by name or description"
    },
    {
-    "repository": "rxshabN/corpus-ad",
+    "repository": "rxshabN/discord-clone",
     "reason": "template, demo or tutorial by name or description"
    },
    {
@@ -563,7 +563,7 @@
     "reason": "template, demo or tutorial by name or description"
    },
    {
-    "repository": "yajatkaul/corpus-ad",
+    "repository": "yajatkaul/Discord-Clone",
     "reason": "template, demo or tutorial by name or description"
    },
    {
@@ -591,7 +591,7 @@
     "reason": "template, demo or tutorial by name or description"
    },
    {
-    "repository": "berkanumutlu/corpus-ad",
+    "repository": "berkanumutlu/discord-clone",
     "reason": "template, demo or tutorial by name or description"
    },
    {
@@ -987,8 +987,8 @@
    "archiveSha256": "819a5bf7a7e83b2d5324b8072c0c17de689ce1acc8df93712a548765b0d05ee8"
   },
   {
-   "id": "c7-corpus-ah-platform",
-   "repository": "ayoubhayda/corpus-ah-platform",
+   "id": "c7-hireek-platform",
+   "repository": "ayoubhayda/hireek-platform",
    "commit": "2711d78b6864b61213a4c4bf9806e23f2c18d21e",
    "archiveSha256": "f75c23577c303deb915b74996fd330174a1719bd42f86f55f47cc736bf5707a9"
   },
@@ -1011,8 +1011,8 @@
    "archiveSha256": "bc0de614553e44b3b53aa64d758c8c499970126e9f0140742bc1641618811165"
   },
   {
-   "id": "c7-corpus-r11",
-   "repository": "BlackishGreen33/corpus-r11",
+   "id": "c7-zhixuetupu",
+   "repository": "BlackishGreen33/ZhiXueTuPu",
    "commit": "4060b626ac5eacf3f821525f36fc3ca6c62be83f",
    "archiveSha256": "d73d0ad6455e32a9c71264d3e4bf73fae6202bd4b3e913b6f6c3dd620b0aef5b"
   },
@@ -1521,8 +1521,8 @@
    "archiveSha256": "289ab3a8c98e6f1bf05a667751930218a1d6a527e46d15d7500a96e311de209a"
   },
   {
-   "id": "c7-corpus-r5",
-   "repository": "rohan-pixel/corpus-r5",
+   "id": "c7-sms-erp",
+   "repository": "rohan-pixel/SMS-ERP",
    "commit": "05e8934347b8653e3e68ef8db9ccec560bfe9e27",
    "archiveSha256": "cf5b06fa8b079e619cc08b0406a1e582d60171409be4c268a0f79edbc6266da2"
   },
@@ -2289,8 +2289,8 @@
    "archiveSha256": "adb6f11b78d5e4374257ad9c5d92dbb568a6d11cb8a26b67d7f0bcd7352d311f"
   },
   {
-   "id": "c7-corpus-z",
-   "repository": "Kabir-Narula/corpus-z",
+   "id": "c7-treminy",
+   "repository": "Kabir-Narula/Treminy",
    "commit": "627fce02619caa55bd7b23604020f5a031c157e1",
    "archiveSha256": "7ab0dbb8912f00a58c41e6f0a6d8cf7d3536feca41bf38b6cb7a4d024c651da4"
   },
@@ -2463,8 +2463,8 @@
    "archiveSha256": "ad6a4701c16168afcdc2985e80f881c4f435bcefbf11a8ba9ce7a1fed6f26b65"
   },
   {
-   "id": "c7-corpus-r7",
-   "repository": "mohaneddz/corpus-r7",
+   "id": "c7-tarjih",
+   "repository": "mohaneddz/Tarjih",
    "commit": "9ec82ae5658bfe533e95867334cd934c86b31aba",
    "archiveSha256": "5c9bec68b2cd887bbeb54c1f9e3778d27de407dcc777d2023d43f28ce1d37217"
   },

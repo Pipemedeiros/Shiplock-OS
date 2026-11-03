@@ -43,7 +43,7 @@
    "caughtOtherClass": false
   },
   {
-   "id": "c2-corpus-r20--plant",
+   "id": "c2-wa-akg--plant",
    "entry": "/api/media",
    "operator": "remove_owner_scope",
    "factsFlag": false,
@@ -56,7 +56,7 @@
    "caughtOtherClass": false
   },
   {
-   "id": "c2-corpus-r2--plant",
+   "id": "c2-devtrack--plant",
    "entry": "/api/ai-insights",
    "operator": "remove_owner_scope",
    "factsFlag": false,
@@ -69,7 +69,7 @@
    "caughtOtherClass": false
   },
   {
-   "id": "c3-corpus-r13--plant",
+   "id": "c3-ansvisor--plant",
    "entry": "/api/agent/conversations/[id]",
    "operator": "remove_owner_scope",
    "factsFlag": false,
@@ -82,7 +82,7 @@
    "caughtOtherClass": false
   },
   {
-   "id": "c3-corpus-r14--plant",
+   "id": "c3-fieldly--plant",
    "entry": "/api/admin/notifications/broadcast",
    "operator": "remove_auth_guard",
    "factsFlag": true,
@@ -95,7 +95,7 @@
    "caughtOtherClass": false
   },
   {
-   "id": "c3-corpus-t--plant",
+   "id": "c3-slugy--plant",
    "entry": "/api/bio-gallery/[username]/link",
    "operator": "remove_owner_scope",
    "factsFlag": false,
@@ -108,7 +108,7 @@
    "caughtOtherClass": false
   },
   {
-   "id": "c4-corpus-ad--plant",
+   "id": "c4-discord-clone--plant",
    "entry": "/api/direct-messages",
    "operator": "remove_auth_guard",
    "factsFlag": false,
@@ -173,7 +173,7 @@
    "caughtOtherClass": false
   },
   {
-   "id": "corpus-b--plant",
+   "id": "papermark--plant",
    "entry": "/api/ai/chat/[chatId]/messages",
    "operator": "remove_auth_guard",
    "factsFlag": true,
@@ -194,8 +194,8 @@
   "inBrief": "11 of 12 before paging, 12 of 12 now"
  },
  "misses": [
-  "devhunt, corpus-r2, corpus-t, sotto: not proposed (sotto now in the brief, on page 2)",
-  "corpus-ad: proposed as missing_authentication, refused correctly (its helper redirects anonymous callers); runs 1 and 2 caught it as missing_authorization"
+  "devhunt, devtrack, slugy, sotto: not proposed (sotto now in the brief, on page 2)",
+  "discord-clone: proposed as missing_authentication, refused correctly (its helper redirects anonymous callers); runs 1 and 2 caught it as missing_authorization"
  ],
  "notes": [
   "Three runs of the same 12 plants: 8, 8, 7. Run to run agent variance dominates at this size; R1c (14 fresh plants) widens the set.",

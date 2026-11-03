@@ -185,7 +185,7 @@
    "caughtOtherClass": false
   },
   {
-   "id": "c6-corpus-r12--plant",
+   "id": "c6-smart-class-tracker--plant",
    "entry": "/api/instructor/assessments/[id]",
    "operator": "remove_auth_guard",
    "factsFlag": false,
@@ -214,7 +214,7 @@
  "method": "paged brief (17 page tasks for 14 repositories), one reasoning and one verifier subagent, Felipe's subscription; plants frozen in b13e976 before any agent run; the R1e rewording was committed before admission and never tuned on this set",
  "misses": [
   {
-   "id": "c6-corpus-r12--plant",
+   "id": "c6-smart-class-tracker--plant",
    "stage": "not proposed (an ownership refusal removed from an instructor DELETE)"
   }
  ],

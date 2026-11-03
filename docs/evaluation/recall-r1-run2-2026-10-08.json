@@ -41,7 +41,7 @@
    "caughtOtherClass": false
   },
   {
-   "id": "c2-corpus-r20--plant",
+   "id": "c2-wa-akg--plant",
    "entry": "/api/media",
    "operator": "remove_owner_scope",
    "factsFlag": false,
@@ -53,7 +53,7 @@
    "caughtOtherClass": false
   },
   {
-   "id": "c2-corpus-r2--plant",
+   "id": "c2-devtrack--plant",
    "entry": "/api/ai-insights",
    "operator": "remove_owner_scope",
    "factsFlag": false,
@@ -65,7 +65,7 @@
    "caughtOtherClass": false
   },
   {
-   "id": "c3-corpus-r13--plant",
+   "id": "c3-ansvisor--plant",
    "entry": "/api/agent/conversations/[id]",
    "operator": "remove_owner_scope",
    "factsFlag": false,
@@ -77,7 +77,7 @@
    "caughtOtherClass": false
   },
   {
-   "id": "c3-corpus-r14--plant",
+   "id": "c3-fieldly--plant",
    "entry": "/api/admin/notifications/broadcast",
    "operator": "remove_auth_guard",
    "factsFlag": true,
@@ -89,7 +89,7 @@
    "caughtOtherClass": false
   },
   {
-   "id": "c3-corpus-t--plant",
+   "id": "c3-slugy--plant",
    "entry": "/api/bio-gallery/[username]/link",
    "operator": "remove_owner_scope",
    "factsFlag": false,
@@ -101,7 +101,7 @@
    "caughtOtherClass": false
   },
   {
-   "id": "c4-corpus-ad--plant",
+   "id": "c4-discord-clone--plant",
    "entry": "/api/direct-messages",
    "operator": "remove_auth_guard",
    "factsFlag": false,
@@ -161,7 +161,7 @@
    "caughtOtherClass": false
   },
   {
-   "id": "corpus-b--plant",
+   "id": "papermark--plant",
    "entry": "/api/ai/chat/[chatId]/messages",
    "operator": "remove_auth_guard",
    "factsFlag": true,
@@ -179,18 +179,18 @@
   "remove_owner_scope": "7 of 8 -> 4 of 8",
   "total": "8 of 12 -> 8 of 12"
  },
- "ownerDropCause": "agent variance, not R1b: the planted owner routes' brief lines are byte-identical in both runs (only the SYSTEM text gained the unrefused= label). corpus-r2 and corpus-r13 not proposed; corpus-t proposed and left unverified by the verifier.",
+ "ownerDropCause": "agent variance, not R1b: the planted owner routes' brief lines are byte-identical in both runs (only the SYSTEM text gained the unrefused= label). devtrack and ansvisor not proposed; slugy proposed and left unverified by the verifier.",
  "misses": [
   {
-   "id": "c2-corpus-r2--plant",
+   "id": "c2-devtrack--plant",
    "stage": "not proposed"
   },
   {
-   "id": "c3-corpus-r13--plant",
+   "id": "c3-ansvisor--plant",
    "stage": "not proposed"
   },
   {
-   "id": "c3-corpus-t--plant",
+   "id": "c3-slugy--plant",
    "stage": "verifier unverified"
   },
   {

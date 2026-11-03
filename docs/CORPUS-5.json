@@ -143,14 +143,14 @@
       "archiveSha256": "3f9447d1b7abc86bf35138229d909dae505d049e68a97c157547aa3991016f57"
     },
     {
-      "id": "c5-corpus-aa",
-      "repository": "r2hu1/corpus-aa",
+      "id": "c5-cavio",
+      "repository": "r2hu1/cavio",
       "commit": "8df867a2511e5b33ed388b5a065367317c18f2a1",
       "archiveSha256": "6570fb2ceeb86a4b67b5233523a9281ed90f0a06ef9059747ed9466d5c58291b"
     },
     {
-      "id": "c5-corpus-l",
-      "repository": "ryan-parag/corpus-l",
+      "id": "c5-slack-themes",
+      "repository": "ryan-parag/slack-themes",
       "commit": "b1effc6b5878bb9fff28832df04a77faa97ebd65",
       "archiveSha256": "73776a6ba3801d71784ddce97d6d76f6590d6403935c00118867bea34ca8126d"
     },
@@ -161,8 +161,8 @@
       "archiveSha256": "fef5583000023ff7e2d7c6e4d77c1ae0c7fa967f5748e9107c5b430ff9a579fd"
     },
     {
-      "id": "c5-corpus-ab",
-      "repository": "arisris/corpus-ab",
+      "id": "c5-next-toko",
+      "repository": "arisris/next-toko",
       "commit": "66c225a5df05dd37deac3140be28e2a21e936c48",
       "archiveSha256": "c7d7ab152f1001f6440c99ef1c9f670b52ef76830d83640934b1bd213c3d61b3"
     },
@@ -251,14 +251,14 @@
       "archiveSha256": "d56555f25db7a8732000b88f476df950082542325081f96f99305b55a1d3db82"
     },
     {
-      "id": "c5-corpus-m",
-      "repository": "dsaltares/corpus-m",
+      "id": "c5-beetbill",
+      "repository": "dsaltares/beetbill",
       "commit": "a07ed44d46da9ff26b9535b9a01ac91483b34686",
       "archiveSha256": "32b6a925a88b394f67767ab96795cfad6b3288190fd2f5e407ebfe809b941c41"
     },
     {
-      "id": "c5-corpus-r16",
-      "repository": "ifauzeee/corpus-r16",
+      "id": "c5-zee-index",
+      "repository": "ifauzeee/Zee-Index",
       "commit": "78fa86b05b5f478ec32ccdee204e8c299ae246cd",
       "archiveSha256": "1d0d680a6284603ddcce2d7e2f40719216a0e895c664111448a5f7101424916d"
     },
@@ -287,8 +287,8 @@
       "archiveSha256": "a035b4ed75102a248cf12cd574a92df57ec541bd2f47b39f798c5e543d6c073d"
     },
     {
-      "id": "c5-corpus-aj",
-      "repository": "corpus-aj/corpus-aj",
+      "id": "c5-postmill-app",
+      "repository": "postmill-ai/postmill-app",
       "commit": "49277b74381443357629dd083c154a61c724b5d0",
       "archiveSha256": "a0c0682e8272f7868aeea8429f08f0dab2ba131480aa240ded20cd0ffc6b593a"
     },
