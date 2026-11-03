@@ -1,60 +1,75 @@
 # ShipLock
 
-ShipLock reads a startup's GitHub repository and reports security problems it can back with evidence: a quoted line of code, a live configuration fact, or a reproduction on a disposable database copy. A finding that is only a code pattern is shown as "To review", never as an exposure. It never calls an AI model itself. The AI part is the customer's own coding agent (Claude Code or Codex), which connects over MCP, proposes concrete attacks, and has every cited line re-read by ShipLock before anything is admitted.
+ShipLock is a security harness for a startup without a security team. It reads the company's GitHub repository and reports only what it can back with evidence: a quoted line of code, a live configuration fact, or a reproduction on a disposable copy of the database. It never calls an AI model itself. The intelligence is the customer's own coding agent (Claude Code or Codex), which connects over MCP and proposes attacks. ShipLock re-reads every line the agent cites before it believes anything.
 
-Live at [shiplock.dev](https://shiplock.dev). Free; billing is switched off.
+Live at [shiplock.dev](https://shiplock.dev), free, billing switched off. **It has no outside users.** The only account that has run the full loop is mine. The release precision bar I set was not met (see [Evaluation](#evaluation)).
 
-**Status, plainly:** no outside users. The only account that has run the full loop is the maintainer's. The precision bar set for release was not met (see [Evaluation](#evaluation)).
+## How I built it
 
-## Who built it
+I designed ShipLock end to end: the product, the architecture, the evidence model, the evaluation protocol and every gate a change had to pass. I built it with Claude Code as my implementation partner. I set direction and constraints in [AGENTS.md](AGENTS.md), Claude wrote most of the code against them, and I judged the results against tests, production observations and frozen evaluations. The commit history shows that split: most commits carry a `Co-Authored-By: Claude` trailer, and their messages record what was measured and why the route changed.
 
-Felipe Alves de Medeiros designed the product and its architecture: the evidence model, the rule that models propose while deterministic guards decide, the approval boundaries, and the evaluation protocol. Most of the code was written by Claude (Anthropic) in Claude Code under that direction. In the private development history, 841 of 863 commits carry a `Co-Authored-By: Claude` trailer. [AGENTS.md](AGENTS.md) is the working contract the agent followed and is the best single read for the design.
+If you read one file, read [AGENTS.md](AGENTS.md). It is the contract the work followed.
+
+## Decisions and why
+
+| Decision | Why |
+|---|---|
+| **Repository scanning alone is table stakes** (2026-09-29) | Some risks are invisible in code. A missing policy only matters if the live database lacks it; a weak route only matters if traffic reaches it. ShipLock joins code, live provider configuration and traffic, and a join needs a provider-issued link or the customer's confirmation, never a guess |
+| **ShipLock pays for no model call** (2026-10-01) | A security product that sends customer source to its own model account carries cost, key custody and trust problems. The customer's agent does the reasoning on their own subscription. ShipLock holds no model key, and a test fails the build if a model SDK enters product code |
+| **Models propose, deterministic guards decide** | Agent output is untrusted input. A hypothesis is admitted only if every quoted line matches the file at the pinned commit, and its severity is capped by what the code can show. A model timeout or malformed answer is "not checked", never "clean" |
+| **Only confirmed issues set the status** (2026-10-07) | Scanners lose trust through noise. A code pattern alone is "To review"; only quoted proof, replica proof, a live fact or observed traffic can say Exposed or At risk. The status never says "secure" |
+| **Unknown is not absent** | Facts are observed, inferred, unknown, corroborated or proven. "We did not find it" is never written as "we checked and it is not there", and partial evidence never retires an earlier finding |
+| **Attack only sandboxes** | Proofs run on a disposable replica with synthetic data. Production is never attacked, and there are no destructive, persistence or availability tests |
+| **Every write is a click** | A fix pull request needs the customer's click and leaves a receipt. Their agent can request one only after they turn that on for the repository in the dashboard. ShipLock never merges or deploys |
+| **The bar is set before the run** (2026-10-14) | Commercial SAST precision is commonly reported at 18 to 36%. I set 95% observed precision, a 95% lower bound of at least 88%, and the right status on 90% of repositories, before running attempt 6. It failed, and it is reported as failed |
 
 ## How it works
 
-The product is a loop. Each stage shows its real state; pending work is never shown as done.
+The product is one loop. Each stage shows its real state; pending work is never shown as done.
 
 | Stage | What happens | Where |
 |---|---|---|
-| Read | Deterministic checks on a bounded archive of the repository: secrets in source and git history, dependency advisories, server secrets reaching the client, GitHub Actions workflows, Next.js route inventory and missing authorization. Optional read-only Supabase/Postgres checks (RLS policies, grants, storage, auth config) | `lib/deep/`, `lib/graph/`, `lib/agent/` |
-| Attack | The audit becomes tasks for the customer's agent. Its hypotheses are untrusted input: ShipLock re-reads every quoted line at the pinned commit and applies severity ceilings before admitting one | `lib/intelligence/reasoning.ts`, `lib/agent/attackGuard.ts` |
-| Map | Which routes are wrong and what tables, providers and hot routes they reach, built from audit facts only | `lib/graph/`, `components/v3/` |
-| Fix | A pull request for an allowlisted mechanical change, opened only on a customer click (or by their agent under a grant the customer turns on in the dashboard), with a receipt. ShipLock never merges or deploys | `lib/fixes/` |
+| Read | Deterministic checks on a bounded archive of the repository: secrets in source and git history, dependency advisories, server secrets reaching the client, GitHub Actions workflows, the Next.js route inventory and missing authorization. Optional read-only Supabase/Postgres checks: RLS policies, grants, storage, auth configuration | `lib/deep/`, `lib/graph/`, `lib/agent/` |
+| Attack | The audit becomes tasks for the customer's agent; its answers pass the quoted-proof guard before admission | `lib/intelligence/reasoning.ts`, `lib/agent/attackGuard.ts` |
+| Map | Which routes are wrong and what tables, providers and hot routes they reach, from audit facts only | `lib/graph/`, `components/v3/` |
+| Fix | A pull request for an allowlisted mechanical change, on a click, with a receipt | `lib/fixes/` |
 | Watch | Pull request checks from a signed webhook, daily rechecks, an outside view of the live site, optional traffic metadata | `app/api/monitor/`, `lib/monitoring/`, `lib/traffic/` |
 
-Design rules that tests enforce (`lib/security/`, `.agents/guardrails.json`):
+Runtime: the Next.js app authenticates, checks ownership and enqueues. Jobs run on a leased queue with retries, heartbeats and fencing (`lib/jobs/`), drained by `/api/jobs/drain`, which a Supabase `pg_cron` job calls every minute in production. Postgres (Supabase) is the system of record, with row level security on every table (`supabase/migrations/`, 113 files).
 
-- No model SDK, host or key in product code (`lib/security/modelFunding.test.ts`). Model calls exist only in the developer eval harness (`scripts/corpusModel.ts`).
-- Only confirmed evidence sets the status to Exposed or At risk; a model failure or skipped read is shown as not checked, never as clean.
-- Every pull request write needs a receipt from a click or the dashboard grant (`lib/security/prWrites.test.ts`).
-- Proofs run only against a disposable replica with synthetic data (`lib/proving/`); production is never attacked.
-- The status never says "secure" (`lib/verdict.test.ts`).
+Tests enforce the rules above: `lib/security/modelFunding.test.ts` (no model in product code), `lib/security/prWrites.test.ts` (every pull request write has a receipt), `lib/proving/embeddedHost.test.ts` (proofs only on the replica), `lib/verdict.test.ts` (the status never says secure), and `.agents/guardrails.json` with `lib/security/repoGuardrails.test.ts` for the contract rules.
 
-Runtime: the Next.js app authenticates, checks ownership and enqueues. Jobs run on a leased queue with retries and fencing (`lib/jobs/`), drained by `/api/jobs/drain`, which a Supabase `pg_cron` job calls every minute in production. Postgres (Supabase) is the system of record, with row level security on every table (`supabase/migrations/`, 113 files).
+## Evaluation
 
-## Repository map
+The protocol is in [AGENTS.md](AGENTS.md#benchmarks): populations, prompts and thresholds are frozen before a run, labels are blind, and a zero denominator is reported as unavailable, not 100%. Results are JSON in `docs/evaluation/`.
 
-| Path | Role |
-|---|---|
-| `app/(d)/` | Pages: landing, sign in, onboarding, dashboard, public `/verified/[token]` report |
-| `app/api/` | Audit enqueue, GitHub callback and webhook, jobs, MCP, fixes, traffic |
-| `lib/deep/` | Repository archive reads and provider checks |
-| `lib/graph/` | Route inventory, call paths, permission gaps |
-| `lib/agent/` | Stack inference, hypothesis guard, findings, PR checks |
-| `lib/intelligence/` | Tasks for the customer's agent and quoted-proof verification |
-| `lib/fixes/`, `lib/proving/`, `lib/jobs/` | Pull requests, replica proofs, the job queue |
-| `mcp/` | Local stdio MCP server (`shiplock-mcp`, not published to npm) |
-| `scripts/corpus.cjs`, `lib/eval/` | Evaluation harness |
-| `supabase/migrations/` | Schema and RLS |
+**Precision of findings that set the status.** Release attempt 6 ran on public Next.js repositories pinned in `docs/CORPUS-8.json`. 89 of the 103 findings that set a status were labeled true: 86.4%, one-sided 95% lower bound 79.6%. The status was judged on 40 repositories and was right on 33. Against the bar in `docs/evaluation/thresholds-release-2026-10-14.json`, the attempt **failed**. Source: `docs/evaluation/runs/attempt6-2026-10/attempt6-gate-total.json`.
 
-Size: about 53,500 lines of TypeScript and JavaScript, 390 test files, 113 SQL migrations.
+The labelers were blind Claude subagents (two per finding, a third on a split), not people. That is the largest caveat on these numbers.
+
+**Recall on planted bugs.** Known vulnerabilities were planted into pinned public repositories and frozen before the run; the customer agent (Claude Code subagents) ran blind.
+
+| Run | Planted | Caught | Recall | Lower 95% | File |
+|---|---:|---:|---:|---:|---|
+| R1, run 1 | 12 | 8 | 66.7% | 39.1% | `recall-r1-run1-2026-10-08.json` |
+| R1, run 2 | 12 | 8 | 66.7% | 39.1% | `recall-r1-run2-2026-10-08.json` |
+| R1, run 3 | 12 | 7 | 58.3% | 31.5% | `recall-r1-run3-2026-10-08.json` |
+| R1c | 14 | 13 | 92.9% | 70.3% | `recall-r1c-run1-2026-10-09.json` |
+
+Samples are small and the intervals are wide. The same 12 plants gave 8, 8 and 7 across three runs, so agent variance alone moves recall by one plant.
+
+**What the misses taught.** Of attempt 6's 14 false findings, 8 were apps open by design (no accounts, any visitor can edit records). That is a labeling question, not a detector bug, so I wrote a rule before any further attempt: a deployed app with no accounts where any visitor can read, change or delete other people's records is a real issue, unless it is a demo or has a single operator.
+
+**What is not published.** Per-repository labels, agent answers and code extracts from third-party repositories are withheld: they describe issues in other people's projects that were never reported upstream. Project names in comments, tests and commit messages are replaced by stand-ins such as `corpus-a`. Repository manifests (`docs/CORPUS*.json`), planted-bug definitions, thresholds and aggregate results are published.
+
+**Running the harness.** `npm run corpus:acquire` downloads the 7 pinned archives of `docs/CORPUS.json` (checked by SHA-256); `npm run corpus:evaluate` runs the deterministic pipeline offline and writes artifacts under `docs/evaluation/runs/`. With labels withheld it reports inventories and candidates, not precision. `SHIPLOCK_CORPUS=docs/CORPUS-8.json` selects another manifest. The math is in `lib/eval/` (`benchmark.ts`, `thresholdout.ts` for reusing a holdout without overfitting it, `plant.ts`).
 
 ## Use the hosted version
 
 1. Sign in at [shiplock.dev](https://shiplock.dev/auth) with GitHub, Google or email.
 2. Install the GitHub App [`shiplock-security`](https://github.com/apps/shiplock-security) on the repositories you choose. It asks for contents (read and write; writes only push a fix branch you asked for), pull requests and checks (write), and metadata (read).
-3. Pick a repository and click "Run the first audit". It runs in the background and shows its work as it goes; files it could not read are listed as not checked.
-4. Optional: create a token in Settings and connect your agent to the MCP endpoint `https://shiplock.dev/api/mcp/server` (streamable HTTP, bearer token). It exposes 10 tools: `list_findings`, `get_security_context`, `get_guardrails`, `get_fix`, `list_intelligence_tasks`, `get_intelligence_task`, `submit_intelligence_result`, `report_self_check`, `open_fix_pull_request`, `get_fix_pull_request`.
+3. Pick a repository and click "Run the first audit". It shows its work as it runs; files it could not read are listed as not checked.
+4. Optional: create a token in Settings and connect your agent to `https://shiplock.dev/api/mcp/server` (streamable HTTP, bearer token). Its 10 tools: `list_findings`, `get_security_context`, `get_guardrails`, `get_fix`, `list_intelligence_tasks`, `get_intelligence_task`, `submit_intelligence_result`, `report_self_check`, `open_fix_pull_request`, `get_fix_pull_request`.
 
 ## Run it yourself
 
@@ -66,7 +81,7 @@ cp .env.example .env.local   # then fill it in
 npm run dev                  # http://localhost:3000
 ```
 
-Checks (the same gate CI runs):
+The gate CI runs on every push:
 
 ```bash
 npm run lint
@@ -77,42 +92,34 @@ NEXT_PUBLIC_SUPABASE_URL=https://example.supabase.co NEXT_PUBLIC_SUPABASE_ANON_K
   SUPABASE_SERVICE_ROLE_KEY=dummy npm run build
 ```
 
-The tests and the build need no real services. Running audits does:
+Tests and the build need no real services. Running audits does:
 
 | Need | Variables | Notes |
 |---|---|---|
-| Supabase project | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | Apply `supabase/migrations/` in order. Enable the GitHub, Google or email auth providers you want and set the site URL |
-| App settings | `NEXT_PUBLIC_APP_URL`, `ENCRYPTION_KEY` (`openssl rand -base64 32`), `CRON_SECRET` | All required at startup (`lib/env.ts`) |
+| Supabase project | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | Apply `supabase/migrations/` in order; enable the auth providers you want and set the site URL |
+| App settings | `NEXT_PUBLIC_APP_URL`, `ENCRYPTION_KEY` (`openssl rand -base64 32`), `CRON_SECRET` | Required at startup (`lib/env.ts`) |
 | Email | `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | Required by the config schema; alert emails are switched off in code |
 | GitHub App | `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_SLUG`, `GITHUB_WEBHOOK_SECRET` | Setup URL `<app>/api/deep/github/callback`, webhook `<app>/api/monitor/github`, permissions as above |
-| Worker | `SHIPLOCK_BASE_URL`, `CRON_SECRET` | `npm run worker:audit` drains the queue from your machine. Or keep migration 094's `pg_cron` job, which needs `pg_net` and two Vault secrets, `shiplock_drain_url` and `shiplock_cron_secret` |
+| Worker | `SHIPLOCK_BASE_URL`, `CRON_SECRET` | `npm run worker:audit` drains the queue from your machine, or keep migration 094's `pg_cron` job (needs `pg_net` and the Vault secrets `shiplock_drain_url` and `shiplock_cron_secret`) |
 
-Optional: Supabase OAuth, Vercel integration, proof replica and Better Auth variables are listed in `lib/env.ts`, each with a comment on what happens when it is unset.
+Optional Supabase OAuth, Vercel integration, proof replica and Better Auth variables are listed in `lib/env.ts`, each with a comment on what happens when it is unset.
 
-Honest limits: production was migrated one release at a time. Building a fresh project from all 113 migrations has not been tested end to end, and `test-foundation-sql.mjs` covers selected migrations on a stub schema, not Supabase itself.
+Limits, stated plainly: production was migrated one release at a time, so building a fresh project from all 113 migrations has not been tested end to end, and `test-foundation-sql.mjs` covers selected migrations on a stub schema rather than Supabase itself.
 
-## Evaluation
+## Repository map
 
-Protocol (fixed in [AGENTS.md](AGENTS.md#benchmarks)): repository populations, prompts and thresholds are frozen before a run, labels are blind, and a zero denominator is reported as unavailable. Results are JSON in `docs/evaluation/`.
+| Path | Role |
+|---|---|
+| `app/(d)/` | Pages: landing, sign in, onboarding, dashboard, public `/verified/[token]` report |
+| `app/api/` | Audit enqueue, GitHub callback and webhook, jobs, MCP, fixes, traffic |
+| `lib/deep/`, `lib/graph/`, `lib/agent/` | Repository and provider checks, route facts, findings and guards |
+| `lib/intelligence/` | Tasks for the customer's agent and quoted-proof verification |
+| `lib/fixes/`, `lib/proving/`, `lib/jobs/` | Pull requests, replica proofs, the job queue |
+| `mcp/` | Local stdio MCP server (`shiplock-mcp`, not published to npm) |
+| `scripts/corpus.cjs`, `lib/eval/` | Evaluation harness |
+| `supabase/migrations/` | Schema and row level security |
 
-**Precision of findings that set the status.** Release attempt 6 ran on public Next.js repositories pinned in `docs/CORPUS-8.json`. 89 of the 103 findings that set a status were labeled true: 86.4%, one-sided 95% lower bound 79.6%. The status was judged on 40 repositories and was right on 33. The bar fixed beforehand (`docs/evaluation/thresholds-release-2026-10-14.json`) was 95% observed, a lower bound of at least 88%, and a correct status on at least 90% of repositories, so the attempt **failed**. Source: `docs/evaluation/runs/attempt6-2026-10/attempt6-gate-total.json`.
-
-The labelers were blind Claude subagents (two per finding, a third on a split), not people. That is the largest caveat on these numbers.
-
-**Recall on planted bugs.** Known vulnerabilities were planted into pinned public repositories, frozen before the run, and the customer agent (Claude Code subagents on the maintainer's subscription) ran blind:
-
-| Run | Planted | Caught | Recall | Lower 95% | File |
-|---|---:|---:|---:|---:|---|
-| R1, run 1 | 12 | 8 | 66.7% | 39.1% | `recall-r1-run1-2026-10-08.json` |
-| R1, run 2 | 12 | 8 | 66.7% | 39.1% | `recall-r1-run2-2026-10-08.json` |
-| R1, run 3 | 12 | 7 | 58.3% | 31.5% | `recall-r1-run3-2026-10-08.json` |
-| R1c | 14 | 13 | 92.9% | 70.3% | `recall-r1c-run1-2026-10-09.json` |
-
-Samples are small and the intervals are wide.
-
-**What is not here.** Per-repository labels, agent answers and code extracts from third-party repositories are withheld, because they describe issues in other people's projects that were never reported upstream. Project names in comments and tests are replaced by `corpus-a` to `corpus-f`. Repository manifests (`docs/CORPUS*.json`), planted-bug definitions, thresholds and aggregate results are published.
-
-**Running the harness.** `npm run corpus:acquire` downloads the 7 pinned archives of `docs/CORPUS.json` (checked by SHA-256); `npm run corpus:evaluate` then runs the deterministic pipeline offline and writes artifacts under `docs/evaluation/runs/`. With the labels withheld it reports inventories and candidates, not precision. Other manifests are selected with `SHIPLOCK_CORPUS=docs/CORPUS-8.json`.
+About 53,500 lines of TypeScript and JavaScript, 390 test files, 113 SQL migrations.
 
 ## License
 

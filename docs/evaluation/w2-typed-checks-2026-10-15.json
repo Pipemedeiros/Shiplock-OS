@@ -3,7 +3,7 @@
   "recordedAt": "2026-10-15",
   "population": "Release attempt 5's 58 verification tasks (CORPUS-8 61 to 300; development data since attempt 5 closed), reasoning answers unchanged, verification re-run by blind subagents with the W2 verifier brief; scored against attempt 5's existing labels (docs/evaluation/runs/attempt5-2026-10).",
   "codeUnderTest": "P3 (open by design), E5 (filler keys), W1, W3 and the W2 verifier: an effectHolds check (yes, no or unsure) and a 0 to 1 confidence on every verdict; a confirmed verdict whose effectHolds is no is not admitted.",
-  "withdrawn": "A first version also asked otherAccounts. On 3 of the first batches it moved corpus-r6's three findings (both labelers: real) to unverified because the app has a single operator. Removed and every batch re-run with the final brief.",
+  "withdrawn": "A first version also asked otherAccounts. On 3 of the first batches it moved one repository's three findings (both labelers: real) to unverified because the app has a single operator. Removed and every batch re-run with the final brief.",
   "labeledFindings": { "trueKept": 88, "falseKept": 4, "trueLost": 7, "falseDropped": 5, "keptPrecision": 0.957 },
   "attempt5Baseline": { "true": 95, "labeled": 104, "precision": 0.913 },
   "newUnlabeled": 12,
