@@ -4,6 +4,17 @@ ShipLock is a security harness for a startup without a security team. It reads t
 
 Live at [shiplock.dev](https://shiplock.dev), free, billing switched off. **It has no outside users.** The only account that has run the full loop is mine. The release precision bar I set was not met (see [Evaluation](#evaluation)).
 
+## At a glance
+
+| | |
+|---|---|
+| **What** | A multi-tenant SaaS that audits a startup's GitHub repository, joins it with live database and hosting configuration, and reproduces suspected data leaks on a sandboxed copy |
+| **Stack** | TypeScript, Next.js 16, React 19, Postgres on Supabase with row level security, PGlite (Postgres in WASM), MCP, Vitest, Vercel |
+| **Scale of the work** | June to November 2026, about 610 commits, 53,500 lines outside tests, 389 test files, 113 SQL migrations |
+| **Hard parts** | A durable job queue in Postgres with leases, fencing and bounded retries; route facts read from source without running it; a guard that admits an AI agent's claim only if its quoted code matches the file; proofs run in an isolated embedded database |
+| **Measured** | 86.4% precision on 103 status-setting findings across 40 public repositories; it missed the 95% bar I froze in advance, and both critical findings were false |
+| **Honest status** | Live and free, no outside users yet |
+
 **Contents:** [How I built it](#how-i-built-it) · [Decisions and why](#decisions-and-why) · [Architecture](#architecture) · [Evaluation](#evaluation) · [Reading the code](#reading-the-code) · [Running it](#running-it) · [Repository map](#repository-map)
 
 ## How I built it
@@ -118,7 +129,7 @@ The customer creates a token in Settings and points their agent at `https://ship
 
 The protocol is in [AGENTS.md](AGENTS.md#benchmarks): populations, prompts and thresholds are frozen before a run, labels are blind, and a zero denominator is reported as unavailable, not 100%. Results are JSON in `docs/evaluation/`.
 
-**Precision of findings that set the status.** Release attempt 6 ran on public Next.js repositories pinned in `docs/CORPUS-8.json`. 89 of the 103 findings that set a status were labeled true: 86.4%, one-sided 95% lower bound 79.6%. The status was judged on 40 repositories and was right on 33. Against the bar in `docs/evaluation/thresholds-release-2026-10-14.json`, the attempt **failed**. Source: `docs/evaluation/runs/attempt6-2026-10/attempt6-gate-total.json`.
+**Precision of findings that set the status.** Release attempt 6 ran on public Next.js repositories pinned in `docs/CORPUS-8.json`. 89 of the 103 findings that set a status were labeled true: 86.4%, one-sided 95% lower bound 79.6%. The status was judged on 40 repositories and was right on 33. Against the bar in `docs/evaluation/thresholds-release-2026-10-14.json`, the attempt **failed**. Both findings rated critical were false (two committed secret findings), so warnings carried the whole 89: 89 of 101 true, 88.1%. Source: `docs/evaluation/runs/attempt6-2026-10/attempt6-gate-total.json`.
 
 The labelers were blind Claude subagents (two per finding, a third on a split), not people. That is the largest caveat on these numbers.
 
