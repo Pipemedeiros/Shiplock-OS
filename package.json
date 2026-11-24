@@ -20,7 +20,7 @@
     "@supabase/supabase-js": "^2.108.2",
     "better-auth": "^1.6.23",
     "lucide-react": "^1.21.0",
-    "next": "16.4.2",
+    "next": "16.4.6",
     "pg": "^8.22.0",
     "posthog-js": "^1.392.0",
     "react": "19.2.4",
@@ -40,7 +40,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.4.2",
+    "eslint-config-next": "16.4.6",
     "shadcn": "^4.22.1",
     "tailwindcss": "^4",
     "vitest": "^4.1.10"
